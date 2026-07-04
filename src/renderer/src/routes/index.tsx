@@ -16,10 +16,12 @@ import {
 	Panel,
 	ReactFlow,
 	ReactFlowProvider,
+	useKeyPress,
 	useNodesState,
 	useReactFlow,
 } from "@xyflow/react";
-import { useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import type { WorkspaceNode } from "@main/store/workspace";
 import { Terminal } from "@renderer/components/Terminal";
 import { client, orpc } from "@renderer/lib/api";
@@ -227,6 +229,7 @@ function FrameNode({ data }: NodeProps<FrameFlowNode>) {
 
 function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 	const queryClient = useQueryClient();
+	const { resizing, ctx } = useResizing(id);
 
 	const invalidateList = () => {
 		queryClient.invalidateQueries({ queryKey: orpc.sessions.list.key() });
@@ -239,6 +242,7 @@ function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 	};
 
 	const onResizeEnd: OnResizeEnd = (_e, params) => {
+		ctx.endResize(id);
 		client.workspace.updateNode({
 			sessionId: id,
 			x: params.x,
@@ -254,6 +258,8 @@ function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 				minWidth={320}
 				minHeight={240}
 				color="#6b9233"
+				isVisible={resizing}
+				onResizeStart={(_e) => ctx.beginResize(id)}
 				onResizeEnd={onResizeEnd}
 			/>
 
@@ -298,6 +304,46 @@ function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 	);
 }
 
+type ResizeState = {
+	resizingFor: string | null;
+	beginResize: (nodeId: string) => void;
+	endResize: (nodeId: string) => void;
+};
+
+const ResizeContext = createContext<ResizeState>({
+	resizingFor: null,
+	beginResize: () => {},
+	endResize: () => {},
+});
+
+const useResizing = (nodeId: string) => {
+	const ctx = useContext(ResizeContext);
+	return { resizing: ctx.resizingFor === nodeId, ctx };
+};
+
+function ResizeProvider({
+	altKey,
+	hoveredId,
+	resizingId,
+	beginResize,
+	endResize,
+	children,
+}: {
+	altKey: boolean;
+	hoveredId: string | null;
+	resizingId: string | null;
+	beginResize: (nodeId: string) => void;
+	endResize: (nodeId: string) => void;
+	children: ReactNode;
+}) {
+	const resizingFor = resizingId ?? (altKey ? hoveredId : null);
+	return (
+		<ResizeContext.Provider value={{ resizingFor, beginResize, endResize }}>
+			{children}
+		</ResizeContext.Provider>
+	);
+}
+
 const nodeTypes = { session: SessionNode, frame: FrameNode };
 
 function Canvas() {
@@ -307,6 +353,13 @@ function Canvas() {
 
 	const list = useQuery(orpc.sessions.list.queryOptions());
 	const workspace = useQuery(orpc.workspace.get.queryOptions());
+
+	const altKey = useKeyPress("Alt");
+	const [hoveredId, setHoveredId] = useState<string | null>(null);
+	const [resizingId, setResizingId] = useState<string | null>(null);
+
+	const beginResize = (nodeId: string) => setResizingId(nodeId);
+	const endResize = (_nodeId: string) => setResizingId(null);
 
 	const [nodes, setNodes, onNodesChange] = useNodesState<SessionFlowNode>([]);
 	const [synced, setSynced] = useState<{
@@ -397,7 +450,14 @@ function Canvas() {
 
 	return (
 		<div ref={paneRef} className="h-screen w-screen">
-			<ReactFlow<FlowNode>
+			<ResizeProvider
+				altKey={altKey}
+				hoveredId={hoveredId}
+				resizingId={resizingId}
+				beginResize={beginResize}
+				endResize={endResize}
+			>
+				<ReactFlow<FlowNode>
 				nodes={flowNodes}
 				onNodesChange={onNodesChangeFlow}
 				nodeTypes={nodeTypes}
@@ -408,8 +468,10 @@ function Canvas() {
 				zoomOnScroll={false}
 				zoomOnPinch
 				panOnScroll={false}
-				onNodeDragStop={onNodeDragStop}
-				onMoveEnd={onMoveEnd}
+onNodeDragStop={onNodeDragStop}
+			onNodeMouseEnter={(_e, node) => setHoveredId(node.id)}
+			onNodeMouseLeave={() => setHoveredId(null)}
+			onMoveEnd={onMoveEnd}
 				proOptions={{ hideAttribution: true }}
 			>
 				<Background
@@ -469,6 +531,7 @@ function Canvas() {
 					</div>
 				)}
 			</ReactFlow>
+			</ResizeProvider>
 		</div>
 	);
 }

@@ -1,0 +1,28 @@
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+linux:
+  target:
+    - target: AppImage
+      arch: x64
+  category: Utility
+
+win:
+  target:
+    - target: nsis
+      arch: x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+publish:
+  provider: github
+  owner: juicerq
+  repo: project-j

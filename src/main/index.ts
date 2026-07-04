@@ -1,7 +1,9 @@
 import { join } from "node:path";
 import { setupAutoUpdate } from "@main/auto-update";
 import { startOrpcServer } from "@main/ipc";
+import { registerPtyStream } from "@main/ipc/pty";
 import { Logger } from "@main/logger";
+import { Sessions } from "@main/sessions/SessionSupervisor";
 import { type SettingsValue, Settings } from "@main/store/settings";
 import { app, BrowserWindow } from "electron";
 
@@ -78,16 +80,20 @@ async function createWindow() {
 	} else {
 		win.loadFile(join(here, "../renderer/index.html"));
 	}
+
+	return win;
 }
 
-await app.whenReady();
-startOrpcServer();
-setupAutoUpdate();
+app.on("ready", async () => {
+	startOrpcServer();
+	setupAutoUpdate();
 
-try {
-	await createWindow();
-} catch (err) {
-	Logger.error("createWindow:failed", { err: String(err) });
-}
+	try {
+		const win = await createWindow();
+		registerPtyStream(win, Sessions);
+	} catch (err) {
+		Logger.error("createWindow:failed", { err: String(err) });
+	}
+});
 
 app.on("window-all-closed", () => app.quit());

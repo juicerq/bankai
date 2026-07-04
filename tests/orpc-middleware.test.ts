@@ -38,7 +38,7 @@ describe("orpc error middleware", () => {
 	});
 
 	it("does not log when the handler resolves", async () => {
-		await testClient.todos.list();
+		await testClient.sessions.list();
 
 		if (!existsSync(logPath())) {
 			return;

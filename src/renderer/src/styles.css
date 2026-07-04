@@ -1,3 +1,53 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
+@theme {
+	--color-paper: #f4ecd6;
+	--color-panel: #ece2c4;
+	--color-ink: #33302a;
+	--color-ink-muted: #6e6450;
+	--color-slime: #6b9233;
+	--color-olive: #5a7d2c;
+	--color-danger: #b3412c;
+	--color-highlight: #c9bf9b;
+	--font-mono: "Maple Mono NF", ui-monospace, monospace;
+}
+
+.xterm-viewport {
+	scrollbar-width: none;
+}
+
+.xterm-viewport::-webkit-scrollbar {
+	display: none;
+}
+
+.react-flow {
+	--xy-background-color: transparent;
+}
+
+.react-flow__controls {
+	--xy-controls-button-background-color: var(--color-panel);
+	--xy-controls-button-background-color-hover: var(--color-highlight);
+	--xy-controls-button-color: var(--color-ink);
+	--xy-controls-button-color-hover: var(--color-ink);
+	--xy-controls-button-border-color: var(--color-highlight);
+}
+
+@utility book-canvas {
+	background-color: var(--color-paper);
+	background-image:
+		repeating-linear-gradient(
+			0deg,
+			rgba(51, 48, 42, 0.014) 0 1px,
+			transparent 1px 4px
+		),
+		radial-gradient(
+			130% 90% at 50% -20%,
+			rgba(107, 146, 51, 0.07),
+			transparent 55%
+		),
+		radial-gradient(
+			120% 120% at 100% 120%,
+			rgba(51, 48, 42, 0.05),
+			transparent 60%
+		);
+}

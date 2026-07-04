@@ -6,8 +6,10 @@
 		"src/preload/index.ts",
 		"src/renderer/src/main.tsx",
 		"src/renderer/src/routes/**/*.tsx",
+		"src/renderer/src/global.d.ts",
 		"electron.vite.config.ts",
 		"tests/**/*.test.ts"
 	],
-	"ignoreDependencies": ["oxlint", "oxlint-tsgolint", "tailwindcss"]
+	"ignoreDependencies": ["oxlint", "oxlint-tsgolint", "tailwindcss"],
+	"ignoreBinaries": ["which"]
 }

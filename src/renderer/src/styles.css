@@ -12,11 +12,13 @@
 	--font-mono: "Maple Mono NF", ui-monospace, monospace;
 }
 
-.xterm-viewport {
+.xterm-viewport,
+.react-flow__node {
 	scrollbar-width: none;
 }
 
-.xterm-viewport::-webkit-scrollbar {
+.xterm-viewport::-webkit-scrollbar,
+.react-flow__node ::-webkit-scrollbar {
 	display: none;
 }
 

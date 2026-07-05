@@ -24,11 +24,36 @@ export class SessionSupervisor {
 
 	create({ cwd }: { cwd: string }): string {
 		const sessionId = randomUUID();
+		this.spawnSession({ sessionId, cwd, resume: false });
+
+		return sessionId;
+	}
+
+	resume({ sessionId, cwd }: { sessionId: string; cwd: string }) {
+		if (this.sessions.has(sessionId)) {
+			return;
+		}
+
+		this.spawnSession({ sessionId, cwd, resume: true });
+	}
+
+	private spawnSession({
+		sessionId,
+		cwd,
+		resume,
+	}: {
+		sessionId: string;
+		cwd: string;
+		resume: boolean;
+	}) {
 		const settingsPath = this.writeHookSettings(sessionId);
+		const idArgs = resume
+			? ["--resume", sessionId]
+			: ["--session-id", sessionId];
 
 		const pty = spawn(
 			this.resolveClaude(),
-			["--session-id", sessionId, "--settings", settingsPath],
+			[...idArgs, "--settings", settingsPath],
 			{
 				name: "xterm-256color",
 				cols: 80,
@@ -49,8 +74,6 @@ export class SessionSupervisor {
 		});
 
 		this.sessions.set(sessionId, { pty, cwd, settingsPath, buffer: "" });
-
-		return sessionId;
 	}
 
 	private appendBuffer(sessionId: string, chunk: string) {

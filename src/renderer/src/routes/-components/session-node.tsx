@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
 	type NodeProps,
@@ -37,6 +37,10 @@ export function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 		queryClient.invalidateQueries({ queryKey: orpc.sessions.list.key() });
 	};
 
+	const resume = useMutation(
+		orpc.sessions.resume.mutationOptions({ onSuccess: invalidateList }),
+	);
+
 	const onKill = async () => {
 		await client.sessions.kill({ sessionId: id });
 		await client.workspace.removeNode({ sessionId: id });
@@ -73,12 +77,20 @@ export function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 				</div>
 
 				<div className="flex shrink-0 items-center gap-2">
-					<span
-						className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[11px] ${style.pill}`}
-					>
-						<span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
-						{style.label}
-					</span>
+					{data.alive && (
+						<span
+							className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[11px] ${style.pill}`}
+						>
+							<span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+							{style.label}
+						</span>
+					)}
+					{!data.alive && (
+						<span className="flex items-center gap-1.5 rounded-full bg-ink/5 px-2 py-0.5 font-mono text-[11px] text-ink-muted">
+							<span className="h-1.5 w-1.5 rounded-full bg-ink-muted/50" />
+							parada
+						</span>
+					)}
 
 					{unreviewedCount > 0 && (
 						<span
@@ -119,7 +131,28 @@ export function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 			</header>
 
 			<div className="nodrag nopan nowheel min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-ink/10 bg-paper p-2">
-				<Terminal sessionId={id} zoom={zoom} onExit={invalidateList} />
+				{data.alive && (
+					<Terminal sessionId={id} zoom={zoom} onExit={invalidateList} />
+				)}
+				{!data.alive && (
+					<div className="flex h-full w-full flex-col items-center justify-center gap-3 text-center">
+						<p className="font-mono text-xs text-ink-muted">sessão parada</p>
+						<button
+							type="button"
+							onClick={() => resume.mutate({ sessionId: id })}
+							disabled={resume.isPending}
+							className="rounded-lg border border-olive/30 bg-olive/10 px-3 py-1.5 font-mono text-xs text-olive transition-colors hover:bg-olive/20 focus-visible:ring-2 focus-visible:ring-olive focus-visible:outline-none disabled:opacity-50"
+						>
+							{resume.isPending && "retomando..."}
+							{!resume.isPending && "retomar"}
+						</button>
+						{resume.isError && (
+							<p className="font-mono text-[11px] text-danger">
+								falha ao retomar
+							</p>
+						)}
+					</div>
+				)}
 			</div>
 		</div>
 	);

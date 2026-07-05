@@ -6,7 +6,7 @@ import { backfillTurns } from "@main/review/TranscriptBackfill";
 export const reviewRouter = {
 	getTurns: base
 		.input(type({ sessionId: "string > 0" }))
-		.handler(async ({ input }) => {
+		.handler(({ input }) => {
 			// Hooks are primary (D5): only fall back to the on-disk transcript for a session
 			// that produced no live events — one that predates the app or ran without our hooks.
 			const live = Review.getTurns(input.sessionId);

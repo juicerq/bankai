@@ -1,8 +1,11 @@
 import { join } from "node:path";
 import { setupAutoUpdate } from "@main/auto-update";
+import { Hooks } from "@main/hooks/HookGateway";
 import { startOrpcServer } from "@main/ipc";
 import { registerPtyStream } from "@main/ipc/pty";
+import { registerReviewStream } from "@main/ipc/review";
 import { Logger } from "@main/logger";
+import { Review } from "@main/review/ReviewModel";
 import { Sessions } from "@main/sessions/SessionSupervisor";
 import { type SettingsValue, Settings } from "@main/store/settings";
 import { app, BrowserWindow } from "electron";
@@ -88,9 +91,13 @@ app.on("ready", async () => {
 	startOrpcServer();
 	setupAutoUpdate();
 
+	await Hooks.start();
+	Hooks.onEvent((event) => Review.apply(event));
+
 	try {
 		const win = await createWindow();
 		registerPtyStream(win, Sessions);
+		registerReviewStream(win, Review);
 	} catch (err) {
 		Logger.error("createWindow:failed", { err: String(err) });
 	}

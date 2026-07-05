@@ -175,3 +175,5 @@ export class HookGateway {
 		});
 	}
 }
+
+export const Hooks = new HookGateway();

@@ -8,6 +8,11 @@ import {
 	type PtyData,
 	type PtyExit,
 } from "@shared/pty";
+import {
+	REVIEW_CHANGED,
+	type ReviewBridge,
+	type ReviewChanged,
+} from "@shared/review";
 
 window.addEventListener("message", (event) => {
 	if (event.source !== window) return;
@@ -78,3 +83,22 @@ const bridge: PtyBridge = {
 };
 
 contextBridge.exposeInMainWorld("pty", bridge);
+
+const reviewCallbacks = new Set<(sessionId: string) => void>();
+
+ipcRenderer.on(REVIEW_CHANGED, (_e, msg: ReviewChanged) => {
+	for (const cb of reviewCallbacks) {
+		cb(msg.sessionId);
+	}
+});
+
+const reviewBridge: ReviewBridge = {
+	onChanged: (cb) => {
+		reviewCallbacks.add(cb);
+		return () => {
+			reviewCallbacks.delete(cb);
+		};
+	},
+};
+
+contextBridge.exposeInMainWorld("review", reviewBridge);

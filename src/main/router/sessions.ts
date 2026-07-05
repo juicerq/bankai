@@ -15,6 +15,9 @@ export const sessionsRouter = {
 		return null;
 	}),
 	list: base.handler(() => Sessions.list()),
+	getBuffer: base
+		.input(type({ sessionId: "string > 0" }))
+		.handler(({ input }) => Sessions.getBuffer(input.sessionId)),
 	pickCwd: base.handler(async () => {
 		const r = await dialog.showOpenDialog({ properties: ["openDirectory"] });
 		const path = r.filePaths[0];

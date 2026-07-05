@@ -13,7 +13,7 @@ type FileDiff = {
 	lines: DiffLine[];
 };
 
-type Turn = {
+export type Turn = {
 	turnId: string;
 	prompt: string;
 	files: FileDiff[];

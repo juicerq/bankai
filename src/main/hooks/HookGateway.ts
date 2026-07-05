@@ -31,6 +31,9 @@ export type HookEvent = {
 	toolName?: string;
 	filePath?: string;
 	content?: string;
+	oldString?: string;
+	newString?: string;
+	replaceAll?: boolean;
 	message?: string;
 	raw: unknown;
 };
@@ -58,7 +61,10 @@ function normalize(
 		prompt: str(p.prompt),
 		toolName: str(p.tool_name),
 		filePath: str(input.file_path),
-		content: str(input.content) ?? str(input.new_string),
+		content: str(input.content),
+		oldString: str(input.old_string),
+		newString: str(input.new_string),
+		replaceAll: input.replace_all === true,
 		message: str(p.message),
 		raw: payload,
 	};

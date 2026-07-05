@@ -61,4 +61,39 @@ describe("filesForMode", () => {
 		expect(filesForMode(turns, 9, "turn")).toEqual([]);
 		expect(filesForMode([], 0, "accumulated")).toEqual([]);
 	});
+
+	it("accumulated promotes any session-introduced line to add, keeping pre-existing as context", () => {
+		const annotated: Turn[] = [
+			{
+				turnId: "s:0",
+				prompt: "p0",
+				files: [{ path: "/f.ts", lines: [line("s:0", "/f.ts", 1, "a")] }],
+			},
+			{
+				turnId: "s:1",
+				prompt: "p1",
+				files: [
+					{
+						path: "/f.ts",
+						lines: [
+							{ turnId: "", path: "/f.ts", line: 1, kind: "context", text: "pre" },
+							{ turnId: "s:0", path: "/f.ts", line: 2, kind: "context", text: "a" },
+							{ turnId: "s:1", path: "/f.ts", line: 3, kind: "add", text: "b" },
+						],
+					},
+				],
+			},
+		];
+
+		const acc = filesForMode(annotated, 1, "accumulated")[0]?.lines.map((l) => [
+			l.kind,
+			l.turnId,
+		]);
+		expect(acc).toEqual([
+			["context", ""],
+			["add", "s:0"],
+			["add", "s:1"],
+		]);
+		expect(filesForMode(annotated, 1, "turn")[0]?.lines[1]?.kind).toBe("context");
+	});
 });

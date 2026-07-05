@@ -47,6 +47,7 @@
 		"@xyflow/react": "^12.11.1",
 		"arktype": "^2.2.0",
 		"electron-updater": "^6.8.3",
+		"highlight.js": "^11.11.1",
 		"lucide-react": "^1.23.0",
 		"react": "^19.2.5",
 		"react-dom": "^19.2.5"

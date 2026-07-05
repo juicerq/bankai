@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import {
 	type NodeProps,
 	NodeResizer,
@@ -73,14 +74,14 @@ export function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 						{style.label}
 					</span>
 
-					<button
-						type="button"
-						disabled
-						title="em breve"
-						className="nodrag cursor-not-allowed rounded-lg border border-ink/15 px-2 py-0.5 font-mono text-xs text-ink-muted opacity-50"
+					<Link
+						to="/review/$sessionId"
+						params={{ sessionId: id }}
+						title="revisar diffs da sessão"
+						className="nodrag rounded-lg border border-ink/15 px-2 py-0.5 font-mono text-xs text-ink-muted transition-colors hover:bg-ink/5 hover:text-ink focus-visible:ring-2 focus-visible:ring-ink focus-visible:outline-none"
 					>
 						ver diff
-					</button>
+					</Link>
 
 					<button
 						type="button"

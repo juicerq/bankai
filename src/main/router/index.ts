@@ -1,3 +1,4 @@
+import { flagsRouter } from "@main/router/flags";
 import { loggerRouter } from "@main/router/logger";
 import { reviewRouter } from "@main/router/review";
 import { reviewStateRouter } from "@main/router/review-state";
@@ -12,6 +13,7 @@ export const router = {
 	workspace: workspaceRouter,
 	review: reviewRouter,
 	reviewState: reviewStateRouter,
+	flags: flagsRouter,
 };
 
 export type Router = typeof router;

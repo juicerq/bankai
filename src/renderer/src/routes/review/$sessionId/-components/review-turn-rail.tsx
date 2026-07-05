@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { useReview } from "../-utils/review-context";
 
 function firstLine(prompt: string): string {
@@ -7,21 +8,25 @@ function firstLine(prompt: string): string {
 }
 
 export function ReviewTurnRail() {
-	const { turns, selectedIndex, selectTurn } = useReview();
+	const { turns, selectedIndex, selectTurn, reviewed } = useReview();
 	const turnsLabel = turns.length === 1 ? "turno" : "turnos";
+	const unreviewed = turns.filter((t) => !reviewed.has(t.turnId)).length;
+	const progress =
+		unreviewed > 0 ? `${unreviewed} não revisados` : "tudo revisado";
 
 	return (
 		<nav className="flex w-64 shrink-0 flex-col border-ink/10 border-r bg-panel">
 			<header className="shrink-0 border-ink/10 border-b px-4 py-3">
 				<h2 className="font-serif text-ink text-sm">turnos</h2>
 				<p className="font-mono text-[11px] text-ink-muted">
-					{turns.length} {turnsLabel}
+					{turns.length} {turnsLabel} · {progress}
 				</p>
 			</header>
 
 			<ol className="min-h-0 flex-1 overflow-y-auto py-1">
 				{turns.map((turn, index) => {
 					const active = index === selectedIndex;
+					const isReviewed = reviewed.has(turn.turnId);
 					const fileCount = turn.files.length;
 					const filesLabel = fileCount === 1 ? "arquivo" : "arquivos";
 
@@ -34,7 +39,7 @@ export function ReviewTurnRail() {
 									active
 										? "border-olive bg-olive/10"
 										: "border-transparent hover:bg-ink/[0.04]"
-								}`}
+								} ${isReviewed ? "opacity-55" : ""}`}
 							>
 								<div className="flex items-baseline justify-between gap-2">
 									<span
@@ -42,9 +47,17 @@ export function ReviewTurnRail() {
 									>
 										#{index + 1}
 									</span>
-									<span className="font-mono text-[10px] text-ink-muted">
-										{fileCount} {filesLabel}
-									</span>
+									{isReviewed && (
+										<span className="flex items-center gap-1 font-mono text-[10px] text-olive">
+											<Check size={11} strokeWidth={2} />
+											revisado
+										</span>
+									)}
+									{!isReviewed && (
+										<span className="font-mono text-[10px] text-ink-muted">
+											{fileCount} {filesLabel}
+										</span>
+									)}
 								</div>
 								<span className="truncate font-mono text-[12px] text-ink">
 									{firstLine(turn.prompt)}

@@ -20,6 +20,9 @@ export function useReviewInvalidation() {
 			queryClient.invalidateQueries({
 				queryKey: orpc.review.status.key({ input: { sessionId } }),
 			});
+			queryClient.invalidateQueries({
+				queryKey: orpc.review.unreviewedCount.key({ input: { sessionId } }),
+			});
 		});
 	}, [queryClient]);
 }

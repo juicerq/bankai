@@ -1,12 +1,14 @@
-import { FileX } from "lucide-react";
+import { Check, FileX } from "lucide-react";
 import { filesForMode } from "../-utils/accumulate";
 import { useReview } from "../-utils/review-context";
 import { ReviewFileDiff } from "./review-file-diff";
 import { ReviewModeToggle } from "./review-mode-toggle";
 
 export function ReviewDiffPanel() {
-	const { turns, selectedIndex, mode } = useReview();
+	const { turns, selectedIndex, mode, reviewed, toggleReviewed } = useReview();
 	const turn = turns[selectedIndex];
+	const isReviewed = turn ? reviewed.has(turn.turnId) : false;
+	const reviewLabel = isReviewed ? "revisado" : "marcar revisado";
 	const files = filesForMode(turns, selectedIndex, mode);
 
 	return (
@@ -20,7 +22,23 @@ export function ReviewDiffPanel() {
 						{turn?.prompt.split("\n")[0]?.trim() || "(sem prompt)"}
 					</p>
 				</div>
-				<ReviewModeToggle />
+				<div className="flex shrink-0 items-center gap-2">
+					{turn && (
+						<button
+							type="button"
+							onClick={() => toggleReviewed(turn.turnId)}
+							className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-mono text-[11px] transition-colors focus-visible:ring-2 focus-visible:ring-olive focus-visible:outline-none ${
+								isReviewed
+									? "border-olive/30 bg-olive/15 text-olive"
+									: "border-ink/15 text-ink-muted hover:bg-ink/5 hover:text-ink"
+							}`}
+						>
+							<Check size={13} strokeWidth={2} />
+							{reviewLabel}
+						</button>
+					)}
+					<ReviewModeToggle />
+				</div>
 			</header>
 
 			<div className="min-h-0 flex-1 overflow-y-auto">

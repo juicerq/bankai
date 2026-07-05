@@ -5,6 +5,7 @@ import {
 	NodeResizer,
 	type OnResizeEnd,
 } from "@xyflow/react";
+import { Check } from "lucide-react";
 import { useContext } from "react";
 import { Terminal } from "@renderer/components/terminal";
 import { client, orpc } from "@renderer/lib/api";
@@ -25,7 +26,12 @@ export function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 	const status = useQuery(
 		orpc.review.status.queryOptions({ input: { sessionId: id } }),
 	);
-	const style = STATUS_STYLE[status.data ?? "idle"];
+	const unreviewed = useQuery(
+		orpc.review.unreviewedCount.queryOptions({ input: { sessionId: id } }),
+	);
+	const statusValue = status.data ?? "idle";
+	const style = STATUS_STYLE[statusValue];
+	const unreviewedCount = unreviewed.data ?? 0;
 
 	const invalidateList = () => {
 		queryClient.invalidateQueries({ queryKey: orpc.sessions.list.key() });
@@ -73,6 +79,24 @@ export function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 						<span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
 						{style.label}
 					</span>
+
+					{unreviewedCount > 0 && (
+						<span
+							title={`${unreviewedCount} turnos não revisados`}
+							className="flex items-center gap-1 font-mono text-[11px] text-ink-muted"
+						>
+							<span className="h-1.5 w-1.5 rounded-full bg-amber" />
+							{unreviewedCount}
+						</span>
+					)}
+					{unreviewedCount === 0 && statusValue === "idle" && (
+						<Check
+							size={13}
+							strokeWidth={2}
+							className="text-olive/60"
+							aria-label="tudo revisado"
+						/>
+					)}
 
 					<Link
 						to="/review/$sessionId"

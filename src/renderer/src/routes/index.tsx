@@ -306,39 +306,41 @@ function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 
 type ResizeState = {
 	resizingFor: string | null;
+	resizingAll: boolean;
 	beginResize: (nodeId: string) => void;
 	endResize: (nodeId: string) => void;
 };
 
 const ResizeContext = createContext<ResizeState>({
 	resizingFor: null,
+	resizingAll: false,
 	beginResize: () => {},
 	endResize: () => {},
 });
 
 const useResizing = (nodeId: string) => {
 	const ctx = useContext(ResizeContext);
-	return { resizing: ctx.resizingFor === nodeId, ctx };
+	return { resizing: ctx.resizingFor === nodeId || ctx.resizingAll, ctx };
 };
 
 function ResizeProvider({
 	altKey,
-	hoveredId,
 	resizingId,
 	beginResize,
 	endResize,
 	children,
 }: {
 	altKey: boolean;
-	hoveredId: string | null;
 	resizingId: string | null;
 	beginResize: (nodeId: string) => void;
 	endResize: (nodeId: string) => void;
 	children: ReactNode;
 }) {
-	const resizingFor = resizingId ?? (altKey ? hoveredId : null);
+	const resizingAll = !resizingId && altKey;
 	return (
-		<ResizeContext.Provider value={{ resizingFor, beginResize, endResize }}>
+		<ResizeContext.Provider
+			value={{ resizingFor: resizingId, resizingAll, beginResize, endResize }}
+		>
 			{children}
 		</ResizeContext.Provider>
 	);
@@ -355,7 +357,6 @@ function Canvas() {
 	const workspace = useQuery(orpc.workspace.get.queryOptions());
 
 	const altKey = useKeyPress("Alt");
-	const [hoveredId, setHoveredId] = useState<string | null>(null);
 	const [resizingId, setResizingId] = useState<string | null>(null);
 
 	const beginResize = (nodeId: string) => setResizingId(nodeId);
@@ -452,7 +453,6 @@ function Canvas() {
 		<div ref={paneRef} className="h-screen w-screen">
 			<ResizeProvider
 				altKey={altKey}
-				hoveredId={hoveredId}
 				resizingId={resizingId}
 				beginResize={beginResize}
 				endResize={endResize}
@@ -462,17 +462,16 @@ function Canvas() {
 				onNodesChange={onNodesChangeFlow}
 				nodeTypes={nodeTypes}
 				defaultViewport={workspace.data.viewport}
-				minZoom={0.3}
-				maxZoom={1}
-				colorMode="light"
-				zoomOnScroll={false}
-				zoomOnPinch
-				panOnScroll={false}
+			minZoom={0.3}
+			maxZoom={1}
+			colorMode="light"
+			zoomOnScroll={false}
+			zoomOnPinch
+			panOnScroll={false}
+			deleteKeyCode={null}
 onNodeDragStop={onNodeDragStop}
-			onNodeMouseEnter={(_e, node) => setHoveredId(node.id)}
-			onNodeMouseLeave={() => setHoveredId(null)}
-			onMoveEnd={onMoveEnd}
-				proOptions={{ hideAttribution: true }}
+		onMoveEnd={onMoveEnd}
+			proOptions={{ hideAttribution: true }}
 			>
 				<Background
 					variant={BackgroundVariant.Dots}

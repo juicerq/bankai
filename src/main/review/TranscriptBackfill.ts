@@ -1,4 +1,4 @@
-import { glob, readFile } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { HookEvent } from "@main/hooks/HookGateway";
@@ -95,15 +95,28 @@ function projectsDir(): string {
 	return join(homedir(), ".claude", "projects");
 }
 
-// The session UUID is globally unique (D9), so a single glob finds the transcript without
-// replicating the cwd-escaping rule. Guard the id so a malformed value can't traverse out.
+// The session UUID is globally unique (D9), so scanning the project dirs finds the
+// transcript without replicating the cwd-escaping rule. fs.promises.glob needs Node >= 22
+// (Electron's runtime lacks it), so this walks with readdir. Guard the id so a malformed
+// value can't traverse out.
 async function locate(sessionId: string, dir: string): Promise<string | null> {
 	if (!/^[\w-]+$/.test(sessionId)) {
 		return null;
 	}
 
-	for await (const match of glob(`*/${sessionId}.jsonl`, { cwd: dir })) {
-		return join(dir, match);
+	for (const entry of await readdir(dir, { withFileTypes: true })) {
+		if (!entry.isDirectory()) {
+			continue;
+		}
+
+		const candidate = join(dir, entry.name, `${sessionId}.jsonl`);
+		const found = await access(candidate).then(
+			() => true,
+			() => false,
+		);
+		if (found) {
+			return candidate;
+		}
 	}
 
 	return null;

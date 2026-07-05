@@ -8,6 +8,7 @@
 	--color-slime: #6b9233;
 	--color-olive: #5a7d2c;
 	--color-danger: #b3412c;
+	--color-amber: #b1802a;
 	--color-highlight: #c9bf9b;
 	--font-mono: "Maple Mono NF", ui-monospace, monospace;
 }
@@ -24,14 +25,6 @@
 
 .react-flow {
 	--xy-background-color: transparent;
-}
-
-.react-flow__controls {
-	--xy-controls-button-background-color: var(--color-panel);
-	--xy-controls-button-background-color-hover: var(--color-highlight);
-	--xy-controls-button-color: var(--color-ink);
-	--xy-controls-button-color-hover: var(--color-ink);
-	--xy-controls-button-border-color: var(--color-highlight);
 }
 
 @utility book-canvas {

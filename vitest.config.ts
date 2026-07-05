@@ -10,5 +10,6 @@ export default defineConfig({
 	},
 	test: {
 		setupFiles: ["./tests/setup.ts"],
+		exclude: ["**/node_modules/**", ".claude/**"],
 	},
 });

@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	Background,
 	BackgroundVariant,
-	Controls,
 	type NodeChange,
 	type OnMoveEnd,
 	type OnNodeDrag,
@@ -13,6 +12,7 @@ import {
 	useNodesState,
 	useReactFlow,
 } from "@xyflow/react";
+import { Terminal } from "lucide-react";
 import { useRef, useState } from "react";
 import { client, orpc } from "@renderer/lib/api";
 import { DEFAULT_HEIGHT, DEFAULT_WIDTH } from "../-utils/constants";
@@ -167,15 +167,26 @@ onNodeDragStop={onNodeDragStop}
 					color="#c9bf9b"
 				/>
 
-				<Controls showInteractive={false} />
-
 				<CanvasToolbar onNewSession={onNewSession} creating={creating} />
 
 				{nodes.length === 0 && (
-					<div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+					<div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-4">
+						<Terminal
+							size={40}
+							strokeWidth={1}
+							className="text-olive/40"
+						/>
 						<p className="font-mono text-sm text-ink-muted">
-							Nenhuma sessão. Clique em Nova sessão.
+							nenhuma sessão por aqui
 						</p>
+						<button
+							type="button"
+							onClick={onNewSession}
+							disabled={creating}
+							className="pointer-events-auto rounded-lg border border-dashed border-ink/25 px-3 py-1.5 font-mono text-xs text-ink-muted transition-colors hover:bg-ink/5 hover:text-ink focus-visible:ring-2 focus-visible:ring-ink focus-visible:outline-none disabled:opacity-50"
+						>
+							+ nova sessão
+						</button>
 					</div>
 				)}
 			</ReactFlow>

@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	type NodeProps,
 	NodeResizer,
@@ -7,14 +7,24 @@ import {
 import { useContext } from "react";
 import { Terminal } from "@renderer/components/terminal";
 import { client, orpc } from "@renderer/lib/api";
-import { basename, type SessionFlowNode } from "../-utils/flow-nodes";
+import type { SessionFlowNode } from "../-utils/flow-nodes";
 import { useResizing } from "../-utils/resize-context";
 import { SettledZoomContext } from "../-utils/settled-zoom-context";
+
+const STATUS_STYLE = {
+	idle: { label: "ocioso", pill: "bg-olive/10 text-olive", dot: "bg-slime" },
+	generating: { label: "gerando", pill: "bg-amber/10 text-amber", dot: "bg-amber" },
+	blocked: { label: "bloqueado", pill: "bg-danger/10 text-danger", dot: "bg-danger" },
+} as const;
 
 export function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 	const queryClient = useQueryClient();
 	const { resizing, ctx } = useResizing(id);
 	const zoom = useContext(SettledZoomContext);
+	const status = useQuery(
+		orpc.review.status.queryOptions({ input: { sessionId: id } }),
+	);
+	const style = STATUS_STYLE[status.data ?? "idle"];
 
 	const invalidateList = () => {
 		queryClient.invalidateQueries({ queryKey: orpc.sessions.list.key() });
@@ -50,33 +60,33 @@ export function SessionNode({ id, data }: NodeProps<SessionFlowNode>) {
 
 			<header className="session-drag-handle flex cursor-grab items-center justify-between gap-3 rounded-t-xl bg-panel px-4 py-2.5 active:cursor-grabbing">
 				<div className="min-w-0">
-					<h2 className="truncate text-base font-semibold text-ink">
-						{basename(data.cwd)}
-					</h2>
 					<p className="truncate font-mono text-[11px] text-ink-muted">
 						{data.cwd}
 					</p>
 				</div>
 
 				<div className="flex shrink-0 items-center gap-2">
-					<span className="flex items-center gap-1.5 font-mono text-[10px] tracking-wide text-ink-muted">
-						<span className="h-2 w-2 rounded-full bg-slime" />
-						idle
+					<span
+						className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[11px] ${style.pill}`}
+					>
+						<span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+						{style.label}
 					</span>
 
 					<button
 						type="button"
 						disabled
 						title="em breve"
-						className="nodrag rounded-lg px-2.5 py-1 font-mono text-xs text-ink-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+						className="nodrag cursor-not-allowed rounded-lg border border-ink/15 px-2 py-0.5 font-mono text-xs text-ink-muted opacity-50"
 					>
-						Ver diff
+						ver diff
 					</button>
 
 					<button
 						type="button"
 						onClick={onKill}
-						className="nodrag rounded-lg px-2.5 py-1 font-mono text-xs text-ink-muted transition-colors hover:bg-danger hover:text-paper focus-visible:ring-2 focus-visible:ring-danger focus-visible:outline-none"
+						title="encerrar sessão"
+						className="nodrag rounded-lg border border-danger/20 px-2 py-0.5 font-mono text-xs text-danger/80 transition-colors hover:bg-danger/10 focus-visible:ring-2 focus-visible:ring-danger focus-visible:outline-none"
 					>
 						encerrar
 					</button>

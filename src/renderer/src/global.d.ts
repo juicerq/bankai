@@ -4,6 +4,6 @@ import type { ReviewBridge } from "@shared/review";
 declare global {
 	interface Window {
 		pty: PtyBridge;
-		review: ReviewBridge;
+		review?: ReviewBridge;
 	}
 }

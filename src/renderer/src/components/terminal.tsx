@@ -4,16 +4,21 @@ import { Terminal as XTerm } from "@xterm/xterm";
 import { useEffect, useRef } from "react";
 import { bookTerminalTheme } from "@renderer/constants/book-theme";
 
-type TerminalProps = { sessionId: string; onExit?: () => void };
+type TerminalProps = { sessionId: string; zoom: number; onExit?: () => void };
 
 const FONT_FAMILY = '"Maple Mono NF", monospace';
 const FONT_SIZE = 13;
+const FLOW_SIZE_EPSILON = 2;
 
-export function Terminal({ sessionId, onExit }: TerminalProps) {
+export function Terminal({ sessionId, zoom, onExit }: TerminalProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const onExitRef = useRef(onExit);
 	onExitRef.current = onExit;
+	const zoomRef = useRef(zoom);
+	zoomRef.current = zoom;
+	const terminalRef = useRef<XTerm | null>(null);
 
+	// Integração imperativa com o xterm (exceção legítima de useEffect).
 	useEffect(() => {
 		const container = containerRef.current;
 
@@ -24,20 +29,36 @@ export function Terminal({ sessionId, onExit }: TerminalProps) {
 		const terminal = new XTerm({
 			theme: bookTerminalTheme,
 			fontFamily: FONT_FAMILY,
-			fontSize: FONT_SIZE,
+			fontSize: FONT_SIZE * zoomRef.current,
 			cursorBlink: false,
 			convertEol: false,
 		});
+		terminalRef.current = terminal;
 
 		const fitAddon = new FitAddon();
 		terminal.loadAddon(fitAddon);
 		terminal.open(container);
+
+		let lastFlow = { width: 0, height: 0 };
 
 		const fit = () => {
 			if (container.clientWidth === 0 || container.clientHeight === 0) {
 				return;
 			}
 
+			const flow = {
+				width: container.clientWidth / zoomRef.current,
+				height: container.clientHeight / zoomRef.current,
+			};
+
+			if (
+				Math.abs(flow.width - lastFlow.width) < FLOW_SIZE_EPSILON &&
+				Math.abs(flow.height - lastFlow.height) < FLOW_SIZE_EPSILON
+			) {
+				return;
+			}
+
+			lastFlow = flow;
 			fitAddon.fit();
 			window.pty.resize(sessionId, terminal.cols, terminal.rows);
 		};
@@ -64,8 +85,32 @@ export function Terminal({ sessionId, onExit }: TerminalProps) {
 			inputDisposable.dispose();
 			observer.disconnect();
 			terminal.dispose();
+			terminalRef.current = null;
 		};
 	}, [sessionId]);
 
-	return <div ref={containerRef} className="h-full w-full" />;
+	// fontSize segue o zoom assentado; integração imperativa com o xterm (ADR 0002).
+	useEffect(() => {
+		const terminal = terminalRef.current;
+
+		if (!terminal) {
+			return;
+		}
+
+		terminal.options.fontSize = FONT_SIZE * zoom;
+	}, [zoom]);
+
+	return (
+		<div className="h-full w-full overflow-hidden">
+			<div
+				ref={containerRef}
+				className="origin-top-left"
+				style={{
+					width: `${zoom * 100}%`,
+					height: `${zoom * 100}%`,
+					transform: `scale(${1 / zoom})`,
+				}}
+			/>
+		</div>
+	);
 }

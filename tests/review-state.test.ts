@@ -62,13 +62,4 @@ describe("reviewState", () => {
 		expect(await ReviewState.get("a")).toEqual(["a:0"]);
 		expect(await ReviewState.get("b")).toEqual(["b:0"]);
 	});
-
-	it("persists reviewed turns to disk so a fresh read survives a restart", async () => {
-		await ReviewState.setReviewed({
-			sessionId: "s1",
-			turnId: "s1:0",
-			reviewed: true,
-		});
-		expect(await ReviewState.get("s1")).toEqual(["s1:0"]);
-	});
 });

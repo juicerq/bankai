@@ -12,8 +12,17 @@ function ev(
 const write = (filePath: string, content: string) =>
 	ev("PostToolUse", { toolName: "Write", filePath, content });
 
-const edit = (filePath: string, newString: string) =>
-	ev("PostToolUse", { toolName: "Edit", filePath, content: newString });
+const edit = (
+	filePath: string,
+	opts: { old?: string; new: string; replaceAll?: boolean },
+) =>
+	ev("PostToolUse", {
+		toolName: "Edit",
+		filePath,
+		oldString: opts.old,
+		newString: opts.new,
+		replaceAll: opts.replaceAll,
+	});
 
 function feed(model: ReviewModel, events: HookEvent[]) {
 	for (const event of events) {
@@ -27,7 +36,7 @@ describe("ReviewModel", () => {
 		feed(model, [
 			ev("UserPromptSubmit", { prompt: "add a and b" }),
 			write("/a.ts", "one\ntwo"),
-			edit("/b.ts", "changed"),
+			edit("/b.ts", { new: "changed" }),
 			ev("Stop"),
 		]);
 
@@ -52,21 +61,72 @@ describe("ReviewModel", () => {
 		]);
 	});
 
-	it("groups repeated edits to the same file into one file diff", () => {
+	it("a later Write that rewrites a file keeps prior lines as context, only new ones as add", () => {
 		const model = new ReviewModel();
 		feed(model, [
-			ev("UserPromptSubmit", { prompt: "p" }),
-			edit("/a.ts", "first"),
-			edit("/a.ts", "second"),
+			ev("UserPromptSubmit", { prompt: "soma" }),
+			write("/calc.ts", "soma a\nsoma b"),
+			ev("Stop"),
+			ev("UserPromptSubmit", { prompt: "multiplica" }),
+			write("/calc.ts", "soma a\nsoma b\nmult a\nmult b"),
 			ev("Stop"),
 		]);
 
-		const file = model.getTurns("s")[0]?.files;
-		expect(file).toHaveLength(1);
-		expect(file?.[0]?.lines.map((l) => [l.line, l.text])).toEqual([
-			[1, "first"],
-			[2, "second"],
+		expect(model.getTurns("s")[1]?.files[0]?.lines).toEqual([
+			{ turnId: "s:0", path: "/calc.ts", line: 1, kind: "context", text: "soma a" },
+			{ turnId: "s:0", path: "/calc.ts", line: 2, kind: "context", text: "soma b" },
+			{ turnId: "s:1", path: "/calc.ts", line: 3, kind: "add", text: "mult a" },
+			{ turnId: "s:1", path: "/calc.ts", line: 4, kind: "add", text: "mult b" },
 		]);
+	});
+
+	it("reconstructs an Edit from the last known content and marks only the changed line as add", () => {
+		const model = new ReviewModel();
+		feed(model, [
+			ev("UserPromptSubmit", { prompt: "write" }),
+			write("/a.ts", "a\nb\nc"),
+			ev("Stop"),
+			ev("UserPromptSubmit", { prompt: "tweak" }),
+			edit("/a.ts", { old: "b", new: "B" }),
+			ev("Stop"),
+		]);
+
+		expect(model.getTurns("s")[1]?.files[0]?.lines).toEqual([
+			{ turnId: "s:0", path: "/a.ts", line: 1, kind: "context", text: "a" },
+			{ turnId: "s:1", path: "/a.ts", line: 2, kind: "add", text: "B" },
+			{ turnId: "s:0", path: "/a.ts", line: 3, kind: "context", text: "c" },
+		]);
+	});
+
+	it("reconstructs pre-existing context from an Edit's old_string on an unseen file", () => {
+		const model = new ReviewModel();
+		feed(model, [
+			ev("UserPromptSubmit", { prompt: "p" }),
+			edit("/x.ts", { old: "keep\nold", new: "keep\nnew" }),
+			ev("Stop"),
+		]);
+
+		expect(model.getTurns("s")[0]?.files[0]?.lines).toEqual([
+			{ turnId: "", path: "/x.ts", line: 1, kind: "context", text: "keep" },
+			{ turnId: "s:0", path: "/x.ts", line: 2, kind: "add", text: "new" },
+		]);
+	});
+
+	it("falls back to all-add for a file past the diff cap", () => {
+		const model = new ReviewModel();
+		const base = Array.from({ length: 3001 }, (_, i) => `l${i}`).join("\n");
+		feed(model, [
+			ev("UserPromptSubmit", { prompt: "big" }),
+			write("/big.ts", base),
+			ev("Stop"),
+			ev("UserPromptSubmit", { prompt: "grow" }),
+			write("/big.ts", `${base}\nl3001`),
+			ev("Stop"),
+		]);
+
+		const lines = model.getTurns("s")[1]?.files[0]?.lines ?? [];
+		expect(lines).toHaveLength(3002);
+		expect(lines.every((l) => l.kind === "add" && l.turnId === "s:1")).toBe(true);
 	});
 
 	it("numbers turns per session across a prompt/stop cycle", () => {

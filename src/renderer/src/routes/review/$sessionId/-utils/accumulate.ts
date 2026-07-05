@@ -25,5 +25,11 @@ export function filesForMode(
 		}
 	}
 
-	return [...byPath.values()];
+	return [...byPath.values()].map((file) => ({
+		path: file.path,
+		lines: file.lines.map((line) => ({
+			...line,
+			kind: line.turnId ? ("add" as const) : ("context" as const),
+		})),
+	}));
 }

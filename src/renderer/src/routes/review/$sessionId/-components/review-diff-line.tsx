@@ -4,7 +4,7 @@ import { highlightLine } from "../-utils/highlight";
 import { useReview } from "../-utils/review-context";
 
 const CODE_CLASS =
-	"hljs min-h-[1.2em] min-w-0 flex-1 whitespace-pre-wrap break-words py-0.5 pr-4 font-mono text-[12.5px] leading-[1.55] text-ink";
+	"hljs min-h-[1.2em] min-w-0 flex-1 whitespace-pre-wrap break-words py-0.5 pr-4 font-mono text-[12.5px] leading-[1.55]";
 
 export function ReviewDiffLine(props: {
 	line: DiffLine;
@@ -13,6 +13,8 @@ export function ReviewDiffLine(props: {
 	const { line, language } = props;
 	const { selectedLine, selectLine, flags } = useReview();
 	const html = highlightLine(line.text, language);
+	const isContext = line.kind === "context";
+	const codeClass = `${CODE_CLASS} ${isContext ? "text-ink-muted opacity-80" : "text-ink"}`;
 
 	const selected =
 		selectedLine?.turnId === line.turnId &&
@@ -27,7 +29,9 @@ export function ReviewDiffLine(props: {
 		? "bg-olive/20"
 		: flagged
 			? "bg-amber/[0.12] hover:bg-amber/20"
-			: "bg-olive/[0.05] hover:bg-olive/[0.09]";
+			: isContext
+				? "hover:bg-ink/[0.04]"
+				: "bg-olive/[0.05] hover:bg-olive/[0.09]";
 
 	return (
 		<button
@@ -47,11 +51,14 @@ export function ReviewDiffLine(props: {
 				className={`flex w-4 shrink-0 select-none justify-center py-0.5 text-center font-mono text-[12px] ${flagged ? "text-amber" : "text-olive/70"}`}
 			>
 				{flagged && <Flag size={10} strokeWidth={2.25} className="mt-1" />}
-				{!flagged && "+"}
+				{!flagged && !isContext && "+"}
 			</span>
-			{html === null && <code className={CODE_CLASS}>{line.text}</code>}
+			{html === null && <code className={codeClass}>{line.text}</code>}
 			{html !== null && (
-				<code className={CODE_CLASS} dangerouslySetInnerHTML={{ __html: html }} />
+				<code
+					className={codeClass}
+					dangerouslySetInnerHTML={{ __html: html }}
+				/>
 			)}
 		</button>
 	);

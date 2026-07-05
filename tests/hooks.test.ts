@@ -104,7 +104,7 @@ describe("HookGateway (http round-trip)", () => {
 		});
 	});
 
-	it("carries Edit new_string as the edit content", async () => {
+	it("carries Edit old_string, new_string, and replace_all as edit fields", async () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
 			await fetch(hookUrl(gw, "sess-9", "PostToolUse"), {
@@ -112,11 +112,21 @@ describe("HookGateway (http round-trip)", () => {
 				body: JSON.stringify({
 					hook_event_name: "PostToolUse",
 					tool_name: "Edit",
-					tool_input: { file_path: "/a/b.ts", new_string: "changed" },
+					tool_input: {
+						file_path: "/a/b.ts",
+						old_string: "was",
+						new_string: "changed",
+						replace_all: true,
+					},
 				}),
 			});
 
-			expect(events[0]?.content).toBe("changed");
+			expect(events[0]).toMatchObject({
+				content: undefined,
+				oldString: "was",
+				newString: "changed",
+				replaceAll: true,
+			});
 		});
 	});
 

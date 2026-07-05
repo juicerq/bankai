@@ -38,11 +38,19 @@ function promptFrom(line: Rec): string | undefined {
 // Map one assistant tool_use block onto the same PostToolUse shape the live hook path
 // emits; ReviewModel's own guards then drop blocks without editable content (Bash, Read,
 // MultiEdit). Ceiling: only content-carrying Write/Edit backfill, matching the live matcher.
-function toolEdit(block: Rec): Pick<HookEvent, "filePath" | "content"> {
+function toolEdit(
+	block: Rec,
+): Pick<
+	HookEvent,
+	"filePath" | "content" | "oldString" | "newString" | "replaceAll"
+> {
 	const input = rec(block.input);
 	return {
 		filePath: str(input.file_path),
-		content: str(input.content) ?? str(input.new_string),
+		content: str(input.content),
+		oldString: str(input.old_string),
+		newString: str(input.new_string),
+		replaceAll: input.replace_all === true,
 	};
 }
 

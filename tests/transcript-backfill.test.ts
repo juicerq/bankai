@@ -20,7 +20,7 @@ function liveTurns() {
 		{ event: "UserPromptSubmit", sessionId: SID, prompt: "add a compound interest helper to finance.ts", raw: null },
 		{ event: "PostToolUse", sessionId: SID, filePath: "/home/user/projects/demo/finance.ts", content: "export function compoundInterest(principal: number, rate: number) {\n  return principal * rate;\n}", raw: null },
 		{ event: "UserPromptSubmit", sessionId: SID, prompt: "now bump the auto-compact window to 250k", raw: null },
-		{ event: "PostToolUse", sessionId: SID, filePath: "/home/user/.claude/settings.json", content: '    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "250000",', raw: null },
+		{ event: "PostToolUse", sessionId: SID, filePath: "/home/user/.claude/settings.json", oldString: '    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "180000",', newString: '    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "250000",', replaceAll: false, raw: null },
 	];
 	for (const event of events) {
 		model.apply(event);

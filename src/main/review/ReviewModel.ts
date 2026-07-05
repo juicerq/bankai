@@ -1,6 +1,6 @@
 import type { HookEvent } from "@main/hooks/HookGateway";
 
-type DiffLine = {
+export type DiffLine = {
 	turnId: string;
 	path: string;
 	line: number;
@@ -8,12 +8,12 @@ type DiffLine = {
 	text: string;
 };
 
-type FileDiff = {
+export type FileDiff = {
 	path: string;
 	lines: DiffLine[];
 };
 
-type Turn = {
+export type Turn = {
 	turnId: string;
 	prompt: string;
 	files: FileDiff[];

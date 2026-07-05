@@ -8,7 +8,7 @@ import {
 	FRAME_PADDING,
 } from "./constants";
 
-type SessionNodeData = { cwd: string; project?: string };
+type SessionNodeData = { cwd: string; project?: string; alive: boolean };
 export type SessionFlowNode = Node<SessionNodeData, "session">;
 type FrameNodeData = { project: string };
 export type FrameFlowNode = Node<FrameNodeData, "frame">;
@@ -50,46 +50,84 @@ function nodeHeight(node: SessionFlowNode) {
 	return DEFAULT_HEIGHT;
 }
 
+type NodeSpec = {
+	sessionId: string;
+	cwd: string;
+	project?: string;
+	alive: boolean;
+	position: { x: number; y: number };
+	width: number;
+	height: number;
+};
+
+function buildNode(
+	existing: SessionFlowNode | undefined,
+	spec: NodeSpec,
+): SessionFlowNode {
+	if (existing) {
+		if (
+			existing.data.alive === spec.alive &&
+			existing.data.project === spec.project
+		) {
+			return existing;
+		}
+
+		return {
+			...existing,
+			data: { ...existing.data, alive: spec.alive, project: spec.project },
+		};
+	}
+
+	return {
+		id: spec.sessionId,
+		type: "session",
+		dragHandle: DRAG_HANDLE,
+		position: spec.position,
+		data: { cwd: spec.cwd, project: spec.project, alive: spec.alive },
+		width: spec.width,
+		height: spec.height,
+	};
+}
+
 export function reconcile(
 	current: SessionFlowNode[],
 	sessions: LiveSession[],
 	saved: WorkspaceNode[],
 ): SessionFlowNode[] {
 	const byId = new Map(current.map((node) => [node.id, node]));
+	const liveIds = new Set(sessions.map((s) => s.sessionId));
+	const savedIds = new Set(saved.map((n) => n.sessionId));
+
+	const savedNodes = saved.map((node) =>
+		buildNode(byId.get(node.sessionId), {
+			sessionId: node.sessionId,
+			cwd: node.cwd,
+			project: node.project,
+			alive: liveIds.has(node.sessionId),
+			position: { x: node.x, y: node.y },
+			width: node.width,
+			height: node.height,
+		}),
+	);
+
 	let orphans = 0;
-
-	return sessions.map((session) => {
-		const savedNode = saved.find((node) => node.sessionId === session.sessionId);
-		const existing = byId.get(session.sessionId);
-
-		if (existing) {
-			const project = savedNode?.project ?? existing.data.project;
-
-			if (project === existing.data.project) {
-				return existing;
-			}
-
-			return { ...existing, data: { ...existing.data, project } };
-		}
-
-		const offset = orphans * 40;
-
-		if (!savedNode) {
+	const orphanNodes = sessions
+		.filter((session) => !savedIds.has(session.sessionId))
+		.map((session) => {
+			const offset = orphans * 40;
 			orphans += 1;
-		}
 
-		return {
-			id: session.sessionId,
-			type: "session",
-			dragHandle: DRAG_HANDLE,
-			position: savedNode
-				? { x: savedNode.x, y: savedNode.y }
-				: { x: offset, y: offset },
-			data: { cwd: session.cwd, project: savedNode?.project },
-			width: savedNode?.width ?? DEFAULT_WIDTH,
-			height: savedNode?.height ?? DEFAULT_HEIGHT,
-		};
-	});
+			return buildNode(byId.get(session.sessionId), {
+				sessionId: session.sessionId,
+				cwd: session.cwd,
+				alive: true,
+				position: { x: offset, y: offset },
+				width: DEFAULT_WIDTH,
+				height: DEFAULT_HEIGHT,
+			});
+		});
+
+	return [...savedNodes, ...orphanNodes];
 }
 
 export function computeFrames(nodes: SessionFlowNode[]): FrameFlowNode[] {

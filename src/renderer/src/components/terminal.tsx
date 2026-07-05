@@ -3,6 +3,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { useEffect, useRef } from "react";
 import { bookTerminalTheme } from "@renderer/constants/book-theme";
+import { client } from "@renderer/lib/api";
 
 type TerminalProps = { sessionId: string; zoom: number; onExit?: () => void };
 
@@ -65,9 +66,6 @@ export function Terminal({ sessionId, zoom, onExit }: TerminalProps) {
 
 		fit();
 
-		const offData = window.pty.onData(sessionId, (chunk) =>
-			terminal.write(chunk),
-		);
 		const inputDisposable = terminal.onData((data) =>
 			window.pty.input(sessionId, data),
 		);
@@ -79,7 +77,31 @@ export function Terminal({ sessionId, zoom, onExit }: TerminalProps) {
 		const observer = new ResizeObserver(() => fit());
 		observer.observe(container);
 
+		// Reidrata o scrollback do ring buffer do main antes de assinar o stream live,
+		// para o histórico não sumir ao remontar (navegação canvas <-> review). A janela
+		// entre o snapshot e a assinatura pode perder um chunk, aceitável no remount.
+		let disposed = false;
+		let offData = () => {};
+
+		client.sessions
+			.getBuffer({ sessionId })
+			.catch(() => "")
+			.then((buffer) => {
+				if (disposed) {
+					return;
+				}
+
+				if (buffer) {
+					terminal.write(buffer);
+				}
+
+				offData = window.pty.onData(sessionId, (chunk) =>
+					terminal.write(chunk),
+				);
+			});
+
 		return () => {
+			disposed = true;
 			offData();
 			offExit();
 			inputDisposable.dispose();

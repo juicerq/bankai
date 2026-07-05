@@ -7,7 +7,14 @@ import { type IPty, spawn } from "@lydell/node-pty";
 import { Hooks } from "@main/hooks/HookGateway";
 import type { PtyData, PtyExit } from "@shared/pty";
 
-type Session = { pty: IPty; cwd: string; settingsPath: string };
+type Session = {
+	pty: IPty;
+	cwd: string;
+	settingsPath: string;
+	buffer: string;
+};
+
+const MAX_BUFFER_CHARS = 200 * 1024;
 
 export class SessionSupervisor {
 	private readonly sessions = new Map<string, Session>();
@@ -31,16 +38,36 @@ export class SessionSupervisor {
 			},
 		);
 
-		pty.onData((chunk) => this.dispatch(this.dataListeners, { sessionId, chunk }));
+		pty.onData((chunk) => {
+			this.appendBuffer(sessionId, chunk);
+			this.dispatch(this.dataListeners, { sessionId, chunk });
+		});
 
 		pty.onExit(({ exitCode }) => {
 			this.discard(sessionId);
 			this.dispatch(this.exitListeners, { sessionId, exitCode });
 		});
 
-		this.sessions.set(sessionId, { pty, cwd, settingsPath });
+		this.sessions.set(sessionId, { pty, cwd, settingsPath, buffer: "" });
 
 		return sessionId;
+	}
+
+	private appendBuffer(sessionId: string, chunk: string) {
+		const session = this.sessions.get(sessionId);
+		if (!session) {
+			return;
+		}
+
+		session.buffer += chunk;
+
+		if (session.buffer.length > MAX_BUFFER_CHARS) {
+			session.buffer = session.buffer.slice(-MAX_BUFFER_CHARS);
+		}
+	}
+
+	getBuffer(sessionId: string): string {
+		return this.sessions.get(sessionId)?.buffer ?? "";
 	}
 
 	private writeHookSettings(sessionId: string): string {

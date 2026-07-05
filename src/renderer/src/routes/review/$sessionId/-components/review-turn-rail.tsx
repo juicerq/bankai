@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, Flag, TriangleAlert } from "lucide-react";
 import { useReview } from "../-utils/review-context";
 
 function firstLine(prompt: string): string {
@@ -8,7 +8,8 @@ function firstLine(prompt: string): string {
 }
 
 export function ReviewTurnRail() {
-	const { turns, selectedIndex, selectTurn, reviewed } = useReview();
+	const { turns, selectedIndex, selectTurn, reviewed, flags, cascade } =
+		useReview();
 	const turnsLabel = turns.length === 1 ? "turno" : "turnos";
 	const unreviewed = turns.filter((t) => !reviewed.has(t.turnId)).length;
 	const progress =
@@ -27,6 +28,8 @@ export function ReviewTurnRail() {
 				{turns.map((turn, index) => {
 					const active = index === selectedIndex;
 					const isReviewed = reviewed.has(turn.turnId);
+					const isFlagged = flags.some((f) => f.turnId === turn.turnId);
+					const buildsOnFlagged = cascade.has(turn.turnId);
 					const fileCount = turn.files.length;
 					const filesLabel = fileCount === 1 ? "arquivo" : "arquivos";
 
@@ -42,10 +45,28 @@ export function ReviewTurnRail() {
 								} ${isReviewed ? "opacity-55" : ""}`}
 							>
 								<div className="flex items-baseline justify-between gap-2">
-									<span
-										className={`font-mono text-[11px] ${active ? "text-olive" : "text-ink-muted"}`}
-									>
-										#{index + 1}
+									<span className="flex items-center gap-1.5">
+										<span
+											className={`font-mono text-[11px] ${active ? "text-olive" : "text-ink-muted"}`}
+										>
+											#{index + 1}
+										</span>
+										{isFlagged && (
+											<Flag
+												size={11}
+												strokeWidth={2}
+												className="text-amber"
+												aria-label="flagado"
+											/>
+										)}
+										{buildsOnFlagged && (
+											<TriangleAlert
+												size={11}
+												strokeWidth={2}
+												className="text-amber/70"
+												aria-label="constrói sobre um turno flagado"
+											/>
+										)}
 									</span>
 									{isReviewed && (
 										<span className="flex items-center gap-1 font-mono text-[10px] text-olive">

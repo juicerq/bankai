@@ -66,7 +66,7 @@ function ReviewPage() {
 				/>
 			)}
 			{turns.length > 0 && (
-				<ReviewProvider turns={turns} cwd={cwd}>
+				<ReviewProvider sessionId={sessionId} turns={turns} cwd={cwd}>
 					<Components.Layout />
 				</ReviewProvider>
 			)}

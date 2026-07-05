@@ -13,10 +13,16 @@ export function useReviewInvalidation() {
 			return;
 		}
 
-		return window.review.onChanged((sessionId) =>
+		return window.review.onChanged((sessionId) => {
 			queryClient.invalidateQueries({
 				queryKey: orpc.review.getTurns.key({ input: { sessionId } }),
-			}),
-		);
+			});
+			queryClient.invalidateQueries({
+				queryKey: orpc.review.status.key({ input: { sessionId } }),
+			});
+			queryClient.invalidateQueries({
+				queryKey: orpc.review.unreviewedCount.key({ input: { sessionId } }),
+			});
+		});
 	}, [queryClient]);
 }

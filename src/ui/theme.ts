@@ -10,6 +10,7 @@ export const theme = {
 
 	accent: "#e0a54a",
 	review: "#6cb2c2",
+	add: "#7c9e6a",
 
 	danger: "#d16b6b",
 } as const;

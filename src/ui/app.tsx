@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useKeyboard } from "@opentui/react";
 import { HookGateway } from "@core/hooks/HookGateway";
 import { Logger } from "@core/logger";
-import { ReviewModel } from "@core/review/ReviewModel";
+import { ReviewModel, type Turn } from "@core/review/ReviewModel";
+import { backfillTurns } from "@core/review/TranscriptBackfill";
 import { countUnreviewed } from "@core/review/unreviewed";
 import { SessionBinder } from "@core/session/SessionBinder";
 import { procFs } from "@core/session/procFs";
@@ -30,6 +31,8 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const [overlay, setOverlay] = useState<Overlay>(null);
 	const [bindings, setBindings] = useState<Record<string, string>>({});
 	const [reviewed, setReviewed] = useState<Record<string, string[]>>({});
+	const [backfill, setBackfill] = useState<Record<string, Turn[]>>({});
+	const [review, setReview] = useState<{ sessionId: string } | null>(null);
 	const [, bumpStatus] = useState(0);
 
 	const activeProject = projects[activeIndex];
@@ -50,7 +53,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 
 		const poll = setInterval(() => {
 			SessionBinder.resolveMany(procFs, supervisor.pids())
-				.then(setBindings)
+				.then((resolved) => setBindings((prev) => ({ ...prev, ...resolved })))
 				.catch((err) => Logger.error("session:bind-failed", String(err)));
 		}, BIND_POLL_MS);
 
@@ -204,14 +207,51 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 		}
 	};
 
+	const openReview = () => {
+		const sessionId = activeTabId ? bindings[activeTabId] : undefined;
+		if (!sessionId) {
+			return;
+		}
+
+		setReview({ sessionId });
+		ReviewState.get(sessionId)
+			.then((ids) => setReviewed((prev) => ({ ...prev, [sessionId]: ids })))
+			.catch((err) => Logger.error("review:reviewed-read-failed", String(err)));
+
+		if (reviewModel.getTurns(sessionId).length === 0) {
+			backfillTurns(sessionId)
+				.then((turns) => setBackfill((prev) => ({ ...prev, [sessionId]: turns })))
+				.catch((err) => Logger.error("review:backfill-failed", String(err)));
+		}
+	};
+
+	const toggleReviewed = (turnId: string) => {
+		if (!review) {
+			return;
+		}
+
+		const next = !(reviewed[review.sessionId] ?? []).includes(turnId);
+
+		ReviewState.setReviewed({ sessionId: review.sessionId, turnId, reviewed: next })
+			.then((ids) => setReviewed((prev) => ({ ...prev, [review.sessionId]: ids })))
+			.catch((err) => Logger.error("review:toggle-failed", String(err)));
+	};
+
+	const liveTurns = review ? reviewModel.getTurns(review.sessionId) : [];
+	const reviewTurns = liveTurns.length > 0 ? liveTurns : review ? (backfill[review.sessionId] ?? []) : [];
+
 	useKeyboard((key) => {
-		if (overlay) {
+		if (review || overlay) {
 			return;
 		}
 
 		if (key.option) {
 			if (key.name === "s") {
 				setFocus("sidebar");
+				return;
+			}
+			if (key.name === "v") {
+				openReview();
 				return;
 			}
 			if (key.name === "left") {
@@ -273,6 +313,19 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 				removeActiveProject();
 		}
 	});
+
+	if (review) {
+		return (
+			<Ui.ReviewScreen
+				key={review.sessionId}
+				sessionId={review.sessionId}
+				turns={reviewTurns}
+				reviewedTurnIds={reviewed[review.sessionId] ?? []}
+				onToggleReviewed={toggleReviewed}
+				onClose={() => setReview(null)}
+			/>
+		);
+	}
 
 	return (
 		<box style={{ width: "100%", height: "100%", flexDirection: "row", backgroundColor: theme.bg }}>

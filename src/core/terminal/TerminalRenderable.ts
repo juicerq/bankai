@@ -1,5 +1,5 @@
-import { type OptimizedBuffer, Renderable } from "@opentui/core";
-import type { IBuffer, Terminal as Screen } from "@xterm/headless";
+import { type OptimizedBuffer, Renderable, type RGBA } from "@opentui/core";
+import type { IBuffer, IDisposable, Terminal as Screen } from "@xterm/headless";
 import {
 	defaultBackground,
 	defaultForeground,
@@ -15,16 +15,33 @@ import {
 export class TerminalRenderable extends Renderable {
 	private screen: Screen | null = null;
 	private cursorVisible = false;
+	private laidOut: { cols: number; rows: number } | null = null;
+	private writeSub: IDisposable | null = null;
 
 	// Set by the React wrapper so a layout resize can resize the shell's PTY.
 	onCellResize: ((cols: number, rows: number) => void) | null = null;
 
+	// Set by the React wrapper: the block cursor's concrete colors. The theme lives in
+	// the UI layer (core never imports it), so the colors are pushed in from there.
+	cursorColors: { block: RGBA; text: RGBA } | null = null;
+
+	get cellSize(): { cols: number; rows: number } | null {
+		return this.laidOut;
+	}
+
+	// A terminal repaints when its grid changes, not on a clock. The xterm engine parses
+	// PTY bytes asynchronously, so `onWriteParsed` is the one instant the grid is settled;
+	// requesting a render there paints post-parse (no stale frame) and lets the renderer
+	// idle when the shell is quiet. One paint on attach shows the current grid at once.
 	attach(screen: Screen): void {
 		this.screen = screen;
+		this.writeSub = screen.onWriteParsed(() => this.requestRender());
 		this.requestRender();
 	}
 
 	detach(): void {
+		this.writeSub?.dispose();
+		this.writeSub = null;
 		this.screen = null;
 	}
 
@@ -34,8 +51,11 @@ export class TerminalRenderable extends Renderable {
 	}
 
 	protected override onResize(width: number, height: number): void {
-		// width/height are the laid-out cell counts (cols/rows). Fire off the render
-		// pass — requesting a render mid-layout is dropped (see Renderable docs).
+		// width/height are the laid-out cell counts (cols/rows). Stashing them lets the
+		// wrapper flush the real size on mount even if this fired before it bound the
+		// handler — otherwise the PTY stays stuck at its placeholder size.
+		this.laidOut = { cols: width, rows: height };
+
 		const notify = this.onCellResize;
 		if (notify) {
 			process.nextTick(() => notify(width, height));
@@ -98,16 +118,16 @@ export class TerminalRenderable extends Renderable {
 		cols: number,
 		rows: number,
 	): void {
-		if (grid.cursorX >= cols || grid.cursorY >= rows) {
+		const colors = this.cursorColors;
+		if (!colors || grid.cursorX >= cols || grid.cursorY >= rows) {
 			return;
 		}
 
-		const cell = grid.getLine(grid.baseY + grid.cursorY)?.getCell(grid.cursorX);
-		const char = cell?.getChars() || " ";
-		const fg = cell ? resolveForeground(cell) : defaultForeground();
-		const bg = cell ? resolveBackground(cell) : defaultBackground();
+		const char = grid.getLine(grid.baseY + grid.cursorY)?.getCell(grid.cursorX)?.getChars() || " ";
 
-		// Block cursor: invert the cell under it.
-		buffer.setCell(this.x + grid.cursorX, this.y + grid.cursorY, char, bg, fg);
+		// Solid block in a concrete color. Inverting the cell's own colors renders
+		// invisible on an empty cell — where the cursor almost always sits — because the
+		// default fg/bg are position-resolved sentinels that stay default when swapped.
+		buffer.setCell(this.x + grid.cursorX, this.y + grid.cursorY, char, colors.text, colors.block);
 	}
 }

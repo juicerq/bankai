@@ -10,7 +10,6 @@ type Tab = {
 	pty: Bun.Terminal;
 	proc: Bun.Subprocess;
 	screen: Screen;
-	renderListeners: Set<() => void>;
 	exitListeners: Set<(code: number) => void>;
 };
 
@@ -34,12 +33,22 @@ export class TabSupervisor {
 			name: "xterm-256color",
 			data: (_pty, bytes) => {
 				screen.write(bytes);
-				this.notifyRender(id);
 			},
 			exit: (_pty, code) => this.notifyExit(id, code),
 		});
 
-		const proc = Bun.spawn([SHELL], {
+		// The vt100 engine replies to the capability queries (DA, CPR, XTGETTINCAP, OSC
+		// color) that shells and TUIs emit on startup and on every prompt redraw. Those
+		// replies are the terminal's input side — pipe them back to the PTY or the program
+		// blocks forever waiting on a probe that never returns. Keystrokes reach the PTY
+		// straight through `input()`, so this only ever carries query replies, not echo.
+		screen.onData((data) => pty.write(data));
+
+		// `setsid -c` makes the shell a session leader with the pty as its controlling
+		// terminal — without it job control fails (tcgetpgrp/setpgid) and strict shells
+		// like fish refuse to start. Bun's `terminal` alloc doesn't do this itself, and
+		// its `detached` flag only calls setsid without adopting the pty.
+		const proc = Bun.spawn(["setsid", "-c", SHELL], {
 			terminal: pty,
 			cwd,
 			env: { ...process.env, TERM: "xterm-256color", COLORTERM: "truecolor" },
@@ -49,7 +58,6 @@ export class TabSupervisor {
 			pty,
 			proc,
 			screen,
-			renderListeners: new Set(),
 			exitListeners: new Set(),
 		});
 
@@ -76,18 +84,6 @@ export class TabSupervisor {
 
 	screen(id: string): Screen | undefined {
 		return this.tabs.get(id)?.screen;
-	}
-
-	onRender(id: string, listener: () => void): () => void {
-		const tab = this.tabs.get(id);
-		if (!tab) {
-			return () => {};
-		}
-
-		tab.renderListeners.add(listener);
-		return () => {
-			tab.renderListeners.delete(listener);
-		};
 	}
 
 	onExit(id: string, listener: (code: number) => void): () => void {
@@ -118,17 +114,6 @@ export class TabSupervisor {
 		}
 		tab.screen.dispose();
 		this.tabs.delete(id);
-	}
-
-	private notifyRender(id: string): void {
-		const tab = this.tabs.get(id);
-		if (!tab) {
-			return;
-		}
-
-		for (const listener of tab.renderListeners) {
-			listener();
-		}
 	}
 
 	private notifyExit(id: string, code: number): void {

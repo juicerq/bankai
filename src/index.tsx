@@ -9,6 +9,6 @@ await HookInstaller.install().catch((err) => Logger.error("hooks:install-failed"
 
 const initialProjects = await Projects.list();
 
-const renderer = await createCliRenderer({ exitOnCtrlC: false });
+const renderer = await createCliRenderer({ exitOnCtrlC: false, targetFps: 60 });
 
 createRoot(renderer).render(<App initialProjects={initialProjects} />);

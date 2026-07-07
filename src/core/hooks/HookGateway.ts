@@ -6,7 +6,7 @@ import {
 } from "node:http";
 import { Logger } from "@core/logger";
 
-export const HOOK_PORT = 47820;
+const HOOK_PORT = 47820;
 
 const HOOK_ENDPOINT = `http://127.0.0.1:${HOOK_PORT}/hooks`;
 
@@ -75,6 +75,7 @@ function normalize(payload: unknown): HookEvent | null {
 
 export class HookGateway {
 	private server: Server | null = null;
+	private boundPort = HOOK_PORT;
 	private readonly listeners = new Set<(event: HookEvent) => void>();
 
 	onEvent(listener: (event: HookEvent) => void) {
@@ -84,11 +85,19 @@ export class HookGateway {
 		};
 	}
 
-	start(): Promise<void> {
+	get port(): number {
+		return this.boundPort;
+	}
+
+	start(port: number = HOOK_PORT): Promise<void> {
 		return new Promise((resolve, reject) => {
 			const server = createServer((req, res) => this.handle(req, res));
 			server.on("error", reject);
-			server.listen(HOOK_PORT, "127.0.0.1", () => {
+			server.listen(port, "127.0.0.1", () => {
+				const address = server.address();
+				if (address !== null && typeof address === "object") {
+					this.boundPort = address.port;
+				}
 				this.server = server;
 				resolve();
 			});

@@ -3,20 +3,13 @@ import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-	HOOK_COMMAND,
-	HOOK_PORT,
-	type HookEvent,
-	HookGateway,
-} from "@core/hooks/HookGateway";
+import { HOOK_COMMAND, type HookEvent, HookGateway } from "@core/hooks/HookGateway";
 import { HookInstaller } from "@core/hooks/HookInstaller";
 import { atomicWrite } from "@core/store/atomic";
 
-const HOOK_URL = `http://127.0.0.1:${HOOK_PORT}/hooks`;
-
 async function withGateway<T>(fn: (gw: HookGateway) => T | Promise<T>): Promise<T> {
 	const gw = new HookGateway();
-	await gw.start();
+	await gw.start(0);
 	try {
 		return await fn(gw);
 	} finally {
@@ -33,15 +26,15 @@ function collect(gw: HookGateway) {
 	return events;
 }
 
-function post(body: string) {
-	return fetch(HOOK_URL, { method: "POST", body });
+function post(gw: HookGateway, body: string) {
+	return fetch(`http://127.0.0.1:${gw.port}/hooks`, { method: "POST", body });
 }
 
 describe("HookGateway", () => {
 	it("emits a typed event for a Stop payload", async () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
-			const res = await post(JSON.stringify({ hook_event_name: "Stop", session_id: "abc" }));
+			const res = await post(gw, JSON.stringify({ hook_event_name: "Stop", session_id: "abc" }));
 
 			expect(res.status).toBe(200);
 			expect(events).toMatchObject([{ event: "Stop", sessionId: "abc" }]);
@@ -52,6 +45,7 @@ describe("HookGateway", () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
 			await post(
+				gw,
 				JSON.stringify({
 					hook_event_name: "Stop",
 					session_id: "s1",
@@ -69,6 +63,7 @@ describe("HookGateway", () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
 			await post(
+				gw,
 				JSON.stringify({
 					hook_event_name: "PostToolUse",
 					session_id: "sess-9",
@@ -88,6 +83,7 @@ describe("HookGateway", () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
 			await post(
+				gw,
 				JSON.stringify({
 					hook_event_name: "PostToolUse",
 					session_id: "sess-9",
@@ -113,6 +109,7 @@ describe("HookGateway", () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
 			await post(
+				gw,
 				JSON.stringify({
 					hook_event_name: "UserPromptSubmit",
 					session_id: "sess-9",
@@ -127,7 +124,7 @@ describe("HookGateway", () => {
 	it("acks but emits nothing without a session id", async () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
-			const res = await post(JSON.stringify({ hook_event_name: "Stop" }));
+			const res = await post(gw, JSON.stringify({ hook_event_name: "Stop" }));
 
 			expect(res.status).toBe(200);
 			expect(events).toEqual([]);
@@ -138,6 +135,7 @@ describe("HookGateway", () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
 			const res = await post(
+				gw,
 				JSON.stringify({ hook_event_name: "SessionStart", session_id: "abc" }),
 			);
 
@@ -149,7 +147,7 @@ describe("HookGateway", () => {
 	it("rejects malformed json with 400 and emits nothing", async () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
-			const res = await post("not json");
+			const res = await post(gw, "not json");
 
 			expect(res.status).toBe(400);
 			expect(events).toEqual([]);
@@ -157,8 +155,8 @@ describe("HookGateway", () => {
 	});
 
 	it("404s a non-hook path", async () => {
-		await withGateway(async () => {
-			const res = await fetch(`http://127.0.0.1:${HOOK_PORT}/other`, { method: "POST" });
+		await withGateway(async (gw) => {
+			const res = await fetch(`http://127.0.0.1:${gw.port}/other`, { method: "POST" });
 			expect(res.status).toBe(404);
 		});
 	});

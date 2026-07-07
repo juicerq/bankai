@@ -1,5 +1,8 @@
+import { homedir } from "node:os";
+import { basename } from "node:path";
 import { useEffect, useState } from "react";
 import { useKeyboard } from "@opentui/react";
+import { type DirEntry, listDirs } from "@core/fs/listDirs";
 import { HookGateway } from "@core/hooks/HookGateway";
 import { Logger } from "@core/logger";
 import { ReviewModel, type Turn } from "@core/review/ReviewModel";
@@ -14,11 +17,12 @@ import { Ui } from "@ui/components";
 import { theme } from "@ui/theme";
 import type { TabGroup, TabStatus } from "@ui/types";
 
-type Overlay = { kind: "add" } | { kind: "rename" } | null;
+type Overlay = { kind: "rename" } | null;
 
 const INITIAL_COLS = 80;
 const INITIAL_ROWS = 24;
 const BIND_POLL_MS = 2000;
+const HOME = homedir();
 
 export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const [supervisor] = useState(() => new TabSupervisor());
@@ -29,6 +33,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const [groups, setGroups] = useState<Record<string, TabGroup>>({});
 	const [focus, setFocus] = useState<"sidebar" | "terminal">("sidebar");
 	const [overlay, setOverlay] = useState<Overlay>(null);
+	const [picker, setPicker] = useState<{ entries: DirEntry[] } | null>(null);
 	const [bindings, setBindings] = useState<Record<string, string>>({});
 	const [reviewed, setReviewed] = useState<Record<string, string[]>>({});
 	const [backfill, setBackfill] = useState<Record<string, Turn[]>>({});
@@ -38,7 +43,8 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const activeProject = projects[activeIndex];
 	const group = activeProject ? groups[activeProject.id] : undefined;
 	const activeTabId = group?.tabs[group.active];
-	const terminalFocused = focus === "terminal" && activeTabId !== undefined && overlay === null;
+	const terminalFocused =
+		focus === "terminal" && activeTabId !== undefined && overlay === null && picker === null;
 
 	useEffect(() => {
 		gateway.start().catch((err) => Logger.error("hooks:gateway-start-failed", String(err)));
@@ -125,9 +131,21 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 			.catch((err) => Logger.error("projects:remove-failed", String(err)));
 	};
 
-	const addProject = (cwd: string, name: string) => {
-		setOverlay(null);
-		Projects.add({ cwd, name })
+	const openPicker = () => {
+		listDirs(HOME)
+			.then((entries) => setPicker({ entries }))
+			.catch((err) => Logger.error("picker:open-failed", String(err)));
+	};
+
+	const pickDir = (cwd: string) => {
+		setPicker(null);
+		const existing = projects.findIndex((project) => project.cwd === cwd);
+		if (existing >= 0) {
+			setActiveIndex(existing);
+			return;
+		}
+
+		Projects.add({ cwd, name: basename(cwd) })
 			.then((list) => {
 				setProjects(list);
 				setActiveIndex(list.length - 1);
@@ -241,7 +259,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const reviewTurns = liveTurns.length > 0 ? liveTurns : review ? (backfill[review.sessionId] ?? []) : [];
 
 	useKeyboard((key) => {
-		if (review || overlay) {
+		if (review || overlay || picker) {
 			return;
 		}
 
@@ -302,7 +320,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 				closeActiveTab();
 				return;
 			case "a":
-				setOverlay({ kind: "add" });
+				openPicker();
 				return;
 			case "r":
 				if (activeProject) {
@@ -340,8 +358,14 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 				statuses={statuses}
 			/>
 
-			{overlay?.kind === "add" && (
-				<Ui.ProjectAddOverlay onSubmit={addProject} onCancel={() => setOverlay(null)} />
+			{picker && (
+				<Ui.ProjectPicker
+					home={HOME}
+					initialEntries={picker.entries}
+					existingCwds={projects.map((project) => project.cwd)}
+					onPick={pickDir}
+					onCancel={() => setPicker(null)}
+				/>
 			)}
 
 			{overlay?.kind === "rename" && activeProject && (

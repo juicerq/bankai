@@ -1,7 +1,15 @@
 import type { ReactNode } from "react";
 import { theme } from "@ui/theme";
 
-export function OverlayFrame({ title, children }: { title: string; children: ReactNode }) {
+export function OverlayFrame({
+	title,
+	width = 60,
+	children,
+}: {
+	title: string;
+	width?: number;
+	children: ReactNode;
+}) {
 	return (
 		<box
 			style={{
@@ -20,7 +28,7 @@ export function OverlayFrame({ title, children }: { title: string; children: Rea
 				title={title}
 				titleColor={theme.accent}
 				style={{
-					width: 60,
+					width,
 					border: true,
 					borderStyle: "single",
 					borderColor: theme.accent,

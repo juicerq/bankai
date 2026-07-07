@@ -1,6 +1,6 @@
 # bankai
 
-- `PROJECT.md` — what bankai is and why it exists (a canvas of live Claude Code sessions
+- `PROJECT.md` — what bankai is and why it exists (a command center of live Claude Code sessions
   per project + a turn-by-turn code-review layer). Read it first for product context and scope.
 - `src/ui/AGENTS.md` — UI rules (one component per file, namespaced barrel, no `useEffect` to derive state / fetch data).
 

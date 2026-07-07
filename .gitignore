@@ -1,11 +1,8 @@
 node_modules/
-out/
 dist/
 .DS_Store
 *.log
 *.tsbuildinfo
-.tanstack/
-src/renderer/src/routeTree.gen.ts
 grill/
 
 .claude/

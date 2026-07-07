@@ -1,4 +1,4 @@
-import { readFile, readdir, readlink } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import type { ProcSource } from "@core/session/SessionBinder";
 
 async function pids(): Promise<number[]> {
@@ -18,12 +18,18 @@ async function parent(pid: number): Promise<number | null> {
 	return Number.isInteger(ppid) ? ppid : null;
 }
 
-async function openFiles(pid: number): Promise<string[]> {
-	const dir = `/proc/${pid}/fd`;
-	const fds = await readdir(dir).catch(() => []);
-	const links = await Promise.all(fds.map((fd) => readlink(`${dir}/${fd}`).catch(() => null)));
+async function procStart(pid: number): Promise<string | null> {
+	const stat = await readFile(`/proc/${pid}/stat`, "utf8").catch(() => null);
+	if (!stat) {
+		return null;
+	}
 
-	return links.filter((link): link is string => link !== null);
+	const start = stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19];
+	if (start === undefined) {
+		return null;
+	}
+
+	return start;
 }
 
-export const procFs: ProcSource = { pids, parent, openFiles };
+export const procFs: ProcSource = { pids, parent, procStart };

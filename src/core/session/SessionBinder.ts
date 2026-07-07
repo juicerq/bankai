@@ -1,19 +1,18 @@
-import { basename } from "node:path";
-
 export type ProcSource = {
 	pids(): Promise<number[]>;
 	parent(pid: number): Promise<number | null>;
-	openFiles(pid: number): Promise<string[]>;
+	procStart(pid: number): Promise<string | null>;
 };
 
-export type BoundSession = {
+export type SessionRecord = {
+	pid: number;
 	sessionId: string;
-	transcriptPath: string;
+	procStart: string;
 };
 
-function transcriptOf(files: string[]): string | undefined {
-	return files.find((file) => file.endsWith(".jsonl") && file.includes("/.claude/projects/"));
-}
+export type SessionSource = {
+	list(): Promise<SessionRecord[]>;
+};
 
 async function childrenByParent(source: ProcSource): Promise<Map<number, number[]>> {
 	const pids = await source.pids();
@@ -35,11 +34,31 @@ async function childrenByParent(source: ProcSource): Promise<Map<number, number[
 	return children;
 }
 
-async function descend(
-	source: ProcSource,
+async function liveSessions(proc: ProcSource, sessions: SessionSource): Promise<Map<number, string>> {
+	const records = await sessions.list();
+	const validated = await Promise.all(
+		records.map(async (record) => {
+			const start = await proc.procStart(record.pid);
+
+			return start !== null && start === record.procStart ? record : null;
+		}),
+	);
+
+	const live = new Map<number, string>();
+	for (const record of validated) {
+		if (record) {
+			live.set(record.pid, record.sessionId);
+		}
+	}
+
+	return live;
+}
+
+function findInTree(
 	children: Map<number, number[]>,
 	shellPid: number,
-): Promise<BoundSession | null> {
+	live: Map<number, string>,
+): string | null {
 	const seen = new Set<number>();
 	let frontier = children.get(shellPid) ?? [];
 
@@ -47,13 +66,10 @@ async function descend(
 		const batch = frontier.filter((pid) => !seen.has(pid));
 		for (const pid of batch) {
 			seen.add(pid);
-		}
 
-		const openFiles = await Promise.all(batch.map((pid) => source.openFiles(pid)));
-		for (const files of openFiles) {
-			const transcript = transcriptOf(files);
-			if (transcript) {
-				return { sessionId: basename(transcript, ".jsonl"), transcriptPath: transcript };
+			const sessionId = live.get(pid);
+			if (sessionId) {
+				return sessionId;
 			}
 		}
 
@@ -64,28 +80,34 @@ async function descend(
 }
 
 export const SessionBinder = {
-	async resolve(source: ProcSource, shellPid: number): Promise<BoundSession | null> {
-		const children = await childrenByParent(source);
+	async resolve(proc: ProcSource, sessions: SessionSource, shellPid: number): Promise<string | null> {
+		const [children, live] = await Promise.all([
+			childrenByParent(proc),
+			liveSessions(proc, sessions),
+		]);
 
-		return descend(source, children, shellPid);
+		return findInTree(children, shellPid, live);
 	},
 
 	async resolveMany(
-		source: ProcSource,
+		proc: ProcSource,
+		sessions: SessionSource,
 		tabs: { tabId: string; pid: number }[],
 	): Promise<Record<string, string>> {
 		if (tabs.length === 0) {
 			return {};
 		}
 
-		const children = await childrenByParent(source);
-		const bound = await Promise.all(
-			tabs.map(async ({ tabId, pid }) => {
-				const session = await descend(source, children, pid);
+		const [children, live] = await Promise.all([
+			childrenByParent(proc),
+			liveSessions(proc, sessions),
+		]);
 
-				return session ? ([tabId, session.sessionId] as const) : null;
-			}),
-		);
+		const bound = tabs.map(({ tabId, pid }) => {
+			const sessionId = findInTree(children, pid, live);
+
+			return sessionId ? ([tabId, sessionId] as const) : null;
+		});
 
 		return Object.fromEntries(bound.filter((entry) => entry !== null));
 	},

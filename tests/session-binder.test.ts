@@ -1,70 +1,90 @@
 import { describe, expect, it } from "vitest";
-import { type ProcSource, SessionBinder } from "@core/session/SessionBinder";
+import { type ProcSource, SessionBinder, type SessionSource } from "@core/session/SessionBinder";
 
-type ProcNode = { parent: number | null; files?: string[] };
-
-function nodeAt(tree: Record<number, ProcNode>, pid: number): ProcNode {
-	const node = tree[pid];
-	if (!node) {
-		throw new Error(`no proc ${pid}`);
-	}
-
-	return node;
-}
+type ProcNode = { parent: number | null; start?: string };
 
 function fakeProc(tree: Record<number, ProcNode>): ProcSource {
+	const node = (pid: number): ProcNode => {
+		const found = tree[pid];
+		if (!found) {
+			throw new Error(`no proc ${pid}`);
+		}
+
+		return found;
+	};
+
 	return {
 		pids: () => Promise.resolve(Object.keys(tree).map(Number)),
-		parent: (pid) => Promise.resolve(nodeAt(tree, pid).parent),
-		openFiles: (pid) => Promise.resolve(nodeAt(tree, pid).files ?? []),
+		parent: (pid) => Promise.resolve(node(pid).parent),
+		procStart: (pid) => {
+			const start = node(pid).start;
+
+			return Promise.resolve(start === undefined ? null : start);
+		},
 	};
 }
 
-const CWD_DIR = "/home/jui/.claude/projects/-home-jui-app";
+function fakeSessions(records: { pid: number; sessionId: string; procStart: string }[]): SessionSource {
+	return { list: () => Promise.resolve(records) };
+}
 
 describe("SessionBinder.resolve", () => {
-	it("binds a shell to the transcript its claude child keeps open", async () => {
+	it("binds a shell to the claude descendant recorded in the sessions map", async () => {
 		const proc = fakeProc({
 			1: { parent: null },
 			100: { parent: 1 },
-			200: { parent: 100, files: ["/dev/pts/3", `${CWD_DIR}/aaaa-1111.jsonl`] },
+			200: { parent: 100, start: "5471493" },
 		});
+		const sessions = fakeSessions([{ pid: 200, sessionId: "aaaa-1111", procStart: "5471493" }]);
 
-		const bound = await SessionBinder.resolve(proc, 100);
-
-		expect(bound?.sessionId).toBe("aaaa-1111");
-		expect(bound?.transcriptPath).toBe(`${CWD_DIR}/aaaa-1111.jsonl`);
+		expect(await SessionBinder.resolve(proc, sessions, 100)).toBe("aaaa-1111");
 	});
 
 	it("finds a claude nested below an intermediate process", async () => {
 		const proc = fakeProc({
 			100: { parent: 1 },
 			200: { parent: 100 },
-			300: { parent: 200, files: [`${CWD_DIR}/deep-9999.jsonl`] },
+			300: { parent: 200, start: "9999" },
 		});
+		const sessions = fakeSessions([{ pid: 300, sessionId: "deep-9999", procStart: "9999" }]);
 
-		expect((await SessionBinder.resolve(proc, 100))?.sessionId).toBe("deep-9999");
+		expect(await SessionBinder.resolve(proc, sessions, 100)).toBe("deep-9999");
 	});
 
-	it("resolves two sessions in the same cwd to distinct session ids", async () => {
+	it("resolves two sessions in the same cwd to distinct session ids by pid tree", async () => {
 		const proc = fakeProc({
 			100: { parent: 1 },
 			101: { parent: 1 },
-			200: { parent: 100, files: [`${CWD_DIR}/aaaa-1111.jsonl`] },
-			201: { parent: 101, files: [`${CWD_DIR}/bbbb-2222.jsonl`] },
+			200: { parent: 100, start: "111" },
+			201: { parent: 101, start: "222" },
 		});
+		const sessions = fakeSessions([
+			{ pid: 200, sessionId: "aaaa-1111", procStart: "111" },
+			{ pid: 201, sessionId: "bbbb-2222", procStart: "222" },
+		]);
 
-		expect((await SessionBinder.resolve(proc, 100))?.sessionId).toBe("aaaa-1111");
-		expect((await SessionBinder.resolve(proc, 101))?.sessionId).toBe("bbbb-2222");
+		expect(await SessionBinder.resolve(proc, sessions, 100)).toBe("aaaa-1111");
+		expect(await SessionBinder.resolve(proc, sessions, 101)).toBe("bbbb-2222");
 	});
 
-	it("returns null when the tab has no live claude", async () => {
+	it("returns null when the tab has no descendant in the sessions map", async () => {
 		const proc = fakeProc({
 			100: { parent: 1 },
-			200: { parent: 100, files: ["/dev/pts/3", "/home/jui/app/notes.txt"] },
+			200: { parent: 100, start: "5471493" },
 		});
+		const sessions = fakeSessions([]);
 
-		expect(await SessionBinder.resolve(proc, 100)).toBeNull();
+		expect(await SessionBinder.resolve(proc, sessions, 100)).toBeNull();
+	});
+
+	it("rejects a recycled pid whose procStart no longer matches the record", async () => {
+		const proc = fakeProc({
+			100: { parent: 1 },
+			200: { parent: 100, start: "5471493" },
+		});
+		const sessions = fakeSessions([{ pid: 200, sessionId: "stale-0000", procStart: "1111111" }]);
+
+		expect(await SessionBinder.resolve(proc, sessions, 100)).toBeNull();
 	});
 
 	it("maps a set of tabs to their bound session ids, skipping unbound ones", async () => {
@@ -72,25 +92,20 @@ describe("SessionBinder.resolve", () => {
 			100: { parent: 1 },
 			101: { parent: 1 },
 			102: { parent: 1 },
-			200: { parent: 100, files: [`${CWD_DIR}/aaaa-1111.jsonl`] },
-			201: { parent: 101, files: [`${CWD_DIR}/bbbb-2222.jsonl`] },
+			200: { parent: 100, start: "111" },
+			201: { parent: 101, start: "222" },
 		});
+		const sessions = fakeSessions([
+			{ pid: 200, sessionId: "aaaa-1111", procStart: "111" },
+			{ pid: 201, sessionId: "bbbb-2222", procStart: "222" },
+		]);
 
-		const bound = await SessionBinder.resolveMany(proc, [
+		const bound = await SessionBinder.resolveMany(proc, sessions, [
 			{ tabId: "t1", pid: 100 },
 			{ tabId: "t2", pid: 101 },
 			{ tabId: "t3", pid: 102 },
 		]);
 
 		expect(bound).toEqual({ t1: "aaaa-1111", t2: "bbbb-2222" });
-	});
-
-	it("ignores jsonl files outside the claude projects tree", async () => {
-		const proc = fakeProc({
-			100: { parent: 1 },
-			200: { parent: 100, files: ["/home/jui/app/data/other-3333.jsonl"] },
-		});
-
-		expect(await SessionBinder.resolve(proc, 100)).toBeNull();
 	});
 });

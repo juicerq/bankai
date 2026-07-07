@@ -10,6 +10,7 @@ import { backfillTurns } from "@core/review/TranscriptBackfill";
 import { countUnreviewed } from "@core/review/unreviewed";
 import { SessionBinder } from "@core/session/SessionBinder";
 import { procFs } from "@core/session/procFs";
+import { sessionsFs } from "@core/session/sessionsFs";
 import { type Project, Projects } from "@core/store/projects";
 import { ReviewState } from "@core/store/review-state";
 import { TabSupervisor } from "@core/terminal/TabSupervisor";
@@ -59,7 +60,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 		});
 
 		const poll = setInterval(() => {
-			SessionBinder.resolveMany(procFs, supervisor.pids())
+			SessionBinder.resolveMany(procFs, sessionsFs, supervisor.pids())
 				.then((resolved) => setBindings((prev) => ({ ...prev, ...resolved })))
 				.catch((err) => Logger.error("session:bind-failed", String(err)));
 		}, BIND_POLL_MS);

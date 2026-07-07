@@ -38,6 +38,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const [reviewed, setReviewed] = useState<Record<string, string[]>>({});
 	const [backfill, setBackfill] = useState<Record<string, Turn[]>>({});
 	const [review, setReview] = useState<{ sessionId: string } | null>(null);
+	const [leader, setLeader] = useState(false);
 	const [, bumpStatus] = useState(0);
 
 	const activeProject = projects[activeIndex];
@@ -263,27 +264,49 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 			return;
 		}
 
-		if (key.option) {
-			if (key.name === "s") {
-				setFocus("sidebar");
+		if (leader) {
+			setLeader(false);
+
+			if (key.ctrl && key.name === "x") {
+				if (activeTabId) {
+					supervisor.input(activeTabId, key.raw);
+				}
 				return;
 			}
-			if (key.name === "v") {
-				openReview();
-				return;
+
+			switch (key.name) {
+				case "s":
+					setFocus("sidebar");
+					return;
+				case "r":
+					openReview();
+					return;
+				case "n":
+					openTab();
+					return;
+				case "d":
+				case "x":
+					closeActiveTab();
+					return;
+				case "left":
+					cycleTab(-1);
+					return;
+				case "right":
+				case "tab":
+					cycleTab(1);
+					return;
+				default:
+					if (key.name.length === 1 && key.name >= "1" && key.name <= "9") {
+						switchTab(Number(key.name) - 1);
+					}
 			}
-			if (key.name === "left") {
-				cycleTab(-1);
-				return;
-			}
-			if (key.name === "right") {
-				cycleTab(1);
-				return;
-			}
-			if (key.name.length === 1 && key.name >= "1" && key.name <= "9") {
-				switchTab(Number(key.name) - 1);
-				return;
-			}
+
+			return;
+		}
+
+		if (key.ctrl && key.name === "x") {
+			setLeader(true);
+			return;
 		}
 
 		if (terminalFocused && activeTabId) {
@@ -356,6 +379,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 				activeTabId={activeTabId}
 				terminalFocused={terminalFocused}
 				statuses={statuses}
+				leader={leader}
 			/>
 
 			{picker && (

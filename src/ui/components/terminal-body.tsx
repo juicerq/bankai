@@ -13,6 +13,7 @@ export function TerminalBody({
 	activeTabId,
 	terminalFocused,
 	statuses,
+	leader,
 }: {
 	project: Project | undefined;
 	group: TabGroup | undefined;
@@ -20,6 +21,7 @@ export function TerminalBody({
 	activeTabId: string | undefined;
 	terminalFocused: boolean;
 	statuses: Record<string, TabStatus>;
+	leader: boolean;
 }) {
 	if (!project) {
 		return (
@@ -52,7 +54,7 @@ export function TerminalBody({
 				</box>
 			)}
 
-			<StatusHint mode={mode} />
+			<StatusHint mode={mode} leader={leader} />
 		</box>
 	);
 }

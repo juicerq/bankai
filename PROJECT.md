@@ -24,7 +24,7 @@ A single-screen command center with two levels:
    tab's PID to bind it to the live Claude session, and a status badge shows what that session
    is doing and whether it has turns I haven't reviewed. Commands go through a tmux-style
    leader (`^X` then a key: `s` rail, `n` new tab, `d` close, `1-9` switch, `r` review).
-2. **Review** — `⌥v` takes over the screen with a dense reading layout scoped to the focused
+2. **Review** — the `^X r` leader chord takes over the screen with a dense reading layout scoped to the focused
    session: a rail of the session's turns, the full readable diffs for the selected turn, and
    a feedback rail. Turns arrive live from Claude Code hooks or are backfilled from the session
    transcript. v1 is read-only (walk turns, mark reviewed); the feedback composer is architected

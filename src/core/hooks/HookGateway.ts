@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
 	type IncomingMessage,
 	type Server,
@@ -7,24 +6,32 @@ import {
 } from "node:http";
 import { Logger } from "@core/logger";
 
-const HTTP_EVENTS = [
-	"UserPromptSubmit",
-	"PostToolUse",
-	"Stop",
-	"Notification",
+export const HOOK_PORT = 47820;
+
+const HOOK_ENDPOINT = `http://127.0.0.1:${HOOK_PORT}/hooks`;
+
+export const HOOK_COMMAND = `curl -sS --max-time 0.2 -X POST --data-binary @- ${HOOK_ENDPOINT} || true`;
+
+export const HOOK_EVENTS = [
+	{ event: "UserPromptSubmit", matcher: undefined },
+	{ event: "PostToolUse", matcher: "Edit|Write" },
+	{ event: "Stop", matcher: undefined },
+	{ event: "Notification", matcher: undefined },
 ] as const;
 
-const HTTP_EVENT_NAMES: ReadonlySet<string> = new Set(HTTP_EVENTS);
+type HookEventName = (typeof HOOK_EVENTS)[number]["event"];
 
-type HookEventName = (typeof HTTP_EVENTS)[number];
+const HOOK_EVENT_NAMES: ReadonlySet<string> = new Set(HOOK_EVENTS.map((h) => h.event));
 
 function isHookEventName(name: string): name is HookEventName {
-	return HTTP_EVENT_NAMES.has(name);
+	return HOOK_EVENT_NAMES.has(name);
 }
 
 export type HookEvent = {
 	event: HookEventName;
 	sessionId: string;
+	cwd?: string;
+	transcriptPath?: string;
 	prompt?: string;
 	filePath?: string;
 	content?: string;
@@ -38,20 +45,24 @@ type Rec = Record<string, unknown>;
 const rec = (v: unknown): Rec => (v && typeof v === "object" ? (v as Rec) : {});
 const str = (v: unknown) => (typeof v === "string" ? v : undefined);
 
-function normalize(
-	sessionIdFromPath: string,
-	payload: unknown,
-): HookEvent | null {
+function normalize(payload: unknown): HookEvent | null {
 	const p = rec(payload);
 	const name = str(p.hook_event_name) ?? "";
 	if (!isHookEventName(name)) {
 		return null;
 	}
 
+	const sessionId = str(p.session_id);
+	if (!sessionId) {
+		return null;
+	}
+
 	const input = rec(p.tool_input);
 	return {
 		event: name,
-		sessionId: str(p.session_id) ?? sessionIdFromPath,
+		sessionId,
+		cwd: str(p.cwd),
+		transcriptPath: str(p.transcript_path),
 		prompt: str(p.prompt),
 		filePath: str(input.file_path),
 		content: str(input.content),
@@ -63,9 +74,7 @@ function normalize(
 }
 
 export class HookGateway {
-	private readonly token = randomUUID();
 	private server: Server | null = null;
-	private port = 0;
 	private readonly listeners = new Set<(event: HookEvent) => void>();
 
 	onEvent(listener: (event: HookEvent) => void) {
@@ -75,31 +84,11 @@ export class HookGateway {
 		};
 	}
 
-	settingsFor(sessionId: string) {
-		// SessionStart omitted: type:http is ignored for it (command/mcp_tool only).
-		const http = (event: string) => ({
-			type: "http",
-			url: `${this.origin}/hooks/${encodeURIComponent(sessionId)}?t=${this.token}&e=${event}`,
-		});
-
-		return {
-			hooks: {
-				UserPromptSubmit: [{ hooks: [http("UserPromptSubmit")] }],
-				PostToolUse: [{ matcher: "Edit|Write", hooks: [http("PostToolUse")] }],
-				Stop: [{ hooks: [http("Stop")] }],
-				Notification: [{ hooks: [http("Notification")] }],
-			},
-			allowedHttpHookUrls: [`${this.origin}/*`],
-		};
-	}
-
 	start(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			const server = createServer((req, res) => this.handle(req, res));
 			server.on("error", reject);
-			server.listen(0, "127.0.0.1", () => {
-				const addr = server.address();
-				this.port = addr && typeof addr === "object" ? addr.port : 0;
+			server.listen(HOOK_PORT, "127.0.0.1", () => {
 				this.server = server;
 				resolve();
 			});
@@ -113,17 +102,9 @@ export class HookGateway {
 		}
 
 		this.server = null;
-		this.port = 0;
 		await new Promise<void>((resolve) => {
 			running.close(() => resolve());
 		});
-	}
-
-	private get origin() {
-		if (!this.port) {
-			throw new Error("HookGateway not started");
-		}
-		return `http://127.0.0.1:${this.port}`;
 	}
 
 	private dispatch(event: HookEvent) {
@@ -133,21 +114,13 @@ export class HookGateway {
 	}
 
 	private handle(req: IncomingMessage, res: ServerResponse) {
-		const url = new URL(req.url ?? "/", "http://127.0.0.1");
-		const match = /^\/hooks\/([^/]+)$/.exec(url.pathname);
-
-		if (req.method !== "POST" || !match) {
+		const url = new URL(req.url ?? "/", HOOK_ENDPOINT);
+		if (req.method !== "POST" || url.pathname !== "/hooks") {
 			res.writeHead(404);
 			res.end();
 			return;
 		}
-		if (url.searchParams.get("t") !== this.token) {
-			res.writeHead(403);
-			res.end();
-			return;
-		}
 
-		const sessionId = decodeURIComponent(match[1] as string);
 		let body = "";
 		req.on("data", (chunk) => {
 			body += chunk;
@@ -157,13 +130,13 @@ export class HookGateway {
 			try {
 				payload = JSON.parse(body);
 			} catch {
-				Logger.warn("hooks:bad-json", { sessionId });
+				Logger.warn("hooks:bad-json", {});
 				res.writeHead(400);
 				res.end();
 				return;
 			}
 
-			const event = normalize(sessionId, payload);
+			const event = normalize(payload);
 			if (event) {
 				this.dispatch(event);
 			}

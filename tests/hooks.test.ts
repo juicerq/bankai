@@ -1,11 +1,20 @@
-import { describe, expect, it } from "vitest";
-import { type HookEvent, HookGateway } from "@core/hooks/HookGateway";
+import { mkdtempSync, rmSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+	HOOK_COMMAND,
+	HOOK_PORT,
+	type HookEvent,
+	HookGateway,
+} from "@core/hooks/HookGateway";
+import { HookInstaller } from "@core/hooks/HookInstaller";
+import { atomicWrite } from "@core/store/atomic";
 
-type HttpEvent = "UserPromptSubmit" | "PostToolUse" | "Stop" | "Notification";
+const HOOK_URL = `http://127.0.0.1:${HOOK_PORT}/hooks`;
 
-async function withGateway<T>(
-	fn: (gw: HookGateway) => T | Promise<T>,
-): Promise<T> {
+async function withGateway<T>(fn: (gw: HookGateway) => T | Promise<T>): Promise<T> {
 	const gw = new HookGateway();
 	await gw.start();
 	try {
@@ -13,15 +22,6 @@ async function withGateway<T>(
 	} finally {
 		await gw.stop();
 	}
-}
-
-function hookUrl(gw: HookGateway, sessionId: string, event: HttpEvent) {
-	const url = gw.settingsFor(sessionId).hooks[event][0]?.hooks[0]?.url;
-	if (!url) {
-		throw new Error(`no hook url for ${event}`);
-	}
-
-	return url;
 }
 
 function collect(gw: HookGateway) {
@@ -33,83 +33,64 @@ function collect(gw: HookGateway) {
 	return events;
 }
 
-describe("settingsFor", () => {
-	it("registers the four http-deliverable events and omits SessionStart", async () => {
-		await withGateway((gw) => {
-			expect(Object.keys(gw.settingsFor("s").hooks).sort()).toEqual([
-				"Notification",
-				"PostToolUse",
-				"Stop",
-				"UserPromptSubmit",
-			]);
-		});
-	});
+function post(body: string) {
+	return fetch(HOOK_URL, { method: "POST", body });
+}
 
-	it("matches PostToolUse on Edit|Write only", async () => {
-		await withGateway((gw) => {
-			expect(gw.settingsFor("s").hooks.PostToolUse.at(0)?.matcher).toBe(
-				"Edit|Write",
-			);
-		});
-	});
-
-	it("allowlists its own origin for http hooks", async () => {
-		await withGateway((gw) => {
-			const settings = gw.settingsFor("s");
-			const origin = new URL(hookUrl(gw, "s", "Stop")).origin;
-			expect(settings.allowedHttpHookUrls).toEqual([`${origin}/*`]);
-		});
-	});
-});
-
-describe("HookGateway (http round-trip)", () => {
-	it("emits a typed event for an authenticated POST", async () => {
+describe("HookGateway", () => {
+	it("emits a typed event for a Stop payload", async () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
-			const res = await fetch(hookUrl(gw, "abc", "Stop"), {
-				method: "POST",
-				body: JSON.stringify({ hook_event_name: "Stop", session_id: "abc" }),
-			});
+			const res = await post(JSON.stringify({ hook_event_name: "Stop", session_id: "abc" }));
 
 			expect(res.status).toBe(200);
 			expect(events).toMatchObject([{ event: "Stop", sessionId: "abc" }]);
 		});
 	});
 
+	it("normalizes cwd and transcript_path", async () => {
+		await withGateway(async (gw) => {
+			const events = collect(gw);
+			await post(
+				JSON.stringify({
+					hook_event_name: "Stop",
+					session_id: "s1",
+					cwd: "/home/jui/app",
+					transcript_path: "/t.jsonl",
+				}),
+			);
+
+			expect(events[0]?.cwd).toBe("/home/jui/app");
+			expect(events[0]?.transcriptPath).toBe("/t.jsonl");
+		});
+	});
+
 	it("carries Write content as the edit content", async () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
-			await fetch(hookUrl(gw, "sess-9", "PostToolUse"), {
-				method: "POST",
-				body: JSON.stringify({
+			await post(
+				JSON.stringify({
 					hook_event_name: "PostToolUse",
 					session_id: "sess-9",
 					tool_name: "Write",
 					tool_input: { file_path: "/a/b.ts", content: "hello" },
-					transcript_path: "/t.jsonl",
-					cwd: "/a",
 					unknown_future_field: 123,
 				}),
-			});
+			);
 
 			expect(events).toMatchObject([
-				{
-					event: "PostToolUse",
-					sessionId: "sess-9",
-					filePath: "/a/b.ts",
-					content: "hello",
-				},
+				{ event: "PostToolUse", sessionId: "sess-9", filePath: "/a/b.ts", content: "hello" },
 			]);
 		});
 	});
 
-	it("carries Edit old_string, new_string, and replace_all as edit fields", async () => {
+	it("carries Edit old_string, new_string, and replace_all", async () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
-			await fetch(hookUrl(gw, "sess-9", "PostToolUse"), {
-				method: "POST",
-				body: JSON.stringify({
+			await post(
+				JSON.stringify({
 					hook_event_name: "PostToolUse",
+					session_id: "sess-9",
 					tool_name: "Edit",
 					tool_input: {
 						file_path: "/a/b.ts",
@@ -118,10 +99,9 @@ describe("HookGateway (http round-trip)", () => {
 						replace_all: true,
 					},
 				}),
-			});
+			);
 
 			expect(events[0]).toMatchObject({
-				content: undefined,
 				oldString: "was",
 				newString: "changed",
 				replaceAll: true,
@@ -132,54 +112,36 @@ describe("HookGateway (http round-trip)", () => {
 	it("captures the prompt on UserPromptSubmit", async () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
-			await fetch(hookUrl(gw, "sess-9", "UserPromptSubmit"), {
-				method: "POST",
-				body: JSON.stringify({
+			await post(
+				JSON.stringify({
 					hook_event_name: "UserPromptSubmit",
+					session_id: "sess-9",
 					prompt: "do the thing",
 				}),
-			});
+			);
 
 			expect(events[0]?.prompt).toBe("do the thing");
 		});
 	});
 
-	it("falls back to the path session id when the payload omits it", async () => {
+	it("acks but emits nothing without a session id", async () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
-			await fetch(hookUrl(gw, "path-sess", "Stop"), {
-				method: "POST",
-				body: JSON.stringify({ hook_event_name: "Stop" }),
-			});
-
-			expect(events[0]?.sessionId).toBe("path-sess");
-		});
-	});
-
-	it("acks but emits nothing for an untracked event like SessionStart", async () => {
-		await withGateway(async (gw) => {
-			const events = collect(gw);
-			const res = await fetch(hookUrl(gw, "abc", "Stop"), {
-				method: "POST",
-				body: JSON.stringify({ hook_event_name: "SessionStart" }),
-			});
+			const res = await post(JSON.stringify({ hook_event_name: "Stop" }));
 
 			expect(res.status).toBe(200);
 			expect(events).toEqual([]);
 		});
 	});
 
-	it("rejects a wrong token with 403 and emits nothing", async () => {
+	it("acks but emits nothing for an untracked event", async () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
-			const url = new URL(hookUrl(gw, "abc", "Stop"));
-			url.searchParams.set("t", "wrong");
-			const res = await fetch(url, {
-				method: "POST",
-				body: JSON.stringify({ hook_event_name: "Stop", session_id: "abc" }),
-			});
+			const res = await post(
+				JSON.stringify({ hook_event_name: "SessionStart", session_id: "abc" }),
+			);
 
-			expect(res.status).toBe(403);
+			expect(res.status).toBe(200);
 			expect(events).toEqual([]);
 		});
 	});
@@ -187,13 +149,105 @@ describe("HookGateway (http round-trip)", () => {
 	it("rejects malformed json with 400 and emits nothing", async () => {
 		await withGateway(async (gw) => {
 			const events = collect(gw);
-			const res = await fetch(hookUrl(gw, "abc", "Stop"), {
-				method: "POST",
-				body: "not json",
-			});
+			const res = await post("not json");
 
 			expect(res.status).toBe(400);
 			expect(events).toEqual([]);
 		});
+	});
+
+	it("404s a non-hook path", async () => {
+		await withGateway(async () => {
+			const res = await fetch(`http://127.0.0.1:${HOOK_PORT}/other`, { method: "POST" });
+			expect(res.status).toBe(404);
+		});
+	});
+});
+
+describe("HookInstaller", () => {
+	let home: string;
+
+	beforeEach(() => {
+		home = mkdtempSync(join(tmpdir(), "project-j-home-"));
+		process.env.HOME = home;
+	});
+
+	afterEach(() => {
+		rmSync(home, { recursive: true, force: true });
+		delete process.env.HOME;
+	});
+
+	async function readSettings() {
+		const raw = await readFile(join(home, ".claude", "settings.json"), "utf8");
+		return JSON.parse(raw) as Record<string, unknown>;
+	}
+
+	function groupsFor(settings: Record<string, unknown>, event: string) {
+		const groups = (settings.hooks as Record<string, unknown[]>)[event];
+		if (!groups) {
+			throw new Error(`no groups for ${event}`);
+		}
+
+		return groups;
+	}
+
+	it("creates the four hooks when settings are absent", async () => {
+		await HookInstaller.install();
+		const settings = await readSettings();
+
+		expect(Object.keys(settings.hooks as object).sort()).toEqual([
+			"Notification",
+			"PostToolUse",
+			"Stop",
+			"UserPromptSubmit",
+		]);
+	});
+
+	it("matches PostToolUse on Edit|Write with the curl command", async () => {
+		await HookInstaller.install();
+		const settings = await readSettings();
+		const group = groupsFor(settings, "PostToolUse")[0] as {
+			matcher: string;
+			hooks: { command: string }[];
+		};
+
+		expect(group.matcher).toBe("Edit|Write");
+		expect(group.hooks[0]?.command).toBe(HOOK_COMMAND);
+	});
+
+	it("is idempotent across repeated installs", async () => {
+		await HookInstaller.install();
+		await HookInstaller.install();
+		const settings = await readSettings();
+
+		expect(groupsFor(settings, "Stop")).toHaveLength(1);
+	});
+
+	it("preserves existing hooks and unrelated keys", async () => {
+		const path = join(home, ".claude", "settings.json");
+		await atomicWrite(
+			path,
+			JSON.stringify(
+				{
+					model: "opus",
+					hooks: {
+						UserPromptSubmit: [{ hooks: [{ type: "command", command: "echo mine" }] }],
+					},
+				},
+				null,
+				2,
+			),
+		);
+
+		await HookInstaller.install();
+		const settings = await readSettings();
+
+		expect(settings.model).toBe("opus");
+		const submit = groupsFor(settings, "UserPromptSubmit") as {
+			hooks: { command: string }[];
+		}[];
+		expect(submit).toHaveLength(2);
+		expect(submit[0]?.hooks[0]?.command).toBe("echo mine");
+		expect(submit[1]?.hooks[0]?.command).toBe(HOOK_COMMAND);
 	});
 });

@@ -4,7 +4,7 @@ import { StatusHint } from "@ui/components/status-hint";
 import { TabBar } from "@ui/components/tab-bar";
 import { TerminalView } from "@ui/components/terminal-view";
 import { theme } from "@ui/theme";
-import type { TabGroup } from "@ui/types";
+import type { TabGroup, TabStatus } from "@ui/types";
 
 export function TerminalBody({
 	project,
@@ -12,12 +12,14 @@ export function TerminalBody({
 	supervisor,
 	activeTabId,
 	terminalFocused,
+	statuses,
 }: {
 	project: Project | undefined;
 	group: TabGroup | undefined;
 	supervisor: TabSupervisor;
 	activeTabId: string | undefined;
 	terminalFocused: boolean;
+	statuses: Record<string, TabStatus>;
 }) {
 	if (!project) {
 		return (
@@ -32,7 +34,7 @@ export function TerminalBody({
 
 	return (
 		<box style={{ flexGrow: 1, flexDirection: "column" }}>
-			<TabBar project={project} group={group} />
+			<TabBar project={project} group={group} statuses={statuses} />
 
 			{!!activeTabId && (
 				<TerminalView

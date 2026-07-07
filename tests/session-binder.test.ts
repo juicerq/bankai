@@ -67,6 +67,24 @@ describe("SessionBinder.resolve", () => {
 		expect(await SessionBinder.resolve(proc, 100)).toBeNull();
 	});
 
+	it("maps a set of tabs to their bound session ids, skipping unbound ones", async () => {
+		const proc = fakeProc({
+			100: { parent: 1 },
+			101: { parent: 1 },
+			102: { parent: 1 },
+			200: { parent: 100, files: [`${CWD_DIR}/aaaa-1111.jsonl`] },
+			201: { parent: 101, files: [`${CWD_DIR}/bbbb-2222.jsonl`] },
+		});
+
+		const bound = await SessionBinder.resolveMany(proc, [
+			{ tabId: "t1", pid: 100 },
+			{ tabId: "t2", pid: 101 },
+			{ tabId: "t3", pid: 102 },
+		]);
+
+		expect(bound).toEqual({ t1: "aaaa-1111", t2: "bbbb-2222" });
+	});
+
 	it("ignores jsonl files outside the claude projects tree", async () => {
 		const proc = fakeProc({
 			100: { parent: 1 },

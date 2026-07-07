@@ -60,6 +60,10 @@ export class TabSupervisor {
 		this.tabs.get(id)?.pty.write(data);
 	}
 
+	pids(): { tabId: string; pid: number }[] {
+		return [...this.tabs].map(([tabId, tab]) => ({ tabId, pid: tab.proc.pid }));
+	}
+
 	resize(id: string, cols: number, rows: number): void {
 		const tab = this.tabs.get(id);
 		if (!tab) {

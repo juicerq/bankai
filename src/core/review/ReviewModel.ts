@@ -19,7 +19,7 @@ export type Turn = {
 	files: FileDiff[];
 };
 
-type SessionStatus = "generating" | "idle" | "blocked";
+export type SessionStatus = "generating" | "idle" | "blocked";
 
 type FileLine = { text: string; origin: string | null };
 

@@ -1,29 +1,79 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useKeyboard } from "@opentui/react";
+import { HookGateway } from "@core/hooks/HookGateway";
 import { Logger } from "@core/logger";
+import { ReviewModel } from "@core/review/ReviewModel";
+import { countUnreviewed } from "@core/review/unreviewed";
+import { SessionBinder } from "@core/session/SessionBinder";
+import { procFs } from "@core/session/procFs";
 import { type Project, Projects } from "@core/store/projects";
+import { ReviewState } from "@core/store/review-state";
 import { TabSupervisor } from "@core/terminal/TabSupervisor";
 import { Ui } from "@ui/components";
 import { theme } from "@ui/theme";
-import type { TabGroup } from "@ui/types";
+import type { TabGroup, TabStatus } from "@ui/types";
 
 type Overlay = { kind: "add" } | { kind: "rename" } | null;
 
 const INITIAL_COLS = 80;
 const INITIAL_ROWS = 24;
+const BIND_POLL_MS = 2000;
 
 export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const [supervisor] = useState(() => new TabSupervisor());
+	const [reviewModel] = useState(() => new ReviewModel());
+	const [gateway] = useState(() => new HookGateway());
 	const [projects, setProjects] = useState(initialProjects);
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [groups, setGroups] = useState<Record<string, TabGroup>>({});
 	const [focus, setFocus] = useState<"sidebar" | "terminal">("sidebar");
 	const [overlay, setOverlay] = useState<Overlay>(null);
+	const [bindings, setBindings] = useState<Record<string, string>>({});
+	const [reviewed, setReviewed] = useState<Record<string, string[]>>({});
+	const [, bumpStatus] = useState(0);
 
 	const activeProject = projects[activeIndex];
 	const group = activeProject ? groups[activeProject.id] : undefined;
 	const activeTabId = group?.tabs[group.active];
 	const terminalFocused = focus === "terminal" && activeTabId !== undefined && overlay === null;
+
+	useEffect(() => {
+		gateway.start().catch((err) => Logger.error("hooks:gateway-start-failed", String(err)));
+
+		const offEvent = gateway.onEvent((event) => reviewModel.apply(event));
+		const offChange = reviewModel.onChange((sessionId) => {
+			bumpStatus((tick) => tick + 1);
+			ReviewState.get(sessionId)
+				.then((ids) => setReviewed((prev) => ({ ...prev, [sessionId]: ids })))
+				.catch((err) => Logger.error("review:reviewed-read-failed", String(err)));
+		});
+
+		const poll = setInterval(() => {
+			SessionBinder.resolveMany(procFs, supervisor.pids())
+				.then(setBindings)
+				.catch((err) => Logger.error("session:bind-failed", String(err)));
+		}, BIND_POLL_MS);
+
+		return () => {
+			offEvent();
+			offChange();
+			clearInterval(poll);
+			gateway.stop().catch((err) => Logger.error("hooks:gateway-stop-failed", String(err)));
+		};
+	}, [gateway, reviewModel, supervisor]);
+
+	const statuses: Record<string, TabStatus> = {};
+	for (const tabId of group?.tabs ?? []) {
+		const sessionId = bindings[tabId];
+		if (!sessionId) {
+			continue;
+		}
+
+		statuses[tabId] = {
+			status: reviewModel.getStatus(sessionId),
+			unreviewed: countUnreviewed(reviewModel.getTurns(sessionId), reviewed[sessionId] ?? []) > 0,
+		};
+	}
 
 	const selectProject = (direction: -1 | 1) => {
 		if (projects.length === 0) {
@@ -234,6 +284,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 				supervisor={supervisor}
 				activeTabId={activeTabId}
 				terminalFocused={terminalFocused}
+				statuses={statuses}
 			/>
 
 			{overlay?.kind === "add" && (

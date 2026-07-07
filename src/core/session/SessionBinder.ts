@@ -35,30 +35,58 @@ async function childrenByParent(source: ProcSource): Promise<Map<number, number[
 	return children;
 }
 
+async function descend(
+	source: ProcSource,
+	children: Map<number, number[]>,
+	shellPid: number,
+): Promise<BoundSession | null> {
+	const seen = new Set<number>();
+	let frontier = children.get(shellPid) ?? [];
+
+	while (frontier.length > 0) {
+		const batch = frontier.filter((pid) => !seen.has(pid));
+		for (const pid of batch) {
+			seen.add(pid);
+		}
+
+		const openFiles = await Promise.all(batch.map((pid) => source.openFiles(pid)));
+		for (const files of openFiles) {
+			const transcript = transcriptOf(files);
+			if (transcript) {
+				return { sessionId: basename(transcript, ".jsonl"), transcriptPath: transcript };
+			}
+		}
+
+		frontier = batch.flatMap((pid) => children.get(pid) ?? []);
+	}
+
+	return null;
+}
+
 export const SessionBinder = {
 	async resolve(source: ProcSource, shellPid: number): Promise<BoundSession | null> {
 		const children = await childrenByParent(source);
 
-		const seen = new Set<number>();
-		let frontier = children.get(shellPid) ?? [];
+		return descend(source, children, shellPid);
+	},
 
-		while (frontier.length > 0) {
-			const batch = frontier.filter((pid) => !seen.has(pid));
-			for (const pid of batch) {
-				seen.add(pid);
-			}
-
-			const openFiles = await Promise.all(batch.map((pid) => source.openFiles(pid)));
-			for (const files of openFiles) {
-				const transcript = transcriptOf(files);
-				if (transcript) {
-					return { sessionId: basename(transcript, ".jsonl"), transcriptPath: transcript };
-				}
-			}
-
-			frontier = batch.flatMap((pid) => children.get(pid) ?? []);
+	async resolveMany(
+		source: ProcSource,
+		tabs: { tabId: string; pid: number }[],
+	): Promise<Record<string, string>> {
+		if (tabs.length === 0) {
+			return {};
 		}
 
-		return null;
+		const children = await childrenByParent(source);
+		const bound = await Promise.all(
+			tabs.map(async ({ tabId, pid }) => {
+				const session = await descend(source, children, pid);
+
+				return session ? ([tabId, session.sessionId] as const) : null;
+			}),
+		);
+
+		return Object.fromEntries(bound.filter((entry) => entry !== null));
 	},
 };

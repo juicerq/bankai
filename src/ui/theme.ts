@@ -9,6 +9,7 @@ export const theme = {
 	textFaint: "#454d5e",
 
 	accent: "#e0a54a",
+	review: "#6cb2c2",
 
 	danger: "#d16b6b",
 } as const;

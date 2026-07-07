@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach } from "vitest";
 
 beforeEach(() => {
-	process.env.DATA_DIR = mkdtempSync(join(tmpdir(), "project-j-test-"));
+	process.env.DATA_DIR = mkdtempSync(join(tmpdir(), "bankai-test-"));
 });
 
 afterEach(() => {

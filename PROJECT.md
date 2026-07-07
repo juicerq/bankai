@@ -1,6 +1,6 @@
-# project-j
+# bankai
 
-project-j is a personal terminal app — a TUI (openTUI on Bun) — for reviewing the code
+bankai is a personal terminal app — a TUI (openTUI on Bun) — for reviewing the code
 that Claude Code agents write.
 
 ## Why it exists
@@ -20,7 +20,7 @@ A single-screen command center with two levels:
 
 1. **Command center** — a left rail lists my projects; the right side hosts, per project, a
    set of tabbed shells. Each tab *is* a real terminal where I run `claude`/`cc` myself and
-   read and prompt the agent right there — project-j doesn't wrap the process. It watches the
+   read and prompt the agent right there — bankai doesn't wrap the process. It watches the
    tab's PID to bind it to the live Claude session, and a status badge shows what that session
    is doing and whether it has turns I haven't reviewed. Commands go through a tmux-style
    leader (`^X` then a key: `s` rail, `n` new tab, `d` close, `1-9` switch, `r` review).

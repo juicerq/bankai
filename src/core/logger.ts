@@ -22,7 +22,7 @@ function resolveLogPath(): string {
 	}
 
 	const base = process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share");
-	return join(base, "project-j", "log.ndjson");
+	return join(base, "bankai", "log.ndjson");
 }
 
 function rotateIfNeeded(path: string): void {

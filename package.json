@@ -1,5 +1,5 @@
 {
-	"name": "project-j",
+	"name": "bankai",
 	"version": "0.0.1",
 	"private": true,
 	"description": "Terminal cockpit for live Claude Code sessions per project, with turn-by-turn code review — openTUI + Bun + JSON store",
@@ -7,10 +7,10 @@
 		"name": "juicerq",
 		"email": "julio.cerqueiira@gmail.com"
 	},
-	"homepage": "https://github.com/juicerq/project-j",
+	"homepage": "https://github.com/juicerq/bankai",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/juicerq/project-j.git"
+		"url": "https://github.com/juicerq/bankai.git"
 	},
 	"type": "module",
 	"engines": {

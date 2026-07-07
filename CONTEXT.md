@@ -1,6 +1,6 @@
-# project-j — Contexto
+# bankai — Contexto
 
-project-j é uma TUI de terminal (openTUI, Linux, um processo Bun) pra revisar o código que
+bankai é uma TUI de terminal (openTUI, Linux, um processo Bun) pra revisar o código que
 agentes Claude Code escrevem. Uma **sidebar** de **Projects** à esquerda; à direita, **Tabs** de
 terminais e o corpo com o terminal vivo. O operador roda `cc` num terminal cru e abre uma
 **Review** turn-a-turn de qualquer **Session**. Este glossário fixa a linguagem do produto.

@@ -70,7 +70,7 @@ const EXTRA_PARSERS = [
 
 const PARSER_CACHE_DIR = join(
 	process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"),
-	"project-j",
+	"bankai",
 	"parsers",
 );
 

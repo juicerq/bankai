@@ -9,5 +9,5 @@ export function resolveDataDir(): string {
 
 	const xdg = process.env.XDG_DATA_HOME;
 	const base = xdg ?? join(homedir(), ".local", "share");
-	return join(base, "project-j", "store");
+	return join(base, "bankai", "store");
 }

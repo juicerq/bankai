@@ -1,6 +1,4 @@
-# project-j
-
-> Working name until it has a real one.
+# bankai
 
 Personal desktop app: a **canvas of live Claude Code sessions grouped by project**, where clicking "Ver diff" on a session opens a **turn-by-turn code review** of what that agent generated.
 
@@ -39,4 +37,4 @@ tests/           # vitest
 grill/           # PRD (design record)
 ```
 
-_Copied from `~/projects/app-template`; template metadata (name, appId, repo) already swapped to `project-j`._
+_Copied from `~/projects/app-template`; template metadata (name, appId, repo) already swapped to `bankai`._

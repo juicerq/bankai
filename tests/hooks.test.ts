@@ -166,7 +166,7 @@ describe("HookInstaller", () => {
 	let home: string;
 
 	beforeEach(() => {
-		home = mkdtempSync(join(tmpdir(), "project-j-home-"));
+		home = mkdtempSync(join(tmpdir(), "bankai-home-"));
 		process.env.HOME = home;
 	});
 

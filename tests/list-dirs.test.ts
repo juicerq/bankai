@@ -7,7 +7,7 @@ import { listDirs } from "@core/fs/listDirs";
 let root: string;
 
 beforeAll(() => {
-	root = mkdtempSync(join(tmpdir(), "project-j-listdirs-"));
+	root = mkdtempSync(join(tmpdir(), "bankai-listdirs-"));
 
 	const mk = (name: string, mtime: number) => {
 		const path = join(root, name);

@@ -1,7 +1,7 @@
 import { TextAttributes } from "@opentui/core";
 import { theme } from "@ui/theme";
 
-const PREVIEW_BUDGET = 22;
+const PREVIEW_BUDGET = 18;
 const ELLIPSIS = String.fromCodePoint(0x2026);
 
 function preview(prompt: string): string {
@@ -20,27 +20,34 @@ function preview(prompt: string): string {
 export function ReviewTurnRow({
 	index,
 	prompt,
+	fileCount,
 	active,
 	reviewed,
 }: {
 	index: number;
 	prompt: string;
+	fileCount: number;
 	active: boolean;
 	reviewed: boolean;
 }) {
+	const count = fileCount === 0 ? "" : String(fileCount);
+
 	return (
-		<text
-			style={{
-				fg: active ? theme.accent : theme.textDim,
-				attributes: active ? TextAttributes.BOLD : TextAttributes.NONE,
-			}}
-		>
-			{`${active ? "▐" : " "}${String(index + 1).padStart(2, " ")} `}
-			<span style={{ fg: reviewed ? theme.review : theme.textFaint }}>
-				{reviewed && "✓"}
-				{!reviewed && "·"}
-			</span>
-			{` ${preview(prompt)}`}
-		</text>
+		<box style={{ flexDirection: "row", justifyContent: "space-between" }}>
+			<text
+				style={{
+					fg: active ? theme.accent : theme.textDim,
+					attributes: active ? TextAttributes.BOLD : TextAttributes.NONE,
+				}}
+			>
+				{`${active ? "▐" : " "}${String(index + 1).padStart(2, " ")} `}
+				<span style={{ fg: reviewed ? theme.review : theme.textFaint }}>
+					{reviewed && "✓"}
+					{!reviewed && "·"}
+				</span>
+				{` ${preview(prompt)}`}
+			</text>
+			<text style={{ fg: theme.textFaint }}>{count}</text>
+		</box>
 	);
 }

@@ -38,7 +38,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const [bindings, setBindings] = useState<Record<string, string>>({});
 	const [reviewed, setReviewed] = useState<Record<string, string[]>>({});
 	const [backfill, setBackfill] = useState<Record<string, Turn[]>>({});
-	const [review, setReview] = useState<{ sessionId: string } | null>(null);
+	const [review, setReview] = useState<{ sessionId: string | null } | null>(null);
 	const [leader, setLeader] = useState(false);
 	const [, bumpStatus] = useState(0);
 
@@ -230,6 +230,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const openReview = () => {
 		const sessionId = activeTabId ? bindings[activeTabId] : undefined;
 		if (!sessionId) {
+			setReview({ sessionId: null });
 			return;
 		}
 
@@ -246,19 +247,21 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	};
 
 	const toggleReviewed = (turnId: string) => {
-		if (!review) {
+		const sessionId = review?.sessionId;
+		if (!sessionId) {
 			return;
 		}
 
-		const next = !(reviewed[review.sessionId] ?? []).includes(turnId);
+		const next = !(reviewed[sessionId] ?? []).includes(turnId);
 
-		ReviewState.setReviewed({ sessionId: review.sessionId, turnId, reviewed: next })
-			.then((ids) => setReviewed((prev) => ({ ...prev, [review.sessionId]: ids })))
+		ReviewState.setReviewed({ sessionId, turnId, reviewed: next })
+			.then((ids) => setReviewed((prev) => ({ ...prev, [sessionId]: ids })))
 			.catch((err) => Logger.error("review:toggle-failed", String(err)));
 	};
 
-	const liveTurns = review ? reviewModel.getTurns(review.sessionId) : [];
-	const reviewTurns = liveTurns.length > 0 ? liveTurns : review ? (backfill[review.sessionId] ?? []) : [];
+	const liveTurns = review?.sessionId ? reviewModel.getTurns(review.sessionId) : [];
+	const reviewTurns =
+		liveTurns.length > 0 ? liveTurns : review?.sessionId ? (backfill[review.sessionId] ?? []) : [];
 
 	useKeyboard((key) => {
 		if (review || overlay || picker) {
@@ -359,10 +362,10 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	if (review) {
 		return (
 			<Ui.ReviewScreen
-				key={review.sessionId}
+				key={review.sessionId ?? "unbound"}
 				sessionId={review.sessionId}
 				turns={reviewTurns}
-				reviewedTurnIds={reviewed[review.sessionId] ?? []}
+				reviewedTurnIds={review.sessionId ? (reviewed[review.sessionId] ?? []) : []}
 				onToggleReviewed={toggleReviewed}
 				onClose={() => setReview(null)}
 			/>

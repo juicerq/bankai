@@ -5,7 +5,7 @@ import { cascadeWarnings } from "@core/review/cascade";
 const turn = (turnId: string, paths: string[]): Turn => ({
 	turnId,
 	prompt: "",
-	files: paths.map((path) => ({ path, lines: [] })),
+	files: paths.map((path) => ({ path, before: [], after: [] })),
 });
 
 describe("cascadeWarnings", () => {

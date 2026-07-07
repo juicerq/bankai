@@ -63,6 +63,14 @@ por arquivo que tocou. Visto em dois modos: **per-turn** (só o incremento daque
 _Evite_: confundir com o diff git do working-tree — o produto revisa por Turn, não o estado atual
 da árvore.
 
+**Fold** — _apelido: "dobra", "⋯ N linhas"_
+O marcador que dobra um trecho de contexto intacto dentro de um Diff, mostrando só a vizinhança
+das mudanças. Um Diff se lê **folded** (contexto dobrado, padrão) ou **full** (arquivo inteiro,
+sem dobras); alternar entre eles não muda o ponto do arquivo que você estava vendo. É um eixo
+independente do par **compact/unified** (remoções resumidas vs linha a linha inline).
+_Evite_: "expanded/collapsed" como rótulo — ambíguo entre os dois eixos; expandir remoções é
+compact→unified, dobrar contexto é o Fold (folded/full).
+
 **Status** — _apelido: "status"_
 O badge de uma Session, sempre **derivado** (nunca setado à mão, exceto `done`). Combina um estado
 de processo — **`generating`** (agente trabalhando), **`idle`** (parado no prompt, nada pendente) ou

@@ -2,98 +2,56 @@ import { describe, expect, it } from "vitest";
 import type { Turn } from "@core/review/ReviewModel";
 import { filesForMode } from "@core/review/accumulate";
 
-const line = (turnId: string, path: string, n: number, text: string) => ({
-	turnId,
-	path,
-	line: n,
-	kind: "add" as const,
-	text,
-});
+const snap = (path: string, before: string[], after: string[]) => ({ path, before, after });
 
 const turns: Turn[] = [
-	{
-		turnId: "s:0",
-		prompt: "add a",
-		files: [{ path: "/a.ts", lines: [line("s:0", "/a.ts", 1, "v0")] }],
-	},
+	{ turnId: "s:0", prompt: "add a", files: [snap("/a.ts", [], ["v0"])] },
 	{
 		turnId: "s:1",
 		prompt: "add b, rewrite a",
-		files: [
-			{ path: "/b.ts", lines: [line("s:1", "/b.ts", 1, "b")] },
-			{ path: "/a.ts", lines: [line("s:1", "/a.ts", 1, "v1")] },
-		],
+		files: [snap("/b.ts", [], ["b"]), snap("/a.ts", ["v0"], ["v1"])],
 	},
 	{ turnId: "s:2", prompt: "just talk", files: [] },
 ];
 
 describe("filesForMode", () => {
 	it("per-turn returns only the selected turn's files", () => {
-		expect(filesForMode(turns, 1, "turn").map((f) => f.path)).toEqual([
-			"/b.ts",
-			"/a.ts",
-		]);
+		expect(filesForMode(turns, 1, "turn").map((f) => f.path)).toEqual(["/b.ts", "/a.ts"]);
 	});
 
-	it("accumulated keeps the latest version of each file up to the selection", () => {
+	it("accumulated pairs the earliest before with the latest after per file", () => {
 		const files = filesForMode(turns, 1, "accumulated");
 		const a = files.find((f) => f.path === "/a.ts");
 
 		expect(files.map((f) => f.path).sort()).toEqual(["/a.ts", "/b.ts"]);
-		expect(a?.lines[0]?.text).toBe("v1");
+		expect(a).toEqual({ path: "/a.ts", before: [], after: ["v1"] });
 	});
 
-	it("accumulated at the first turn matches per-turn", () => {
-		expect(filesForMode(turns, 0, "accumulated")).toEqual(
-			filesForMode(turns, 0, "turn"),
-		);
+	it("accumulated spans the whole session regardless of the selected turn", () => {
+		expect(filesForMode(turns, 0, "accumulated")).toEqual(filesForMode(turns, 2, "accumulated"));
 	});
 
-	it("a talk-only turn shows no files but accumulates prior ones", () => {
+	it("a talk-only turn shows no files per-turn", () => {
 		expect(filesForMode(turns, 2, "turn")).toEqual([]);
-		expect(filesForMode(turns, 2, "accumulated").map((f) => f.path)).toEqual([
-			"/a.ts",
-			"/b.ts",
-		]);
+		expect(filesForMode(turns, 2, "accumulated").map((f) => f.path)).toEqual(["/a.ts", "/b.ts"]);
 	});
 
-	it("returns nothing for an out-of-range selection", () => {
-		expect(filesForMode(turns, 9, "turn")).toEqual([]);
-		expect(filesForMode([], 0, "accumulated")).toEqual([]);
-	});
-
-	it("accumulated promotes any session-introduced line to add, keeping pre-existing as context", () => {
-		const annotated: Turn[] = [
-			{
-				turnId: "s:0",
-				prompt: "p0",
-				files: [{ path: "/f.ts", lines: [line("s:0", "/f.ts", 1, "a")] }],
-			},
-			{
-				turnId: "s:1",
-				prompt: "p1",
-				files: [
-					{
-						path: "/f.ts",
-						lines: [
-							{ turnId: "", path: "/f.ts", line: 1, kind: "context", text: "pre" },
-							{ turnId: "s:0", path: "/f.ts", line: 2, kind: "context", text: "a" },
-							{ turnId: "s:1", path: "/f.ts", line: 3, kind: "add", text: "b" },
-						],
-					},
-				],
-			},
+	it("accumulated nets out a line added then later removed", () => {
+		const churn: Turn[] = [
+			{ turnId: "s:0", prompt: "base", files: [snap("/f.ts", ["a", "c"], ["a", "c"])] },
+			{ turnId: "s:1", prompt: "add b", files: [snap("/f.ts", ["a", "c"], ["a", "b", "c"])] },
+			{ turnId: "s:2", prompt: "drop b", files: [snap("/f.ts", ["a", "b", "c"], ["a", "c"])] },
 		];
 
-		const acc = filesForMode(annotated, 1, "accumulated")[0]?.lines.map((l) => [
-			l.kind,
-			l.turnId,
-		]);
-		expect(acc).toEqual([
-			["context", ""],
-			["add", "s:0"],
-			["add", "s:1"],
-		]);
-		expect(filesForMode(annotated, 1, "turn")[0]?.lines[1]?.kind).toBe("context");
+		expect(filesForMode(churn, 2, "accumulated")[0]).toEqual({
+			path: "/f.ts",
+			before: ["a", "c"],
+			after: ["a", "c"],
+		});
+	});
+
+	it("returns nothing for an out-of-range selection or an empty session", () => {
+		expect(filesForMode(turns, 9, "turn")).toEqual([]);
+		expect(filesForMode([], 0, "accumulated")).toEqual([]);
 	});
 });

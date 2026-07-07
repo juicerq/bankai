@@ -10,6 +10,20 @@ const rec = (v: unknown): Rec => (v && typeof v === "object" ? (v as Rec) : {});
 const str = (v: unknown) => (typeof v === "string" ? v : undefined);
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
+function normalizePrompt(text: string): string | undefined {
+	if (text.includes("<local-command-stdout>") || text.startsWith("[Request interrupted")) {
+		return undefined;
+	}
+
+	const name = /<command-name>([^<]*)<\/command-name>/.exec(text);
+	if (!name) {
+		return text;
+	}
+
+	const args = /<command-args>([\s\S]*?)<\/command-args>/.exec(text);
+	return `${name[1]!.trim()} ${args?.[1]?.trim() ?? ""}`.trim();
+}
+
 // A user line is a real prompt only when it carries authored text — tool results
 // and Claude Code's synthetic (isMeta) lines share the `user` type but never open a turn.
 function promptFrom(line: Rec): string | undefined {
@@ -19,7 +33,7 @@ function promptFrom(line: Rec): string | undefined {
 
 	const content = rec(line.message).content;
 	if (typeof content === "string") {
-		return content;
+		return normalizePrompt(content);
 	}
 
 	const blocks = arr(content).map(rec);
@@ -32,7 +46,7 @@ function promptFrom(line: Rec): string | undefined {
 		.map((b) => str(b.text) ?? "")
 		.join("\n");
 
-	return text || undefined;
+	return text ? normalizePrompt(text) : undefined;
 }
 
 // Map one assistant tool_use block onto the same PostToolUse shape the live hook path

@@ -1,40 +1,26 @@
 import type { HookEvent } from "@core/hooks/HookGateway";
 
-type DiffLine = {
-	turnId: string;
+export type FileSnapshot = {
 	path: string;
-	line: number;
-	kind: "add" | "context";
-	text: string;
-};
-
-export type FileDiff = {
-	path: string;
-	lines: DiffLine[];
+	before: string[];
+	after: string[];
 };
 
 export type Turn = {
 	turnId: string;
 	prompt: string;
-	files: FileDiff[];
+	files: FileSnapshot[];
 };
 
 export type SessionStatus = "generating" | "idle" | "blocked";
-
-type FileLine = { text: string; origin: string | null };
 
 type SessionState = {
 	sessionId: string;
 	turns: Turn[];
 	open: Turn | null;
 	status: SessionStatus;
-	files: Map<string, FileLine[]>;
+	files: Map<string, string[]>;
 };
-
-// Past this many lines the line-by-line diff is skipped and every line falls back to
-// "add", so a huge generated file can't stall the main process. Upgrade path: Myers/
-// Hirschberg to keep the diff without the O(m*n) table.
-const DIFF_CAP_LINES = 3000;
 
 function applyEdit(
 	text: string,
@@ -46,79 +32,27 @@ function applyEdit(
 		return text;
 	}
 
-	return replaceAll
-		? text.replaceAll(oldString, newString)
-		: text.replace(oldString, newString);
+	return replaceAll ? text.replaceAll(oldString, newString) : text.replace(oldString, newString);
 }
 
-function diffLines(
-	prev: FileLine[],
-	next: string[],
-	turnId: string,
-): FileLine[] {
-	if (prev.length > DIFF_CAP_LINES || next.length > DIFF_CAP_LINES) {
-		return next.map((text) => ({ text, origin: turnId }));
-	}
-
-	const m = prev.length;
-	const n = next.length;
-	const w = n + 1;
-	const dp = new Uint16Array((m + 1) * w);
-
-	for (let i = 1; i <= m; i++) {
-		for (let j = 1; j <= n; j++) {
-			dp[i * w + j] =
-				prev[i - 1]!.text === next[j - 1]!
-					? dp[(i - 1) * w + (j - 1)]! + 1
-					: Math.max(dp[(i - 1) * w + j]!, dp[i * w + (j - 1)]!);
-		}
-	}
-
-	const origin: (string | null)[] = Array.from({ length: n }, () => turnId);
-	let i = m;
-	let j = n;
-	while (i > 0 && j > 0) {
-		if (prev[i - 1]!.text === next[j - 1]!) {
-			origin[j - 1] = prev[i - 1]!.origin;
-			i--;
-			j--;
-		} else if (dp[(i - 1) * w + j]! >= dp[i * w + (j - 1)]!) {
-			i--;
-		} else {
-			j--;
-		}
-	}
-
-	return next.map((text, k) => ({ text, origin: origin[k]! }));
-}
-
-function rebuildContent(
-	prev: FileLine[] | undefined,
-	event: HookEvent,
-	turnId: string,
-): FileLine[] | null {
+function nextContent(prev: string[] | undefined, event: HookEvent): string[] | null {
 	if (event.content !== undefined) {
-		return diffLines(prev ?? [], event.content.split("\n"), turnId);
+		return event.content.split("\n");
 	}
 
 	if (event.newString !== undefined) {
 		if (prev) {
-			const nextText = applyEdit(
-				prev.map((l) => l.text).join("\n"),
-				event.oldString,
-				event.newString,
-				event.replaceAll,
-			);
-			return diffLines(prev, nextText.split("\n"), turnId);
+			return applyEdit(prev.join("\n"), event.oldString, event.newString, event.replaceAll).split("\n");
 		}
 
-		const baseline: FileLine[] = event.oldString
-			? event.oldString.split("\n").map((text) => ({ text, origin: null }))
-			: [];
-		return diffLines(baseline, event.newString.split("\n"), turnId);
+		return event.newString.split("\n");
 	}
 
 	return null;
+}
+
+function baselineFor(event: HookEvent): string[] {
+	return event.oldString ? event.oldString.split("\n") : [];
 }
 
 export class ReviewModel {
@@ -148,10 +82,7 @@ export class ReviewModel {
 			}
 			case "PostToolUse": {
 				const path = event.filePath;
-				if (
-					!path ||
-					(event.content === undefined && event.newString === undefined)
-				) {
+				if (!path || (event.content === undefined && event.newString === undefined)) {
 					return;
 				}
 
@@ -183,7 +114,11 @@ export class ReviewModel {
 			return [];
 		}
 
-		return state.open ? [...state.turns, state.open] : state.turns;
+		if (state.open && state.open.files.length > 0) {
+			return [...state.turns, state.open];
+		}
+
+		return state.turns;
 	}
 
 	getStatus(sessionId: string): SessionStatus {
@@ -211,41 +146,30 @@ export class ReviewModel {
 	}
 
 	private closeOpen(state: SessionState) {
-		if (state.open) {
+		if (state.open && state.open.files.length > 0) {
 			state.turns.push(state.open);
-			state.open = null;
 		}
+
+		state.open = null;
 	}
 
-	private recordFileChange(
-		state: SessionState,
-		path: string,
-		event: HookEvent,
-	) {
+	private recordFileChange(state: SessionState, path: string, event: HookEvent) {
 		const turn =
-			state.open ??
-			(state.open = { turnId: this.nextTurnId(state), prompt: "", files: [] });
+			state.open ?? (state.open = { turnId: this.nextTurnId(state), prompt: "", files: [] });
 
-		const rebuilt = rebuildContent(state.files.get(path), event, turn.turnId);
-		if (!rebuilt) {
+		const prev = state.files.get(path);
+		const after = nextContent(prev, event);
+		if (!after) {
 			return;
 		}
 
-		state.files.set(path, rebuilt);
-
-		const lines: DiffLine[] = rebuilt.map((l, i) => ({
-			turnId: l.origin ?? "",
-			path,
-			line: i + 1,
-			kind: l.origin === turn.turnId ? "add" : "context",
-			text: l.text,
-		}));
+		state.files.set(path, after);
 
 		const existing = turn.files.find((f) => f.path === path);
 		if (existing) {
-			existing.lines = lines;
+			existing.after = after;
 		} else {
-			turn.files.push({ path, lines });
+			turn.files.push({ path, before: prev ?? baselineFor(event), after });
 		}
 	}
 

@@ -29,6 +29,19 @@ function liveTurns() {
 	return model.getTurns(SID);
 }
 
+const userLine = (content: unknown) =>
+	JSON.stringify({ type: "user", message: { role: "user", content }, sessionId: SID });
+
+const writeLine = (filePath: string, content: string) =>
+	JSON.stringify({
+		type: "assistant",
+		message: {
+			role: "assistant",
+			content: [{ type: "tool_use", id: "t", name: "Write", input: { file_path: filePath, content } }],
+		},
+		sessionId: SID,
+	});
+
 describe("TranscriptBackfill", () => {
 	it("parses a real transcript into turns identical to the live hook path", () => {
 		expect(parseTranscript(SID, fixture)).toEqual(liveTurns());
@@ -41,6 +54,47 @@ describe("TranscriptBackfill", () => {
 			["/home/user/projects/demo/finance.ts"],
 			["/home/user/.claude/settings.json"],
 		]);
+	});
+
+	it("normalizes a slash command into its typed form and keeps its edits", () => {
+		const transcript = [
+			userLine(
+				"<command-name>/to-tasks</command-name>\n<command-message>to-tasks</command-message>\n<command-args>fatia 1</command-args>",
+			),
+			writeLine("/grill/tasks/01.md", "task"),
+		].join("\n");
+
+		expect(parseTranscript(SID, transcript).map((t) => t.prompt)).toEqual(["/to-tasks fatia 1"]);
+	});
+
+	it("drops a command that edited nothing", () => {
+		const transcript = [
+			userLine("add helper"),
+			writeLine("/a.ts", "x"),
+			userLine("<command-name>/compact</command-name>\n<command-message>compact</command-message>"),
+		].join("\n");
+
+		expect(parseTranscript(SID, transcript).map((t) => t.prompt)).toEqual(["add helper"]);
+	});
+
+	it("keeps edits after command output and interrupts on the real turn", () => {
+		const transcript = [
+			userLine("add helper"),
+			writeLine("/a.ts", "x"),
+			userLine("<local-command-stdout>Compacted</local-command-stdout>"),
+			userLine([{ type: "text", text: "[Request interrupted by user]" }]),
+			writeLine("/b.ts", "y"),
+		].join("\n");
+
+		expect(parseTranscript(SID, transcript).map((t) => t.files.map((f) => f.path))).toEqual([
+			["/a.ts", "/b.ts"],
+		]);
+	});
+
+	it("drops a talk-only prompt without leaving a turn", () => {
+		const transcript = [userLine("how does this work?"), userLine("thanks")].join("\n");
+
+		expect(parseTranscript(SID, transcript)).toEqual([]);
 	});
 
 	it("tolerates malformed lines and unknown types without throwing", () => {

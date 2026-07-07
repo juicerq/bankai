@@ -1,4 +1,4 @@
-import type { FileDiff, Turn } from "@core/review/ReviewModel";
+import type { FileSnapshot, Turn } from "@core/review/ReviewModel";
 
 export type DiffMode = "turn" | "accumulated";
 
@@ -6,30 +6,24 @@ export function filesForMode(
 	turns: Turn[],
 	selectedIndex: number,
 	mode: DiffMode,
-): FileDiff[] {
-	const selected = turns[selectedIndex];
-
-	if (!selected) {
-		return [];
-	}
-
+): FileSnapshot[] {
 	if (mode === "turn") {
-		return selected.files;
+		return turns[selectedIndex]?.files ?? [];
 	}
 
-	const byPath = new Map<string, FileDiff>();
+	const before = new Map<string, string[]>();
+	const after = new Map<string, string[]>();
+	const order: string[] = [];
 
-	for (let i = 0; i <= selectedIndex; i++) {
-		for (const file of turns[i]?.files ?? []) {
-			byPath.set(file.path, file);
+	for (const turn of turns) {
+		for (const file of turn.files) {
+			if (!before.has(file.path)) {
+				before.set(file.path, file.before);
+				order.push(file.path);
+			}
+			after.set(file.path, file.after);
 		}
 	}
 
-	return [...byPath.values()].map((file) => ({
-		path: file.path,
-		lines: file.lines.map((line) => ({
-			...line,
-			kind: line.turnId ? ("add" as const) : ("context" as const),
-		})),
-	}));
+	return order.map((path) => ({ path, before: before.get(path)!, after: after.get(path)! }));
 }

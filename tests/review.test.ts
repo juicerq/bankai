@@ -2,20 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { HookEvent } from "@core/hooks/HookGateway";
 import { ReviewModel } from "@core/review/ReviewModel";
 
-function ev(
-	event: HookEvent["event"],
-	extra?: Partial<HookEvent>,
-): HookEvent {
+function ev(event: HookEvent["event"], extra?: Partial<HookEvent>): HookEvent {
 	return { event, sessionId: "s", ...extra };
 }
 
-const write = (filePath: string, content: string) =>
-	ev("PostToolUse", { filePath, content });
+const write = (filePath: string, content: string) => ev("PostToolUse", { filePath, content });
 
-const edit = (
-	filePath: string,
-	opts: { old?: string; new: string; replaceAll?: boolean },
-) =>
+const edit = (filePath: string, opts: { old?: string; new: string; replaceAll?: boolean }) =>
 	ev("PostToolUse", {
 		filePath,
 		oldString: opts.old,
@@ -30,7 +23,7 @@ function feed(model: ReviewModel, events: HookEvent[]) {
 }
 
 describe("ReviewModel", () => {
-	it("assembles a turn from prompt → edits → stop with per-file diffs", () => {
+	it("assembles a turn from prompt → edits → stop with per-file snapshots", () => {
 		const model = new ReviewModel();
 		feed(model, [
 			ev("UserPromptSubmit", { prompt: "add a and b" }),
@@ -46,21 +39,18 @@ describe("ReviewModel", () => {
 		expect(turns[0]?.files.map((f) => f.path)).toEqual(["/a.ts", "/b.ts"]);
 	});
 
-	it("addresses each diff line by {turnId, path, line}", () => {
+	it("captures a new file as an empty before and the written content as after", () => {
 		const model = new ReviewModel();
-		feed(model, [
-			ev("UserPromptSubmit", { prompt: "p" }),
-			write("/a.ts", "one\ntwo"),
-			ev("Stop"),
-		]);
+		feed(model, [ev("UserPromptSubmit", { prompt: "p" }), write("/a.ts", "one\ntwo"), ev("Stop")]);
 
-		expect(model.getTurns("s")[0]?.files[0]?.lines).toEqual([
-			{ turnId: "s:0", path: "/a.ts", line: 1, kind: "add", text: "one" },
-			{ turnId: "s:0", path: "/a.ts", line: 2, kind: "add", text: "two" },
-		]);
+		expect(model.getTurns("s")[0]?.files[0]).toEqual({
+			path: "/a.ts",
+			before: [],
+			after: ["one", "two"],
+		});
 	});
 
-	it("a later Write that rewrites a file keeps prior lines as context, only new ones as add", () => {
+	it("carries the prior turn's content as the next turn's before", () => {
 		const model = new ReviewModel();
 		feed(model, [
 			ev("UserPromptSubmit", { prompt: "soma" }),
@@ -71,15 +61,32 @@ describe("ReviewModel", () => {
 			ev("Stop"),
 		]);
 
-		expect(model.getTurns("s")[1]?.files[0]?.lines).toEqual([
-			{ turnId: "s:0", path: "/calc.ts", line: 1, kind: "context", text: "soma a" },
-			{ turnId: "s:0", path: "/calc.ts", line: 2, kind: "context", text: "soma b" },
-			{ turnId: "s:1", path: "/calc.ts", line: 3, kind: "add", text: "mult a" },
-			{ turnId: "s:1", path: "/calc.ts", line: 4, kind: "add", text: "mult b" },
-		]);
+		expect(model.getTurns("s")[1]?.files[0]).toEqual({
+			path: "/calc.ts",
+			before: ["soma a", "soma b"],
+			after: ["soma a", "soma b", "mult a", "mult b"],
+		});
 	});
 
-	it("reconstructs an Edit from the last known content and marks only the changed line as add", () => {
+	it("retains a purely deleted line in before so the deletion is not discarded", () => {
+		const model = new ReviewModel();
+		feed(model, [
+			ev("UserPromptSubmit", { prompt: "guard" }),
+			write("/a.ts", "a\nguard\nc"),
+			ev("Stop"),
+			ev("UserPromptSubmit", { prompt: "drop guard" }),
+			write("/a.ts", "a\nc"),
+			ev("Stop"),
+		]);
+
+		expect(model.getTurns("s")[1]?.files[0]).toEqual({
+			path: "/a.ts",
+			before: ["a", "guard", "c"],
+			after: ["a", "c"],
+		});
+	});
+
+	it("reconstructs an Edit from the last known content", () => {
 		const model = new ReviewModel();
 		feed(model, [
 			ev("UserPromptSubmit", { prompt: "write" }),
@@ -90,14 +97,14 @@ describe("ReviewModel", () => {
 			ev("Stop"),
 		]);
 
-		expect(model.getTurns("s")[1]?.files[0]?.lines).toEqual([
-			{ turnId: "s:0", path: "/a.ts", line: 1, kind: "context", text: "a" },
-			{ turnId: "s:1", path: "/a.ts", line: 2, kind: "add", text: "B" },
-			{ turnId: "s:0", path: "/a.ts", line: 3, kind: "context", text: "c" },
-		]);
+		expect(model.getTurns("s")[1]?.files[0]).toEqual({
+			path: "/a.ts",
+			before: ["a", "b", "c"],
+			after: ["a", "B", "c"],
+		});
 	});
 
-	it("reconstructs pre-existing context from an Edit's old_string on an unseen file", () => {
+	it("seeds before from an Edit's old_string on an unseen file", () => {
 		const model = new ReviewModel();
 		feed(model, [
 			ev("UserPromptSubmit", { prompt: "p" }),
@@ -105,27 +112,25 @@ describe("ReviewModel", () => {
 			ev("Stop"),
 		]);
 
-		expect(model.getTurns("s")[0]?.files[0]?.lines).toEqual([
-			{ turnId: "", path: "/x.ts", line: 1, kind: "context", text: "keep" },
-			{ turnId: "s:0", path: "/x.ts", line: 2, kind: "add", text: "new" },
-		]);
+		expect(model.getTurns("s")[0]?.files[0]).toEqual({
+			path: "/x.ts",
+			before: ["keep", "old"],
+			after: ["keep", "new"],
+		});
 	});
 
-	it("falls back to all-add for a file past the diff cap", () => {
+	it("folds multiple edits to one file within a turn into a single before/after", () => {
 		const model = new ReviewModel();
-		const base = Array.from({ length: 3001 }, (_, i) => `l${i}`).join("\n");
 		feed(model, [
-			ev("UserPromptSubmit", { prompt: "big" }),
-			write("/big.ts", base),
-			ev("Stop"),
-			ev("UserPromptSubmit", { prompt: "grow" }),
-			write("/big.ts", `${base}\nl3001`),
+			ev("UserPromptSubmit", { prompt: "p" }),
+			write("/a.ts", "a\nb"),
+			edit("/a.ts", { old: "b", new: "B" }),
 			ev("Stop"),
 		]);
 
-		const lines = model.getTurns("s")[1]?.files[0]?.lines ?? [];
-		expect(lines).toHaveLength(3002);
-		expect(lines.every((l) => l.kind === "add" && l.turnId === "s:1")).toBe(true);
+		expect(model.getTurns("s")[0]?.files).toEqual([
+			{ path: "/a.ts", before: [], after: ["a", "B"] },
+		]);
 	});
 
 	it("numbers turns per session across a prompt/stop cycle", () => {
@@ -140,15 +145,12 @@ describe("ReviewModel", () => {
 		]);
 
 		expect(model.getTurns("s").map((t) => t.turnId)).toEqual(["s:0", "s:1"]);
-		expect(model.getTurns("s")[1]?.files[0]?.lines[0]?.turnId).toBe("s:1");
+		expect(model.getTurns("s")[1]?.files[0]?.path).toBe("/b.ts");
 	});
 
 	it("exposes the open turn before Stop so live edits accumulate", () => {
 		const model = new ReviewModel();
-		feed(model, [
-			ev("UserPromptSubmit", { prompt: "p" }),
-			write("/a.ts", "x"),
-		]);
+		feed(model, [ev("UserPromptSubmit", { prompt: "p" }), write("/a.ts", "x")]);
 
 		expect(model.getTurns("s")).toHaveLength(1);
 		expect(model.getStatus("s")).toBe("generating");
@@ -158,7 +160,9 @@ describe("ReviewModel", () => {
 		const model = new ReviewModel();
 		feed(model, [
 			ev("UserPromptSubmit", { sessionId: "a", prompt: "pa" }),
+			ev("PostToolUse", { sessionId: "a", filePath: "/a.ts", content: "x" }),
 			ev("UserPromptSubmit", { sessionId: "b", prompt: "pb" }),
+			ev("PostToolUse", { sessionId: "b", filePath: "/b.ts", content: "y" }),
 		]);
 
 		expect(model.getTurns("a")[0]?.turnId).toBe("a:0");
@@ -167,12 +171,56 @@ describe("ReviewModel", () => {
 
 	it("ignores a PostToolUse with no file content", () => {
 		const model = new ReviewModel();
+		feed(model, [ev("UserPromptSubmit", { prompt: "p" }), ev("PostToolUse"), write("/a.ts", "x")]);
+
+		expect(model.getTurns("s")[0]?.files.map((f) => f.path)).toEqual(["/a.ts"]);
+	});
+
+	it("drops a talk-only turn at close", () => {
+		const model = new ReviewModel();
+		feed(model, [ev("UserPromptSubmit", { prompt: "how does this work?" }), ev("Stop")]);
+
+		expect(model.getTurns("s")).toEqual([]);
+	});
+
+	it("hides the open turn until the first file is touched", () => {
+		const model = new ReviewModel();
+		feed(model, [ev("UserPromptSubmit", { prompt: "p" })]);
+
+		expect(model.getTurns("s")).toEqual([]);
+
+		model.apply(write("/a.ts", "x"));
+
+		expect(model.getTurns("s")).toHaveLength(1);
+	});
+
+	it("keeps a slash-command turn that edited files as a reviewable turn", () => {
+		const model = new ReviewModel();
 		feed(model, [
-			ev("UserPromptSubmit", { prompt: "p" }),
-			ev("PostToolUse"),
+			ev("UserPromptSubmit", { prompt: "/to-tasks fatia 1" }),
+			write("/grill/tasks/01.md", "task"),
+			ev("Stop"),
 		]);
 
-		expect(model.getTurns("s")[0]?.files).toEqual([]);
+		expect(model.getTurns("s")[0]?.prompt).toBe("/to-tasks fatia 1");
+	});
+
+	it("keeps only turns with file changes across a mixed session", () => {
+		const model = new ReviewModel();
+		feed(model, [
+			ev("UserPromptSubmit", { prompt: "first" }),
+			write("/a.ts", "x"),
+			ev("Stop"),
+			ev("UserPromptSubmit", { prompt: "/model sonnet" }),
+			ev("Stop"),
+			ev("UserPromptSubmit", { prompt: "second" }),
+			write("/b.ts", "y"),
+			ev("Stop"),
+			ev("UserPromptSubmit", { prompt: "/compact" }),
+			ev("Stop"),
+		]);
+
+		expect(model.getTurns("s").map((t) => t.prompt)).toEqual(["first", "second"]);
 	});
 
 	it("derives status: generating on prompt, idle on stop", () => {
@@ -190,9 +238,7 @@ describe("ReviewModel", () => {
 		model.apply(ev("Notification", { message: "Claude is waiting for input" }));
 		expect(model.getStatus("s")).toBe("generating");
 
-		model.apply(
-			ev("Notification", { message: "Claude needs your permission to use Write" }),
-		);
+		model.apply(ev("Notification", { message: "Claude needs your permission to use Write" }));
 		expect(model.getStatus("s")).toBe("blocked");
 	});
 

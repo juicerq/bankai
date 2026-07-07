@@ -15,24 +15,22 @@ export function ReviewFeedback() {
 			}}
 		>
 			<box style={{ paddingLeft: 1, paddingRight: 1, paddingTop: 1 }}>
-				<text style={{ fg: theme.accent, attributes: TextAttributes.BOLD }}>FEEDBACK</text>
+				<text>
+					<span style={{ fg: theme.accent, attributes: TextAttributes.BOLD }}>FEEDBACK</span>
+					<span style={{ fg: theme.textFaint }}> · soon</span>
+				</text>
 			</box>
 
-			<box style={{ flexGrow: 1, padding: 1 }}>
-				<box
-					style={{
-						flexGrow: 1,
-						padding: 1,
-						border: true,
-						borderColor: theme.border,
-					}}
-				>
-					<text style={{ fg: theme.textFaint }}>Composer disabled in this build.</text>
+			<box style={{ flexGrow: 1, padding: 1, justifyContent: "center", alignItems: "center" }}>
+				<text style={{ fg: theme.textFaint }}>reply to a turn</text>
+				<text style={{ fg: theme.textFaint }}>lands in a later slice</text>
+			</box>
+
+			<box style={{ paddingLeft: 1, paddingRight: 1, paddingBottom: 1, flexDirection: "column" }}>
+				<box style={{ padding: 1, border: true, borderColor: theme.border }}>
+					<text style={{ fg: theme.textFaint }}>▍ reply to this turn…</text>
 				</box>
-			</box>
-
-			<box style={{ paddingLeft: 1, paddingRight: 1, paddingBottom: 1 }}>
-				<text style={{ fg: theme.textFaint }}>Cascade lands in a later slice.</text>
+				<text style={{ fg: theme.textFaint }}>composer reserved</text>
 			</box>
 		</box>
 	);

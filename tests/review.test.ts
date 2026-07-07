@@ -1,23 +1,22 @@
 import { describe, expect, it } from "vitest";
-import type { HookEvent } from "@main/hooks/HookGateway";
-import { ReviewModel } from "@main/review/ReviewModel";
+import type { HookEvent } from "@core/hooks/HookGateway";
+import { ReviewModel } from "@core/review/ReviewModel";
 
 function ev(
 	event: HookEvent["event"],
 	extra?: Partial<HookEvent>,
 ): HookEvent {
-	return { event, sessionId: "s", raw: null, ...extra };
+	return { event, sessionId: "s", ...extra };
 }
 
 const write = (filePath: string, content: string) =>
-	ev("PostToolUse", { toolName: "Write", filePath, content });
+	ev("PostToolUse", { filePath, content });
 
 const edit = (
 	filePath: string,
 	opts: { old?: string; new: string; replaceAll?: boolean },
 ) =>
 	ev("PostToolUse", {
-		toolName: "Edit",
 		filePath,
 		oldString: opts.old,
 		newString: opts.new,
@@ -170,7 +169,7 @@ describe("ReviewModel", () => {
 		const model = new ReviewModel();
 		feed(model, [
 			ev("UserPromptSubmit", { prompt: "p" }),
-			ev("PostToolUse", { toolName: "Bash" }),
+			ev("PostToolUse"),
 		]);
 
 		expect(model.getTurns("s")[0]?.files).toEqual([]);

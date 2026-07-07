@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Flags } from "@main/store/flags";
+import { Flags } from "@core/store/flags";
 
 describe("flags", () => {
 	it("returns no flags for an unknown session", async () => {

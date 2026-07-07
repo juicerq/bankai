@@ -1,3 +1,12 @@
+---
+Status: superseded
+---
+
+> **Superseded** pelo pivot Electron → openTUI (grill `pivot-opentui-tui-06072026`): o Canvas, os
+> Frames e os Nodes deixaram de existir e Project virou entidade **explícita e persistida** (o
+> operador adiciona na sidebar; não mais derivada da raiz git). Não há ADR sucessor — o conceito
+> de moldura/agrupamento derivado foi removido. Mantido por registro histórico.
+
 # Molduras de Project são bounding boxes derivadas, não group nodes do React Flow
 
 As molduras tracejadas que agrupam os Nodes de um mesmo Project no Canvas são um retângulo

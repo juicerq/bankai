@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Turn } from "@main/review/ReviewModel";
-import { filesForMode } from "../src/renderer/src/routes/review/$sessionId/-utils/accumulate";
+import type { Turn } from "@core/review/ReviewModel";
+import { filesForMode } from "@core/review/accumulate";
 
 const line = (turnId: string, path: string, n: number, text: string) => ({
 	turnId,

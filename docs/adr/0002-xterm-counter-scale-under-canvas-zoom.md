@@ -1,3 +1,12 @@
+---
+Status: superseded
+---
+
+> **Superseded** pelo pivot Electron → openTUI (grill `pivot-opentui-tui-06072026`): não há mais
+> Canvas nem zoom, e o terminal deixou de ser um `@xterm/xterm` no DOM sob React Flow — virou
+> `@xterm/headless` blitado num `FrameBufferRenderable` (ver ADR 0005). O problema de counter-scale
+> sob zoom não existe num grid de terminal. Mantido por registro histórico.
+
 # Terminais xterm anulam o scale do canvas (counter-scale) e mantêm grid fixo no zoom
 
 O React Flow aplica `translate + scale(zoom)` no viewport, mas o xterm.js mapeia

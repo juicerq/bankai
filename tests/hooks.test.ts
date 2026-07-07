@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type HookEvent, HookGateway } from "@main/hooks/HookGateway";
+import { type HookEvent, HookGateway } from "@core/hooks/HookGateway";
 
 type HttpEvent = "UserPromptSubmit" | "PostToolUse" | "Stop" | "Notification";
 
@@ -47,7 +47,9 @@ describe("settingsFor", () => {
 
 	it("matches PostToolUse on Edit|Write only", async () => {
 		await withGateway((gw) => {
-			expect(gw.settingsFor("s").hooks.PostToolUse[0].matcher).toBe("Edit|Write");
+			expect(gw.settingsFor("s").hooks.PostToolUse.at(0)?.matcher).toBe(
+				"Edit|Write",
+			);
 		});
 	});
 
@@ -94,11 +96,8 @@ describe("HookGateway (http round-trip)", () => {
 				{
 					event: "PostToolUse",
 					sessionId: "sess-9",
-					toolName: "Write",
 					filePath: "/a/b.ts",
 					content: "hello",
-					transcriptPath: "/t.jsonl",
-					cwd: "/a",
 				},
 			]);
 		});

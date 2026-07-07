@@ -4,8 +4,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
 	resolve: {
 		alias: {
-			"@main": resolve(import.meta.dirname, "./src/main"),
-			"@shared": resolve(import.meta.dirname, "./src/shared"),
+			"@core": resolve(import.meta.dirname, "./src/core"),
+			"@ui": resolve(import.meta.dirname, "./src/ui"),
 		},
 	},
 	test: {

@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { HookEvent } from "@main/hooks/HookGateway";
-import { ReviewModel } from "@main/review/ReviewModel";
-import { backfillTurns, parseTranscript } from "@main/review/TranscriptBackfill";
+import type { HookEvent } from "@core/hooks/HookGateway";
+import { ReviewModel } from "@core/review/ReviewModel";
+import { backfillTurns, parseTranscript } from "@core/review/TranscriptBackfill";
 
 const SID = "289b3a77-1628-4e96-8d9b-428fa7df8795";
 const PROJECTS = join(import.meta.dirname, "fixtures", "projects");
@@ -17,10 +17,10 @@ const fixture = readFileSync(
 function liveTurns() {
 	const model = new ReviewModel();
 	const events: HookEvent[] = [
-		{ event: "UserPromptSubmit", sessionId: SID, prompt: "add a compound interest helper to finance.ts", raw: null },
-		{ event: "PostToolUse", sessionId: SID, filePath: "/home/user/projects/demo/finance.ts", content: "export function compoundInterest(principal: number, rate: number) {\n  return principal * rate;\n}", raw: null },
-		{ event: "UserPromptSubmit", sessionId: SID, prompt: "now bump the auto-compact window to 250k", raw: null },
-		{ event: "PostToolUse", sessionId: SID, filePath: "/home/user/.claude/settings.json", oldString: '    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "180000",', newString: '    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "250000",', replaceAll: false, raw: null },
+		{ event: "UserPromptSubmit", sessionId: SID, prompt: "add a compound interest helper to finance.ts" },
+		{ event: "PostToolUse", sessionId: SID, filePath: "/home/user/projects/demo/finance.ts", content: "export function compoundInterest(principal: number, rate: number) {\n  return principal * rate;\n}" },
+		{ event: "UserPromptSubmit", sessionId: SID, prompt: "now bump the auto-compact window to 250k" },
+		{ event: "PostToolUse", sessionId: SID, filePath: "/home/user/.claude/settings.json", oldString: '    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "180000",', newString: '    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "250000",', replaceAll: false },
 	];
 	for (const event of events) {
 		model.apply(event);

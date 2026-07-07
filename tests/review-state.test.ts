@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ReviewState } from "@main/store/review-state";
+import { ReviewState } from "@core/store/review-state";
 
 describe("reviewState", () => {
 	it("returns no reviewed turns for an unknown session", async () => {

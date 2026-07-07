@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type } from "arktype";
 import { describe, expect, it } from "vitest";
-import { Store } from "@main/store/Store";
+import { Store } from "@core/store/Store";
 import { assertDefined } from "./utils/assertions";
 
 function fixture(name: string, value: unknown): void {

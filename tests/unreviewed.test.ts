@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Turn } from "@main/review/ReviewModel";
-import { countUnreviewed } from "@main/review/unreviewed";
+import type { Turn } from "@core/review/ReviewModel";
+import { countUnreviewed } from "@core/review/unreviewed";
 
 const turn = (turnId: string): Turn => ({ turnId, prompt: "", files: [] });
 

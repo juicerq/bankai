@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Turn } from "@main/review/ReviewModel";
-import { cascadeWarnings } from "../src/renderer/src/routes/review/$sessionId/-utils/cascade";
+import type { Turn } from "@core/review/ReviewModel";
+import { cascadeWarnings } from "@core/review/cascade";
 
 const turn = (turnId: string, paths: string[]): Turn => ({
 	turnId,

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { Logger } from "@main/logger";
+import { Logger } from "@core/logger";
 import { assertDefined } from "./utils/assertions";
 
 describe("logger", () => {

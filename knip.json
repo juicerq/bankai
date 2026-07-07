@@ -2,6 +2,5 @@
 	"$schema": "https://unpkg.com/knip@6/schema.json",
 	"project": ["src/**/*.{ts,tsx}", "tests/**/*.ts"],
 	"entry": ["tests/**/*.test.ts"],
-	"ignore": [".claude/**"],
 	"ignoreDependencies": ["oxlint", "oxlint-tsgolint"]
 }

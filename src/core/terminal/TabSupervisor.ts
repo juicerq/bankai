@@ -98,14 +98,20 @@ export class TabSupervisor {
 		};
 	}
 
+	// Idempotent: a shell the operator exits fires the PTY `exit` callback, and the
+	// UI may also close the same tab — whichever runs second is a no-op.
 	close(id: string): void {
 		const tab = this.tabs.get(id);
 		if (!tab) {
 			return;
 		}
 
-		tab.proc.kill();
-		tab.pty.close();
+		if (tab.proc.exitCode === null) {
+			tab.proc.kill();
+		}
+		if (!tab.pty.closed) {
+			tab.pty.close();
+		}
 		tab.screen.dispose();
 		this.tabs.delete(id);
 	}

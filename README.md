@@ -51,7 +51,6 @@ src/
     store/        atomic JSON store
   ui/             openTUI React — components, hooks (-utils), theme
 tests/            vitest
-grill/            design records (grilled decisions per feature)
 ```
 
 Domain glossary lives in [`CONTEXT.md`](./CONTEXT.md); UI conventions in

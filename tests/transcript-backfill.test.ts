@@ -61,7 +61,7 @@ describe("TranscriptBackfill", () => {
 			userLine(
 				"<command-name>/to-tasks</command-name>\n<command-message>to-tasks</command-message>\n<command-args>fatia 1</command-args>",
 			),
-			writeLine("/grill/tasks/01.md", "task"),
+			writeLine("/tasks/01.md", "task"),
 		].join("\n");
 
 		expect(parseTranscript(SID, transcript).map((t) => t.prompt)).toEqual(["/to-tasks fatia 1"]);

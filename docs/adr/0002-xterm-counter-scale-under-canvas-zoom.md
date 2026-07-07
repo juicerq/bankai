@@ -2,7 +2,7 @@
 Status: superseded
 ---
 
-> **Superseded** pelo pivot Electron → openTUI (grill `pivot-opentui-tui-06072026`): não há mais
+> **Superseded** pelo pivot Electron → openTUI: não há mais
 > Canvas nem zoom, e o terminal deixou de ser um `@xterm/xterm` no DOM sob React Flow — virou
 > `@xterm/headless` blitado num `FrameBufferRenderable` (ver ADR 0005). O problema de counter-scale
 > sob zoom não existe num grid de terminal. Mantido por registro histórico.

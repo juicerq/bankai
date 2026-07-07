@@ -198,7 +198,7 @@ describe("ReviewModel", () => {
 		const model = new ReviewModel();
 		feed(model, [
 			ev("UserPromptSubmit", { prompt: "/to-tasks fatia 1" }),
-			write("/grill/tasks/01.md", "task"),
+			write("/tasks/01.md", "task"),
 			ev("Stop"),
 		]);
 

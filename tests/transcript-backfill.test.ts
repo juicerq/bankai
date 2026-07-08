@@ -12,15 +12,19 @@ const fixture = readFileSync(
 	"utf8",
 );
 
+const FIN = "export function compoundInterest(principal: number, rate: number) {\n  return principal * rate;\n}";
+const SETTINGS_BEFORE = '{\n  "env": {\n    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "180000"\n  }\n}';
+const SETTINGS_AFTER = '{\n  "env": {\n    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "250000"\n  }\n}';
+
 // The same edits the fixture records, expressed as the live hook stream, so we can assert
-// the parser yields turns identical to the path task 04 already covers.
+// the parser yields turns identical to the path the hook gateway already covers.
 function liveTurns() {
 	const model = new ReviewModel();
 	const events: HookEvent[] = [
 		{ event: "UserPromptSubmit", sessionId: SID, prompt: "add a compound interest helper to finance.ts" },
-		{ event: "PostToolUse", sessionId: SID, filePath: "/home/user/projects/demo/finance.ts", content: "export function compoundInterest(principal: number, rate: number) {\n  return principal * rate;\n}" },
+		{ event: "PostToolUse", sessionId: SID, filePath: "/home/user/projects/demo/finance.ts", content: FIN },
 		{ event: "UserPromptSubmit", sessionId: SID, prompt: "now bump the auto-compact window to 250k" },
-		{ event: "PostToolUse", sessionId: SID, filePath: "/home/user/.claude/settings.json", oldString: '    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "180000",', newString: '    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "250000",', replaceAll: false },
+		{ event: "PostToolUse", sessionId: SID, filePath: "/home/user/.claude/settings.json", content: SETTINGS_AFTER, originalContent: SETTINGS_BEFORE },
 	];
 	for (const event of events) {
 		model.apply(event);
@@ -32,22 +36,23 @@ function liveTurns() {
 const userLine = (content: unknown) =>
 	JSON.stringify({ type: "user", message: { role: "user", content }, sessionId: SID });
 
-const writeLine = (filePath: string, content: string) =>
+const resultLine = (toolUseResult: unknown) =>
 	JSON.stringify({
-		type: "assistant",
-		message: {
-			role: "assistant",
-			content: [{ type: "tool_use", id: "t", name: "Write", input: { file_path: filePath, content } }],
-		},
+		type: "user",
+		message: { role: "user", content: [{ type: "tool_result", tool_use_id: "t", content: "ok" }] },
+		toolUseResult,
 		sessionId: SID,
 	});
+
+const writeResult = (filePath: string, content: string) =>
+	resultLine({ type: "create", filePath, content, structuredPatch: [], originalFile: null });
 
 describe("TranscriptBackfill", () => {
 	it("parses a real transcript into turns identical to the live hook path", () => {
 		expect(parseTranscript(SID, fixture)).toEqual(liveTurns());
 	});
 
-	it("skips tool results, meta lines, and non-edit tool_use blocks", () => {
+	it("skips string results, meta lines, and malformed lines", () => {
 		const turns = parseTranscript(SID, fixture);
 		expect(turns.map((t) => t.turnId)).toEqual([`${SID}:0`, `${SID}:1`]);
 		expect(turns.map((t) => t.files.map((f) => f.path))).toEqual([
@@ -56,12 +61,21 @@ describe("TranscriptBackfill", () => {
 		]);
 	});
 
+	it("drops a rejected edit whose result is a plain error string", () => {
+		const transcript = [
+			userLine("swap the guard"),
+			resultLine("Error: String to replace not found in file."),
+		].join("\n");
+
+		expect(parseTranscript(SID, transcript)).toEqual([]);
+	});
+
 	it("normalizes a slash command into its typed form and keeps its edits", () => {
 		const transcript = [
 			userLine(
 				"<command-name>/to-tasks</command-name>\n<command-message>to-tasks</command-message>\n<command-args>fatia 1</command-args>",
 			),
-			writeLine("/tasks/01.md", "task"),
+			writeResult("/tasks/01.md", "task"),
 		].join("\n");
 
 		expect(parseTranscript(SID, transcript).map((t) => t.prompt)).toEqual(["/to-tasks fatia 1"]);
@@ -70,7 +84,7 @@ describe("TranscriptBackfill", () => {
 	it("drops a command that edited nothing", () => {
 		const transcript = [
 			userLine("add helper"),
-			writeLine("/a.ts", "x"),
+			writeResult("/a.ts", "x"),
 			userLine("<command-name>/compact</command-name>\n<command-message>compact</command-message>"),
 		].join("\n");
 
@@ -80,10 +94,10 @@ describe("TranscriptBackfill", () => {
 	it("keeps edits after command output and interrupts on the real turn", () => {
 		const transcript = [
 			userLine("add helper"),
-			writeLine("/a.ts", "x"),
+			writeResult("/a.ts", "x"),
 			userLine("<local-command-stdout>Compacted</local-command-stdout>"),
 			userLine([{ type: "text", text: "[Request interrupted by user]" }]),
-			writeLine("/b.ts", "y"),
+			writeResult("/b.ts", "y"),
 		].join("\n");
 
 		expect(parseTranscript(SID, transcript).map((t) => t.files.map((f) => f.path))).toEqual([

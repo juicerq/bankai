@@ -35,6 +35,7 @@ export type HookEvent = {
 	prompt?: string;
 	filePath?: string;
 	content?: string;
+	originalContent?: string;
 	oldString?: string;
 	newString?: string;
 	replaceAll?: boolean;
@@ -58,17 +59,19 @@ function normalize(payload: unknown): HookEvent | null {
 	}
 
 	const input = rec(p.tool_input);
+	const response = rec(p.tool_response);
 	return {
 		event: name,
 		sessionId,
 		cwd: str(p.cwd),
 		transcriptPath: str(p.transcript_path),
 		prompt: str(p.prompt),
-		filePath: str(input.file_path),
-		content: str(input.content),
-		oldString: str(input.old_string),
-		newString: str(input.new_string),
-		replaceAll: input.replace_all === true,
+		filePath: str(input.file_path) ?? str(response.filePath),
+		content: str(input.content) ?? str(response.content),
+		originalContent: str(response.originalFile),
+		oldString: str(input.old_string) ?? str(response.oldString),
+		newString: str(input.new_string) ?? str(response.newString),
+		replaceAll: input.replace_all === true || response.replaceAll === true,
 		message: str(p.message),
 	};
 }

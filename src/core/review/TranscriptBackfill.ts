@@ -49,22 +49,19 @@ function promptFrom(line: Rec): string | undefined {
 	return text ? normalizePrompt(text) : undefined;
 }
 
-// Map one assistant tool_use block onto the same PostToolUse shape the live hook path
-// emits; ReviewModel's own guards then drop blocks without editable content (Bash, Read,
-// MultiEdit). Ceiling: only content-carrying Write/Edit backfill, matching the live matcher.
-function toolEdit(
-	block: Rec,
+function resultEdit(
+	result: Rec,
 ): Pick<
 	HookEvent,
-	"filePath" | "content" | "oldString" | "newString" | "replaceAll"
+	"filePath" | "content" | "originalContent" | "oldString" | "newString" | "replaceAll"
 > {
-	const input = rec(block.input);
 	return {
-		filePath: str(input.file_path),
-		content: str(input.content),
-		oldString: str(input.old_string),
-		newString: str(input.new_string),
-		replaceAll: input.replace_all === true,
+		filePath: str(result.filePath),
+		content: str(result.content),
+		originalContent: str(result.originalFile),
+		oldString: str(result.oldString),
+		newString: str(result.newString),
+		replaceAll: result.replaceAll === true,
 	};
 }
 
@@ -81,24 +78,19 @@ function* eventsFrom(sessionId: string, content: string): Generator<HookEvent> {
 			continue;
 		}
 
-		if (line.type === "user") {
-			const prompt = promptFrom(line);
-			if (prompt !== undefined) {
-				yield { event: "UserPromptSubmit", sessionId, prompt };
-			}
+		if (line.type !== "user") {
 			continue;
 		}
 
-		if (line.type === "assistant") {
-			for (const block of arr(rec(line.message).content).map(rec)) {
-				if (block.type === "tool_use") {
-					yield {
-						event: "PostToolUse",
-						sessionId,
-						...toolEdit(block),
-					};
-				}
-			}
+		const edit = resultEdit(rec(line.toolUseResult));
+		if (edit.filePath) {
+			yield { event: "PostToolUse", sessionId, ...edit };
+			continue;
+		}
+
+		const prompt = promptFrom(line);
+		if (prompt !== undefined) {
+			yield { event: "UserPromptSubmit", sessionId, prompt };
 		}
 	}
 }

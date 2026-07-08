@@ -1,16 +1,17 @@
-{"type":"mode","mode":"default","uuid":"m1","timestamp":"2026-07-05T10:00:00.000Z","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
-{"type":"permission-mode","permissionMode":"default","uuid":"pm1","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
-{"type":"file-history-snapshot","messageId":"fh1","snapshot":{"trackedFileBackups":{}},"sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
-{"parentUuid":null,"isSidechain":false,"type":"user","message":{"role":"user","content":"add a compound interest helper to finance.ts"},"uuid":"u1","timestamp":"2026-07-05T10:00:01.000Z","cwd":"/home/user/projects/demo","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795","version":"2.1.197","gitBranch":"main"}
-{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"I'll write the helper."}]},"uuid":"a1","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
-{"type":"assistant","requestId":"req1","message":{"model":"claude-opus-4-8","role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Write","input":{"file_path":"/home/user/projects/demo/finance.ts","content":"export function compoundInterest(principal: number, rate: number) {\n  return principal * rate;\n}"},"caller":"agent"}]},"uuid":"a2","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
-{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"File created successfully."}]},"uuid":"u2","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
-{"type":"ai-title","title":"Add compound interest helper","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
-{"parentUuid":"u2","isSidechain":false,"type":"user","message":{"role":"user","content":"now bump the auto-compact window to 250k"},"uuid":"u3","cwd":"/home/user/projects/demo","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795","gitBranch":"main"}
-{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Reading the settings first."},{"type":"tool_use","id":"toolu_2","name":"Bash","input":{"command":"cat ~/.claude/settings.json"}}]},"uuid":"a3","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
-{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_3","name":"Edit","input":{"replace_all":false,"file_path":"/home/user/.claude/settings.json","old_string":"    \"CLAUDE_CODE_AUTO_COMPACT_WINDOW\": \"180000\",","new_string":"    \"CLAUDE_CODE_AUTO_COMPACT_WINDOW\": \"250000\","}}]},"uuid":"a4","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
-{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_3","content":"Edited."}]},"uuid":"u4","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
-{"type":"user","isMeta":true,"message":{"role":"user","content":"<command-name>/clear</command-name>"},"uuid":"u5","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
+{"type": "mode", "mode": "default"}
+{"type": "permission-mode", "mode": "acceptEdits"}
+{"type": "file-history-snapshot", "snapshot": {}}
+{"type": "user", "message": {"role": "user", "content": "add a compound interest helper to finance.ts"}, "uuid": "u1", "sessionId": "289b3a77-1628-4e96-8d9b-428fa7df8795"}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "thinking", "thinking": "write it"}]}, "uuid": "a1", "sessionId": "289b3a77-1628-4e96-8d9b-428fa7df8795"}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_1", "name": "Write", "input": {"file_path": "/home/user/projects/demo/finance.ts", "content": "export function compoundInterest(principal: number, rate: number) {\n  return principal * rate;\n}"}}]}, "uuid": "a2", "sessionId": "289b3a77-1628-4e96-8d9b-428fa7df8795"}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_1", "content": "File created successfully."}]}, "toolUseResult": {"type": "create", "filePath": "/home/user/projects/demo/finance.ts", "content": "export function compoundInterest(principal: number, rate: number) {\n  return principal * rate;\n}", "structuredPatch": [], "originalFile": null}, "uuid": "u2", "sessionId": "289b3a77-1628-4e96-8d9b-428fa7df8795"}
+{"type": "ai-title", "title": "compound interest"}
+{"type": "user", "message": {"role": "user", "content": "now bump the auto-compact window to 250k"}, "uuid": "u3", "sessionId": "289b3a77-1628-4e96-8d9b-428fa7df8795"}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "reading settings"}, {"type": "tool_use", "id": "toolu_2", "name": "Bash", "input": {"command": "cat ~/.claude/settings.json"}}]}, "uuid": "a3", "sessionId": "289b3a77-1628-4e96-8d9b-428fa7df8795"}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_2", "content": "{\n  \"env\": {\n    \"CLAUDE_CODE_AUTO_COMPACT_WINDOW\": \"180000\"\n  }\n}"}]}, "toolUseResult": "{\n  \"env\": {\n    \"CLAUDE_CODE_AUTO_COMPACT_WINDOW\": \"180000\"\n  }\n}", "uuid": "u4", "sessionId": "289b3a77-1628-4e96-8d9b-428fa7df8795"}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_3", "name": "Edit", "input": {"replace_all": false, "file_path": "/home/user/.claude/settings.json", "old_string": "    \"CLAUDE_CODE_AUTO_COMPACT_WINDOW\": \"180000\"", "new_string": "    \"CLAUDE_CODE_AUTO_COMPACT_WINDOW\": \"250000\""}}]}, "uuid": "a4", "sessionId": "289b3a77-1628-4e96-8d9b-428fa7df8795"}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_3", "content": "Edited."}]}, "toolUseResult": {"filePath": "/home/user/.claude/settings.json", "content": "{\n  \"env\": {\n    \"CLAUDE_CODE_AUTO_COMPACT_WINDOW\": \"250000\"\n  }\n}", "originalFile": "{\n  \"env\": {\n    \"CLAUDE_CODE_AUTO_COMPACT_WINDOW\": \"180000\"\n  }\n}", "structuredPatch": [], "userModified": false}, "uuid": "u5", "sessionId": "289b3a77-1628-4e96-8d9b-428fa7df8795"}
+{"type": "user", "isMeta": true, "message": {"role": "user", "content": "<command-name>/clear</command-name>"}, "uuid": "u6", "sessionId": "289b3a77-1628-4e96-8d9b-428fa7df8795"}
 {"type":"assistant","message":{ this line is deliberately broken json
-{"type":"some-future-line-type","brandNewField":123,"nested":{"whatever":true},"sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
-{"type":"system","subtype":"post_tool","sessionId":"289b3a77-1628-4e96-8d9b-428fa7df8795"}
+{"type": "some-future-line-type", "payload": {}}
+{"type": "system", "message": "session ended"}

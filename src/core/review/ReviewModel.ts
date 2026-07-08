@@ -32,7 +32,9 @@ function applyEdit(
 		return text;
 	}
 
-	return replaceAll ? text.replaceAll(oldString, newString) : text.replace(oldString, newString);
+	return replaceAll
+		? text.replaceAll(oldString, () => newString)
+		: text.replace(oldString, () => newString);
 }
 
 function nextContent(prev: string[] | undefined, event: HookEvent): string[] | null {
@@ -41,8 +43,9 @@ function nextContent(prev: string[] | undefined, event: HookEvent): string[] | n
 	}
 
 	if (event.newString !== undefined) {
-		if (prev) {
-			return applyEdit(prev.join("\n"), event.oldString, event.newString, event.replaceAll).split("\n");
+		const base = event.originalContent ?? prev?.join("\n");
+		if (base !== undefined) {
+			return applyEdit(base, event.oldString, event.newString, event.replaceAll).split("\n");
 		}
 
 		return event.newString.split("\n");
@@ -169,7 +172,11 @@ export class ReviewModel {
 		if (existing) {
 			existing.after = after;
 		} else {
-			turn.files.push({ path, before: prev ?? baselineFor(event), after });
+			const before =
+				event.originalContent === undefined
+					? (prev ?? baselineFor(event))
+					: event.originalContent.split("\n");
+			turn.files.push({ path, before, after });
 		}
 	}
 

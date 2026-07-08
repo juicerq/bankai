@@ -119,6 +119,48 @@ describe("ReviewModel", () => {
 		});
 	});
 
+	it("captures every edit to a pre-existing file from its full-file baseline", () => {
+		const model = new ReviewModel();
+		feed(model, [
+			ev("UserPromptSubmit", { prompt: "edit two spots" }),
+			ev("PostToolUse", {
+				filePath: "/a.ts",
+				originalContent: "line one\nline two\nline three",
+				oldString: "line one",
+				newString: "LINE ONE",
+			}),
+			ev("PostToolUse", {
+				filePath: "/a.ts",
+				originalContent: "LINE ONE\nline two\nline three",
+				oldString: "line three",
+				newString: "LINE THREE",
+			}),
+			ev("Stop"),
+		]);
+
+		expect(model.getTurns("s")[0]?.files[0]).toEqual({
+			path: "/a.ts",
+			before: ["line one", "line two", "line three"],
+			after: ["LINE ONE", "line two", "LINE THREE"],
+		});
+	});
+
+	it("treats an edit's replacement as literal so $ sequences survive", () => {
+		const model = new ReviewModel();
+		feed(model, [
+			ev("UserPromptSubmit", { prompt: "price template" }),
+			ev("PostToolUse", {
+				filePath: "/p.ts",
+				originalContent: "const a = 1",
+				oldString: "const a = 1",
+				newString: "const price = `$${amount}`",
+			}),
+			ev("Stop"),
+		]);
+
+		expect(model.getTurns("s")[0]?.files[0]?.after).toEqual(["const price = `$${amount}`"]);
+	});
+
 	it("folds multiple edits to one file within a turn into a single before/after", () => {
 		const model = new ReviewModel();
 		feed(model, [

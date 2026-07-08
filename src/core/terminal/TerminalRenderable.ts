@@ -60,6 +60,8 @@ export class TerminalRenderable extends Renderable {
 
 	onCopy: ((text: string) => void) | null = null;
 
+	onInput: ((data: string) => void) | null = null;
+
 	// Set by the React wrapper: the block cursor's concrete colors. The theme lives in
 	// the UI layer (core never imports it), so the colors are pushed in from there.
 	cursorColors: { block: RGBA; text: RGBA } | null = null;
@@ -114,7 +116,16 @@ export class TerminalRenderable extends Renderable {
 	}
 
 	private handleScroll(event: MouseEvent, grid: IBuffer): void {
-		if (!event.scroll || grid.type === "alternate") {
+		if (!event.scroll) {
+			return;
+		}
+
+		if (this.wantsMouse()) {
+			this.forwardWheel(event);
+			return;
+		}
+
+		if (grid.type === "alternate") {
 			return;
 		}
 
@@ -129,6 +140,50 @@ export class TerminalRenderable extends Renderable {
 
 		event.stopPropagation();
 		this.requestRender();
+	}
+
+	private wantsMouse(): boolean {
+		return !!this.screen && this.screen.modes.mouseTrackingMode !== "none";
+	}
+
+	private forwardWheel(event: MouseEvent): void {
+		const send = this.onInput;
+		if (!event.scroll || !send) {
+			return;
+		}
+
+		if (event.scroll.direction !== "up" && event.scroll.direction !== "down") {
+			return;
+		}
+
+		const col = Math.min(Math.max(event.x - this.x, 0), this.width - 1) + 1;
+		const row = Math.min(Math.max(event.y - this.y, 0), this.height - 1) + 1;
+		const button = event.scroll.direction === "up" ? 64 : 65;
+		const sequence = this.wheelSequence(button, col, row);
+
+		const notches = Math.max(1, Math.trunc(event.scroll.delta));
+		for (let i = 0; i < notches; i++) {
+			send(sequence);
+		}
+
+		event.stopPropagation();
+	}
+
+	private wheelSequence(button: number, col: number, row: number): string {
+		if (this.mouseEncoding() === "sgr") {
+			return `\u001B[<${button};${col};${row}M`;
+		}
+
+		return `\u001B[M${String.fromCodePoint(button + 32, col + 32, row + 32)}`;
+	}
+
+	private mouseEncoding(): "sgr" | "x10" {
+		const core = this.screen as unknown as
+			| { _core?: { coreMouseService?: { activeEncoding?: string } } }
+			| null;
+		const encoding = core?.["_core"]?.coreMouseService?.activeEncoding;
+
+		return encoding === "SGR" || encoding === "SGR_PIXELS" ? "sgr" : "x10";
 	}
 
 	private handleSelection(event: MouseEvent, grid: IBuffer): void {

@@ -39,6 +39,7 @@ export function TerminalView({
 		renderable.cursorColors = { block: RGBA.fromHex(theme.accent), text: RGBA.fromHex(theme.bg) };
 		renderable.onCellResize = (cols, rows) => supervisor.resize(tabId, cols, rows);
 		renderable.onCopy = (text) => renderer.copyToClipboardOSC52(text);
+		renderable.onInput = (data) => supervisor.input(tabId, data);
 		const size = renderable.cellSize;
 		if (size) {
 			supervisor.resize(tabId, size.cols, size.rows);
@@ -47,6 +48,7 @@ export function TerminalView({
 		return () => {
 			renderable.onCellResize = null;
 			renderable.onCopy = null;
+			renderable.onInput = null;
 			renderable.detach();
 		};
 	}, [supervisor, tabId, renderer]);

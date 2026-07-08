@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildResumeCommand } from "@core/workspace/resumeCommand";
+import { buildFreshCommand, buildResumeCommand } from "@core/workspace/resumeCommand";
 
 describe("buildResumeCommand", () => {
 	it("replays a clean interactive argv with a normalized --resume, keeping flags", () => {
@@ -124,5 +124,33 @@ describe("buildResumeCommand", () => {
 		});
 
 		expect(command).toBe("claude --dangerously-skip-permissions --resume new-id");
+	});
+});
+
+describe("buildFreshCommand", () => {
+	it("keeps the captured flags but drops --resume for an empty session", () => {
+		const command = buildFreshCommand({
+			sessionId: "sid-1",
+			argv: ["claude", "--dangerously-skip-permissions", "--resume", "sid-1"],
+			kind: "interactive",
+		});
+
+		expect(command).toBe("claude --dangerously-skip-permissions");
+	});
+
+	it("falls back to a bare claude when the cmdline was never captured", () => {
+		const command = buildFreshCommand({ sessionId: "sid-2", kind: "interactive" });
+
+		expect(command).toBe("claude");
+	});
+
+	it("falls back to a bare claude for a non-replayable bg session", () => {
+		const command = buildFreshCommand({
+			sessionId: "sid-3",
+			argv: ["claude", "--dangerously-skip-permissions"],
+			kind: "bg",
+		});
+
+		expect(command).toBe("claude");
 	});
 });

@@ -58,3 +58,11 @@ export function buildResumeCommand({ argv, kind, sessionId }: WorkspaceCommand):
 
 	return [...stripResumeFlags(argv), "--resume", sessionId].join(" ");
 }
+
+export function buildFreshCommand({ argv, kind }: WorkspaceCommand): string {
+	if (argv === undefined || !isReplayable(argv, kind)) {
+		return "claude";
+	}
+
+	return stripResumeFlags(argv).join(" ");
+}

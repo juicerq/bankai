@@ -30,7 +30,19 @@ const restoreReview: RestoreReview | null =
 			}
 		: null;
 
-const plan = planRestore({ workspace, projects: initialProjects, reviewTranscriptExists });
+const tabSessionIds = [
+	...new Set(
+		workspace.projects.flatMap((project) =>
+			project.tabs.flatMap((tab) => (tab.command ? [tab.command.sessionId] : [])),
+		),
+	),
+];
+const probed = await Promise.all(
+	tabSessionIds.map(async (id) => ({ id, exists: await transcriptExists(id) })),
+);
+const tabTranscripts = new Set(probed.filter((entry) => entry.exists).map((entry) => entry.id));
+
+const plan = planRestore({ workspace, projects: initialProjects, reviewTranscriptExists, tabTranscripts });
 
 const renderer = await createCliRenderer({ exitOnCtrlC: false, targetFps: 60 });
 

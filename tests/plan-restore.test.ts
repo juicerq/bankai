@@ -25,6 +25,7 @@ describe("planRestore", () => {
 			}),
 			projects: [{ id: "p1" }],
 			reviewTranscriptExists: false,
+			tabTranscripts: new Set(),
 		});
 
 		expect(plan.projects.map((p) => p.projectId)).toEqual(["p1"]);
@@ -35,6 +36,7 @@ describe("planRestore", () => {
 			workspace: workspace({ projects: [{ projectId: "p1", tabs: [{}], activeTab: 0 }] }),
 			projects: [{ id: "p1" }],
 			reviewTranscriptExists: false,
+			tabTranscripts: new Set(),
 		});
 
 		expect(plan.projects[0]?.tabs).toEqual([{}]);
@@ -48,9 +50,40 @@ describe("planRestore", () => {
 			}),
 			projects: [{ id: "p1" }],
 			reviewTranscriptExists: false,
+			tabTranscripts: new Set(["s1"]),
 		});
 
 		expect(plan.projects[0]?.tabs[0]?.command).toEqual(captured);
+	});
+
+	it("marks a captured command resumable when its transcript exists", () => {
+		const plan = planRestore({
+			workspace: workspace({
+				projects: [
+					{ projectId: "p1", tabs: [{ command: { sessionId: "s1", argv: ["claude"] } }], activeTab: 0 },
+				],
+			}),
+			projects: [{ id: "p1" }],
+			reviewTranscriptExists: false,
+			tabTranscripts: new Set(["s1"]),
+		});
+
+		expect(plan.projects[0]?.tabs[0]?.resumable).toBe(true);
+	});
+
+	it("marks a captured command not resumable when its transcript is missing", () => {
+		const plan = planRestore({
+			workspace: workspace({
+				projects: [
+					{ projectId: "p1", tabs: [{ command: { sessionId: "s1", argv: ["claude"] } }], activeTab: 0 },
+				],
+			}),
+			projects: [{ id: "p1" }],
+			reviewTranscriptExists: false,
+			tabTranscripts: new Set(),
+		});
+
+		expect(plan.projects[0]?.tabs[0]?.resumable).toBe(false);
 	});
 
 	it("clamps an active tab index above the range to the last tab", () => {
@@ -60,6 +93,7 @@ describe("planRestore", () => {
 			}),
 			projects: [{ id: "p1" }],
 			reviewTranscriptExists: false,
+			tabTranscripts: new Set(),
 		});
 
 		expect(plan.projects[0]?.activeTab).toBe(1);
@@ -72,6 +106,7 @@ describe("planRestore", () => {
 			}),
 			projects: [{ id: "p1" }],
 			reviewTranscriptExists: false,
+			tabTranscripts: new Set(),
 		});
 
 		expect(plan.projects[0]?.activeTab).toBe(0);
@@ -82,6 +117,7 @@ describe("planRestore", () => {
 			workspace: workspace({ screen: "review", reviewSessionId: "s1" }),
 			projects: [],
 			reviewTranscriptExists: false,
+			tabTranscripts: new Set(),
 		});
 
 		expect(plan.screen).toBe("command");
@@ -93,6 +129,7 @@ describe("planRestore", () => {
 			workspace: workspace({ screen: "review", reviewSessionId: "s1" }),
 			projects: [],
 			reviewTranscriptExists: true,
+			tabTranscripts: new Set(),
 		});
 
 		expect(plan.screen).toBe("review");
@@ -104,6 +141,7 @@ describe("planRestore", () => {
 			workspace: workspace({ focusedProjectId: "p2" }),
 			projects: [{ id: "p1" }, { id: "p2" }],
 			reviewTranscriptExists: false,
+			tabTranscripts: new Set(),
 		});
 
 		expect(plan.focusedIndex).toBe(1);
@@ -114,6 +152,7 @@ describe("planRestore", () => {
 			workspace: workspace({ focusedProjectId: "gone" }),
 			projects: [{ id: "p1" }],
 			reviewTranscriptExists: false,
+			tabTranscripts: new Set(),
 		});
 
 		expect(plan.focusedIndex).toBe(0);
@@ -124,6 +163,7 @@ describe("planRestore", () => {
 			workspace: workspace({ focus: "terminal", zen: { command: true, review: false } }),
 			projects: [],
 			reviewTranscriptExists: false,
+			tabTranscripts: new Set(),
 		});
 
 		expect(plan.focus).toBe("terminal");

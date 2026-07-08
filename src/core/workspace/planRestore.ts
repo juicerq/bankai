@@ -1,7 +1,11 @@
-import type { Workspace } from "@core/store/workspace";
+import type { Workspace, WorkspaceCommand } from "@core/store/workspace";
+
+type PlannedTab =
+	| { command: WorkspaceCommand; resumable: boolean }
+	| { command?: undefined; resumable?: undefined };
 
 export type RestorePlan = {
-	projects: Workspace["projects"];
+	projects: { projectId: string; tabs: PlannedTab[]; activeTab: number }[];
 	focusedIndex: number;
 	focus: Workspace["focus"];
 	zen: Workspace["zen"];
@@ -13,6 +17,7 @@ type PlanInput = {
 	workspace: Workspace;
 	projects: { id: string }[];
 	reviewTranscriptExists: boolean;
+	tabTranscripts: Set<string>;
 };
 
 function clampActive(active: number, length: number): number {
@@ -23,7 +28,7 @@ function clampActive(active: number, length: number): number {
 	return Math.min(active, length - 1);
 }
 
-export function planRestore({ workspace, projects, reviewTranscriptExists }: PlanInput): RestorePlan {
+export function planRestore({ workspace, projects, reviewTranscriptExists, tabTranscripts }: PlanInput): RestorePlan {
 	const indexById = new Map(projects.map((project, index) => [project.id, index]));
 
 	const plannedProjects = workspace.projects.flatMap((wp) => {
@@ -34,7 +39,9 @@ export function planRestore({ workspace, projects, reviewTranscriptExists }: Pla
 		return [
 			{
 				projectId: wp.projectId,
-				tabs: wp.tabs.map((tab) => (tab.command ? { command: tab.command } : {})),
+				tabs: wp.tabs.map((tab): PlannedTab =>
+					tab.command ? { command: tab.command, resumable: tabTranscripts.has(tab.command.sessionId) } : {},
+				),
 				activeTab: clampActive(wp.activeTab, wp.tabs.length),
 			},
 		];

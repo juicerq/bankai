@@ -31,6 +31,8 @@ A identidade de uma conversa com o Claude Code: o que o `--session-id` (UUID) no
 transcript persiste. Roda *dentro* de uma Tab (vinculada a ela via `/proc`) e é a **unidade de
 review**. Sobrevive ao processo — reiniciar com `--resume` reata a *mesma* Session, com o mesmo
 histórico e estado de review. A review de uma Tab mira a Session atual/última dela.
+Só é reatável depois de ter um Transcript: uma Session sem nenhuma mensagem ainda não escreveu
+Transcript, então `--resume` a rejeita — reabri-la começa uma Session nova.
 _Evite_: confundir Session com a Tab que a hospeda (uma Tab pode hospedar várias Sessions ao longo
 do tempo), ou com o processo `claude` vivo (isso é "a Session rodando").
 

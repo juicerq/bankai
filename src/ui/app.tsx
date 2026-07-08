@@ -17,7 +17,7 @@ import { ReviewState } from "@core/store/review-state";
 import { type WorkspaceCommand, WorkspaceStore } from "@core/store/workspace";
 import { deriveWorkspace } from "@core/workspace/deriveWorkspace";
 import type { RestorePlan } from "@core/workspace/planRestore";
-import { buildResumeCommand } from "@core/workspace/resumeCommand";
+import { buildFreshCommand, buildResumeCommand } from "@core/workspace/resumeCommand";
 import { TabSupervisor } from "@core/terminal/TabSupervisor";
 import { Ui } from "@ui/components";
 import { theme } from "@ui/theme";
@@ -169,7 +169,8 @@ export function App({ initialProjects, plan, restoreReview }: AppProps) {
 
 				if (tab.command) {
 					nextCaptures[tabId] = tab.command;
-					supervisor.input(tabId, `${buildResumeCommand(tab.command)}\n`);
+					const command = tab.resumable ? buildResumeCommand(tab.command) : buildFreshCommand(tab.command);
+					supervisor.input(tabId, `${command}\n`);
 				}
 			}
 

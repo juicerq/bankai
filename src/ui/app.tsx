@@ -106,7 +106,13 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 		}
 
 		setActiveIndex(index);
-		setFocus(groups[project.id]?.tabs.length ? "terminal" : "sidebar");
+
+		if (groups[project.id]?.tabs.length) {
+			setFocus("terminal");
+			return;
+		}
+
+		openTabFor(project);
 	};
 
 	const reorder = (direction: "up" | "down") => {
@@ -166,6 +172,11 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 			.then((list) => {
 				setProjects(list);
 				setActiveIndex(list.length - 1);
+
+				const added = list.at(-1);
+				if (added) {
+					openTabFor(added);
+				}
 			})
 			.catch((err) => Logger.error("projects:add-failed", String(err)));
 	};
@@ -194,13 +205,9 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 		});
 	};
 
-	const openTab = () => {
-		if (!activeProject) {
-			return;
-		}
-
-		const projectId = activeProject.id;
-		const tabId = supervisor.open({ cwd: activeProject.cwd, cols: INITIAL_COLS, rows: INITIAL_ROWS });
+	const openTabFor = (project: Project) => {
+		const projectId = project.id;
+		const tabId = supervisor.open({ cwd: project.cwd, cols: INITIAL_COLS, rows: INITIAL_ROWS });
 		supervisor.onExit(tabId, () => closeTab(projectId, tabId));
 
 		setGroups((prev) => {
@@ -211,6 +218,14 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 		setFocus("terminal");
 	};
 
+	const openTab = () => {
+		if (!activeProject) {
+			return;
+		}
+
+		openTabFor(activeProject);
+	};
+
 	const closeActiveTab = () => {
 		if (activeProject && activeTabId) {
 			closeTab(activeProject.id, activeTabId);
@@ -218,7 +233,12 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	};
 
 	const switchTab = (index: number) => {
-		if (!activeProject || !group || index >= group.tabs.length) {
+		if (!activeProject) {
+			return;
+		}
+
+		if (!group || index >= group.tabs.length) {
+			openTabFor(activeProject);
 			return;
 		}
 

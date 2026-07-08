@@ -36,12 +36,14 @@ export function ReviewScreen({
 	reviewedTurnIds,
 	onToggleReviewed,
 	onClose,
+	zenMode,
 }: {
 	sessionId: string | null;
 	turns: Turn[];
 	reviewedTurnIds: string[];
 	onToggleReviewed: (turnId: string) => void;
 	onClose: () => void;
+	zenMode: boolean;
 }) {
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const [mode, setMode] = useState<DiffMode>("turn");
@@ -133,13 +135,15 @@ export function ReviewScreen({
 			</box>
 
 			<box style={{ flexGrow: 1, flexDirection: "row" }}>
-				<ReviewTurnList
-					turns={turns}
-					selectedIndex={index}
-					reviewedTurnIds={reviewedTurnIds}
-					focused={zone === "turns"}
-					dimmed={mode === "accumulated"}
-				/>
+				{!zenMode && (
+					<ReviewTurnList
+						turns={turns}
+						selectedIndex={index}
+						reviewedTurnIds={reviewedTurnIds}
+						focused={zone === "turns"}
+						dimmed={mode === "accumulated"}
+					/>
+				)}
 
 				<ReviewDiff
 					files={files}
@@ -150,20 +154,22 @@ export function ReviewScreen({
 					emptyLabel={EMPTY_LABEL[mode]}
 				/>
 
-				<ReviewFeedback />
+				{!zenMode && <ReviewFeedback />}
 			</box>
 
-			<box
-				style={{
-					paddingLeft: 1,
-					paddingRight: 1,
-					backgroundColor: theme.panel,
-					border: ["top"],
-					borderColor: theme.border,
-				}}
-			>
-				<text style={{ fg: theme.textFaint }}>{help}</text>
-			</box>
+			{!zenMode && (
+				<box
+					style={{
+						paddingLeft: 1,
+						paddingRight: 1,
+						backgroundColor: theme.panel,
+						border: ["top"],
+						borderColor: theme.border,
+					}}
+				>
+					<text style={{ fg: theme.textFaint }}>{help}</text>
+				</box>
+			)}
 		</box>
 	);
 }

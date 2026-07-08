@@ -40,6 +40,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const [backfill, setBackfill] = useState<Record<string, Turn[]>>({});
 	const [review, setReview] = useState<{ sessionId: string | null } | null>(null);
 	const [leader, setLeader] = useState(false);
+	const [zenMode, setZenMode] = useState(false);
 	const [, bumpStatus] = useState(0);
 
 	const activeProject = projects[activeIndex];
@@ -263,13 +264,41 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const reviewTurns =
 		liveTurns.length > 0 ? liveTurns : review?.sessionId ? (backfill[review.sessionId] ?? []) : [];
 
+	const toggleZenMode = () => {
+		if (zenMode) {
+			setZenMode(false);
+			return;
+		}
+
+		if (review) {
+			setZenMode(true);
+			return;
+		}
+
+		if (!activeTabId) {
+			return;
+		}
+
+		setZenMode(true);
+		setFocus("terminal");
+	};
+
 	useKeyboard((key) => {
-		if (review || overlay || picker) {
+		if (overlay || picker) {
 			return;
 		}
 
 		if (leader) {
 			setLeader(false);
+
+			if (key.name === "f") {
+				toggleZenMode();
+				return;
+			}
+
+			if (review) {
+				return;
+			}
 
 			if (key.ctrl && key.name === "x") {
 				if (activeTabId) {
@@ -310,6 +339,10 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 
 		if (key.ctrl && key.name === "x") {
 			setLeader(true);
+			return;
+		}
+
+		if (review) {
 			return;
 		}
 
@@ -368,13 +401,14 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 				reviewedTurnIds={review.sessionId ? (reviewed[review.sessionId] ?? []) : []}
 				onToggleReviewed={toggleReviewed}
 				onClose={() => setReview(null)}
+				zenMode={zenMode}
 			/>
 		);
 	}
 
 	return (
 		<box style={{ width: "100%", height: "100%", flexDirection: "row", backgroundColor: theme.bg }}>
-			<Ui.ProjectSidebar projects={projects} activeIndex={activeIndex} />
+			{!zenMode && <Ui.ProjectSidebar projects={projects} activeIndex={activeIndex} />}
 
 			<Ui.TerminalBody
 				project={activeProject}
@@ -384,6 +418,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 				terminalFocused={terminalFocused}
 				statuses={statuses}
 				leader={leader}
+				zenMode={zenMode}
 			/>
 
 			{picker && (

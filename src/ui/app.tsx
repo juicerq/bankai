@@ -296,6 +296,11 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 				return;
 			}
 
+			if (key.name === "q") {
+				supervisor.disposeAll();
+				process.exit(0);
+			}
+
 			if (review) {
 				return;
 			}

@@ -121,6 +121,12 @@ export class TabSupervisor {
 		};
 	}
 
+	disposeAll(): void {
+		for (const id of this.tabs.keys()) {
+			this.close(id);
+		}
+	}
+
 	// Idempotent: a shell the operator exits fires the PTY `exit` callback, and the
 	// UI may also close the same tab — whichever runs second is a no-op.
 	close(id: string): void {

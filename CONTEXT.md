@@ -118,6 +118,17 @@ primária é o fluxo de eventos ao vivo. Também é o alvo do vínculo Tab↔Ses
 _Evite_: tratá-lo como fonte primária do review (é fallback), ou confundi-lo com a Session (a
 Session é a identidade; o Transcript é o registro dela em disco).
 
+**Workspace** — _apelido: "espaço de trabalho"_
+O arranjo do app inteiro num instante, persistido pra reabrir 1:1 no outro dia: quais Projects
+estão abertos, as Tabs de cada um (e sua ordem), o foco (que Project, que Tab, sidebar vs terminal),
+a tela (command center ou Review) e o fullscreen — e, por Tab que dirigia uma Session interativa
+viva, o comando `claude` capturado (argv real) pra reatar sozinho via `--resume` no boot. É **um só**
+e é do Operator (não se cria nem se nomeia vários); espelha o estado corrente continuamente (não é um
+snapshot no exit). Restaurar = reabrir o Workspace.
+_Evite_: confundir Workspace com **Project** (uma entrada da sidebar) ou com **Session** (a conversa
+Claude que uma Tab dirige) — o Workspace é o arranjo que contém ambos; e não chamá-lo de "snapshot"
+(sugere foto no exit) nem "layout" (sugere só o visual, mas ele guarda também o que cada Tab reata).
+
 **Operator** — _apelido: "operador", "você"_
 O único humano que usa o app: revisa o código e conduz as Sessions. É um app pessoal, single-user.
 _Evite_: falar de "usuários" no plural — não há multi-usuário.

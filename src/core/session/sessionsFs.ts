@@ -18,12 +18,12 @@ function parse(raw: string): SessionRecord | null {
 		return null;
 	}
 
-	const { pid, sessionId, procStart } = data as Record<string, unknown>;
+	const { pid, sessionId, procStart, kind } = data as Record<string, unknown>;
 	if (typeof pid !== "number" || typeof sessionId !== "string" || typeof procStart !== "string") {
 		return null;
 	}
 
-	return { pid, sessionId, procStart };
+	return { pid, sessionId, procStart, ...(typeof kind === "string" ? { kind } : {}) };
 }
 
 async function list(): Promise<SessionRecord[]> {

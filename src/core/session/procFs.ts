@@ -1,5 +1,4 @@
 import { readFile, readdir } from "node:fs/promises";
-import type { ProcSource } from "@core/session/SessionBinder";
 
 async function pids(): Promise<number[]> {
 	const entries = await readdir("/proc");
@@ -32,4 +31,15 @@ async function procStart(pid: number): Promise<string | null> {
 	return start;
 }
 
-export const procFs: ProcSource = { pids, parent, procStart };
+async function cmdline(pid: number): Promise<string[] | null> {
+	const raw = await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => null);
+	if (raw === null) {
+		return null;
+	}
+
+	const argv = raw.split("\0").filter((part) => part.length > 0);
+
+	return argv.length > 0 ? argv : null;
+}
+
+export const procFs = { pids, parent, procStart, cmdline };

@@ -134,6 +134,12 @@ async function locate(sessionId: string, dir: string): Promise<string | null> {
 	return null;
 }
 
+export async function transcriptExists(sessionId: string, dir = projectsDir()): Promise<boolean> {
+	const path = await locate(sessionId, dir).catch(() => null);
+
+	return path !== null;
+}
+
 export async function backfillTurns(
 	sessionId: string,
 	dir = projectsDir(),

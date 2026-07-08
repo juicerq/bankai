@@ -2,13 +2,36 @@ import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import { HookInstaller } from "@core/hooks/HookInstaller";
 import { Logger } from "@core/logger";
+import { backfillTurns, transcriptExists } from "@core/review/TranscriptBackfill";
 import { Projects } from "@core/store/projects";
-import { App } from "@ui/app";
+import { ReviewState } from "@core/store/review-state";
+import { WORKSPACE_SEED, WorkspaceStore } from "@core/store/workspace";
+import { planRestore } from "@core/workspace/planRestore";
+import { App, type RestoreReview } from "@ui/app";
 
 await HookInstaller.install().catch((err) => Logger.error("hooks:install-failed", String(err)));
 
 const initialProjects = await Projects.list();
 
+const workspace = await WorkspaceStore.read().catch((err) => {
+	Logger.error("workspace:read-failed", String(err));
+	return WORKSPACE_SEED;
+});
+
+const reviewSessionId = workspace.screen === "review" ? workspace.reviewSessionId : null;
+const reviewTranscriptExists = reviewSessionId === null ? false : await transcriptExists(reviewSessionId);
+
+const restoreReview: RestoreReview | null =
+	reviewTranscriptExists && reviewSessionId !== null
+		? {
+				sessionId: reviewSessionId,
+				turns: await backfillTurns(reviewSessionId),
+				reviewed: await ReviewState.get(reviewSessionId),
+			}
+		: null;
+
+const plan = planRestore({ workspace, projects: initialProjects, reviewTranscriptExists });
+
 const renderer = await createCliRenderer({ exitOnCtrlC: false, targetFps: 60 });
 
-createRoot(renderer).render(<App initialProjects={initialProjects} />);
+createRoot(renderer).render(<App initialProjects={initialProjects} plan={plan} restoreReview={restoreReview} />);

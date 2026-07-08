@@ -8,11 +8,16 @@ export type SessionRecord = {
 	pid: number;
 	sessionId: string;
 	procStart: string;
+	kind?: string;
 };
 
 export type SessionSource = {
 	list(): Promise<SessionRecord[]>;
 };
+
+export type TabBinding = { sessionId: string; pid: number; kind?: string };
+
+type LiveSession = { sessionId: string; kind?: string };
 
 async function childrenByParent(source: ProcSource): Promise<Map<number, number[]>> {
 	const pids = await source.pids();
@@ -34,7 +39,7 @@ async function childrenByParent(source: ProcSource): Promise<Map<number, number[
 	return children;
 }
 
-async function liveSessions(proc: ProcSource, sessions: SessionSource): Promise<Map<number, string>> {
+async function liveSessions(proc: ProcSource, sessions: SessionSource): Promise<Map<number, LiveSession>> {
 	const records = await sessions.list();
 	const validated = await Promise.all(
 		records.map(async (record) => {
@@ -44,10 +49,10 @@ async function liveSessions(proc: ProcSource, sessions: SessionSource): Promise<
 		}),
 	);
 
-	const live = new Map<number, string>();
+	const live = new Map<number, LiveSession>();
 	for (const record of validated) {
 		if (record) {
-			live.set(record.pid, record.sessionId);
+			live.set(record.pid, { sessionId: record.sessionId, kind: record.kind });
 		}
 	}
 
@@ -57,8 +62,8 @@ async function liveSessions(proc: ProcSource, sessions: SessionSource): Promise<
 function findInTree(
 	children: Map<number, number[]>,
 	shellPid: number,
-	live: Map<number, string>,
-): string | null {
+	live: Map<number, LiveSession>,
+): number | null {
 	const seen = new Set<number>();
 	let frontier = children.get(shellPid) ?? [];
 
@@ -67,9 +72,8 @@ function findInTree(
 		for (const pid of batch) {
 			seen.add(pid);
 
-			const sessionId = live.get(pid);
-			if (sessionId) {
-				return sessionId;
+			if (live.has(pid)) {
+				return pid;
 			}
 		}
 
@@ -80,20 +84,11 @@ function findInTree(
 }
 
 export const SessionBinder = {
-	async resolve(proc: ProcSource, sessions: SessionSource, shellPid: number): Promise<string | null> {
-		const [children, live] = await Promise.all([
-			childrenByParent(proc),
-			liveSessions(proc, sessions),
-		]);
-
-		return findInTree(children, shellPid, live);
-	},
-
 	async resolveMany(
 		proc: ProcSource,
 		sessions: SessionSource,
 		tabs: { tabId: string; pid: number }[],
-	): Promise<Record<string, string>> {
+	): Promise<Record<string, TabBinding>> {
 		if (tabs.length === 0) {
 			return {};
 		}
@@ -104,9 +99,13 @@ export const SessionBinder = {
 		]);
 
 		const bound = tabs.map(({ tabId, pid }) => {
-			const sessionId = findInTree(children, pid, live);
+			const found = findInTree(children, pid, live);
+			const session = found === null ? undefined : live.get(found);
+			if (found === null || session === undefined) {
+				return null;
+			}
 
-			return sessionId ? ([tabId, sessionId] as const) : null;
+			return [tabId, { ...session, pid: found }] as const;
 		});
 
 		return Object.fromEntries(bound.filter((entry) => entry !== null));

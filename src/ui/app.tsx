@@ -14,6 +14,10 @@ import { procFs } from "@core/session/procFs";
 import { sessionsFs } from "@core/session/sessionsFs";
 import { type Project, Projects } from "@core/store/projects";
 import { ReviewState } from "@core/store/review-state";
+import { type WorkspaceCommand, WorkspaceStore } from "@core/store/workspace";
+import { deriveWorkspace } from "@core/workspace/deriveWorkspace";
+import type { RestorePlan } from "@core/workspace/planRestore";
+import { buildResumeCommand } from "@core/workspace/resumeCommand";
 import { TabSupervisor } from "@core/terminal/TabSupervisor";
 import { Ui } from "@ui/components";
 import { theme } from "@ui/theme";
@@ -22,27 +26,91 @@ import type { TabGroup, TabStatus } from "@ui/types";
 type Overlay = { kind: "rename" } | null;
 type Screen = "command" | "review";
 
+export type RestoreReview = { sessionId: string; turns: Turn[]; reviewed: string[] };
+
+type AppProps = {
+	initialProjects: Project[];
+	plan: RestorePlan;
+	restoreReview: RestoreReview | null;
+};
+
 const INITIAL_COLS = 80;
 const INITIAL_ROWS = 24;
 const BIND_POLL_MS = 2000;
 const HOME = homedir();
 
-export function App({ initialProjects }: { initialProjects: Project[] }) {
+function sameCommand(a: WorkspaceCommand, b: WorkspaceCommand): boolean {
+	if (a.sessionId !== b.sessionId || a.kind !== b.kind) {
+		return false;
+	}
+
+	return (a.argv?.join("\0") ?? "") === (b.argv?.join("\0") ?? "");
+}
+
+function sameCaptures(a: Record<string, WorkspaceCommand>, b: Record<string, WorkspaceCommand>): boolean {
+	const keys = Object.keys(a);
+	if (keys.length !== Object.keys(b).length) {
+		return false;
+	}
+
+	for (const key of keys) {
+		const left = a[key];
+		const right = b[key];
+		if (left === undefined || right === undefined || !sameCommand(left, right)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+async function captureBindings(
+	tabs: { tabId: string; pid: number }[],
+): Promise<Record<string, WorkspaceCommand>> {
+	const resolved = await SessionBinder.resolveMany(procFs, sessionsFs, tabs);
+	const captures: Record<string, WorkspaceCommand> = {};
+
+	await Promise.all(
+		Object.entries(resolved).map(async ([tabId, binding]) => {
+			const command: WorkspaceCommand = { sessionId: binding.sessionId };
+			const argv = await procFs.cmdline(binding.pid);
+			if (argv) {
+				command.argv = argv;
+			}
+			if (binding.kind !== undefined) {
+				command.kind = binding.kind;
+			}
+
+			captures[tabId] = command;
+		}),
+	);
+
+	return captures;
+}
+
+export function App({ initialProjects, plan, restoreReview }: AppProps) {
 	const [supervisor] = useState(() => new TabSupervisor());
 	const [reviewModel] = useState(() => new ReviewModel());
 	const [gateway] = useState(() => new HookGateway());
 	const [projects, setProjects] = useState(initialProjects);
-	const [activeIndex, setActiveIndex] = useState(0);
+	const [activeIndex, setActiveIndex] = useState(plan.focusedIndex);
 	const [groups, setGroups] = useState<Record<string, TabGroup>>({});
-	const [focus, setFocus] = useState<"sidebar" | "terminal">("sidebar");
+	const [focus, setFocus] = useState<"sidebar" | "terminal">(plan.focus);
 	const [overlay, setOverlay] = useState<Overlay>(null);
 	const [picker, setPicker] = useState<{ entries: DirEntry[] } | null>(null);
-	const [bindings, setBindings] = useState<Record<string, string>>({});
-	const [reviewed, setReviewed] = useState<Record<string, string[]>>({});
-	const [backfill, setBackfill] = useState<Record<string, Turn[]>>({});
-	const [review, setReview] = useState<{ sessionId: string | null } | null>(null);
+	const [captures, setCaptures] = useState<Record<string, WorkspaceCommand>>({});
+	const [restored, setRestored] = useState(false);
+	const [reviewed, setReviewed] = useState<Record<string, string[]>>(
+		restoreReview ? { [restoreReview.sessionId]: restoreReview.reviewed } : {},
+	);
+	const [backfill, setBackfill] = useState<Record<string, Turn[]>>(
+		restoreReview ? { [restoreReview.sessionId]: restoreReview.turns } : {},
+	);
+	const [review, setReview] = useState<{ sessionId: string | null } | null>(
+		plan.screen === "review" ? { sessionId: plan.reviewSessionId } : null,
+	);
 	const [leader, setLeader] = useState(false);
-	const [zen, setZen] = useState<Record<Screen, boolean>>({ command: false, review: false });
+	const [zen, setZen] = useState<Record<Screen, boolean>>(plan.zen);
 	const [, bumpStatus] = useState(0);
 
 	const activeProject = projects[activeIndex];
@@ -65,8 +133,13 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 		});
 
 		const poll = setInterval(() => {
-			SessionBinder.resolveMany(procFs, sessionsFs, supervisor.pids())
-				.then((resolved) => setBindings((prev) => ({ ...prev, ...resolved })))
+			captureBindings(supervisor.pids())
+				.then((captures) => {
+					setCaptures((prev) => {
+						const merged = { ...prev, ...captures };
+						return sameCaptures(prev, merged) ? prev : merged;
+					});
+				})
 				.catch((err) => Logger.error("session:bind-failed", String(err)));
 		}, BIND_POLL_MS);
 
@@ -78,9 +151,48 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 		};
 	}, [gateway, reviewModel, supervisor]);
 
+	useEffect(() => {
+		const cwdById = new Map(initialProjects.map((project) => [project.id, project.cwd]));
+		const nextGroups: Record<string, TabGroup> = {};
+		const nextCaptures: Record<string, WorkspaceCommand> = {};
+
+		for (const planned of plan.projects) {
+			const cwd = cwdById.get(planned.projectId);
+			if (cwd === undefined) {
+				continue;
+			}
+
+			const tabs: string[] = [];
+			for (const tab of planned.tabs) {
+				const tabId = spawnTab(planned.projectId, cwd);
+				tabs.push(tabId);
+
+				if (tab.command) {
+					nextCaptures[tabId] = tab.command;
+					supervisor.input(tabId, `${buildResumeCommand(tab.command)}\n`);
+				}
+			}
+
+			nextGroups[planned.projectId] = { tabs, active: planned.activeTab };
+		}
+
+		setGroups(nextGroups);
+		setCaptures(nextCaptures);
+		setRestored(true);
+	}, []);
+
+	useEffect(() => {
+		if (!restored) {
+			return;
+		}
+
+		const workspace = deriveWorkspace({ projects, groups, activeIndex, focus, zen, review, captures });
+		WorkspaceStore.write(workspace).catch((err) => Logger.error("workspace:write-failed", String(err)));
+	}, [restored, projects, groups, activeIndex, focus, zen, review, captures]);
+
 	const statuses: Record<string, TabStatus> = {};
 	for (const tabId of group?.tabs ?? []) {
-		const sessionId = bindings[tabId];
+		const sessionId = captures[tabId]?.sessionId;
 		if (!sessionId) {
 			continue;
 		}
@@ -205,10 +317,16 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 		});
 	};
 
+	const spawnTab = (projectId: string, cwd: string) => {
+		const tabId = supervisor.open({ cwd, cols: INITIAL_COLS, rows: INITIAL_ROWS });
+		supervisor.onExit(tabId, () => closeTab(projectId, tabId));
+
+		return tabId;
+	};
+
 	const openTabFor = (project: Project) => {
 		const projectId = project.id;
-		const tabId = supervisor.open({ cwd: project.cwd, cols: INITIAL_COLS, rows: INITIAL_ROWS });
-		supervisor.onExit(tabId, () => closeTab(projectId, tabId));
+		const tabId = spawnTab(projectId, project.cwd);
 
 		setGroups((prev) => {
 			const current = prev[projectId] ?? { tabs: [], active: 0 };
@@ -263,7 +381,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	};
 
 	const openReview = () => {
-		const sessionId = activeTabId ? bindings[activeTabId] : undefined;
+		const sessionId = activeTabId ? captures[activeTabId]?.sessionId : undefined;
 		if (!sessionId) {
 			setReview({ sessionId: null });
 			return;

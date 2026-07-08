@@ -3,12 +3,12 @@ import { theme } from "@ui/theme";
 type HintMode = "terminal" | "idle" | "empty";
 
 const HINTS: Record<HintMode, string> = {
-	terminal: "^X → commands",
+	terminal: "^X → commands · drag select",
 	idle: "⏎ focus shell · n new · x close · ↑↓ project · ^X commands",
 	empty: "n new shell · ↑↓ project · a add",
 };
 
-const LEADER_HINT = "^X → s sidebar · r review · n new · d close · 1-9 switch · tab next";
+const LEADER_HINT = "^X → s sidebar · r review · n new · d close · 1-9 switch · tab next · q quit";
 
 export function StatusHint({ mode, leader }: { mode: HintMode; leader: boolean }) {
 	const label = leader ? LEADER_HINT : HINTS[mode];

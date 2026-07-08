@@ -5,12 +5,14 @@ import { Terminal as Screen } from "@xterm/headless";
 // The user runs `claude`/`cc` themselves inside the shell — we don't wrap it.
 
 const SHELL = process.env.SHELL ?? "/bin/bash";
+const SCROLLBACK = 10000;
 
 type Tab = {
 	pty: Bun.Terminal;
 	proc: Bun.Subprocess;
 	screen: Screen;
 	exitListeners: Set<(code: number) => void>;
+	inputListeners: Set<() => void>;
 };
 
 type OpenOptions = {
@@ -25,7 +27,7 @@ export class TabSupervisor {
 
 	open({ cwd, cols, rows }: OpenOptions): string {
 		const id = `tab-${++this.seq}`;
-		const screen = new Screen({ cols, rows, allowProposedApi: true });
+		const screen = new Screen({ cols, rows, scrollback: SCROLLBACK, allowProposedApi: true });
 
 		const pty = new Bun.Terminal({
 			cols,
@@ -59,13 +61,34 @@ export class TabSupervisor {
 			proc,
 			screen,
 			exitListeners: new Set(),
+			inputListeners: new Set(),
 		});
 
 		return id;
 	}
 
 	input(id: string, data: string): void {
-		this.tabs.get(id)?.pty.write(data);
+		const tab = this.tabs.get(id);
+		if (!tab) {
+			return;
+		}
+
+		tab.pty.write(data);
+		for (const listener of tab.inputListeners) {
+			listener();
+		}
+	}
+
+	onInput(id: string, listener: () => void): () => void {
+		const tab = this.tabs.get(id);
+		if (!tab) {
+			return () => {};
+		}
+
+		tab.inputListeners.add(listener);
+		return () => {
+			tab.inputListeners.delete(listener);
+		};
 	}
 
 	pids(): { tabId: string; pid: number }[] {

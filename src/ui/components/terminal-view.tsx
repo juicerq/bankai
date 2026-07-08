@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { RGBA } from "@opentui/core";
-import { extend } from "@opentui/react";
+import { extend, useRenderer } from "@opentui/react";
 import { TerminalRenderable } from "@core/terminal/TerminalRenderable";
 import type { TabSupervisor } from "@core/terminal/TabSupervisor";
 import { theme } from "@ui/theme";
@@ -23,6 +23,7 @@ export function TerminalView({
 	focused: boolean;
 }) {
 	const ref = useRef<TerminalRenderable>(null);
+	const renderer = useRenderer();
 
 	useEffect(() => {
 		const renderable = ref.current;
@@ -37,6 +38,7 @@ export function TerminalView({
 
 		renderable.cursorColors = { block: RGBA.fromHex(theme.accent), text: RGBA.fromHex(theme.bg) };
 		renderable.onCellResize = (cols, rows) => supervisor.resize(tabId, cols, rows);
+		renderable.onCopy = (text) => renderer.copyToClipboardOSC52(text);
 		const size = renderable.cellSize;
 		if (size) {
 			supervisor.resize(tabId, size.cols, size.rows);
@@ -44,13 +46,16 @@ export function TerminalView({
 
 		return () => {
 			renderable.onCellResize = null;
+			renderable.onCopy = null;
 			renderable.detach();
 		};
-	}, [supervisor, tabId]);
+	}, [supervisor, tabId, renderer]);
 
 	useEffect(() => {
 		ref.current?.setFocused(focused);
 	}, [focused]);
+
+	useEffect(() => supervisor.onInput(tabId, () => ref.current?.snapToLive()), [supervisor, tabId]);
 
 	return <terminal ref={ref} style={{ flexGrow: 1 }} />;
 }

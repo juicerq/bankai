@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
 import { basename } from "node:path";
 import { useEffect, useState } from "react";
+import type { KeyEvent } from "@opentui/core";
 import { useKeyboard } from "@opentui/react";
 import { type DirEntry, listDirs } from "@core/fs/listDirs";
 import { HookGateway } from "@core/hooks/HookGateway";
@@ -19,6 +20,7 @@ import { theme } from "@ui/theme";
 import type { TabGroup, TabStatus } from "@ui/types";
 
 type Overlay = { kind: "rename" } | null;
+type Screen = "command" | "review";
 
 const INITIAL_COLS = 80;
 const INITIAL_ROWS = 24;
@@ -40,7 +42,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const [backfill, setBackfill] = useState<Record<string, Turn[]>>({});
 	const [review, setReview] = useState<{ sessionId: string | null } | null>(null);
 	const [leader, setLeader] = useState(false);
-	const [zenMode, setZenMode] = useState(false);
+	const [zen, setZen] = useState<Record<Screen, boolean>>({ command: false, review: false });
 	const [, bumpStatus] = useState(0);
 
 	const activeProject = projects[activeIndex];
@@ -48,6 +50,8 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 	const activeTabId = group?.tabs[group.active];
 	const terminalFocused =
 		focus === "terminal" && activeTabId !== undefined && overlay === null && picker === null;
+	const screen: Screen = review ? "review" : "command";
+	const zenMode = zen[screen];
 
 	useEffect(() => {
 		gateway.start().catch((err) => Logger.error("hooks:gateway-start-failed", String(err)));
@@ -93,6 +97,16 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 		}
 
 		setActiveIndex((prev) => (prev + direction + projects.length) % projects.length);
+	};
+
+	const selectProjectByIndex = (index: number) => {
+		const project = projects[index];
+		if (!project) {
+			return;
+		}
+
+		setActiveIndex(index);
+		setFocus(groups[project.id]?.tabs.length ? "terminal" : "sidebar");
 	};
 
 	const reorder = (direction: "up" | "down") => {
@@ -265,22 +279,60 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 		liveTurns.length > 0 ? liveTurns : review?.sessionId ? (backfill[review.sessionId] ?? []) : [];
 
 	const toggleZenMode = () => {
-		if (zenMode) {
-			setZenMode(false);
+		if (screen === "command" && !zenMode && !activeTabId) {
 			return;
+		}
+
+		setZen((prev) => ({ ...prev, [screen]: !prev[screen] }));
+
+		if (screen === "command" && !zenMode) {
+			setFocus("terminal");
+		}
+	};
+
+	const handleLeaderCommand = (key: KeyEvent) => {
+		if (key.name === "f") {
+			toggleZenMode();
+			return;
+		}
+
+		if (key.name === "q") {
+			supervisor.disposeAll();
+			process.exit(0);
 		}
 
 		if (review) {
-			setZenMode(true);
 			return;
 		}
 
-		if (!activeTabId) {
+		if (key.ctrl && key.name === "x") {
+			if (activeTabId) {
+				supervisor.input(activeTabId, key.raw);
+			}
 			return;
 		}
 
-		setZenMode(true);
-		setFocus("terminal");
+		switch (key.name) {
+			case "s":
+				setFocus("sidebar");
+				return;
+			case "r":
+				openReview();
+				return;
+			case "n":
+				openTab();
+				return;
+			case "d":
+			case "x":
+				closeActiveTab();
+				return;
+			case "left":
+				cycleTab(-1);
+				return;
+			case "right":
+			case "tab":
+				cycleTab(1);
+		}
 	};
 
 	useKeyboard((key) => {
@@ -290,55 +342,7 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 
 		if (leader) {
 			setLeader(false);
-
-			if (key.name === "f") {
-				toggleZenMode();
-				return;
-			}
-
-			if (key.name === "q") {
-				supervisor.disposeAll();
-				process.exit(0);
-			}
-
-			if (review) {
-				return;
-			}
-
-			if (key.ctrl && key.name === "x") {
-				if (activeTabId) {
-					supervisor.input(activeTabId, key.raw);
-				}
-				return;
-			}
-
-			switch (key.name) {
-				case "s":
-					setFocus("sidebar");
-					return;
-				case "r":
-					openReview();
-					return;
-				case "n":
-					openTab();
-					return;
-				case "d":
-				case "x":
-					closeActiveTab();
-					return;
-				case "left":
-					cycleTab(-1);
-					return;
-				case "right":
-				case "tab":
-					cycleTab(1);
-					return;
-				default:
-					if (key.name.length === 1 && key.name >= "1" && key.name <= "9") {
-						switchTab(Number(key.name) - 1);
-					}
-			}
-
+			handleLeaderCommand(key);
 			return;
 		}
 
@@ -348,6 +352,18 @@ export function App({ initialProjects }: { initialProjects: Project[] }) {
 		}
 
 		if (review) {
+			return;
+		}
+
+		const numberKey = key.name.length === 1 && key.name >= "1" && key.name <= "9" ? Number(key.name) - 1 : null;
+
+		if (numberKey !== null && key.ctrl) {
+			selectProjectByIndex(numberKey);
+			return;
+		}
+
+		if (numberKey !== null && (key.option || key.meta)) {
+			switchTab(numberKey);
 			return;
 		}
 

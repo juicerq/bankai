@@ -1,6 +1,6 @@
 {
 	"name": "@juicerq/bankai",
-	"version": "0.0.6",
+	"version": "0.0.7",
 	"description": "Terminal cockpit for live Claude Code sessions per project, with turn-by-turn code review — openTUI + Bun + JSON store",
 	"author": {
 		"name": "juicerq",

@@ -6,8 +6,19 @@ import { backfillTurns, transcriptExists } from "@core/review/TranscriptBackfill
 import { Projects } from "@core/store/projects";
 import { ReviewState } from "@core/store/review-state";
 import { WORKSPACE_SEED, WorkspaceStore } from "@core/store/workspace";
+import { TabSupervisor } from "@core/terminal/TabSupervisor";
 import { planRestore } from "@core/workspace/planRestore";
 import { App, type RestoreReview } from "@ui/app";
+
+const supervisor = new TabSupervisor();
+
+const quit = () => {
+	supervisor.disposeAll();
+	process.exit(0);
+};
+
+process.on("SIGHUP", quit);
+process.on("SIGTERM", quit);
 
 await HookInstaller.install().catch((err) => Logger.error("hooks:install-failed", String(err)));
 
@@ -46,4 +57,6 @@ const plan = planRestore({ workspace, projects: initialProjects, reviewTranscrip
 
 const renderer = await createCliRenderer({ exitOnCtrlC: false, targetFps: 60 });
 
-createRoot(renderer).render(<App initialProjects={initialProjects} plan={plan} restoreReview={restoreReview} />);
+createRoot(renderer).render(
+	<App supervisor={supervisor} initialProjects={initialProjects} plan={plan} restoreReview={restoreReview} />,
+);

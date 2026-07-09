@@ -18,7 +18,7 @@ import { type WorkspaceCommand, WorkspaceStore } from "@core/store/workspace";
 import { deriveWorkspace } from "@core/workspace/deriveWorkspace";
 import type { RestorePlan } from "@core/workspace/planRestore";
 import { buildFreshCommand, buildResumeCommand } from "@core/workspace/resumeCommand";
-import { TabSupervisor } from "@core/terminal/TabSupervisor";
+import type { TabSupervisor } from "@core/terminal/TabSupervisor";
 import { Ui } from "@ui/components";
 import { theme } from "@ui/theme";
 import type { TabGroup, TabStatus } from "@ui/types";
@@ -29,6 +29,7 @@ type Screen = "command" | "review";
 export type RestoreReview = { sessionId: string; turns: Turn[]; reviewed: string[] };
 
 type AppProps = {
+	supervisor: TabSupervisor;
 	initialProjects: Project[];
 	plan: RestorePlan;
 	restoreReview: RestoreReview | null;
@@ -88,8 +89,7 @@ async function captureBindings(
 	return captures;
 }
 
-export function App({ initialProjects, plan, restoreReview }: AppProps) {
-	const [supervisor] = useState(() => new TabSupervisor());
+export function App({ supervisor, initialProjects, plan, restoreReview }: AppProps) {
 	const [reviewModel] = useState(() => new ReviewModel());
 	const [gateway] = useState(() => new HookGateway());
 	const [projects, setProjects] = useState(initialProjects);

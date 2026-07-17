@@ -1,0 +1,50 @@
+import { describe, expect, it } from "vitest";
+import { commandKey, leaderCommand } from "@ui/-utils/app-keymap";
+
+const key = {
+	name: "",
+	raw: "",
+	ctrl: false,
+	shift: false,
+	option: false,
+	meta: false,
+};
+
+describe("app keymap", () => {
+	it("maps the leader chord and leader commands", () => {
+		expect(commandKey({ ...key, name: "x", raw: "\u0018", ctrl: true }, true))
+			.toEqual({ type: "leader" });
+		expect(leaderCommand({ ...key, name: "r" }))
+			.toEqual({ type: "open-review" });
+		expect(leaderCommand({ ...key, name: "x" }))
+			.toEqual({ type: "close-tab" });
+		expect(leaderCommand({ ...key, name: "q" }))
+			.toEqual({ type: "quit" });
+		expect(leaderCommand({ ...key, name: "f" }))
+			.toEqual({ type: "toggle-zen" });
+		expect(leaderCommand({ ...key, name: "n" }))
+			.toEqual({ type: "open-tab" });
+		expect(leaderCommand({ ...key, name: "x", raw: "\u0018", ctrl: true }))
+			.toEqual({ type: "input", raw: "\u0018" });
+		expect(leaderCommand({ ...key, name: "unknown" })).toBeNull();
+	});
+
+	it("gives terminal input precedence over navigation keys", () => {
+		expect(commandKey({ ...key, name: "j", raw: "j" }, true))
+			.toEqual({ type: "input", raw: "j" });
+	});
+
+	it("maps project and tab number shortcuts", () => {
+		expect(commandKey({ ...key, name: "3", raw: "3", ctrl: true }, false))
+			.toEqual({ type: "select-project", index: 2 });
+		expect(commandKey({ ...key, name: "2", raw: "2", option: true }, false))
+			.toEqual({ type: "select-tab", index: 1 });
+	});
+
+	it("distinguishes project movement from project selection", () => {
+		expect(commandKey({ ...key, name: "up", shift: true }, false))
+			.toEqual({ type: "move-project", direction: "up" });
+		expect(commandKey({ ...key, name: "up" }, false))
+			.toEqual({ type: "select-project-offset", direction: -1 });
+	});
+});

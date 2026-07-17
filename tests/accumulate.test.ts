@@ -5,13 +5,14 @@ import { filesForMode } from "@core/review/accumulate";
 const snap = (path: string, before: string[], after: string[]) => ({ path, before, after });
 
 const turns: Turn[] = [
-	{ turnId: "s:0", prompt: "add a", files: [snap("/a.ts", [], ["v0"])] },
+	{ turnId: "s:0", prompt: "add a", files: [snap("/a.ts", [], ["v0"])], state: "completed" },
 	{
 		turnId: "s:1",
 		prompt: "add b, rewrite a",
 		files: [snap("/b.ts", [], ["b"]), snap("/a.ts", ["v0"], ["v1"])],
+		state: "completed",
 	},
-	{ turnId: "s:2", prompt: "just talk", files: [] },
+	{ turnId: "s:2", prompt: "just talk", files: [], state: "completed" },
 ];
 
 describe("filesForMode", () => {
@@ -38,9 +39,9 @@ describe("filesForMode", () => {
 
 	it("accumulated nets out a line added then later removed", () => {
 		const churn: Turn[] = [
-			{ turnId: "s:0", prompt: "base", files: [snap("/f.ts", ["a", "c"], ["a", "c"])] },
-			{ turnId: "s:1", prompt: "add b", files: [snap("/f.ts", ["a", "c"], ["a", "b", "c"])] },
-			{ turnId: "s:2", prompt: "drop b", files: [snap("/f.ts", ["a", "b", "c"], ["a", "c"])] },
+			{ turnId: "s:0", prompt: "base", files: [snap("/f.ts", ["a", "c"], ["a", "c"])], state: "completed" },
+			{ turnId: "s:1", prompt: "add b", files: [snap("/f.ts", ["a", "c"], ["a", "b", "c"])], state: "completed" },
+			{ turnId: "s:2", prompt: "drop b", files: [snap("/f.ts", ["a", "b", "c"], ["a", "c"])], state: "completed" },
 		];
 
 		expect(filesForMode(churn, 2, "accumulated")[0]).toEqual({
@@ -54,4 +55,16 @@ describe("filesForMode", () => {
 		expect(filesForMode(turns, 9, "turn")).toEqual([]);
 		expect(filesForMode([], 0, "accumulated")).toEqual([]);
 	});
+
+	it("keeps discontinuous changes chronological instead of attributing the gap", () => {
+		const discontinuous: Turn[] = [
+			{ turnId: "s:0", prompt: "first", state: "completed", files: [snap("/a", ["a"], ["b"])] },
+			{ turnId: "s:1", prompt: "second", state: "completed", files: [snap("/a", ["external"], ["c"])] },
+		];
+		expect(filesForMode(discontinuous, 1, "accumulated")).toEqual([
+			discontinuous[0]!.files[0],
+			discontinuous[1]!.files[0],
+		]);
+	});
+
 });

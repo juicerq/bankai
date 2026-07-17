@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anchorLineAt, diffRows, diffStats, rowIndexForLine, unifiedRows } from "@core/review/diff";
+import { diffRows } from "@core/review/diff";
 
 const lines = (text: string) => (text === "" ? [] : text.split("\n"));
 
@@ -116,13 +116,15 @@ describe("diffRows", () => {
 		]);
 	});
 
-	it("falls back to all additions past the diff cap", () => {
+	it("reports a truthful marker when exact alignment is too expensive", () => {
 		const before = Array.from({ length: 3001 }, (_, i) => `l${i}`);
 		const after = [...before, "l3001"];
 
-		const rows = diffRows(before, after, true);
-		expect(rows).toHaveLength(3002);
-		expect(rows.every((row) => row.kind === "add")).toBe(true);
+		expect(diffRows(before, after, true)).toEqual([{
+			kind: "too-large",
+			beforeCount: 3001,
+			afterCount: 3002,
+		}]);
 	});
 
 	it("keeps independent results for two befores sharing the same after", () => {
@@ -144,147 +146,5 @@ describe("diffRows", () => {
 			{ kind: "context", line: 3, text: "c" },
 		]);
 		expect(diffRows(turnBefore, after, true)).toEqual(turnRows);
-	});
-});
-
-describe("unifiedRows", () => {
-	it("keeps a deleted line in place with its text", () => {
-		expect(unifiedRows(lines("a\nguard\nc"), lines("a\nc"), true)).toEqual([
-			{ kind: "context", line: 1, text: "a" },
-			{ kind: "remove", text: "guard" },
-			{ kind: "context", line: 2, text: "c" },
-		]);
-	});
-
-	it("shows a change as the removed old line then the added new line", () => {
-		expect(unifiedRows(lines("a\nb\nc"), lines("a\nB\nc"), true)).toEqual([
-			{ kind: "context", line: 1, text: "a" },
-			{ kind: "remove", text: "b" },
-			{ kind: "add", line: 2, text: "B" },
-			{ kind: "context", line: 3, text: "c" },
-		]);
-	});
-
-	it("numbers added lines by their position in the after snapshot", () => {
-		expect(unifiedRows(lines("a\nb"), lines("a\nb\nc"), true)).toEqual([
-			{ kind: "context", line: 1, text: "a" },
-			{ kind: "context", line: 2, text: "b" },
-			{ kind: "add", line: 3, text: "c" },
-		]);
-	});
-
-	it("collapses context around the change like the compact view", () => {
-		const before = Array.from({ length: 20 }, (_, i) => `l${i + 1}`);
-		const after = [...before];
-		after[9] = "CHANGED";
-
-		const rows = unifiedRows(before, after, true);
-
-		expect(rows[0]).toEqual({ kind: "skipped", count: 6, line: 1 });
-		expect(rows.at(-1)).toEqual({ kind: "skipped", count: 7, line: 14 });
-		expect(rows.filter((row) => row.kind === "remove")).toEqual([{ kind: "remove", text: "l10" }]);
-	});
-
-	it("keeps every context line and inline removals when unfolded", () => {
-		const before = Array.from({ length: 20 }, (_, i) => `l${i + 1}`);
-		const after = [...before];
-		after[9] = "CHANGED";
-
-		const rows = unifiedRows(before, after, false);
-
-		expect(rows).toHaveLength(21);
-		expect(rows.some((row) => row.kind === "skipped")).toBe(false);
-		expect(rows[0]).toEqual({ kind: "context", line: 1, text: "l1" });
-		expect(rows[9]).toEqual({ kind: "remove", text: "l10" });
-		expect(rows.at(-1)).toEqual({ kind: "context", line: 20, text: "l20" });
-	});
-});
-
-describe("anchorLineAt", () => {
-	const before = Array.from({ length: 20 }, (_, i) => `l${i + 1}`);
-	const after = [...before];
-	after[9] = "CHANGED";
-	const folded = diffRows(before, after, true);
-
-	it("returns the line of a line-bearing row", () => {
-		expect(anchorLineAt(folded, 1)).toBe(7);
-	});
-
-	it("returns the first hidden line for a skipped marker", () => {
-		expect(anchorLineAt(folded, 0)).toBe(1);
-		expect(anchorLineAt(folded, 8)).toBe(14);
-	});
-
-	it("walks past removed markers to the next numbered row", () => {
-		const rows = diffRows(lines("a\nguard\nc"), lines("a\nc"), true);
-
-		expect(anchorLineAt(rows, 1)).toBe(2);
-	});
-
-	it("walks past inline remove rows to the next numbered row", () => {
-		const rows = unifiedRows(lines("a\nb\nc"), lines("a\nB\nc"), true);
-
-		expect(anchorLineAt(rows, 1)).toBe(2);
-	});
-
-	it("returns null when only removed rows remain", () => {
-		const rows = diffRows(lines("a\nx"), lines("a"), true);
-
-		expect(anchorLineAt(rows, 1)).toBeNull();
-	});
-});
-
-describe("rowIndexForLine", () => {
-	const before = Array.from({ length: 20 }, (_, i) => `l${i + 1}`);
-	const after = [...before];
-	after[9] = "CHANGED";
-	const folded = diffRows(before, after, true);
-	const full = diffRows(before, after, false);
-
-	it("finds the exact row of a visible line", () => {
-		expect(rowIndexForLine(folded, 8)).toBe(2);
-		expect(rowIndexForLine(full, 8)).toBe(7);
-	});
-
-	it("resolves a line hidden inside a skipped marker to that marker", () => {
-		expect(rowIndexForLine(folded, 3)).toBe(0);
-		expect(rowIndexForLine(folded, 17)).toBe(8);
-	});
-
-	it("skips remove rows while scanning", () => {
-		const rows = unifiedRows(lines("a\nb\nc"), lines("a\nB\nc"), true);
-
-		expect(rowIndexForLine(rows, 2)).toBe(2);
-	});
-
-	it("returns null for a line beyond the rows", () => {
-		expect(rowIndexForLine(folded, 21)).toBeNull();
-	});
-});
-
-describe("diffStats", () => {
-	it("sums additions and deletions across files", () => {
-		const files = [
-			{ before: lines("a\nb\nc"), after: lines("a\nB\nc\nd") },
-			{ before: lines("x"), after: [] },
-		];
-
-		expect(diffStats(files)).toEqual({ added: 2, removed: 2 });
-	});
-
-	it("returns zeros for an untouched file", () => {
-		expect(diffStats([{ before: lines("a\nb"), after: lines("a\nb") }])).toEqual({
-			added: 0,
-			removed: 0,
-		});
-	});
-
-	it("counts the cap fallback as all additions", () => {
-		const before = Array.from({ length: 3001 }, (_, i) => `l${i}`);
-
-		expect(diffStats([{ before, after: [...before, "x"] }])).toEqual({
-			added: 3002,
-			removed: 0,
-		});
 	});
 });

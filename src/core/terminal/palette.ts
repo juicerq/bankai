@@ -1,10 +1,6 @@
 import { RGBA, TextAttributes } from "@opentui/core";
 import type { IBufferCell } from "@xterm/headless";
 
-// Bridge xterm/headless cell colors into openTUI RGBA. Palette (0-255) and the
-// two default colors are resolved once and cached — a live terminal repaints
-// every cell every frame, so per-cell allocation would dominate the render.
-
 const paletteCache: RGBA[] = [];
 let defaultFg: RGBA | null = null;
 let defaultBg: RGBA | null = null;

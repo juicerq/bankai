@@ -1,7 +1,7 @@
 # bankai
 
-A terminal cockpit for the Claude Code sessions you run across your projects, with a
-turn-by-turn code-review layer for judging what the agents write.
+A terminal cockpit for interactive Claude Code and Codex sessions, with a turn-by-turn
+code-review layer for judging what the agents write.
 
 Built for a workflow where you don't write code by hand — your job shifts from *writing*
 to *reviewing*, and the unit you review is the **agent turn**, not a git working-tree diff.
@@ -10,13 +10,12 @@ See [`PROJECT.md`](./PROJECT.md) for the full product rationale.
 ## What it does
 
 - **Command center** — a rail of your projects; each project hosts tabbed, *real* terminals
-  where you run `claude` yourself. bankai doesn't wrap the process — it watches each tab's PID
-  through `/proc` to bind it to the live Claude session, and a status badge shows whether that
-  session is generating, idle, blocked, or has turns you haven't reviewed.
+  where you run `claude` or the Codex TUI yourself. bankai watches the terminal foreground through
+  `/proc` to bind it to the interactive Harness Session. Codex non-interactive modes are excluded.
 - **Review** — a tmux-style leader (`^X` then a key; `r` enters review) takes over the screen
-  with a dense, scoped reading layout: a rail of the session's turns, the full readable diffs
-  for the selected turn, and a feedback rail. Turns arrive live from Claude Code hooks or are
-  backfilled from the session transcript.
+  with a dense, scoped reading layout: a rail of the session's turns and the full readable diffs
+  for the selected turn. Turns arrive live from each Harness Transcript;
+  only structured file changes attributed by that Transcript become Diffs.
 
 ## Stack
 
@@ -35,6 +34,7 @@ bun install
 bun run dev     # TUI with --watch (src/index.tsx)
 bun run check   # typecheck + lint gate
 bun run test    # vitest
+bun run build   # production executable
 ```
 
 ## Structure
@@ -43,10 +43,11 @@ bun run test    # vitest
 src/
   index.tsx       entry point
   core/           domain logic, no TUI
-    session/      bind a tab's PID to its live Claude session (/proc, sessionsFs)
-    hooks/        Claude Code hook gateway + installer
-    review/       turn model, transcript backfill, diff, accumulation
+    harness/      built-in Harness identities and capabilities
+    session/      bind terminal foreground to an interactive Session through /proc
+    review/       persistent Transcript projection, turn model, diff, accumulation
     terminal/     PTY tab supervisor (xterm headless)
+    workspace/    project/tab runtime, restore planning, and persistence
     highlight/    tree-sitter syntax highlighting
     store/        atomic JSON store
   ui/             openTUI React — components, hooks (-utils), theme

@@ -1,5 +1,5 @@
 ---
-Status: accepted
+Status: superseded by 0006
 ---
 
 # Dados da Review vêm de um hook `command` persistente no `~/.claude/settings.json` global

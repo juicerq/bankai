@@ -2,12 +2,12 @@
 Status: accepted
 ---
 
-# O terminal vivo é `@xterm/headless` blitado num `FrameBufferRenderable` do openTUI
+# O terminal vivo é `@xterm/headless` pintado num `Renderable` do openTUI
 
 O openTUI **não tem widget de terminal embutido** (verificado nos docs oficiais), então pra mostrar
-o `claude` vivo no pane a gente emula um terminal: um `Bun.spawn({ terminal: {cols, rows, data} })`
+o shell vivo no pane a gente emula um terminal: um `Bun.spawn({ terminal: {cols, rows, data} })`
 (PTY nativo do Bun) alimenta uma instância de `@xterm/headless`, cujo screen buffer é **blitado
-célula a célula** num `TerminalRenderable` custom (estende o `FrameBufferRenderable` do openTUI) via
+célula a célula** num `TerminalRenderable` custom (estende `Renderable`) via
 `setCell(x,y,char,fg,bg,attributes)`; o `keyInput` do openTUI é encaminhado de volta pro PTY e o
 `onResize` re-dimensiona ambos.
 
@@ -30,4 +30,5 @@ filho vê `isTTY:true`) — sem addon nativo, dispensa `@lydell/node-pty` de vez
 - A gente é dona do loop de blit e do mapeamento de atributos (`@xterm/headless` → `TextAttributes`)
   e do encaminhamento de input/resize — é o maior risco técnico do pivot (validado por spike como
   fatia 1).
-- Sem addon nativo no build; o `SessionSupervisor` mantém a interface e troca só a primitiva de PTY.
+- Sem addon nativo no build; `TerminalTab` possui cada lifecycle de PTY/screen e `TabSupervisor`
+  indexa as Tabs abertas.

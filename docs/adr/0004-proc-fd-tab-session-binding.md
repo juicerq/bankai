@@ -1,8 +1,12 @@
 ---
-Status: accepted
+Status: superseded by 0006
 ---
 
-# Vínculo Tab↔Session por inspeção de `/proc/<pid>/fd`
+# Vínculo Claude-only por inspeção de `/proc/<pid>/fd`
+
+Esta ADR registra a decisão original. A arquitetura atual está em 0006: descoberta pertence a cada
+Harness, o binding seleciona apenas a Session interativa no foreground e a Tab conserva a última
+Session qualificada quando o shell recupera o foreground.
 
 Como a Tab é um shell cru e o `claude` roda como filho dela, o app descobre **qual Session/`.jsonl`
 pertence a cada Tab** lendo `/proc/<pid-claude>/fd/`: o app é dono do PTY da Tab (sabe o PID do
@@ -26,5 +30,5 @@ instrumentar o `cc` resolve isso sem ambiguidade. O `/proc` fd dá o vínculo ex
 
 - **Linux-only** (`/proc`) — não-problema: o app já é Linux e o uso por SSH mira Linux.
 - Um **poll leve de processos** pra manter o vínculo atualizado.
-- O `--resume` da mesma Session só é exato **com o claude vivo** (fd aberto); depois que ele sai,
-  vira escolha do transcript mais recente do `cwd`.
+- A limitação de escolher o transcript mais recente depois da saída motivou a retenção explícita da
+  última Session adotada em 0006.

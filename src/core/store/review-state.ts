@@ -1,5 +1,6 @@
 import { type } from "arktype";
 import { Store } from "@core/store/Store";
+import { type SessionRef, sessionKey } from "@core/harness/registry";
 
 const reviewStateContract = type({ "[string]": "string[]" });
 
@@ -7,32 +8,29 @@ type ReviewStateValue = typeof reviewStateContract.infer;
 
 const store = new Store({
 	name: "reviewState",
-	version: 1,
+	version: 2,
 	contract: reviewStateContract,
-	migrators: {},
+	migrators: {
+		1: (raw) => Object.fromEntries(
+			Object.entries(reviewStateContract.assert(raw)).map(([key, value]) => [`claude:${key}`, value]),
+		),
+	},
 	seed: (): ReviewStateValue => ({}),
 });
 
-interface SetReviewedInput {
-	sessionId: string;
-	turnId: string;
-	reviewed: boolean;
-}
-
 export const ReviewState = {
-	get: async (sessionId: string) => (await store.read())[sessionId] ?? [],
-	setReviewed: async (input: SetReviewedInput) => {
+	get: async (session: SessionRef) => (await store.read())[sessionKey(session)] ?? [],
+	toggle: async (session: SessionRef, turnId: string) => {
+		const key = sessionKey(session);
 		const next = await store.mutate((current) => {
-			const existing = current[input.sessionId] ?? [];
-			const reviewedTurnIds = input.reviewed
-				? existing.includes(input.turnId)
-					? existing
-					: [...existing, input.turnId]
-				: existing.filter((id) => id !== input.turnId);
+			const existing = current[key] ?? [];
+			const reviewedTurnIds = existing.includes(turnId)
+				? existing.filter((id) => id !== turnId)
+				: [...existing, turnId];
 
-			return { ...current, [input.sessionId]: reviewedTurnIds };
+			return { ...current, [key]: reviewedTurnIds };
 		});
 
-		return next[input.sessionId] ?? [];
+		return next[key] ?? [];
 	},
 };

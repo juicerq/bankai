@@ -13,7 +13,7 @@ type LogEvent = {
 	data?: unknown;
 };
 
-let initialized = false;
+let initializedPath: string | null = null;
 
 function resolveLogPath(): string {
 	const fromEnv = process.env.DATA_DIR;
@@ -31,16 +31,38 @@ function rotateIfNeeded(path: string): void {
 		if (size > MAX_SIZE_BYTES) {
 			renameSync(path, `${path}.old`);
 		}
-	} catch {}
+	} catch (error) {
+		if (
+			typeof error === "object"
+			&& error !== null
+			&& "code" in error
+			&& error.code === "ENOENT"
+		) {
+			return;
+		}
+
+		throw error;
+	}
 }
 
 function ensureInit(path: string): void {
-	if (initialized) {
+	if (initializedPath === path) {
 		return;
 	}
-	initialized = true;
+
 	mkdirSync(dirname(path), { recursive: true });
 	rotateIfNeeded(path);
+	initializedPath = path;
+}
+
+function persist(path: string, event: LogEvent): boolean {
+	try {
+		ensureInit(path);
+		appendFileSync(path, `${JSON.stringify(event)}\n`);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 function write(severity: Severity, message: string, data?: unknown): void {
@@ -50,14 +72,14 @@ function write(severity: Severity, message: string, data?: unknown): void {
 	}
 
 	const path = resolveLogPath();
-	ensureInit(path);
-
-	try {
-		appendFileSync(path, `${JSON.stringify(event)}\n`);
-	} catch {}
+	persist(path, event);
 
 	if (severity !== "info") {
-		console[severity](message, data ?? "");
+		if (data === undefined) {
+			console[severity](message);
+		} else {
+			console[severity](message, data);
+		}
 	}
 }
 

@@ -1,4 +1,5 @@
-import type { FileSnapshot, Turn } from "@core/review/ReviewModel";
+import { type FileChange, sameFileContent } from "@core/review/FileChange";
+import type { Turn } from "@core/review/ReviewModel";
 
 export type DiffMode = "turn" | "accumulated";
 
@@ -6,9 +7,19 @@ export function filesForMode(
 	turns: Turn[],
 	selectedIndex: number,
 	mode: DiffMode,
-): FileSnapshot[] {
+): FileChange[] {
 	if (mode === "turn") {
 		return turns[selectedIndex]?.files ?? [];
+	}
+	const latest = new Map<string, string[]>();
+	for (const turn of turns) {
+		for (const file of turn.files) {
+			const previous = latest.get(file.path);
+			if (previous && !sameFileContent(previous, file.before)) {
+				return turns.flatMap((entry) => entry.files);
+			}
+			latest.set(file.path, file.after);
+		}
 	}
 
 	const before = new Map<string, string[]>();
@@ -25,5 +36,13 @@ export function filesForMode(
 		}
 	}
 
-	return order.map((path) => ({ path, before: before.get(path)!, after: after.get(path)! }));
+	return order.map((path) => {
+		const original = before.get(path);
+		const current = after.get(path);
+		if (!original || !current) {
+			throw new Error(`accumulated file content missing for ${path}`);
+		}
+
+		return { path, before: original, after: current };
+	});
 }

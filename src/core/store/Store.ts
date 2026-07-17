@@ -75,7 +75,12 @@ export class Store<T> {
 			migrated = migrate(migrated);
 		}
 
-		return this.opts.contract.assert(migrated);
+		const value = this.opts.contract.assert(migrated);
+		if (env.version < this.opts.version) {
+			await this.writeNow(value);
+		}
+
+		return value;
 	}
 
 	private writeNow(value: T): Promise<void> {
@@ -93,5 +98,5 @@ function isNotFound(err: unknown): boolean {
 	if (!("code" in err)) {
 		return false;
 	}
-	return (err as { code: string }).code === "ENOENT";
+	return err.code === "ENOENT";
 }

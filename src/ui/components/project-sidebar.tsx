@@ -1,5 +1,6 @@
 import { TextAttributes } from "@opentui/core";
 import type { Project } from "@core/store/projects";
+import { useScrollSelection } from "@ui/-utils/use-scroll-selection";
 import { ProjectRow } from "@ui/components/project-row";
 import { theme } from "@ui/theme";
 
@@ -7,11 +8,14 @@ const WIDTH = 32;
 
 export function ProjectSidebar({
 	projects,
-	activeIndex,
+	activeProjectId,
 }: {
 	projects: Project[];
-	activeIndex: number;
+	activeProjectId: string | null;
 }) {
+	const activeIndex = projects.findIndex((project) => project.id === activeProjectId);
+	const scroll = useScrollSelection(activeProjectId, activeIndex);
+
 	return (
 		<box
 			style={{
@@ -31,12 +35,21 @@ export function ProjectSidebar({
 				<text style={{ fg: theme.textFaint }}>cockpit</text>
 			</box>
 
-			<box style={{ flexGrow: 1, flexDirection: "column", padding: 1, gap: 1 }}>
+			<scrollbox
+				ref={scroll}
+				viewportCulling={false}
+				style={{ flexGrow: 1, flexDirection: "column", padding: 1, gap: 1 }}
+			>
 				{projects.length === 0 && <text style={{ fg: theme.textDim }}>No projects yet.</text>}
-				{projects.map((project, index) => (
-					<ProjectRow key={project.id} project={project} active={index === activeIndex} />
+				{projects.map((project) => (
+					<box key={project.id} id={project.id}>
+						<ProjectRow
+							project={project}
+							active={project.id === activeProjectId}
+						/>
+					</box>
 				))}
-			</box>
+			</scrollbox>
 
 			<box style={{ paddingLeft: 1, paddingRight: 1, paddingBottom: 1, flexDirection: "column" }}>
 				<text style={{ fg: theme.textFaint }}>a add · r rename · d remove</text>

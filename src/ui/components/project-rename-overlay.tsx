@@ -21,7 +21,14 @@ export function ProjectRenameOverlay({
 	return (
 		<OverlayFrame title=" rename project ">
 			<text style={{ fg: theme.textDim }}>New name:</text>
-			<TextInput value={current} onSubmit={(value) => onSubmit(value.trim() || current)} />
+			<TextInput
+				value={current}
+				onSubmit={(name) => {
+					if (name.trim()) {
+						onSubmit(name);
+					}
+				}}
+			/>
 			<text style={{ fg: theme.textFaint }}>⏎ confirm · esc cancel</text>
 		</OverlayFrame>
 	);

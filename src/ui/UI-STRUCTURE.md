@@ -1,47 +1,31 @@
 # UI-STRUCTURE.md — organização da UI
 
-Padrão de organização de `src/ui/`. Não há router: a UI é uma tela única (o command
-center). Regras de design de componente/estado estão em `REACT-PATTERNS.md`.
+`src/ui` adapta os owners de `src/core` ao openTUI React. Não existe router: o produto tem uma tela
+de command center e uma tela de Review.
 
 ## Estrutura
 
-- **`app.tsx` é só orquestração.** Segura o estado cross-cutting (projetos, foco,
-  teclado global, overlays) e compõe subcomponentes. Quase nenhuma UI de detalhe nele.
-- **`components/` guarda os componentes da tela.** Um por arquivo. Nomeados por domínio.
-- **`-utils/` guarda hooks e funções locais.** Um hook por arquivo, nome do arquivo =
-  nome do hook (`use-tab-groups.ts` → `useTabGroups`).
-- **Domínio próprio com estado imperativo vira pasta em `src/core`.** O terminal (PTY +
-  renderable + supervisor) mora em `src/core/terminal`, não em `components/`.
-- **Constants locais** em `-utils/constants.ts`. Types compartilhados entre componentes
-  em `types.ts`; types locais inline no arquivo que os usa.
+- `app.tsx` mantém somente navegação visual e traduz comandos de teclado em intents dos owners.
+- `components/` contém componentes nomeados por responsabilidade visual e domínio.
+- `-utils/` contém adapters React, keymaps e funções locais com uma responsabilidade concreta.
+- Estado imperativo, persistência e lifecycles de PTY/Session/Workspace pertencem a `src/core`;
+  adapters React apenas acionam esses owners quando snapshots mudam.
+- Types vivem com sua fonte. Não existe `types.ts` genérico nem barrel de componentes.
 
 ## Componentes
 
-- **Um componente por arquivo**, máximo ~200 linhas. Cresceu? Vira subpasta com
-  `index.tsx` composto + filhos.
-- **Arquivos em kebab-case** (`tab-bar.tsx`); o componente em si continua
-  PascalCase (`TabBar`).
-- **Prefixo de domínio no nome do componente**: tudo de projeto começa com `Project*`,
-  de tab com `Tab*`, de terminal com `Terminal*`. O nome fica único fora de contexto.
-- **Barrel namespaced**: o `components/index.ts` exporta um único objeto e `app.tsx`
-  importa como namespace:
+- Componentes simples ficam em um arquivo kebab-case.
+- Uma feature com três ou mais componentes fortemente relacionados ganha uma pasta própria.
+  A tela de Review vive em `components/review-screen/` (`review-screen`, `review-header`,
+  `review-diff`, `review-diff-row`, `review-turn-list`, `review-turn-row`).
+- A divisão segue responsabilidade visual, estado local ou comportamento repetido, nunca apenas
+  quantidade de linhas.
+- O componente raiz lê como composição; detalhes e estados vazios têm owners visuais nomeados.
+- Imports são diretos. Componentes irmãos usam aliases de path, sem reexports intermediários.
 
-```ts
-// components/index.ts
-export const Ui = {
-	ProjectSidebar,
-	TerminalBody,
-};
-```
+## Estado
 
-```tsx
-// app.tsx
-import { Ui } from "@ui/components";
-// uso: <Ui.ProjectSidebar />, <Ui.TerminalBody />
-```
-
-Componentes irmãos importam uns aos outros direto por path alias; só `app.tsx` importa
-pelo barrel.
-
-> Exceção deliberada ao "no barrel files" do code-standards: é um objeto namespaced
-> único da tela, não re-export solto.
+- Owners de core expõem snapshots observáveis; hooks React apenas assinam esses snapshots.
+- Estado calculável é derivado no render.
+- Estado local com variantes incompatíveis usa union discriminada.
+- Effects existem somente para integrar APIs imperativas, subscriptions ou layout.

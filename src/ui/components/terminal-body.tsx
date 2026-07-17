@@ -1,10 +1,22 @@
 import type { Project } from "@core/store/projects";
+import type { SessionTabStatus as TabStatus } from "@core/session/SessionReviews";
 import type { TabSupervisor } from "@core/terminal/TabSupervisor";
+import type { TabGroup } from "@core/workspace/WorkspaceGroup";
 import { StatusHint } from "@ui/components/status-hint";
 import { TabBar } from "@ui/components/tab-bar";
 import { TerminalView } from "@ui/components/terminal-view";
 import { theme } from "@ui/theme";
-import type { TabGroup, TabStatus } from "@ui/types";
+
+type TerminalBodyProps = {
+	project: Project | undefined;
+	group: TabGroup | undefined;
+	supervisor: TabSupervisor;
+	activeTabId: string | undefined;
+	terminalFocused: boolean;
+	statuses: Record<string, TabStatus>;
+	leader: boolean;
+	zenMode: boolean;
+};
 
 export function TerminalBody({
 	project,
@@ -15,16 +27,7 @@ export function TerminalBody({
 	statuses,
 	leader,
 	zenMode,
-}: {
-	project: Project | undefined;
-	group: TabGroup | undefined;
-	supervisor: TabSupervisor;
-	activeTabId: string | undefined;
-	terminalFocused: boolean;
-	statuses: Record<string, TabStatus>;
-	leader: boolean;
-	zenMode: boolean;
-}) {
+}: TerminalBodyProps) {
 	if (!project) {
 		return (
 			<box style={{ flexGrow: 1, flexDirection: "column", justifyContent: "center", alignItems: "center" }}>

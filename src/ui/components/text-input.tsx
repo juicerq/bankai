@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import type { InputRenderable } from "@opentui/core";
 import { theme } from "@ui/theme";
 
 const inputStyle = {
@@ -18,12 +20,19 @@ export function TextInput({
 	placeholder?: string;
 	onSubmit: (value: string) => void;
 }) {
+	const input = useRef<InputRenderable>(null);
+
 	return (
 		<input
+			ref={input}
 			focused
 			value={value}
 			placeholder={placeholder}
-			onSubmit={(submitted) => onSubmit(submitted as string)}
+			onSubmit={() => {
+				if (input.current) {
+					onSubmit(input.current.value);
+				}
+			}}
 			style={inputStyle}
 		/>
 	);

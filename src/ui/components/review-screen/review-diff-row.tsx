@@ -11,6 +11,7 @@ const MARKER: Record<DiffRow["kind"], { glyph: string; fg: string }> = {
 	remove: { glyph: "-", fg: theme.danger },
 	removed: { glyph: "⋯", fg: theme.danger },
 	skipped: { glyph: "⋯", fg: theme.textFaint },
+	"too-large": { glyph: "!", fg: theme.accent },
 };
 
 const DIM_BG = RGBA.fromHex(theme.bg);
@@ -35,17 +36,26 @@ export function ReviewDiffRow({
 	styledLines: TextChunk[][] | undefined;
 }) {
 	const marker = MARKER[row.kind];
+	if (row.kind === "too-large") {
+		return (
+			<text style={{ fg: marker.fg }}>
+				{`${" ".repeat(GUTTER)} ${marker.glyph} diff too large (${row.beforeCount} → ${row.afterCount} lines)`}
+			</text>
+		);
+	}
 
 	if (row.kind === "skipped") {
 		return (
 			<text style={{ fg: marker.fg }}>
-				{`${" ".repeat(GUTTER)} ${marker.glyph} ${row.count} linhas`}
+				{`${" ".repeat(GUTTER)} ${marker.glyph} ${row.count} ${row.count === 1 ? "line" : "lines"}`}
 			</text>
 		);
 	}
 
 	if (row.kind === "removed" || row.kind === "remove") {
-		const body = row.kind === "removed" ? `${row.count} removida` : row.text;
+		const body = row.kind === "removed"
+			? `${row.count} ${row.count === 1 ? "line removed" : "lines removed"}`
+			: row.text;
 
 		return (
 			<text style={{ fg: marker.fg }}>

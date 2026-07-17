@@ -1,15 +1,15 @@
 import { TextAttributes } from "@opentui/core";
-import type { Project } from "@core/store/projects";
 import { TabChip } from "@ui/components/tab-chip";
 import { theme } from "@ui/theme";
-import type { TabGroup, TabStatus } from "@ui/types";
+import type { SessionTabStatus as TabStatus } from "@core/session/SessionReviews";
+import type { TabGroup } from "@core/workspace/WorkspaceGroup";
 
 export function TabBar({
 	project,
 	group,
 	statuses,
 }: {
-	project: Project;
+	project: { name: string };
 	group: TabGroup | undefined;
 	statuses: Record<string, TabStatus>;
 }) {
@@ -28,15 +28,14 @@ export function TabBar({
 		>
 			<text style={{ fg: theme.accent, attributes: TextAttributes.BOLD }}>{project.name}</text>
 
-			{group &&
-				group.tabs.map((tabId, index) => (
-					<TabChip
-							key={tabId}
-							index={index}
-							active={index === group.active}
-							status={statuses[tabId]}
-						/>
-				))}
+			{group?.tabs.map((tabId, index) => (
+				<TabChip
+					key={tabId}
+					index={index}
+					active={index === group.active}
+					status={statuses[tabId]}
+				/>
+			))}
 
 			{(!group || group.tabs.length === 0) && (
 				<text style={{ fg: theme.textFaint }}>no shells</text>

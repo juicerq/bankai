@@ -1,11 +1,10 @@
 import { TextAttributes } from "@opentui/core";
 import type { SessionStatus } from "@core/review/ReviewModel";
 import { theme } from "@ui/theme";
-import type { TabStatus } from "@ui/types";
+import type { SessionTabStatus as TabStatus } from "@core/session/SessionReviews";
 
 const STATUS_GLYPH: Record<SessionStatus, { glyph: string; color: string }> = {
-	generating: { glyph: "●", color: theme.accent },
-	blocked: { glyph: "●", color: theme.danger },
+	active: { glyph: "●", color: theme.accent },
 	idle: { glyph: "○", color: theme.textFaint },
 };
 

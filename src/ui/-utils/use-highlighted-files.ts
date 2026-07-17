@@ -1,38 +1,40 @@
 import { useEffect, useState } from "react";
 import type { TextChunk } from "@opentui/core";
-import { Highlight } from "@core/highlight/Highlight";
-import type { FileSnapshot } from "@core/review/ReviewModel";
+import { Highlighter } from "@core/highlight/Highlight";
+import { Logger } from "@core/logger";
+import type { FileChange } from "@core/review/FileChange";
 import { themeSyntaxStyle } from "@ui/-utils/theme-syntax-style";
 
-export function useHighlightedFiles(files: FileSnapshot[]): ReadonlyMap<string, TextChunk[][]> {
+export function useHighlightedFiles(files: FileChange[]): ReadonlyMap<FileChange, TextChunk[][]> {
 	const [, setResolvedTick] = useState(0);
+	const style = themeSyntaxStyle();
 
-	const styled = new Map<string, TextChunk[][]>();
-	const pending: FileSnapshot[] = [];
+	const styled = new Map<FileChange, TextChunk[][]>();
+	const unresolved: FileChange[] = [];
 
 	for (const file of files) {
-		const lines = Highlight.peek(file.after);
+		const lines = Highlighter.peek(file, style);
 
 		if (lines) {
-			styled.set(file.path, lines);
+			styled.set(file, lines);
 		}
 
 		if (lines === undefined) {
-			pending.push(file);
+			unresolved.push(file);
 		}
 	}
 
 	useEffect(() => {
 		let alive = true;
 
-		if (pending.length > 0) {
-			void Promise.all(pending.map((file) => Highlight.styledLines(file, themeSyntaxStyle()))).then(
+		if (unresolved.length > 0) {
+			void Promise.all(unresolved.map((file) => Highlighter.lines(file, style))).then(
 				() => {
 					if (alive) {
 						setResolvedTick((tick) => tick + 1);
 					}
 				},
-			);
+			).catch((err) => Logger.warn("highlight:failed", String(err)));
 		}
 
 		return () => {

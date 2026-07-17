@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useLayoutEffect, useRef } from "react";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import { useRenderer } from "@opentui/react";
 import { anchorLineAt, type DiffRow, rowIndexForLine } from "@core/review/diff";
@@ -100,26 +100,22 @@ export function useScrollAnchor({
 	filesRows: FileRows[];
 }) {
 	const renderer = useRenderer();
-	const lastViewKey = useRef(viewKey);
-	const lastFilesRows = useRef(filesRows);
-	const pending = useRef<Anchor | null>(null);
+	const previous = useRef({ viewKey, filesRows });
 
-	if (lastViewKey.current !== viewKey && scroll.current) {
-		pending.current = captureAnchor(scroll.current, lastFilesRows.current);
-	}
-
-	lastViewKey.current = viewKey;
-	lastFilesRows.current = filesRows;
-
-	useEffect(() => {
-		const anchor = pending.current;
-
-		if (!anchor || !scroll.current) {
+	useLayoutEffect(() => {
+		const scrollBox = scroll.current;
+		if (!scrollBox || previous.current.viewKey === viewKey) {
+			previous.current = { viewKey, filesRows };
 			return;
 		}
 
-		pending.current = null;
+		const anchor = captureAnchor(scrollBox, previous.current.filesRows);
+		previous.current = { viewKey, filesRows };
+		if (!anchor) {
+			return;
+		}
+
 		renderer.root.calculateLayout();
-		applyAnchor({ scroll: scroll.current, anchor, filesRows: lastFilesRows.current });
-	});
+		applyAnchor({ scroll: scrollBox, anchor, filesRows });
+	}, [filesRows, renderer, scroll, viewKey]);
 }

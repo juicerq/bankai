@@ -4,41 +4,35 @@ import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { type DirEntry, listDirs } from "@core/fs/listDirs";
 import { OverlayFrame } from "@ui/components/overlay-frame";
+import { homePathLabel } from "@ui/-utils/path-label";
 import { theme } from "@ui/theme";
-
-function homeRelative(path: string, home: string): string {
-	if (path === home) {
-		return "~";
-	}
-
-	if (path.startsWith(`${home}/`)) {
-		return `~${path.slice(home.length)}`;
-	}
-
-	return path;
-}
 
 export function ProjectPicker({
 	home,
-	initialEntries,
+	entries: initialEntries,
 	existingCwds,
 	onPick,
 	onCancel,
 }: {
 	home: string;
-	initialEntries: DirEntry[];
+	entries: DirEntry[];
 	existingCwds: string[];
 	onPick: (cwd: string) => void;
 	onCancel: () => void;
 }) {
 	const { width, height } = useTerminalDimensions();
 	const scroll = useRef<ScrollBoxRenderable>(null);
-	const [current, setCurrent] = useState({ path: home, entries: initialEntries });
+	const navigation = useRef(0);
+	const [current, setCurrent] = useState<
+		| { state: "loading"; path: string }
+		| { state: "ready"; path: string; entries: DirEntry[] }
+		| { state: "error"; path: string; message: string }
+	>({ state: "ready", path: home, entries: initialEntries });
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const [showHidden, setShowHidden] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 
-	const visible = showHidden ? current.entries : current.entries.filter((entry) => !entry.hidden);
+	const entries = current.state === "ready" ? current.entries : [];
+	const visible = showHidden ? entries : entries.filter((entry) => !entry.hidden);
 	const index = Math.min(selectedIndex, Math.max(0, visible.length - 1));
 	const selected = visible[index];
 	const added = new Set(existingCwds);
@@ -52,13 +46,26 @@ export function ProjectPicker({
 	}, [selected]);
 
 	const go = (path: string) => {
+		const request = ++navigation.current;
+		setCurrent({ state: "loading", path });
+		setSelectedIndex(0);
 		listDirs(path)
 			.then((entries) => {
-				setCurrent({ path, entries });
-				setSelectedIndex(0);
-				setError(null);
+				if (navigation.current !== request) {
+					return;
+				}
+
+				setCurrent({ state: "ready", path, entries });
 			})
-			.catch(() => setError("permission denied"));
+			.catch((error) => {
+				if (navigation.current === request) {
+					setCurrent({
+						state: "error",
+						path,
+						message: error instanceof Error ? error.message : "unable to list directory",
+					});
+				}
+			});
 	};
 
 	useKeyboard((key) => {
@@ -73,7 +80,7 @@ export function ProjectPicker({
 		}
 
 		if (key.name === "down") {
-			setSelectedIndex(Math.min(index + 1, visible.length - 1));
+			setSelectedIndex(Math.max(0, Math.min(index + 1, visible.length - 1)));
 			return;
 		}
 
@@ -103,12 +110,17 @@ export function ProjectPicker({
 	});
 
 	return (
-		<OverlayFrame title=" add project " width={Math.min(72, Math.max(40, width - 8))}>
+		<OverlayFrame title=" add project " width={Math.max(1, Math.min(72, width - 2))}>
 			<text style={{ fg: theme.accent, attributes: TextAttributes.BOLD }}>
-				{homeRelative(current.path, home)}
+				{homePathLabel(current.path)}
 			</text>
 
-			{visible.length === 0 && <text style={{ fg: theme.textFaint }}>empty</text>}
+			{current.state === "loading" && (
+				<text style={{ fg: theme.textFaint }}>loading…</text>
+			)}
+			{current.state === "ready" && visible.length === 0 && (
+				<text style={{ fg: theme.textFaint }}>empty</text>
+			)}
 			<scrollbox ref={scroll} viewportCulling={false} style={{ height: listRows }}>
 				{visible.map((entry) => (
 					<text
@@ -125,7 +137,9 @@ export function ProjectPicker({
 				))}
 			</scrollbox>
 
-			{!!error && <text style={{ fg: theme.danger }}>{error}</text>}
+			{current.state === "error" && (
+				<text style={{ fg: theme.danger }}>{current.message}</text>
+			)}
 			<text style={{ fg: theme.textFaint }}>
 				↑↓ navigate · ⏎ enter · esc/⌫ back · space choose · . hidden · q cancel
 			</text>

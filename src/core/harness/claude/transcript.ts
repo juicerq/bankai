@@ -5,6 +5,7 @@ import type {
 	HarnessTranscript,
 	TranscriptEvent,
 } from "@core/harness/Harness";
+import { type ClaudeEdit, type FileItem, materializedEdits } from "@core/harness/claude/edits";
 import { accepted } from "@core/harness/external";
 import { indexTranscripts } from "@core/harness/transcriptFiles";
 
@@ -52,7 +53,9 @@ function prompt(content: unknown): string | null {
 	return `${name} ${args ?? ""}`.trim();
 }
 
-function fileChange(raw: unknown): TranscriptEvent[] | null {
+type RecordItem = TranscriptEvent | { edit: ClaudeEdit };
+
+function fileChange(raw: unknown): RecordItem[] | null {
 	const result = accepted(toolResult, raw);
 	if (!result) {
 		return accepted(fileResult, raw) ? null : [];
@@ -64,8 +67,24 @@ function fileChange(raw: unknown): TranscriptEvent[] | null {
 		return null;
 	}
 
-	const before = result.originalFile ?? "";
 	const replacement = result.newString;
+	if (
+		result.originalFile === null
+		&& result.content === undefined
+		&& result.oldString !== undefined
+		&& replacement !== undefined
+	) {
+		return [{
+			edit: {
+				path: result.filePath,
+				oldString: result.oldString,
+				newString: replacement,
+				replaceAll: !!result.replaceAll,
+			},
+		}];
+	}
+
+	const before = result.originalFile ?? "";
 	const after = result.content ?? (
 		result.oldString !== undefined && replacement !== undefined
 			? result.replaceAll
@@ -80,7 +99,7 @@ function fileChange(raw: unknown): TranscriptEvent[] | null {
 	return [{ type: "change", path: result.filePath, before, after }];
 }
 
-function normalizeRecord(record: unknown): TranscriptEvent[] | null {
+function normalizeRecord(record: unknown): RecordItem[] | null {
 	if (accepted(completionRecord, record)) {
 		return [{ type: "complete" }];
 	}
@@ -101,14 +120,35 @@ function normalizeRecord(record: unknown): TranscriptEvent[] | null {
 	return text ? [{ type: "prompt", prompt: text }] : [];
 }
 
-function normalize(records: unknown[]): TranscriptEvent[] | null {
-	const events: TranscriptEvent[] = [];
+async function normalize(records: unknown[]): Promise<TranscriptEvent[] | null> {
+	const items: RecordItem[] = [];
 	for (const record of records) {
 		const batch = normalizeRecord(record);
 		if (batch === null) {
 			return null;
 		}
-		events.push(...batch);
+		items.push(...batch);
+	}
+
+	const snapshots = await materializedEdits(items.flatMap((item): FileItem[] =>
+		"edit" in item ? [item] : item.type === "change" ? [{ change: item }] : []));
+	if (!snapshots) {
+		return null;
+	}
+
+	const events: TranscriptEvent[] = [];
+	for (const item of items) {
+		if (!("edit" in item)) {
+			events.push(item);
+			continue;
+		}
+
+		const snapshot = snapshots.get(item.edit);
+		if (!snapshot) {
+			return null;
+		}
+
+		events.push({ type: "change", ...snapshot });
 	}
 
 	return events;
@@ -127,7 +167,5 @@ export const ClaudeTranscript: HarnessTranscript = {
 			return sessionIds.has(sessionId) ? sessionId : null;
 		});
 	},
-	normalize(records) {
-		return Promise.resolve(normalize(records));
-	},
+	normalize,
 };

@@ -2,6 +2,7 @@ import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { TranscriptProjector } from "@core/review/TranscriptProjector";
+import { assertDefined } from "./utils/assertions";
 import { claudeTranscript, transcriptLine } from "./utils/transcripts";
 
 describe("Claude Transcript projection", () => {
@@ -134,6 +135,131 @@ describe("Claude Transcript projection", () => {
 		const projector = new TranscriptProjector();
 		await projector.refresh(session, true);
 		await writeFile(path, "{}\n");
+		await projector.refresh(session, true);
+
+		expect(await projector.available(session)).toBe(false);
+	});
+
+	it("materializes a null-original edit chain from the file on disk", async () => {
+		const session = { harness: "claude" as const, sessionId: "null-original" };
+		const path = await claudeTranscript(session.sessionId);
+		assertDefined(process.env.DATA_DIR);
+		const changed = join(process.env.DATA_DIR, "large.ts");
+		await writeFile(changed, "alpha\nthree\nomega");
+		await appendFile(path,
+			transcriptLine({ type: "user", message: { content: "edit a large file" } })
+			+ transcriptLine({
+				type: "user",
+				toolUseResult: { filePath: changed, oldString: "one", newString: "two", originalFile: null, replaceAll: false },
+			})
+			+ transcriptLine({
+				type: "user",
+				toolUseResult: { filePath: changed, oldString: "two", newString: "three", originalFile: null, replaceAll: false },
+			})
+			+ transcriptLine({ type: "system", subtype: "turn_duration" }));
+
+		const projector = new TranscriptProjector();
+		await projector.refresh(session, true);
+
+		expect(await projector.turns(session)).toEqual([{
+			turnId: "null-original:0",
+			prompt: "edit a large file",
+			state: "completed",
+			files: [{
+				path: changed,
+				before: ["alpha", "one", "omega"],
+				after: ["alpha", "three", "omega"],
+			}],
+		}]);
+	});
+
+	it("anchors a null-original edit on a later full snapshot instead of the disk", async () => {
+		const session = { harness: "claude" as const, sessionId: "anchored" };
+		const path = await claudeTranscript(session.sessionId);
+		assertDefined(process.env.DATA_DIR);
+		const missing = join(process.env.DATA_DIR, "deleted-later.ts");
+		await appendFile(path,
+			transcriptLine({ type: "user", message: { content: "edit then rewrite" } })
+			+ transcriptLine({
+				type: "user",
+				toolUseResult: { filePath: missing, oldString: "b", newString: "B", originalFile: null, replaceAll: false },
+			})
+			+ transcriptLine({
+				type: "user",
+				toolUseResult: { filePath: missing, content: "a\nB\nc", originalFile: "a\nB" },
+			})
+			+ transcriptLine({ type: "system", subtype: "turn_duration" }));
+
+		const projector = new TranscriptProjector();
+		await projector.refresh(session, true);
+
+		expect(await projector.turns(session)).toEqual([{
+			turnId: "anchored:0",
+			prompt: "edit then rewrite",
+			state: "completed",
+			files: [{ path: missing, before: ["a", "b"], after: ["a", "B", "c"] }],
+		}]);
+	});
+
+	it("reverses a replaceAll edit across every occurrence", async () => {
+		const session = { harness: "claude" as const, sessionId: "replace-all" };
+		const path = await claudeTranscript(session.sessionId);
+		assertDefined(process.env.DATA_DIR);
+		const changed = join(process.env.DATA_DIR, "replace-all.ts");
+		await writeFile(changed, "log()\nmid\nlog()");
+		await appendFile(path,
+			transcriptLine({ type: "user", message: { content: "rename" } })
+			+ transcriptLine({
+				type: "user",
+				toolUseResult: { filePath: changed, oldString: "x()", newString: "log()", originalFile: null, replaceAll: true },
+			})
+			+ transcriptLine({ type: "system", subtype: "turn_duration" }));
+
+		const projector = new TranscriptProjector();
+		await projector.refresh(session, true);
+
+		expect(await projector.turns(session)).toEqual([{
+			turnId: "replace-all:0",
+			prompt: "rename",
+			state: "completed",
+			files: [{ path: changed, before: ["x()", "mid", "x()"], after: ["log()", "mid", "log()"] }],
+		}]);
+	});
+
+	it("marks a Session unsafe when the file cannot confirm a null-original edit", async () => {
+		const session = { harness: "claude" as const, sessionId: "unconfirmed" };
+		const path = await claudeTranscript(session.sessionId);
+		assertDefined(process.env.DATA_DIR);
+		const changed = join(process.env.DATA_DIR, "diverged.ts");
+		await writeFile(changed, "someone rewrote this later");
+		await appendFile(path,
+			transcriptLine({ type: "user", message: { content: "edit it" } })
+			+ transcriptLine({
+				type: "user",
+				toolUseResult: { filePath: changed, oldString: "one", newString: "two", originalFile: null, replaceAll: false },
+			}));
+
+		const projector = new TranscriptProjector();
+		await projector.refresh(session, true);
+
+		expect(await projector.available(session)).toBe(false);
+		expect(await projector.turns(session)).toEqual([]);
+	});
+
+	it("marks a Session unsafe when a reversal is ambiguous", async () => {
+		const session = { harness: "claude" as const, sessionId: "ambiguous" };
+		const path = await claudeTranscript(session.sessionId);
+		assertDefined(process.env.DATA_DIR);
+		const changed = join(process.env.DATA_DIR, "ambiguous.ts");
+		await writeFile(changed, "aba");
+		await appendFile(path,
+			transcriptLine({ type: "user", message: { content: "edit it" } })
+			+ transcriptLine({
+				type: "user",
+				toolUseResult: { filePath: changed, oldString: "c", newString: "a", originalFile: null, replaceAll: false },
+			}));
+
+		const projector = new TranscriptProjector();
 		await projector.refresh(session, true);
 
 		expect(await projector.available(session)).toBe(false);

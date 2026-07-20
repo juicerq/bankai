@@ -1,8 +1,10 @@
 import { TextAttributes } from "@opentui/core";
+import type { ReviewUnavailableReason } from "@core/harness/Harness";
 import type { SessionRef } from "@core/harness/registry";
 import { type DiffScope, turnFiles } from "@core/review/diffScope";
 import type { Turn } from "@core/review/ReviewModel";
 import type { GitScopeState } from "@core/git/GitScopeStore";
+import { reviewUnavailableMessage } from "@ui/-utils/review-unavailable-message";
 import { useGitScopeFiles } from "@ui/-utils/use-git-scope-files";
 import { useHeldWhileLoading } from "@ui/-utils/use-held-while-loading";
 import { ReviewDiff } from "@ui/components/review-screen/review-diff";
@@ -14,14 +16,42 @@ const UNCOMMITTED_EMPTY = { label: "No uncommitted changes", hint: "⇥ branch c
 const BRANCH_EMPTY = { label: "No changes on this branch", hint: "⇥ this turn" };
 const UNAVAILABLE = { label: "Not a git repository", hint: "⇥ back to this turn" };
 const LOADING = { label: "Loading changes...", hint: " " };
+const REVIEW_UNAVAILABLE_EMPTY: Record<
+	ReviewUnavailableReason,
+	{ label: string; hint: string }
+> = {
+	historical: {
+		label: reviewUnavailableMessage("historical"),
+		hint: "⇥ uncommitted changes",
+	},
+	unsafe: {
+		label: reviewUnavailableMessage("unsafe"),
+		hint: "⇥ uncommitted changes",
+	},
+	"tool-conflict": {
+		label: reviewUnavailableMessage("tool-conflict"),
+		hint: "⇥ uncommitted changes",
+	},
+};
 
 function splitEmpty(
 	scope: DiffScope,
 	gitState: GitScopeState | null,
 	session: SessionRef | null,
+	availability: "loading" | "available" | "unavailable",
+	unavailableReason: ReviewUnavailableReason | undefined,
 ): { label: string; hint: string } {
 	if (scope === "turn") {
-		return session ? TURN_EMPTY : NO_SESSION;
+		if (!session) {
+			return NO_SESSION;
+		}
+		if (availability === "loading") {
+			return LOADING;
+		}
+		if (availability === "unavailable") {
+			return REVIEW_UNAVAILABLE_EMPTY[unavailableReason ?? "unsafe"];
+		}
+		return TURN_EMPTY;
 	}
 	if (gitState === null || gitState.status === "loading") {
 		return LOADING;
@@ -36,6 +66,8 @@ export function SplitPanel({
 	cwd,
 	session,
 	turns,
+	availability,
+	unavailableReason,
 	scope,
 	unified,
 	folded,
@@ -44,6 +76,8 @@ export function SplitPanel({
 	cwd: string | undefined;
 	session: SessionRef | null;
 	turns: Turn[];
+	availability: "loading" | "available" | "unavailable";
+	unavailableReason: ReviewUnavailableReason | undefined;
 	scope: DiffScope;
 	unified: boolean;
 	folded: boolean;
@@ -82,7 +116,7 @@ export function SplitPanel({
 				folded={folded}
 				focused={focused}
 				resetKey={`split:${scope}`}
-				empty={splitEmpty(scope, gitState, session)}
+				empty={splitEmpty(scope, gitState, session, availability, unavailableReason)}
 			/>
 		</box>
 	);

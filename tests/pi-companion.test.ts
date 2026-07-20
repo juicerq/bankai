@@ -107,6 +107,32 @@ describe("Pi companion", () => {
 		expect(hasInvocationSessionDirectory(["pi"])).toBe(false);
 	});
 
+	it("marks startup Sessions eligible after Pi's initial metadata but not after conversation", async () => {
+		const metadata: SessionEntry = {
+			type: "model_change",
+			id: "model001",
+			parentId: null,
+			timestamp: new Date().toISOString(),
+			provider: "test",
+			modelId: "test-model",
+		};
+		const fresh = extensionDriver({ initialEntries: [metadata] });
+		await fresh.emit({ type: "session_start", reason: "startup" });
+		expect(reviewEvents(fresh)).toEqual([{ type: "eligible" }]);
+
+		const historical = extensionDriver({
+			initialEntries: [metadata, {
+				type: "message",
+				id: "message1",
+				parentId: metadata.id,
+				timestamp: new Date().toISOString(),
+				message: { role: "user", content: "existing", timestamp: Date.now() },
+			}],
+		});
+		await historical.emit({ type: "session_start", reason: "startup" });
+		expect(reviewEvents(historical)).toEqual([]);
+	});
+
 	it("records delivered raw prompts and exact successful built-in mutations", async () => {
 		assertDefined(process.env.DATA_DIR);
 		const template = join(process.env.DATA_DIR, "fix.md");
@@ -308,7 +334,7 @@ describe("Pi companion", () => {
 		expect(reviewEvents(child)).toEqual([{ type: "eligible" }]);
 	});
 
-	it("ignores failed mutations and fails closed when another extension owns a file tool", async () => {
+	it("accepts compatible file-tool overrides and rejects unverifiable results", async () => {
 		assertDefined(process.env.DATA_DIR);
 		const customTool: ToolInfo = {
 			name: "write",
@@ -324,9 +350,40 @@ describe("Pi companion", () => {
 		const driver = extensionDriver({ tools: [customTool] });
 		await driver.emit({ type: "session_start", reason: "startup" });
 
+		const path = join(process.env.DATA_DIR, "override.ts");
+		await driver.emit({
+			type: "tool_call",
+			toolName: "write",
+			toolCallId: "compatible",
+			input: { path, content: "verified" },
+		});
+		await writeFile(path, "verified");
+		await driver.emit({
+			type: "tool_execution_end",
+			toolName: "write",
+			toolCallId: "compatible",
+			result: { content: [], details: undefined },
+			isError: false,
+		});
+		await driver.emit({
+			type: "tool_call",
+			toolName: "write",
+			toolCallId: "incompatible",
+			input: { path, content: "claimed" },
+		});
+		await writeFile(path, "different");
+		await driver.emit({
+			type: "tool_execution_end",
+			toolName: "write",
+			toolCallId: "incompatible",
+			result: { content: [], details: undefined },
+			isError: false,
+		});
+
 		expect(reviewEvents(driver)).toEqual([
 			{ type: "eligible" },
-			{ type: "unavailable", reason: "tool-conflict" },
+			{ type: "change", path, before: "", after: "verified" },
+			{ type: "unavailable", reason: "unsafe" },
 		]);
 	});
 });

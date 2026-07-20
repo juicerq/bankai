@@ -246,7 +246,11 @@ function shouldCreateEligibility(
 	if (entries.some((entry) => ownsEligibility(entry, sessionId))) {
 		return false;
 	}
-	return event.reason === "startup" && entries.length === 0;
+	return event.reason === "startup" && !entries.some((entry) =>
+		entry.type === "message"
+		|| entry.type === "custom_message"
+		|| entry.type === "compaction"
+		|| entry.type === "branch_summary");
 }
 
 export default function bankaiPiCompanion(pi: ExtensionAPI): void {
@@ -296,15 +300,6 @@ export default function bankaiPiCompanion(pi: ExtensionAPI): void {
 		fileContents.clear();
 		if (shouldCreateEligibility(event, ctx, sessionId)) {
 			append({ type: "eligible" });
-		}
-
-		const tools = new Map(pi.getAllTools().map((tool) => [tool.name, tool]));
-		const conflict = ["write", "edit"].some((name) => {
-			const tool = tools.get(name);
-			return tool !== undefined && tool.sourceInfo.source !== "builtin";
-		});
-		if (conflict) {
-			unavailable("tool-conflict");
 		}
 
 		await mkdir(directory, { recursive: true });
@@ -391,12 +386,6 @@ export default function bankaiPiCompanion(pi: ExtensionAPI): void {
 			return;
 		}
 
-		const activeTool = pi.getAllTools().find((tool) => tool.name === event.toolName);
-		if (activeTool?.sourceInfo.source !== "builtin") {
-			unavailable("tool-conflict");
-			return;
-		}
-
 		const path = toolPath(input.path, ctx.cwd);
 		const pathAlreadyPending = [...pendingMutations.values()]
 			.some((pending) => pending.path === path);
@@ -419,7 +408,7 @@ export default function bankaiPiCompanion(pi: ExtensionAPI): void {
 			: { type: "edit", path });
 	});
 
-	pi.on("tool_execution_end", (event) => {
+	pi.on("tool_execution_end", async (event) => {
 		const pending = pendingMutations.get(event.toolCallId);
 		if (!pending) {
 			return;
@@ -440,7 +429,8 @@ export default function bankaiPiCompanion(pi: ExtensionAPI): void {
 			: patch
 				? editAfter(before, patch)
 				: null;
-		if (after === null) {
+		const disk = await readFile(pending.path, "utf8").catch(() => null);
+		if (after === null || disk !== after) {
 			unavailable("unsafe");
 			return;
 		}

@@ -7,6 +7,7 @@ import { type DiffScope, nextScope, turnFiles } from "@core/review/diffScope";
 import type { Turn } from "@core/review/ReviewModel";
 import { canReviewTurn } from "@core/review/unreviewed";
 import type { GitScopeState } from "@core/git/GitScopeStore";
+import { reviewUnavailableMessage } from "@ui/-utils/review-unavailable-message";
 import { useGitScopeFiles } from "@ui/-utils/use-git-scope-files";
 import { useHeldWhileLoading } from "@ui/-utils/use-held-while-loading";
 import { ReviewDiff } from "@ui/components/review-screen/review-diff";
@@ -55,11 +56,6 @@ const SCOPE_EMPTY: Record<DiffScope, { label: string; hint: string }> = {
 };
 const GIT_UNAVAILABLE = { label: "Not a git repository", hint: "⇥ back to this turn" };
 const GIT_LOADING = { label: "Loading changes...", hint: " " };
-const UNAVAILABLE_MESSAGE: Record<ReviewUnavailableReason, string> = {
-	historical: "Review unavailable: this Session was not observed from its beginning.",
-	unsafe: "Review unavailable: its transcript evidence could not be verified.",
-	"tool-conflict": "Review unavailable: another Pi extension owns write or edit.",
-};
 
 function diffEmpty(scope: DiffScope, gitState: GitScopeState | null): { label: string; hint: string } {
 	if (scope === "turn") {
@@ -114,7 +110,7 @@ export function ReviewScreen({
 	const help = view.scope === "turn" ? HELP[effectiveZone] : GIT_HELP;
 	const availabilityMessage = availability === "loading"
 		? "Loading review..."
-		: UNAVAILABLE_MESSAGE[unavailableReason ?? "unsafe"];
+		: reviewUnavailableMessage(unavailableReason);
 
 	useKeyboard((key) => {
 		if (key.name === "escape") {

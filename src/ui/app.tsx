@@ -66,7 +66,7 @@ export function App({
 	const splitVisible = activeSplit && activeTabId !== undefined;
 	const activeCapture = activeTabId ? tabCaptures[activeTabId] : undefined;
 	const panelSession = activeCapture?.state === "bound" ? activeCapture.session : null;
-	const panelTurns = sessionReviews.reviews.presentation(panelSession).turns;
+	const panelPresentation = sessionReviews.reviews.presentation(panelSession);
 	const panelView = usePanelView(activeProject ? `${activeProject.id}:${activeTabId}` : undefined);
 	const overlayOpen = projectOverlay.overlay !== null || settingsOverlay.open;
 	const panelFocused = currentView.focus === "panel" && splitVisible && !overlayOpen;
@@ -329,7 +329,9 @@ export function App({
 					<SplitPanel
 						cwd={activeProject?.cwd}
 						session={panelSession}
-						turns={panelTurns}
+						turns={panelPresentation.turns}
+						availability={panelPresentation.availability}
+						unavailableReason={panelPresentation.unavailableReason}
 						scope={panelView.scope}
 						unified={panelView.unified}
 						folded={panelView.folded}

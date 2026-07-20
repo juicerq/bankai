@@ -1,4 +1,5 @@
 import { type } from "arktype";
+import { REVIEW_UNAVAILABLE_REASONS } from "@core/harness/Harness";
 import { reviewTurn } from "@core/review/ReviewModel";
 import { Store } from "@core/store/Store";
 
@@ -6,7 +7,7 @@ const projection = type({
 	offset: "number",
 	turns: reviewTurn.array(),
 	"fileId?": { dev: "string", ino: "string" },
-	"unavailable?": type.enumerated("historical", "unsafe"),
+	"unavailable?": type.enumerated(...REVIEW_UNAVAILABLE_REASONS),
 });
 const projections = type({ "[string]": projection });
 

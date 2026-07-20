@@ -1,7 +1,15 @@
+export const REVIEW_UNAVAILABLE_REASONS = [
+	"historical",
+	"unsafe",
+	"tool-conflict",
+] as const;
+export type ReviewUnavailableReason = typeof REVIEW_UNAVAILABLE_REASONS[number];
+
 export type TranscriptEvent =
 	| { type: "prompt"; prompt: string }
 	| { type: "change"; path: string; before: string; after: string }
-	| { type: "complete" };
+	| { type: "complete" }
+	| { type: "unavailable"; reason: ReviewUnavailableReason };
 
 export type NativeSessionRecord = {
 	pid: number;
@@ -15,9 +23,9 @@ export type HarnessDiscovery = {
 };
 
 export type HarnessTranscript = {
-	historicalImport: "safe" | "observed-only";
+	historicalImport: "safe" | "observed-only" | "eligible-only";
 	locateMany(sessionIds: Set<string>): Promise<Map<string, string>>;
-	normalize(records: unknown[]): Promise<TranscriptEvent[] | null>;
+	normalize(records: unknown[], sessionId: string): Promise<TranscriptEvent[] | null>;
 };
 
 export type HarnessLaunch = {

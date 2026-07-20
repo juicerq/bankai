@@ -300,6 +300,7 @@ export function App({
 				cwd={activeProject?.cwd}
 				turns={reviewPresentation.turns}
 				availability={reviewPresentation.availability}
+				unavailableReason={reviewPresentation.unavailableReason}
 				reviewedTurnIds={reviewPresentation.reviewedTurnIds}
 				onToggleReviewed={toggleReviewed}
 				onClose={appView.closeReview}

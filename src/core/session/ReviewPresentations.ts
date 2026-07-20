@@ -1,3 +1,4 @@
+import type { ReviewUnavailableReason } from "@core/harness/Harness";
 import { sessionKey, type SessionRef } from "@core/harness/registry";
 import type { TranscriptProjector } from "@core/review/TranscriptProjector";
 import type { Turn } from "@core/review/ReviewModel";
@@ -8,6 +9,7 @@ export type ReviewPresentation = {
 	turns: Turn[];
 	reviewedTurnIds: string[];
 	availability: "loading" | "available" | "unavailable";
+	unavailableReason?: ReviewUnavailableReason;
 };
 
 export type InitialReview = {
@@ -15,6 +17,7 @@ export type InitialReview = {
 	turns: Turn[];
 	reviewed: string[];
 	available: boolean;
+	unavailableReason?: ReviewUnavailableReason;
 };
 
 const EMPTY_PRESENTATION: ReviewPresentation = {
@@ -37,6 +40,9 @@ export class ReviewPresentations {
 				turns: initial.turns,
 				reviewedTurnIds: initial.reviewed,
 				availability: initial.available ? "available" : "unavailable",
+				...(initial.available
+					? {}
+					: { unavailableReason: initial.unavailableReason ?? "unsafe" }),
 			},
 		} : {};
 	}
@@ -54,10 +60,12 @@ export class ReviewPresentations {
 
 	setLoading(session: SessionRef): void {
 		const key = sessionKey(session);
+		const current = this.current[key] ?? EMPTY_PRESENTATION;
 		this.update({
 			...this.current,
 			[key]: {
-				...(this.current[key] ?? EMPTY_PRESENTATION),
+				turns: current.turns,
+				reviewedTurnIds: current.reviewedTurnIds,
 				availability: "loading",
 			},
 		});
@@ -80,18 +88,23 @@ export class ReviewPresentations {
 
 	async refresh(session: SessionRef): Promise<void> {
 		await this.enqueue(session, async (key) => {
-			const [reviewedTurnIds, turns, available] = await Promise.all([
+			const [reviewedTurnIds, turns, unavailableReason] = await Promise.all([
 				ReviewState.get(session),
 				this.projector.turns(session),
-				this.projector.available(session),
+				this.projector.unavailableReason(session),
 			]);
 
 			this.update({
 				...this.current,
-				[key]: {
+				[key]: unavailableReason === null ? {
 					reviewedTurnIds,
 					turns,
-					availability: available ? "available" : "unavailable",
+					availability: "available",
+				} : {
+					reviewedTurnIds,
+					turns,
+					availability: "unavailable",
+					unavailableReason,
 				},
 			});
 		});

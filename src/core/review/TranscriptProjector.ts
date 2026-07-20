@@ -1,4 +1,7 @@
-import type { HarnessTranscript } from "@core/harness/Harness";
+import type {
+	HarnessTranscript,
+	ReviewUnavailableReason,
+} from "@core/harness/Harness";
 import { parsedJson } from "@core/harness/external";
 import { Harnesses, sessionKey, type SessionRef } from "@core/harness/registry";
 import {
@@ -63,10 +66,11 @@ export class TranscriptProjector {
 		const transcript = Harnesses.get(session.harness).transcript;
 		const observedAlive = request.type === "observe" && request.alive;
 		const observedStopped = request.type === "observe" && !request.alive;
-		if (saved?.unavailable === "unsafe") {
+		if (saved?.unavailable === "unsafe" || saved?.unavailable === "tool-conflict") {
 			return;
 		}
-		if (!observedAlive && saved?.unavailable === "historical") {
+		if (saved?.unavailable === "historical"
+			&& (!observedAlive || transcript.historicalImport === "eligible-only")) {
 			return;
 		}
 		if (!observedAlive && saved === undefined && transcript.historicalImport === "observed-only") {
@@ -105,9 +109,29 @@ export class TranscriptProjector {
 		}
 		if (tail.content) {
 			const parsed = recordsFrom(tail.content);
-			const events = parsed.valid ? await transcript.normalize(parsed.records) : null;
+			const events = parsed.valid
+				? await transcript.normalize(parsed.records, session.sessionId)
+				: null;
 			if (events === null) {
-				await this.markUnsafe(key, tail.nextOffset, model.getTurns(), tail.fileId);
+				await this.markUnavailable(
+					key,
+					tail.nextOffset,
+					model.getTurns(),
+					"unsafe",
+					tail.fileId,
+				);
+				this.emit(session);
+				return;
+			}
+			const unavailable = events.find((event) => event.type === "unavailable");
+			if (unavailable?.type === "unavailable") {
+				await this.markUnavailable(
+					key,
+					tail.nextOffset,
+					model.getTurns(),
+					unavailable.reason,
+					tail.fileId,
+				);
 				this.emit(session);
 				return;
 			}
@@ -132,8 +156,13 @@ export class TranscriptProjector {
 	}
 
 	async available(session: SessionRef): Promise<boolean> {
+		const reason = await this.unavailableReason(session);
+		return reason === null;
+	}
+
+	async unavailableReason(session: SessionRef): Promise<ReviewUnavailableReason | null> {
 		const saved = await ReviewProjections.get(sessionKey(session));
-		return saved?.unavailable === undefined;
+		return saved?.unavailable === undefined ? null : saved.unavailable;
 	}
 
 	status(session: SessionRef, alive: boolean): "active" | "idle" {
@@ -195,9 +224,19 @@ export class TranscriptProjector {
 		turns: Turn[],
 		fileId?: TranscriptFileId,
 	): Promise<void> {
+		await this.markUnavailable(key, offset, turns, "unsafe", fileId);
+	}
+
+	private async markUnavailable(
+		key: string,
+		offset: number,
+		turns: Turn[],
+		unavailable: ReviewUnavailableReason,
+		fileId?: TranscriptFileId,
+	): Promise<void> {
 		const value = fileId
-			? { offset, turns, fileId, unavailable: "unsafe" as const }
-			: { offset, turns, unavailable: "unsafe" as const };
+			? { offset, turns, fileId, unavailable }
+			: { offset, turns, unavailable };
 		await ReviewProjections.set(key, value);
 	}
 

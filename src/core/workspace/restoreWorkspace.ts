@@ -1,3 +1,4 @@
+import type { ReviewUnavailableReason } from "@core/harness/Harness";
 import {
 	type HarnessId,
 	Harnesses,
@@ -17,6 +18,7 @@ export type RestoreReview = {
 	turns: Turn[];
 	reviewed: string[];
 	available: boolean;
+	unavailableReason?: ReviewUnavailableReason;
 };
 
 export type RestoredWorkspace = {
@@ -74,11 +76,15 @@ export async function restoreWorkspace(): Promise<RestoredWorkspace> {
 		await projector.load(reviewSession, reviewPath);
 	}
 
+	const unavailableReason = reviewSession && reviewPath
+		? await projector.unavailableReason(reviewSession)
+		: null;
 	const review = reviewSession && reviewPath ? {
 		session: reviewSession,
 		turns: await projector.turns(reviewSession),
 		reviewed: await ReviewState.get(reviewSession),
-		available: await projector.available(reviewSession),
+		available: unavailableReason === null,
+		...(unavailableReason === null ? {} : { unavailableReason }),
 	} : null;
 	const tabTranscripts = new Set(
 		runningSessions

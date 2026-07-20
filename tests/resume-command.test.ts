@@ -18,6 +18,14 @@ describe("Harness launch", () => {
 		expect(buildResumeCommand({ session: { harness: "codex", sessionId: "sid" } })).toBe("codex resume sid");
 	});
 
+	it("resumes Pi using only native Session identity", () => {
+		expect(buildResumeCommand({
+			session: { harness: "pi", sessionId: "sid" },
+			argv: ["pi", "--model", "custom", "--session", "old"],
+			kind: "interactive",
+		})).toBe("pi --session sid");
+	});
+
 	it("preserves safe Codex launch options without replaying resume selection", () => {
 		const captured = {
 			session: { harness: "codex" as const, sessionId: "sid" },
@@ -39,11 +47,13 @@ describe("Harness launch", () => {
 	it("builds a bare launch command for each default Harness", () => {
 		expect(buildLaunchCommand("claude")).toBe("claude");
 		expect(buildLaunchCommand("codex")).toBe("codex");
+		expect(buildLaunchCommand("pi")).toBe("pi");
 	});
 
 	it("starts the same Harness fresh", () => {
 		expect(buildFreshCommand({ session: { harness: "claude", sessionId: "sid" }, kind: "interactive" })).toBe("claude");
 		expect(buildFreshCommand({ session: { harness: "codex", sessionId: "sid" }, kind: "interactive" })).toBe("codex");
+		expect(buildFreshCommand({ session: { harness: "pi", sessionId: "sid" }, kind: "interactive" })).toBe("pi");
 	});
 
 	it("falls back to the shell for Claude internal helpers", () => {

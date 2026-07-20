@@ -7,8 +7,8 @@ describe("Settings", () => {
 	});
 
 	it("persists a changed default harness, read back from disk", async () => {
-		await Settings.setDefaultHarness("codex");
+		await Settings.setDefaultHarness("pi");
 
-		expect(await Settings.read()).toEqual({ defaultHarness: "codex" });
+		expect(await Settings.read()).toEqual({ defaultHarness: "pi" });
 	});
 });

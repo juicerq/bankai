@@ -1,4 +1,9 @@
 import { type IDisposable, Terminal as Screen } from "@xterm/headless";
+import {
+	PI_COMPANION_ACTIVE_ENV,
+	PI_DISCOVERY_DIR_ENV,
+} from "@core/harness/pi/protocol";
+import { piDiscoveryDirectory } from "@core/harness/pi/discovery";
 
 const SHELL = process.env.SHELL ?? "/bin/bash";
 const SCROLLBACK = 10000;
@@ -16,6 +21,16 @@ export function spawnArgv(shell: string, command?: string): string[] {
 	}
 
 	return ["setsid", "-c", shell, "-c", `${command}; exec ${shell}`];
+}
+
+export function bankaiTerminalEnv(): NodeJS.ProcessEnv {
+	return {
+		...process.env,
+		TERM: "xterm-256color",
+		COLORTERM: "truecolor",
+		[PI_COMPANION_ACTIVE_ENV]: "1",
+		[PI_DISCOVERY_DIR_ENV]: piDiscoveryDirectory(),
+	};
 }
 
 export class TerminalTab {
@@ -57,11 +72,7 @@ export class TerminalTab {
 			const process = Bun.spawn(spawnArgv(SHELL, command), {
 				terminal: pty,
 				cwd,
-				env: {
-					...globalThis.process.env,
-					TERM: "xterm-256color",
-					COLORTERM: "truecolor",
-				},
+				env: bankaiTerminalEnv(),
 			});
 			tab = new TerminalTab(pty, process, screen, screenInput, onClosed);
 			return tab;

@@ -2,7 +2,7 @@
 
 bankai é uma TUI de terminal (openTUI, Linux, um processo Bun) pra revisar o código que
 agentes de coding escrevem. Uma **sidebar** de **Projects** à esquerda; à direita, **Tabs** de
-terminais e o corpo com o terminal vivo. O operador roda um Harness (`claude` ou Codex) num
+terminais e o corpo com o terminal vivo. O operador roda um Harness (Claude Code, Codex ou Pi) num
 terminal cru e abre uma **Review** turn-a-turn de qualquer **Session**. Este glossário fixa a
 linguagem do produto.
 
@@ -36,11 +36,14 @@ _Evite_: tratar o Harness como propriedade da Tab — ele é reconhecido na Sess
 **Session** — _apelido: "sessão"_
 A identidade persistente de uma conversa interativa de um agente de coding, hospedada numa Tab e
 unidade de review. Sobrevive ao processo quando sua **Harness integration** consegue retomá-la; a
-review de uma Tab mira a Session atual ou última dela.
-_Evite_: confundir Session com a Tab que a hospeda, ou com o processo do agente vivo.
+review de uma Tab mira a Session atual ou última dela. Pode conter caminhos alternativos enquanto o
+Harness conserva a mesma identidade nativa; se um fork ou clone cria outra identidade, nasce outra
+Session, mesmo quando ela herda parte da conversa.
+_Evite_: confundir Session com a Tab que a hospeda ou com o processo do agente vivo; e atribuir à
+Session nova o trabalho apenas herdado da anterior.
 
 **Harness** — _apelido: "runtime do agente"_
-O produto que hospeda e conduz agentes de coding, como Claude Code ou Codex.
+O produto que hospeda e conduz agentes de coding, como Claude Code, Codex ou Pi.
 _Evite_: Agent — uma Session pode envolver vários agentes ou subagentes dentro do mesmo Harness.
 
 **Harness integration** — _apelido: "integração do harness"_
@@ -61,9 +64,11 @@ ordem); o `cwd` é só o diretório.
 
 **Turn** — _apelido: "turno"_
 Um incremento de trabalho do agente numa Session que altera ao menos um arquivo: reúne sob o prompt
-do operador as edições registradas até a conclusão ou interrupção. É o **átomo de review** — anda-se
+que o operador efetivamente enviou — não sua expansão interna pelo Harness — as edições registradas
+até a conclusão ou interrupção. É o **átomo de review** — anda-se
 turn-a-turn, não por task nem por diff git acumulado. Carrega o prompt que o abriu e seus Diffs
-endereçáveis por Turn, arquivo e linha; uma interação sem mudanças não produz um Turn.
+endereçáveis por Turn, arquivo e linha; uma interação sem mudanças não produz um Turn. Se o Harness
+mais tarde segue outro caminho da conversa, o Turn continua na cronologia porque a mudança ocorreu.
 _Evite_: "task" ou "commit" como unidade de marcação de review — marca-se revisado por Turn; os
 Diff scopes git são recortes de leitura, não a unidade de review.
 
@@ -131,9 +136,9 @@ dela em disco.
 **Workspace** — _apelido: "espaço de trabalho"_
 O arranjo do app inteiro num instante, persistido pra reabrir 1:1 no outro dia: quais Projects
 estão abertos, as Tabs de cada um (e sua ordem), o foco (que Project, que Tab, sidebar vs terminal),
-a tela (command center ou Review), o fullscreen e o Split de cada Tab (ligado e proporção) — e, por Tab que dirigia uma Session interativa
-viva, o comando do Harness capturado (argv real) para tentar retomá-la quando seu Transcript for
-localizável. É **um só**
+a tela (command center ou Review), o fullscreen e o Split de cada Tab (ligado e proporção) — e, por
+Tab que dirigia uma Session interativa viva, a informação mínima que sua Harness integration precisa
+para tentar retomá-la quando o Transcript for localizável. É **um só**
 e é do Operator (não se cria nem se nomeia vários); espelha o estado corrente continuamente (não é um
 snapshot no exit). Restaurar = reabrir o Workspace.
 _Evite_: confundir Workspace com **Project** (uma entrada da sidebar) ou com **Session** (a conversa

@@ -24,6 +24,9 @@ export class ReviewModel {
 	constructor(private readonly sessionId: string) {}
 
 	apply(event: TranscriptEvent): void {
+		if (event.type === "unavailable") {
+			throw new Error("Review availability events belong to TranscriptProjector");
+		}
 		if (event.type === "prompt") {
 			this.closeOpen("interrupted");
 			this.open = this.newTurn(event.prompt);

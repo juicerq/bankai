@@ -2,9 +2,10 @@ import { type } from "arktype";
 import type { HarnessIntegration, NativeSessionRecord } from "@core/harness/Harness";
 import { ClaudeHarness } from "@core/harness/claude";
 import { CodexHarness } from "@core/harness/codex";
+import { PiHarness } from "@core/harness/pi";
 import { Logger } from "@core/logger";
 
-const integrations = [ClaudeHarness, CodexHarness] as const;
+const integrations = [ClaudeHarness, CodexHarness, PiHarness] as const;
 const byId = new Map<string, HarnessIntegration>(
 	integrations.map((integration) => [integration.id, integration]),
 );

@@ -1,6 +1,6 @@
 # bankai
 
-A terminal cockpit for interactive Claude Code and Codex sessions, with a turn-by-turn
+A terminal cockpit for interactive Claude Code, Codex, and Pi sessions, with a turn-by-turn
 code-review layer for judging what the agents write.
 
 Built for a workflow where you don't write code by hand — your job shifts from *writing*
@@ -10,8 +10,8 @@ See [`PROJECT.md`](./PROJECT.md) for the full product rationale.
 ## What it does
 
 - **Command center** — a rail of your projects; each project hosts tabbed, *real* terminals
-  where you run `claude` or the Codex TUI yourself. bankai watches the terminal foreground through
-  `/proc` to bind it to the interactive Harness Session. Codex non-interactive modes are excluded.
+  where you run `claude`, Codex, or Pi yourself. bankai watches the terminal foreground through
+  `/proc` to bind it to the interactive Harness Session. Non-interactive Harness modes are excluded.
 - **Review** — a tmux-style leader (`^X` then a key; `r` enters review) takes over the screen
   with a dense, scoped reading layout: a rail of the session's turns and the full readable diffs
   for the selected turn. Turns arrive live from each Harness Transcript;
@@ -35,6 +35,9 @@ bun run dev     # TUI with --watch (src/index.tsx)
 bun run check   # typecheck + lint gate
 bun run test    # vitest
 bun run build   # production executable
+
+# One-time setup for live Pi Session binding and Review capture
+bankai setup pi
 ```
 
 ## Structure

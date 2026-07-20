@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { spawnArgv } from "@core/terminal/TerminalTab";
+import {
+	PI_COMPANION_ACTIVE_ENV,
+	PI_DISCOVERY_DIR_ENV,
+} from "@core/harness/pi/protocol";
+import { bankaiTerminalEnv, spawnArgv } from "@core/terminal/TerminalTab";
 
 describe("spawnArgv", () => {
 	it("opens a bare interactive shell when no command is given", () => {
@@ -24,5 +28,12 @@ describe("spawnArgv", () => {
 			"-c",
 			"codex --model 'gpt 5'; exec /bin/bash",
 		]);
+	});
+
+	it("activates the Pi companion only inside bankai terminals", () => {
+		const env = bankaiTerminalEnv();
+
+		expect(env[PI_COMPANION_ACTIVE_ENV]).toBe("1");
+		expect(env[PI_DISCOVERY_DIR_ENV]).toContain("pi-sessions");
 	});
 });

@@ -29,6 +29,25 @@ describe("ReviewPresentations", () => {
 		expect(published).toBe(2);
 	});
 
+	it("preserves the reason an unavailable Review failed closed", () => {
+		const presentations = new ReviewPresentations(
+			new TranscriptProjector(),
+			{
+				session,
+				turns: [],
+				reviewed: [],
+				available: false,
+				unavailableReason: "tool-conflict",
+			},
+			() => {},
+		);
+
+		expect(presentations.get(session)).toMatchObject({
+			availability: "unavailable",
+			unavailableReason: "tool-conflict",
+		});
+	});
+
 	it("keeps Sessions isolated", () => {
 		const presentations = new ReviewPresentations(
 			new TranscriptProjector(),

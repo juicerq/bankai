@@ -1,20 +1,15 @@
 import { TextAttributes } from "@opentui/core";
 import type { SessionRef } from "@core/harness/registry";
-import type { DiffMode } from "@core/review/accumulate";
+import type { DiffScope } from "@core/review/diffScope";
 import { diffStats } from "@core/review/diff";
 import type { FileChange } from "@core/review/FileChange";
 import { theme } from "@ui/theme";
-
-const MODE_LABEL: Record<DiffMode, string> = {
-	turn: "this turn",
-	accumulated: "accumulated",
-};
 
 export function ReviewHeader({
 	session,
 	turnIndex,
 	turnCount,
-	mode,
+	scope,
 	unified,
 	folded,
 	files,
@@ -22,7 +17,7 @@ export function ReviewHeader({
 	session: SessionRef | null;
 	turnIndex: number;
 	turnCount: number;
-	mode: DiffMode;
+	scope: DiffScope;
 	unified: boolean;
 	folded: boolean;
 	files: FileChange[];
@@ -34,10 +29,12 @@ export function ReviewHeader({
 		? `${session.harness}:${session.sessionId}`
 		: "no session on this tab";
 	const currentTurn = turnCount === 0 ? 0 : turnIndex + 1;
+	const scopeLabel = scope === "turn" ? `turn ${currentTurn}/${turnCount}` : scope;
 
 	return (
 		<box
 			style={{
+				flexShrink: 0,
 				flexDirection: "row",
 				gap: 2,
 				paddingLeft: 2,
@@ -52,7 +49,7 @@ export function ReviewHeader({
 			<box style={{ flexGrow: 1 }} />
 			<text>
 				<span style={{ fg: theme.textDim }}>
-					{`turn ${currentTurn}/${turnCount} · ${MODE_LABEL[mode]}`}
+					{scopeLabel}
 				</span>
 				{unified && <span style={{ fg: theme.textDim }}>{" · unified"}</span>}
 				{!folded && <span style={{ fg: theme.textDim }}>{" · full"}</span>}

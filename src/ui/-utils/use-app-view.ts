@@ -3,15 +3,17 @@ import type { SessionRef } from "@core/harness/registry";
 import type { RestorePlan } from "@core/workspace/planRestore";
 
 type AppViewState = {
-	focus: "sidebar" | "terminal";
+	focus: "sidebar" | "terminal" | "panel";
 	screen: { kind: "command" } | { kind: "review"; session: SessionRef | null };
 	leader: boolean;
+	resize: boolean;
 	zen: RestorePlan["zen"];
 };
 
 type AppViewAction =
 	| { type: "focus"; target: AppViewState["focus"] }
 	| { type: "leader"; active: boolean }
+	| { type: "resize"; active: boolean }
 	| { type: "review"; session: SessionRef | null }
 	| { type: "close-review" }
 	| { type: "toggle-zen" };
@@ -22,6 +24,8 @@ function reduceAppView(state: AppViewState, action: AppViewAction): AppViewState
 			return { ...state, focus: action.target };
 		case "leader":
 			return { ...state, leader: action.active };
+		case "resize":
+			return { ...state, resize: action.active };
 		case "review":
 			return {
 				...state,
@@ -48,6 +52,7 @@ export function useAppView(plan: RestorePlan) {
 			? { kind: "review", session: plan.reviewSession }
 			: { kind: "command" },
 		leader: false,
+		resize: false,
 		zen: plan.zen,
 	});
 
@@ -58,6 +63,9 @@ export function useAppView(plan: RestorePlan) {
 		},
 		setLeader(active: boolean) {
 			dispatch({ type: "leader", active });
+		},
+		setResize(active: boolean) {
+			dispatch({ type: "resize", active });
 		},
 		openReview(session: SessionRef | null) {
 			dispatch({ type: "review", session });

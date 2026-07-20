@@ -1,5 +1,6 @@
 import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
+import { Settings } from "@core/store/settings";
 import { TabSupervisor } from "@core/terminal/TabSupervisor";
 import { restoreWorkspace } from "@core/workspace/restoreWorkspace";
 import { restoreTabRuntime } from "@core/workspace/restoreTabRuntime";
@@ -17,6 +18,7 @@ process.on("SIGHUP", quit);
 process.on("SIGTERM", quit);
 
 const restored = await restoreWorkspace();
+const settings = await Settings.read();
 const tabRuntime = restoreTabRuntime(supervisor, restored.projects, restored.plan);
 workspaceRuntime = new WorkspaceRuntime(
 	supervisor,
@@ -32,5 +34,6 @@ createRoot(renderer).render(
 		plan={restored.plan}
 		restoreReview={restored.review}
 		initialCaptures={tabRuntime.captures}
+		defaultHarness={settings.defaultHarness}
 	/>,
 );

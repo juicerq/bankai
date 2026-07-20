@@ -64,23 +64,40 @@ Um incremento de trabalho do agente numa Session que altera ao menos um arquivo:
 do operador as edições registradas até a conclusão ou interrupção. É o **átomo de review** — anda-se
 turn-a-turn, não por task nem por diff git acumulado. Carrega o prompt que o abriu e seus Diffs
 endereçáveis por Turn, arquivo e linha; uma interação sem mudanças não produz um Turn.
-_Evite_: "task" ou "commit"/"diff git" como unidade de review — o átomo é o Turn.
+_Evite_: "task" ou "commit" como unidade de marcação de review — marca-se revisado por Turn; os
+Diff scopes git são recortes de leitura, não a unidade de review.
 
 **Review** — _apelido: "revisão"_
 O modo **tela cheia focada**, escopado a uma Session, que esconde a sidebar + as Tabs e dá duas
 áreas: o rail com os Turns da Session e o leitor de Diffs do Turn selecionado. `ESC` volta pro
 terminal, que nunca pausou — é alternar entre "dirigir" e "ler" a mesma Session. É a tela/modo —
 o ato de olhar o código é "revisar".
-_Evite_: usar "Review" (a tela) pro ato de revisar, e vice-versa; e imaginar a Review in-pane — ela
-toma a tela inteira de propósito (largura é o recurso escasso no terminal e por SSH).
+_Evite_: usar "Review" (a tela) pro ato de revisar, e vice-versa; e encolher a Review pra dentro de
+um pane — leitura lado a lado com o terminal é o **Split**, outro modo; a Review segue tela cheia.
+
+**Split** — _apelido: "split", "painel lateral"_
+O modo por Tab que divide o corpo em dois: o terminal da Tab à esquerda e um painel de leitura de
+Diffs à direita, com divisor horizontal ajustável. Serve pra acompanhar o que está sendo mudado
+enquanto a Session roda, sem sair do terminal; ligado/desligado e a proporção são por Tab. O painel
+é uma zona de foco própria, mas a leitura é passiva — não há marcação de revisado nele.
+_Evite_: tratar o Split como uma Review pequena — marcar Turns revisados é da Review; e assumir que
+o Split exige Session — os Diff scopes git funcionam em qualquer Tab, só o scope turn exige Session.
 
 **Diff** — _apelido: "diff"_
 A mudança estruturada que o Transcript atribui a **um arquivo** dentro de um Turn, legível e com
 syntax-highlight. Mudanças descontínuas no mesmo arquivo permanecem Diffs separados para não
-inventar continuidade. Visto em dois modos: **per-turn** (só o incremento daquele Turn) ou
-**accumulated** ("acumulado" — a mudança líquida somando os Turns até ali).
-_Evite_: confundir com o diff git do working-tree — o produto revisa por Turn, não o estado atual
-da árvore.
+inventar continuidade. O leitor de Diffs mostra um **Diff scope** por vez.
+_Evite_: chamar de Diff o conteúdo dos scopes git — o Diff é a mudança de um Turn vinda do
+Transcript; os scopes git vêm do repositório.
+
+**Diff scope** — _apelido: "escopo do diff"_
+O recorte de mudança que o leitor de Diffs mostra, no Split e na Review: **turn** (o incremento de
+um Turn), **uncommitted** ("não-commitado" — working tree contra o HEAD, o que ainda não virou
+commit; padrão do Split) e **branch** (do merge-base com a branch default até a working tree — o
+que um PR mostraria agora; na própria branch default degrada pra uncommitted). Os scopes git são do
+repositório do Project, não da Session, e incluem arquivos novos não rastreados.
+_Evite_: "accumulated"/"acumulado" — o recorte que somava Turns morreu, substituído pelos scopes
+git; e esperar marcação de revisado nos scopes git — no fluxo, o commit é quem "paga" o uncommitted.
 
 **Fold** — _apelido: "dobra", "⋯ N linhas"_
 O marcador que dobra um trecho de contexto intacto dentro de um Diff, mostrando só a vizinhança
@@ -114,7 +131,7 @@ dela em disco.
 **Workspace** — _apelido: "espaço de trabalho"_
 O arranjo do app inteiro num instante, persistido pra reabrir 1:1 no outro dia: quais Projects
 estão abertos, as Tabs de cada um (e sua ordem), o foco (que Project, que Tab, sidebar vs terminal),
-a tela (command center ou Review) e o fullscreen — e, por Tab que dirigia uma Session interativa
+a tela (command center ou Review), o fullscreen e o Split de cada Tab (ligado e proporção) — e, por Tab que dirigia uma Session interativa
 viva, o comando do Harness capturado (argv real) para tentar retomá-la quando seu Transcript for
 localizável. É **um só**
 e é do Operator (não se cria nem se nomeia vários); espelha o estado corrente continuamente (não é um

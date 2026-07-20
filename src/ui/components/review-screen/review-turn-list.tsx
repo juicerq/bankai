@@ -52,7 +52,8 @@ export function ReviewTurnList({
 			<scrollbox
 				ref={scroll}
 				viewportCulling={false}
-				style={{ flexGrow: 1, flexDirection: "column", paddingTop: 1, paddingBottom: 1 }}
+				contentOptions={{ paddingTop: 1, paddingBottom: 1 }}
+				style={{ flexGrow: 1 }}
 			>
 				{turns.length === 0 && (
 					<box style={{ paddingLeft: 1 }}>

@@ -38,7 +38,8 @@ export function ProjectSidebar({
 			<scrollbox
 				ref={scroll}
 				viewportCulling={false}
-				style={{ flexGrow: 1, flexDirection: "column", padding: 1, gap: 1 }}
+				contentOptions={{ padding: 1, gap: 1 }}
+				style={{ flexGrow: 1 }}
 			>
 				{projects.length === 0 && <text style={{ fg: theme.textDim }}>No projects yet.</text>}
 				{projects.map((project) => (

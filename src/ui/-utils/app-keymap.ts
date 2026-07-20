@@ -12,11 +12,15 @@ export type AppCommand =
 	| { type: "quit" }
 	| { type: "input"; raw: string }
 	| { type: "focus-sidebar" }
+	| { type: "focus-panel" }
 	| { type: "open-review" }
+	| { type: "toggle-split" }
+	| { type: "enter-resize" }
 	| { type: "open-tab" }
 	| { type: "close-tab" }
 	| { type: "cycle-tab"; direction: -1 | 1 }
 	| { type: "leader" }
+	| { type: "open-settings" }
 	| { type: "select-project"; index: number }
 	| { type: "select-tab"; index: number }
 	| { type: "move-project"; direction: "up" | "down" }
@@ -30,8 +34,52 @@ export const APP_KEY_HINTS = {
 	terminal: "^X → commands · ^1-9 project · ⌥1-9 tab · drag select",
 	idle: "⏎ focus shell · n new · x close · ^1-9/↑↓ project · ⌥1-9 tab · ^X commands",
 	empty: "n new shell · ^1-9/↑↓ project · a add",
-	leader: "^X → s sidebar · r review · n new · d/x close · tab next · q quit",
+	leader: "^X → s sidebar · o panel · r review · v split · = resize · n new · d/x close · tab next · p settings · q quit",
+	resize: "resize · ←→/hl move divider · esc/⏎ done",
 } as const;
+
+export const RESIZE_STEP = 0.05;
+
+export type ResizeCommand =
+	| { type: "resize-step"; delta: number }
+	| { type: "resize-exit" };
+
+export function resizeCommand(key: KeyInput): ResizeCommand | null {
+	switch (key.name) {
+		case "escape":
+		case "return":
+			return { type: "resize-exit" };
+		case "left":
+		case "h":
+			return { type: "resize-step", delta: -RESIZE_STEP };
+		case "right":
+		case "l":
+			return { type: "resize-step", delta: RESIZE_STEP };
+		default:
+			return null;
+	}
+}
+
+export type PanelCommand =
+	| { type: "cycle-scope" }
+	| { type: "toggle-unified" }
+	| { type: "toggle-folded" }
+	| { type: "blur" };
+
+export function panelCommand(key: KeyInput): PanelCommand | null {
+	switch (key.name) {
+		case "escape":
+			return { type: "blur" };
+		case "tab":
+			return { type: "cycle-scope" };
+		case "d":
+			return { type: "toggle-unified" };
+		case "s":
+			return { type: "toggle-folded" };
+		default:
+			return null;
+	}
+}
 
 function numberIndex(key: KeyInput): number | null {
 	if (key.name.length !== 1 || key.name < "1" || key.name > "9") {
@@ -55,10 +103,18 @@ export function leaderCommand(key: KeyInput): AppCommand | null {
 	switch (key.name) {
 		case "s":
 			return { type: "focus-sidebar" };
+		case "o":
+			return { type: "focus-panel" };
 		case "r":
 			return { type: "open-review" };
+		case "v":
+			return { type: "toggle-split" };
+		case "=":
+			return { type: "enter-resize" };
 		case "n":
 			return { type: "open-tab" };
+		case "p":
+			return { type: "open-settings" };
 		case "d":
 		case "x":
 			return { type: "close-tab" };

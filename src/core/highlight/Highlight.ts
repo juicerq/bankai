@@ -7,6 +7,7 @@ import {
 	treeSitterToStyledText,
 } from "@opentui/core";
 import { EXTRA_PARSERS, PARSER_CACHE_DIR } from "@core/highlight/parsers";
+import { Logger } from "@core/logger";
 
 function chunkLines(chunks: TextChunk[]): TextChunk[][] {
 	const lines: TextChunk[][] = [[]];
@@ -29,6 +30,8 @@ function chunkLines(chunks: TextChunk[]): TextChunk[][] {
 class SyntaxHighlighter {
 	private readonly client = getTreeSitterClient();
 	private initialization: Promise<void> | null = null;
+	private currentVersion = 0;
+	private readonly listeners = new Set<() => void>();
 	private readonly cache = new WeakMap<SyntaxStyle, WeakMap<string[], Map<string, {
 		request: Promise<TextChunk[][] | null>;
 		result?: TextChunk[][] | null;
@@ -39,6 +42,19 @@ class SyntaxHighlighter {
 		style: SyntaxStyle,
 	): TextChunk[][] | null | undefined {
 		return this.cache.get(style)?.get(file.after)?.get(file.path)?.result;
+	}
+
+	subscribe = (listener: () => void): (() => void) => {
+		this.listeners.add(listener);
+		return () => this.listeners.delete(listener);
+	};
+
+	version = (): number => this.currentVersion;
+
+	ensure(files: { path: string; after: string[] }[], style: SyntaxStyle): void {
+		for (const file of files) {
+			void this.lines(file, style);
+		}
 	}
 
 	private async initialize(): Promise<void> {
@@ -68,15 +84,26 @@ class SyntaxHighlighter {
 			return existing.request;
 		}
 
-		const request = this.highlight(file, style).then((lines) => {
-			paths.set(file.path, { request, result: lines });
-			return lines;
-		}).catch((error) => {
-			paths.delete(file.path);
-			throw error;
-		});
+		const request = this.highlight(file, style)
+			.catch((error: unknown) => {
+				Logger.warn("highlight:failed", `${file.path}: ${String(error)}`);
+				return null;
+			})
+			.then((lines) => {
+				paths.set(file.path, { request, result: lines });
+				this.resolved();
+				return lines;
+			});
 		paths.set(file.path, { request });
 		return request;
+	}
+
+	private resolved(): void {
+		this.currentVersion++;
+
+		for (const listener of this.listeners) {
+			listener();
+		}
 	}
 
 	private async highlight(

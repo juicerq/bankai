@@ -1,7 +1,10 @@
 import { basename } from "node:path";
+import { Logger } from "@core/logger";
 import { type Project, Projects } from "@core/store/projects";
+import { Settings } from "@core/store/settings";
 import type { TabSupervisor } from "@core/terminal/TabSupervisor";
 import type { TabGroup } from "@core/workspace/WorkspaceGroup";
+import { buildLaunchCommand } from "@core/workspace/resumeCommand";
 import { WorkspaceGroups } from "@core/workspace/WorkspaceGroups";
 import { WorkspaceTerminals } from "@core/workspace/WorkspaceTerminals";
 
@@ -35,7 +38,7 @@ export class WorkspaceRuntime {
 		};
 		this.terminals = new WorkspaceTerminals(
 			supervisor,
-			Object.values(groups).flatMap((group) => group.tabs),
+			Object.values(groups).flatMap((group) => group.tabs.map((tab) => tab.id)),
 			(tabId) => {
 				this.updateGroups(WorkspaceGroups.remove(this.current.groups, tabId));
 			},
@@ -80,7 +83,7 @@ export class WorkspaceRuntime {
 
 		this.update({ ...this.current, activeProjectId: project.id });
 		if (!WorkspaceGroups.hasTabs(this.current.groups, project.id)) {
-			this.openProjectTab(project);
+			this.launchTab(project);
 		}
 		return true;
 	}
@@ -91,7 +94,7 @@ export class WorkspaceRuntime {
 			if (existing) {
 				this.update({ ...this.current, activeProjectId: existing.id });
 				if (!WorkspaceGroups.hasTabs(this.current.groups, existing.id)) {
-					this.openProjectTab(existing);
+					await this.openProjectTab(existing);
 				}
 				return;
 			}
@@ -103,7 +106,7 @@ export class WorkspaceRuntime {
 			}
 
 			this.update({ ...this.current, projects, activeProjectId: added.id });
-			this.openProjectTab(added);
+			await this.openProjectTab(added);
 		});
 	}
 
@@ -129,7 +132,7 @@ export class WorkspaceRuntime {
 			const projects = await Projects.remove(project.id);
 			const group = this.current.groups[project.id];
 			if (group) {
-				this.terminals.closeAll(group.tabs);
+				this.terminals.closeAll(group.tabs.map((tab) => tab.id));
 			}
 			const groups = WorkspaceGroups.removeProject(this.current.groups, project.id);
 
@@ -147,14 +150,14 @@ export class WorkspaceRuntime {
 	enterActiveProject(): void {
 		const project = this.activeProject();
 		if (project && !WorkspaceGroups.activeTabId(this.current.groups, project.id)) {
-			this.openProjectTab(project);
+			this.launchTab(project);
 		}
 	}
 
 	openTab(): void {
 		const project = this.activeProject();
 		if (project) {
-			this.openProjectTab(project);
+			this.launchTab(project);
 		}
 	}
 
@@ -176,7 +179,7 @@ export class WorkspaceRuntime {
 		}
 		const groups = WorkspaceGroups.select(this.current.groups, project.id, index);
 		if (!groups) {
-			this.openProjectTab(project);
+			this.launchTab(project);
 			return true;
 		}
 		this.updateGroups(groups);
@@ -190,8 +193,28 @@ export class WorkspaceRuntime {
 		}
 	}
 
-	private openProjectTab(project: Project): void {
-		const tabId = this.terminals.open(project.cwd);
+	toggleActiveTabSplit(): void {
+		const project = this.activeProject();
+		if (project) {
+			this.updateGroups(WorkspaceGroups.toggleSplit(this.current.groups, project.id));
+		}
+	}
+
+	adjustActiveTabSplitRatio(delta: number): void {
+		const project = this.activeProject();
+		if (project) {
+			this.updateGroups(WorkspaceGroups.adjustSplitRatio(this.current.groups, project.id, delta));
+		}
+	}
+
+	private launchTab(project: Project): void {
+		this.openProjectTab(project).catch((err) =>
+			Logger.error("workspace:tab-open-failed", String(err)));
+	}
+
+	private async openProjectTab(project: Project): Promise<void> {
+		const { defaultHarness } = await Settings.read();
+		const tabId = this.terminals.open(project.cwd, buildLaunchCommand(defaultHarness));
 		this.updateGroups(WorkspaceGroups.add(this.current.groups, project.id, tabId));
 	}
 

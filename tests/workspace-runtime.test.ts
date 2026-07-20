@@ -3,8 +3,10 @@ import { promisify } from "node:util";
 import { type } from "arktype";
 import { describe, expect, it } from "vitest";
 import { TabSupervisor } from "@core/terminal/TabSupervisor";
+import { SPLIT_RATIO_DEFAULT } from "@core/workspace/WorkspaceGroup";
 import { WorkspaceRuntime } from "@core/workspace/WorkspaceRuntime";
 import { assertDefined } from "./utils/assertions";
+import { recorderShell } from "./utils/recorder-shell";
 
 const run = promisify(execFile);
 const resultContract = type({
@@ -33,8 +35,14 @@ describe("WorkspaceRuntime", () => {
 			projects,
 			0,
 			{
-				one: { tabs: ["one-a", "one-b"], active: 0 },
-				two: { tabs: ["two-a"], active: 0 },
+				one: {
+					tabs: [
+						{ id: "one-a", split: false, splitRatio: SPLIT_RATIO_DEFAULT },
+						{ id: "one-b", split: false, splitRatio: SPLIT_RATIO_DEFAULT },
+					],
+					active: 0,
+				},
+				two: { tabs: [{ id: "two-a", split: false, splitRatio: SPLIT_RATIO_DEFAULT }], active: 0 },
 			},
 		);
 		let notifications = 0;
@@ -87,7 +95,7 @@ describe("WorkspaceRuntime", () => {
 
 		const { stdout } = await run("bun", ["--eval", script], {
 			cwd: process.cwd(),
-			env: process.env,
+			env: { ...process.env, SHELL: recorderShell().shell },
 		});
 		const result = resultContract.assert(JSON.parse(stdout.trim()));
 
@@ -96,5 +104,42 @@ describe("WorkspaceRuntime", () => {
 		expect(result.added.active).toBeTruthy();
 		expect(result.added.pids).toBe(1);
 		expect(result.removed).toEqual({ projects: 0, groups: 0, pids: 0 });
+	});
+
+	it("spawns a new project tab wrapping the configured default harness", async () => {
+		assertDefined(process.env.DATA_DIR);
+		const { shell, recordFile } = recorderShell();
+		const script = `
+			import { readFileSync } from "node:fs";
+			import { Settings } from "./src/core/store/settings.ts";
+			import { TabSupervisor } from "./src/core/terminal/TabSupervisor.ts";
+			import { WorkspaceRuntime } from "./src/core/workspace/WorkspaceRuntime.ts";
+
+			await Settings.setDefaultHarness("codex");
+			const supervisor = new TabSupervisor();
+			const runtime = new WorkspaceRuntime(supervisor, [], 0, {});
+			await runtime.selectOrAddProject(process.env.DATA_DIR);
+
+			let invocation = null;
+			for (let attempt = 0; attempt < 50 && invocation === null; attempt++) {
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				try {
+					invocation = readFileSync(process.env.BANKAI_RECORD_FILE, "utf8");
+				} catch {}
+			}
+
+			console.log(JSON.stringify(invocation));
+			runtime.dispose();
+			supervisor.disposeAll();
+		`;
+
+		const { stdout } = await run("bun", ["--eval", script], {
+			cwd: process.cwd(),
+			env: { ...process.env, SHELL: shell, BANKAI_RECORD_FILE: recordFile },
+		});
+		const invocation = type("string | null").assert(JSON.parse(stdout.trim()));
+
+		assertDefined(invocation);
+		expect(invocation).toContain("codex; exec");
 	});
 });

@@ -2,7 +2,7 @@ import type { TabCapture } from "@core/session/TabSessionMonitor";
 import type { Project } from "@core/store/projects";
 import type { WorkspaceExecution } from "@core/store/workspace";
 import type { TabSupervisor } from "@core/terminal/TabSupervisor";
-import type { TabGroup } from "@core/workspace/WorkspaceGroup";
+import type { GroupTab, TabGroup } from "@core/workspace/WorkspaceGroup";
 import type { RestorePlan } from "@core/workspace/planRestore";
 import {
 	buildFreshCommand,
@@ -31,10 +31,10 @@ export function restoreTabRuntime(
 			continue;
 		}
 
-		const tabs: string[] = [];
+		const tabs: GroupTab[] = [];
 		for (const tab of planned.tabs) {
 			const tabId = supervisor.open({ cwd: project.cwd });
-			tabs.push(tabId);
+			tabs.push({ id: tabId, split: tab.split, splitRatio: tab.splitRatio });
 
 			if (!tab.runningSession) {
 				continue;

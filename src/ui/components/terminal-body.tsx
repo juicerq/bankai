@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Project } from "@core/store/projects";
 import type { SessionTabStatus as TabStatus } from "@core/session/SessionReviews";
 import type { TabSupervisor } from "@core/terminal/TabSupervisor";
@@ -15,7 +16,10 @@ type TerminalBodyProps = {
 	terminalFocused: boolean;
 	statuses: Record<string, TabStatus>;
 	leader: boolean;
+	resizeActive: boolean;
+	splitRatio: number;
 	zenMode: boolean;
+	splitPanel: ReactNode;
 };
 
 export function TerminalBody({
@@ -26,7 +30,10 @@ export function TerminalBody({
 	terminalFocused,
 	statuses,
 	leader,
+	resizeActive,
+	splitRatio,
 	zenMode,
+	splitPanel,
 }: TerminalBodyProps) {
 	if (!project) {
 		return (
@@ -44,12 +51,29 @@ export function TerminalBody({
 			<TabBar project={project} group={group} statuses={statuses} />
 
 			{!!activeTabId && (
-				<TerminalView
-					key={activeTabId}
-					supervisor={supervisor}
-					tabId={activeTabId}
-					focused={terminalFocused}
-				/>
+				<box style={{ flexGrow: 1, flexDirection: "row" }}>
+					<box style={{ flexGrow: splitPanel ? splitRatio : 1, flexBasis: 0 }}>
+						<TerminalView
+							key={activeTabId}
+							supervisor={supervisor}
+							tabId={activeTabId}
+							focused={terminalFocused}
+						/>
+					</box>
+
+					{splitPanel && (
+						<box
+							style={{
+								flexGrow: 1 - splitRatio,
+								flexBasis: 0,
+								border: ["left"],
+								borderColor: resizeActive ? theme.accent : theme.border,
+							}}
+						>
+							{splitPanel}
+						</box>
+					)}
+				</box>
 			)}
 
 			{!activeTabId && (
@@ -59,7 +83,7 @@ export function TerminalBody({
 				</box>
 			)}
 
-			{!zenMode && <StatusHint mode={mode} leader={leader} />}
+			{!zenMode && <StatusHint mode={mode} leader={leader} resize={resizeActive} />}
 		</box>
 	);
 }

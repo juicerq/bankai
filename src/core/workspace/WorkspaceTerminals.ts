@@ -13,8 +13,8 @@ export class WorkspaceTerminals {
 		}
 	}
 
-	open(cwd: string): string {
-		const tabId = this.supervisor.open({ cwd });
+	open(cwd: string, command: string): string {
+		const tabId = this.supervisor.open({ cwd, command });
 		this.watch(tabId);
 		return tabId;
 	}

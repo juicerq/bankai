@@ -16,7 +16,7 @@ describe("restoreTabRuntime", () => {
 			const runtime = restoreTabRuntime(supervisor, [
 				{ id: "project", cwd: process.env.DATA_DIR, name: "Project" },
 			], {
-				projects: [{ projectId: "project", tabs: [{}], activeTab: 0 }],
+				projects: [{ projectId: "project", tabs: [{ split: true, splitRatio: 0.7 }], activeTab: 0 }],
 				focusedIndex: 0,
 				focus: "terminal",
 				zen: { command: false, review: false },
@@ -33,11 +33,13 @@ describe("restoreTabRuntime", () => {
 			env: process.env,
 		});
 		const result = JSON.parse(stdout.trim()) as {
-			runtime: { groups: Record<string, { tabs: string[]; active: number }> };
+			runtime: { groups: Record<string, { tabs: { id: string; split: boolean; splitRatio: number }[]; active: number }> };
 			pids: number;
 		};
 
 		expect(result.runtime.groups.project?.tabs).toHaveLength(1);
+		expect(result.runtime.groups.project?.tabs[0]?.split).toBe(true);
+		expect(result.runtime.groups.project?.tabs[0]?.splitRatio).toBe(0.7);
 		expect(result.runtime.groups.project?.active).toBe(0);
 		expect(result.pids).toBe(1);
 	});

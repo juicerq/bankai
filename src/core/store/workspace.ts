@@ -11,10 +11,14 @@ const workspaceExecution = type({
 
 const workspaceTab = type({
 	state: type.enumerated("empty"),
+	"split?": "boolean",
+	"splitRatio?": "number",
 }).or(type({
 	state: type.enumerated("bound"),
 	session: sessionRef,
 	"running?": workspaceExecution,
+	"split?": "boolean",
+	"splitRatio?": "number",
 }));
 
 const workspaceProject = type({

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildFreshCommand, buildResumeCommand } from "@core/workspace/resumeCommand";
+import {
+	buildFreshCommand,
+	buildLaunchCommand,
+	buildResumeCommand,
+} from "@core/workspace/resumeCommand";
 
 describe("Harness launch", () => {
 	it("resumes Claude while retaining safe options", () => {
@@ -30,6 +34,11 @@ describe("Harness launch", () => {
 			argv: ["codex", "old prompt"],
 			kind: "interactive",
 		})).toBeNull();
+	});
+
+	it("builds a bare launch command for each default Harness", () => {
+		expect(buildLaunchCommand("claude")).toBe("claude");
+		expect(buildLaunchCommand("codex")).toBe("codex");
 	});
 
 	it("starts the same Harness fresh", () => {

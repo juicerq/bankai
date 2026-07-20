@@ -3,6 +3,7 @@ import { TerminalTab } from "@core/terminal/TerminalTab";
 
 type OpenOptions = {
 	cwd: string;
+	command?: string;
 	cols?: number;
 	rows?: number;
 };

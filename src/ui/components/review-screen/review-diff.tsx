@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core";
 import { diffRows, diffStats, unifiedRows } from "@core/review/diff";
 import type { FileChange } from "@core/review/FileChange";
@@ -23,8 +23,8 @@ export function ReviewDiff({
 	empty: { label: string; hint: string };
 }) {
 	const scroll = useRef<ScrollBoxRenderable>(null);
-	const styled = useHighlightedFiles(files);
-	const filesRows = files.map((file) => ({
+	const { shown, styled } = useHighlightedFiles(files);
+	const filesRows = shown.map((file) => ({
 		file,
 		path: file.path,
 		stats: diffStats([file]),
@@ -33,22 +33,25 @@ export function ReviewDiff({
 
 	useScrollAnchor({ scroll, viewKey: `${unified}:${folded}`, filesRows });
 
-	useEffect(() => {
-		if (scroll.current) {
+	const appliedReset = useRef(resetKey);
+
+	useLayoutEffect(() => {
+		if (appliedReset.current !== resetKey && shown === files && scroll.current) {
+			appliedReset.current = resetKey;
 			scroll.current.scrollTop = 0;
 		}
-	}, [resetKey]);
+	});
 
 	return (
 		<box style={{ flexGrow: 1, flexDirection: "row" }}>
-			{files.length === 0 && (
+			{shown.length === 0 && (
 				<box style={{ flexGrow: 1, justifyContent: "center", alignItems: "center", gap: 1 }}>
 					<text style={{ fg: theme.textDim }}>{empty.label}</text>
 					<text style={{ fg: theme.textFaint }}>{empty.hint}</text>
 				</box>
 			)}
 
-			{files.length > 0 && (
+			{shown.length > 0 && (
 				<scrollbox ref={scroll} focused={focused} style={{ flexGrow: 1, padding: 1 }}>
 					{filesRows.map((file) => {
 						const slash = file.path.lastIndexOf("/") + 1;

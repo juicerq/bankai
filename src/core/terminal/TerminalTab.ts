@@ -5,9 +5,18 @@ const SCROLLBACK = 10000;
 
 type OpenOptions = {
 	cwd: string;
+	command?: string;
 	cols?: number;
 	rows?: number;
 };
+
+export function spawnArgv(shell: string, command?: string): string[] {
+	if (command === undefined) {
+		return ["setsid", "-c", shell];
+	}
+
+	return ["setsid", "-c", shell, "-c", `${command}; exec ${shell}`];
+}
 
 export class TerminalTab {
 	private readonly exitListeners = new Set<(code: number) => void>();
@@ -23,7 +32,7 @@ export class TerminalTab {
 	) {}
 
 	static open(
-		{ cwd, cols = 80, rows = 24 }: OpenOptions,
+		{ cwd, command, cols = 80, rows = 24 }: OpenOptions,
 		onClosed: () => void,
 	): TerminalTab {
 		const screen = new Screen({
@@ -45,7 +54,7 @@ export class TerminalTab {
 				exit: (_terminal, code) => tab?.handleExit(code),
 			});
 			screenInput = screen.onData((data) => pty?.write(data));
-			const process = Bun.spawn(["setsid", "-c", SHELL], {
+			const process = Bun.spawn(spawnArgv(SHELL, command), {
 				terminal: pty,
 				cwd,
 				env: {

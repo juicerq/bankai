@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Workspace } from "@core/store/workspace";
+import { SPLIT_RATIO_DEFAULT } from "@core/workspace/WorkspaceGroup";
 import { planRestore } from "@core/workspace/planRestore";
 
 const claude = { harness: "claude" as const, sessionId: "s1" };
@@ -44,13 +45,59 @@ describe("planRestore", () => {
 			tabTranscripts: new Set(["claude:s1"]),
 		});
 		expect(plan.projects[0]?.tabs).toEqual([
-			{},
+			{ split: false, splitRatio: SPLIT_RATIO_DEFAULT },
 			{
+				split: false,
+				splitRatio: SPLIT_RATIO_DEFAULT,
 				runningSession: { session: claude, argv: ["claude"] },
 				resumable: true,
 			},
 		]);
 		expect(plan.projects[0]?.activeTab).toBe(1);
+	});
+
+	it("restores the persisted Split flag per Tab, defaulting older tabs to off", () => {
+		const plan = planRestore({
+			workspace: workspace({
+				projects: [{
+					projectId: "p",
+					tabs: [
+						{ state: "empty", split: true },
+						{ state: "empty" },
+					],
+					activeTab: 0,
+				}],
+			}),
+			projects: [{ id: "p" }],
+			reviewTranscriptExists: false,
+			tabTranscripts: new Set(),
+		});
+		expect(plan.projects[0]?.tabs).toEqual([
+			{ split: true, splitRatio: SPLIT_RATIO_DEFAULT },
+			{ split: false, splitRatio: SPLIT_RATIO_DEFAULT },
+		]);
+	});
+
+	it("restores the persisted split ratio per Tab, defaulting older tabs", () => {
+		const plan = planRestore({
+			workspace: workspace({
+				projects: [{
+					projectId: "p",
+					tabs: [
+						{ state: "empty", splitRatio: 0.7 },
+						{ state: "empty" },
+					],
+					activeTab: 0,
+				}],
+			}),
+			projects: [{ id: "p" }],
+			reviewTranscriptExists: false,
+			tabTranscripts: new Set(),
+		});
+		expect(plan.projects[0]?.tabs).toEqual([
+			{ split: false, splitRatio: 0.7 },
+			{ split: false, splitRatio: SPLIT_RATIO_DEFAULT },
+		]);
 	});
 
 	it("restores a selected Review independently", () => {

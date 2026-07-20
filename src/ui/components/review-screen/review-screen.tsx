@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { useKeyboard } from "@opentui/react";
+import type { GitScope } from "@core/git/gitScope";
 import type { SessionRef } from "@core/harness/registry";
-import { type DiffMode, filesForMode } from "@core/review/accumulate";
+import { type DiffScope, nextScope, turnFiles } from "@core/review/diffScope";
 import type { Turn } from "@core/review/ReviewModel";
 import { canReviewTurn } from "@core/review/unreviewed";
+import type { GitScopeState } from "@core/git/GitScopeStore";
+import { useGitScopeFiles } from "@ui/-utils/use-git-scope-files";
+import { useHeldWhileLoading } from "@ui/-utils/use-held-while-loading";
 import { ReviewDiff } from "@ui/components/review-screen/review-diff";
 import { ReviewHeader } from "@ui/components/review-screen/review-header";
 import { ReviewTurnList } from "@ui/components/review-screen/review-turn-list";
@@ -11,8 +15,8 @@ import { theme } from "@ui/theme";
 
 type Zone = "turns" | "diff";
 type ReviewView =
-	| { mode: "turn"; zone: Zone }
-	| { mode: "accumulated"; zone: "diff" };
+	| { scope: "turn"; zone: Zone }
+	| { scope: GitScope; zone: "diff" };
 
 type Hint = { key: string; action: string };
 
@@ -36,20 +40,37 @@ const HELP: Record<Zone, Hint[]> = {
 		{ key: "esc", action: "exit" },
 	],
 };
-const ACCUMULATED_HELP: Hint[] = [
+const GIT_HELP: Hint[] = [
 	{ key: "↑↓", action: "scroll" },
-	{ key: "⇥", action: "turns" },
+	{ key: "⇥", action: "scope" },
 	{ key: "d", action: "unified" },
 	{ key: "s", action: "full" },
 	{ key: "esc", action: "exit" },
 ];
-const EMPTY: Record<DiffMode, { label: string; hint: string }> = {
-	turn: { label: "No file changes in this turn", hint: "\u21E5 view the accumulated diff" },
-	accumulated: { label: "No file changes in this session", hint: "\u21E5 back to turns" },
+const SCOPE_EMPTY: Record<DiffScope, { label: string; hint: string }> = {
+	turn: { label: "No file changes in this turn", hint: "⇥ uncommitted changes" },
+	uncommitted: { label: "No uncommitted changes", hint: "⇥ branch changes" },
+	branch: { label: "No changes on this branch", hint: "⇥ this turn" },
 };
+const GIT_UNAVAILABLE = { label: "Not a git repository", hint: "⇥ back to this turn" };
+const GIT_LOADING = { label: "Loading changes...", hint: " " };
+
+function diffEmpty(scope: DiffScope, gitState: GitScopeState | null): { label: string; hint: string } {
+	if (scope === "turn") {
+		return SCOPE_EMPTY.turn;
+	}
+	if (gitState === null || gitState.status === "loading") {
+		return GIT_LOADING;
+	}
+	if (gitState.status === "unavailable") {
+		return GIT_UNAVAILABLE;
+	}
+	return SCOPE_EMPTY[scope];
+}
 
 export function ReviewScreen({
 	session,
+	cwd,
 	turns,
 	availability,
 	reviewedTurnIds,
@@ -58,6 +79,7 @@ export function ReviewScreen({
 	zenMode,
 }: {
 	session: SessionRef | null;
+	cwd: string | undefined;
 	turns: Turn[];
 	availability: "loading" | "available" | "unavailable";
 	reviewedTurnIds: string[];
@@ -66,15 +88,22 @@ export function ReviewScreen({
 	zenMode: boolean;
 }) {
 	const [selectedIndex, setSelectedIndex] = useState(0);
-	const [view, setView] = useState<ReviewView>({ mode: "turn", zone: "turns" });
+	const [view, setView] = useState<ReviewView>({ scope: "turn", zone: "turns" });
 	const [unified, setUnified] = useState(false);
 	const [folded, setFolded] = useState(true);
+	const gitState = useGitScopeFiles(cwd, view.scope === "turn" ? null : view.scope);
 
 	const index = Math.min(selectedIndex, Math.max(0, turns.length - 1));
-	const files = filesForMode(turns, index, view.mode);
+	const loading = view.scope !== "turn" && (gitState === null || gitState.status === "loading");
+	const files = useHeldWhileLoading(
+		view.scope === "turn"
+			? turnFiles(turns, index)
+			: gitState?.status === "ok" ? gitState.files : [],
+		loading,
+	);
 	const current = turns[index];
 	const effectiveZone = zenMode ? "diff" : view.zone;
-	const help = view.mode === "accumulated" ? ACCUMULATED_HELP : HELP[effectiveZone];
+	const help = view.scope === "turn" ? HELP[effectiveZone] : GIT_HELP;
 	const availabilityMessage = availability === "loading"
 		? "Loading review..."
 		: "Review unavailable: this Session was not observed safely.";
@@ -88,9 +117,8 @@ export function ReviewScreen({
 			return;
 		}
 		if (key.name === "tab") {
-			setView(view.mode === "turn"
-				? { mode: "accumulated", zone: "diff" }
-				: { mode: "turn", zone: "turns" });
+			const scope = nextScope(view.scope);
+			setView(scope === "turn" ? { scope: "turn", zone: "turns" } : { scope, zone: "diff" });
 			return;
 		}
 		if (key.name === "d") {
@@ -101,7 +129,7 @@ export function ReviewScreen({
 			setFolded((value) => !value);
 			return;
 		}
-		if (view.mode === "accumulated") {
+		if (view.scope !== "turn") {
 			return;
 		}
 		if (key.name === "space" && current && canReviewTurn(turns, current.turnId)) {
@@ -110,7 +138,7 @@ export function ReviewScreen({
 		}
 		if (effectiveZone === "diff") {
 			if (key.name === "left" || key.name === "h") {
-				setView({ mode: "turn", zone: "turns" });
+				setView({ scope: "turn", zone: "turns" });
 			}
 			return;
 		}
@@ -123,7 +151,7 @@ export function ReviewScreen({
 			return;
 		}
 		if (key.name === "right" || key.name === "l") {
-			setView({ mode: "turn", zone: "diff" });
+			setView({ scope: "turn", zone: "diff" });
 		}
 	});
 
@@ -133,7 +161,7 @@ export function ReviewScreen({
 				session={session}
 				turnIndex={index}
 				turnCount={turns.length}
-				mode={view.mode}
+				scope={view.scope}
 				unified={unified}
 				folded={folded}
 				files={files}
@@ -155,7 +183,7 @@ export function ReviewScreen({
 								selectedIndex={index}
 								reviewedTurnIds={reviewedTurnIds}
 								focused={effectiveZone === "turns"}
-								dimmed={view.mode === "accumulated"}
+								dimmed={view.scope !== "turn"}
 							/>
 						)}
 						<ReviewDiff
@@ -163,8 +191,8 @@ export function ReviewScreen({
 							unified={unified}
 							folded={folded}
 							focused={effectiveZone === "diff"}
-							resetKey={`${index}:${view.mode}`}
-							empty={EMPTY[view.mode]}
+							resetKey={`${index}:${view.scope}`}
+							empty={diffEmpty(view.scope, gitState)}
 						/>
 					</>
 				)}
@@ -172,6 +200,7 @@ export function ReviewScreen({
 
 			<box
 				style={{
+					flexShrink: 0,
 					paddingLeft: 2,
 					paddingRight: 2,
 					backgroundColor: zenMode ? theme.bg : theme.panel,

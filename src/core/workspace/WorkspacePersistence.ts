@@ -1,10 +1,11 @@
 import type { SessionRef } from "@core/harness/registry";
 import { Logger } from "@core/logger";
 import { type Workspace, WorkspaceStore } from "@core/store/workspace";
+import type { TabGroup } from "@core/workspace/WorkspaceGroup";
 
 export type WorkspacePersistenceInput = {
 	projects: { id: string }[];
-	groups: Record<string, { tabs: string[]; active: number }>;
+	groups: Record<string, TabGroup>;
 	activeIndex: number;
 	focus: Workspace["focus"];
 	zen: Workspace["zen"];
@@ -22,7 +23,11 @@ function workspaceValue(input: WorkspacePersistenceInput): Workspace {
 
 		return [{
 			projectId: project.id,
-			tabs: group.tabs.map((tabId) => input.captures[tabId] ?? { state: "empty" as const }),
+			tabs: group.tabs.map((tab) => ({
+				...(input.captures[tab.id] ?? { state: "empty" as const }),
+				split: tab.split,
+				splitRatio: tab.splitRatio,
+			})),
 			activeTab: group.active,
 		}];
 	});

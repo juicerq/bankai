@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { Projects } from "@core/store/projects";
 import { ReviewState } from "@core/store/review-state";
 import { WorkspaceStore } from "@core/store/workspace";
+import { SPLIT_RATIO_DEFAULT } from "@core/workspace/WorkspaceGroup";
 import { restoreWorkspace } from "@core/workspace/restoreWorkspace";
 import { assertDefined } from "./utils/assertions";
 import { claudeTranscript, codexTranscript } from "./utils/transcripts";
@@ -60,6 +61,8 @@ describe("restoreWorkspace", () => {
 
 		expect(restored.projects).toEqual([project]);
 		expect(restored.plan.projects[0]?.tabs[0]).toEqual({
+			split: false,
+			splitRatio: SPLIT_RATIO_DEFAULT,
 			runningSession: { session, argv: ["claude"] },
 			resumable: true,
 		});
@@ -108,8 +111,8 @@ describe("restoreWorkspace", () => {
 		const restored = await restoreWorkspace();
 
 		expect(restored.plan.projects[0]?.tabs).toEqual([
-			{ runningSession: { session: claude, argv: ["claude"] }, resumable: true },
-			{ runningSession: { session: codex, argv: ["codex"] }, resumable: true },
+			{ split: false, splitRatio: SPLIT_RATIO_DEFAULT, runningSession: { session: claude, argv: ["claude"] }, resumable: true },
+			{ split: false, splitRatio: SPLIT_RATIO_DEFAULT, runningSession: { session: codex, argv: ["codex"] }, resumable: true },
 		]);
 	});
 });

@@ -28,12 +28,13 @@ export function TabBar({
 		>
 			<text style={{ fg: theme.accent, attributes: TextAttributes.BOLD }}>{project.name}</text>
 
-			{group?.tabs.map((tabId, index) => (
+			{group?.tabs.map((tab, index) => (
 				<TabChip
-					key={tabId}
+					key={tab.id}
 					index={index}
 					active={index === group.active}
-					status={statuses[tabId]}
+					split={tab.split}
+					status={statuses[tab.id]}
 				/>
 			))}
 

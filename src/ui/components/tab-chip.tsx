@@ -11,10 +11,12 @@ const STATUS_GLYPH: Record<SessionStatus, { glyph: string; color: string }> = {
 export function TabChip({
 	index,
 	active,
+	split,
 	status,
 }: {
 	index: number;
 	active: boolean;
+	split: boolean;
 	status: TabStatus | undefined;
 }) {
 	const dot = status ? STATUS_GLYPH[status.status] : undefined;
@@ -29,6 +31,7 @@ export function TabChip({
 			{`${active ? "▐" : " "}${index + 1}`}
 			{dot && <span style={{ fg: dot.color }}>{` ${dot.glyph}`}</span>}
 			{status?.unreviewed && <span style={{ fg: theme.review }}>◆</span>}
+			{split && <span style={{ fg: theme.review }}>│</span>}
 		</text>
 	);
 }

@@ -1,6 +1,15 @@
-import type { TabGroup } from "@core/workspace/WorkspaceGroup";
+import {
+	SPLIT_RATIO_DEFAULT,
+	SPLIT_RATIO_MAX,
+	SPLIT_RATIO_MIN,
+	type TabGroup,
+} from "@core/workspace/WorkspaceGroup";
 
 type Groups = Record<string, TabGroup>;
+
+function clampRatio(value: number): number {
+	return Math.min(SPLIT_RATIO_MAX, Math.max(SPLIT_RATIO_MIN, value));
+}
 
 export const WorkspaceGroups = {
 	hasTabs(groups: Groups, projectId: string): boolean {
@@ -9,12 +18,12 @@ export const WorkspaceGroups = {
 
 	activeTabId(groups: Groups, projectId: string): string | undefined {
 		const group = groups[projectId];
-		return group?.tabs[group.active];
+		return group?.tabs[group.active]?.id;
 	},
 
 	add(groups: Groups, projectId: string, tabId: string): Groups {
 		const group = groups[projectId] ?? { tabs: [], active: 0 };
-		const tabs = [...group.tabs, tabId];
+		const tabs = [...group.tabs, { id: tabId, split: false, splitRatio: SPLIT_RATIO_DEFAULT }];
 		return {
 			...groups,
 			[projectId]: { tabs, active: tabs.length - 1 },
@@ -22,13 +31,13 @@ export const WorkspaceGroups = {
 	},
 
 	remove(groups: Groups, tabId: string): Groups {
-		const entry = Object.entries(groups).find(([, group]) => group.tabs.includes(tabId));
+		const entry = Object.entries(groups).find(([, group]) => group.tabs.some((tab) => tab.id === tabId));
 		if (!entry) {
 			return groups;
 		}
 
 		const [projectId, group] = entry;
-		const tabs = group.tabs.filter((candidate) => candidate !== tabId);
+		const tabs = group.tabs.filter((tab) => tab.id !== tabId);
 		return {
 			...groups,
 			[projectId]: {
@@ -65,6 +74,38 @@ export const WorkspaceGroups = {
 			[projectId]: {
 				...group,
 				active: (group.active + direction + group.tabs.length) % group.tabs.length,
+			},
+		};
+	},
+
+	toggleSplit(groups: Groups, projectId: string): Groups {
+		const group = groups[projectId];
+		if (!group?.tabs[group.active]) {
+			return groups;
+		}
+		return {
+			...groups,
+			[projectId]: {
+				...group,
+				tabs: group.tabs.map((tab, index) =>
+					index === group.active ? { ...tab, split: !tab.split } : tab),
+			},
+		};
+	},
+
+	adjustSplitRatio(groups: Groups, projectId: string, delta: number): Groups {
+		const group = groups[projectId];
+		if (!group?.tabs[group.active]) {
+			return groups;
+		}
+		return {
+			...groups,
+			[projectId]: {
+				...group,
+				tabs: group.tabs.map((tab, index) =>
+					index === group.active
+						? { ...tab, splitRatio: clampRatio(tab.splitRatio + delta) }
+						: tab),
 			},
 		};
 	},

@@ -8,9 +8,10 @@ const integrations = [ClaudeHarness, CodexHarness] as const;
 const byId = new Map<string, HarnessIntegration>(
 	integrations.map((integration) => [integration.id, integration]),
 );
-const harnessId = type.enumerated(...integrations.map((integration) => integration.id));
+export const harnessId = type.enumerated(...integrations.map((integration) => integration.id));
 
 export type HarnessId = typeof integrations[number]["id"];
+export const harnessIds = integrations.map((integration) => integration.id);
 export const sessionRef = type({ harness: harnessId, sessionId: "string" });
 export type SessionRef = typeof sessionRef.infer;
 

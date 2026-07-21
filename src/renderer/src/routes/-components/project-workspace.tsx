@@ -38,12 +38,14 @@ export function ProjectWorkspace({
 				return;
 			}
 
+			event.preventDefault();
+			event.stopPropagation();
+
 			const tab = tabs[Number(event.code.slice(5)) - 1];
 			if (!tab) {
 				return;
 			}
 
-			event.preventDefault();
 			setActiveTabId(tab.id);
 		};
 

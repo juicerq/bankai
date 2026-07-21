@@ -7,6 +7,8 @@ import { ProjectRail } from "@renderer/routes/-components/project-rail";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
 import { WindowControls } from "@renderer/routes/-components/window-controls";
 
+const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
+
 export const Route = createFileRoute("/")({ component: Bankai });
 
 function Bankai() {
@@ -14,6 +16,7 @@ function Bankai() {
 	const projects = useQuery(orpc.projects.list.queryOptions());
 	const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 	const [mountedProjectIds, setMountedProjectIds] = useState<string[]>([]);
+	const [fullscreen, setFullscreen] = useState(false);
 	const availableProjects = projects.data || [];
 	const selectedId = activeProjectId || availableProjects[0]?.id;
 	const mountedIds = selectedId && !mountedProjectIds.includes(selectedId)
@@ -28,19 +31,54 @@ function Bankai() {
 		setActiveProjectId(projectId);
 	}, [selectedId]);
 
-	const registerProjectShortcuts = useCallback(() => {
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (!event.ctrlKey || event.altKey || event.metaKey || !event.code.startsWith("Digit")) {
+	const registerShortcuts = useCallback(() => {
+		let leaderArmed = false;
+
+		const shortcutAction = (event: KeyboardEvent) => {
+			if (leaderArmed) {
+				leaderArmed = false;
+				if (event.code !== "KeyF") {
+					return;
+				}
+
+				return () => setFullscreen((current) => !current);
+			}
+
+			if (!event.ctrlKey || event.altKey || event.metaKey) {
+				return;
+			}
+
+			if (event.code === "KeyX") {
+				return () => {
+					leaderArmed = true;
+				};
+			}
+
+			if (!event.code.startsWith("Digit")) {
 				return;
 			}
 
 			const project = availableProjects[Number(event.code.slice(5)) - 1];
-			if (!project) {
+			return () => {
+				if (project) {
+					selectProject(project.id);
+				}
+			};
+		};
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (MODIFIER_KEYS.has(event.key)) {
+				return;
+			}
+
+			const action = shortcutAction(event);
+			if (!action) {
 				return;
 			}
 
 			event.preventDefault();
-			selectProject(project.id);
+			event.stopPropagation();
+			action();
 		};
 
 		window.addEventListener("keydown", handleKeyDown, true);
@@ -70,19 +108,21 @@ function Bankai() {
 	);
 
 	return (
-		<main ref={registerProjectShortcuts} className="relative flex h-full bg-surface">
+		<main ref={registerShortcuts} className="relative flex h-full bg-surface">
 			<WindowControls />
-			<ProjectRail
-				projects={availableProjects}
-				loading={projects.isPending}
-				selectedId={selectedId}
-				onSelect={selectProject}
-				onAdd={() => addProject.mutate({})}
-				onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
-				onRemove={(projectId) => removeProject.mutate({ projectId })}
-				adding={addProject.isPending}
-				addFailed={addProject.isError}
-			/>
+			{!fullscreen && (
+				<ProjectRail
+					projects={availableProjects}
+					loading={projects.isPending}
+					selectedId={selectedId}
+					onSelect={selectProject}
+					onAdd={() => addProject.mutate({})}
+					onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
+					onRemove={(projectId) => removeProject.mutate({ projectId })}
+					adding={addProject.isPending}
+					addFailed={addProject.isError}
+				/>
+			)}
 			<section className="flex min-h-0 min-w-0 flex-1 flex-col">
 				{projects.isError && (
 					<EmptyState

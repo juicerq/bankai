@@ -1,9 +1,13 @@
 import { ViewColumnsIcon } from "@heroicons/react/24/outline";
-import { useRef, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ReviewPanel } from "@renderer/routes/-components/review-panel";
 import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
+
+const DEFAULT_REVIEW_WIDTH = 380;
+const MIN_REVIEW_WIDTH = 280;
+const MIN_TERMINAL_WIDTH = 360;
 
 type ShellTab = {
 	id: string;
@@ -20,7 +24,33 @@ export function ProjectWorkspace({
 	const [tabs, setTabs] = useState<ShellTab[]>(() => [newShellTab(1)]);
 	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
 	const [reviewOpen, setReviewOpen] = useState(true);
+	const [reviewWidth, setReviewWidth] = useState(DEFAULT_REVIEW_WIDTH);
+	const [resizing, setResizing] = useState(false);
 	const nextShellNumber = useRef(2);
+	const rowRef = useRef<HTMLDivElement>(null);
+	const dragStart = useRef<{ x: number; width: number } | null>(null);
+
+	const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+		event.currentTarget.setPointerCapture(event.pointerId);
+		dragStart.current = { x: event.clientX, width: reviewWidth };
+		setResizing(true);
+	};
+
+	const handleResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+		const start = dragStart.current;
+		if (!start) {
+			return;
+		}
+		const rowWidth = rowRef.current?.clientWidth ?? Number.POSITIVE_INFINITY;
+		const max = Math.max(MIN_REVIEW_WIDTH, rowWidth - MIN_TERMINAL_WIDTH);
+		const next = start.width + (start.x - event.clientX);
+		setReviewWidth(Math.min(Math.max(next, MIN_REVIEW_WIDTH), max));
+	};
+
+	const handleResizeEnd = () => {
+		dragStart.current = null;
+		setResizing(false);
+	};
 
 	const handleNewShell = () => {
 		const tab = newShellTab(nextShellNumber.current);
@@ -65,7 +95,7 @@ export function ProjectWorkspace({
 				</button>
 			</header>
 
-			<div className="flex min-h-0 flex-1">
+			<div ref={rowRef} className={`flex min-h-0 flex-1 ${resizing ? "cursor-col-resize select-none" : ""}`}>
 				<div className="flex min-h-0 min-w-0 flex-1 flex-col bg-surface-sunken">
 					{tabs.length === 0 && (
 						<EmptyState
@@ -82,7 +112,28 @@ export function ProjectWorkspace({
 						</div>
 					))}
 				</div>
-				{reviewOpen && <ReviewPanel project={project} active={active} onClose={() => setReviewOpen(false)} />}
+				{reviewOpen && (
+					<>
+						<div
+							role="separator"
+							aria-orientation="vertical"
+							aria-label="Resize review panel"
+							className="group flex w-2 shrink-0 cursor-col-resize touch-none justify-center"
+							onPointerDown={handleResizeStart}
+							onPointerMove={handleResizeMove}
+							onPointerUp={handleResizeEnd}
+							onPointerCancel={handleResizeEnd}
+						>
+							<span className={`w-px ${resizing ? "bg-primary" : "bg-outline group-hover:bg-outline-strong"}`} />
+						</div>
+						<ReviewPanel
+							project={project}
+							active={active}
+							width={reviewWidth}
+							onClose={() => setReviewOpen(false)}
+						/>
+					</>
+				)}
 			</div>
 		</section>
 	);

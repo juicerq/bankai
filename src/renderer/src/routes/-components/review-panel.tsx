@@ -29,10 +29,12 @@ const STATUS_MARK = {
 export function ReviewPanel({
 	project,
 	active,
+	width,
 	onClose,
 }: {
 	project: Project;
 	active: boolean;
+	width: number;
 	onClose: () => void;
 }) {
 	const [mode, setMode] = useState<ReviewMode>("uncommitted");
@@ -47,24 +49,10 @@ export function ReviewPanel({
 
 	return (
 		<aside
-			className="flex w-panel max-narrow:w-panel-narrow shrink-0 animate-panel-in flex-col border-outline border-l bg-surface-raised motion-reduce:animate-none"
+			style={{ width }}
+			className="flex shrink-0 animate-panel-in flex-col bg-surface-raised motion-reduce:animate-none"
 			aria-label="Review"
 		>
-			<header className="flex h-header shrink-0 items-center justify-between border-outline border-b pl-3">
-				<div className="flex min-w-0 items-baseline gap-2">
-					<span className="shrink-0 text-label text-secondary">Review</span>
-					<h2 className="m-0 min-w-0 truncate text-subtitle">{project.name}</h2>
-				</div>
-				<button
-					type="button"
-					className="flex size-header shrink-0 items-center justify-center border-outline border-l text-secondary hover:bg-surface-hover hover:text-primary"
-					onClick={onClose}
-					aria-label="Close review"
-				>
-					<XMarkIcon className="size-4" />
-				</button>
-			</header>
-
 			<div className="flex items-center justify-between gap-2 border-outline border-b px-3 py-2">
 				<div className="flex border border-outline" role="group" aria-label="Diff scope">
 					{MODES.map((option, index) => (
@@ -81,15 +69,25 @@ export function ReviewPanel({
 						</button>
 					))}
 				</div>
-				{snapshot.data?.isRepo && (
-					<div
-						className="flex shrink-0 gap-2 text-data"
-						aria-label={`${snapshot.data.totals.additions} additions, ${snapshot.data.totals.deletions} removals`}
+				<div className="flex shrink-0 items-center gap-2">
+					<button
+						type="button"
+						className="-m-1 p-1 text-secondary hover:text-primary"
+						onClick={onClose}
+						aria-label="Close review"
 					>
-						<span className="text-added">+{snapshot.data.totals.additions}</span>
-						<span className="text-removed">−{snapshot.data.totals.deletions}</span>
-					</div>
-				)}
+						<XMarkIcon className="size-4" />
+					</button>
+					{snapshot.data?.isRepo && (
+						<div
+							className="flex gap-2 text-data"
+							aria-label={`${snapshot.data.totals.additions} additions, ${snapshot.data.totals.deletions} removals`}
+						>
+							<span className="text-added">+{snapshot.data.totals.additions}</span>
+							<span className="text-removed">−{snapshot.data.totals.deletions}</span>
+						</div>
+					)}
+				</div>
 			</div>
 
 			<ReviewBody snapshot={snapshot} />
@@ -126,7 +124,9 @@ function ReviewFile({ file }: { file: FileChange }) {
 			<header className="flex items-center justify-between gap-2 px-3 py-2 text-data">
 				<span className="flex min-w-0 items-center gap-2">
 					<span className="shrink-0 text-secondary">{STATUS_MARK[file.status]}</span>
-					<span className="truncate">{file.path}</span>
+					<span className="truncate" title={file.path}>
+						{file.path}
+					</span>
 				</span>
 				{(file.additions > 0 || file.deletions > 0) && (
 					<span className="flex shrink-0 gap-2">
@@ -136,11 +136,11 @@ function ReviewFile({ file }: { file: FileChange }) {
 				)}
 			</header>
 			{file.lines.length > 0 && (
-				<div className="overflow-x-auto pb-1">
+				<div className="pb-1">
 					{file.lines.map((line, index) => (
 						<div className={`flex text-code ${DIFF_INK[line.kind]}`} key={index}>
-							<span className="w-8 shrink-0 pr-2 text-right text-outline-strong">{line.number}</span>
-							<code className="whitespace-pre">
+							<span className="w-8 shrink-0 select-none pr-2 text-right text-outline-strong">{line.number}</span>
+							<code className="min-w-0 flex-1 whitespace-pre-wrap break-words">
 								{DIFF_MARKERS[line.kind]} {line.content}
 							</code>
 						</div>

@@ -81,8 +81,6 @@ spacing:
   xl: 20px
   2xl: 24px
   rail: 244px
-  panel: 380px
-  panel-narrow: 320px
   header: 40px
 components:
   terminal:
@@ -214,25 +212,26 @@ outside this set silently renders as something else.
 
 ## Layout
 
-The composition is a fixed three-column chassis: a 244px rail, a fluid center,
-and a 380px review panel that slides in from the right. Vertically, there is one
-40px course running across the entire top edge — rail brand, shell tabs, and
-panel header all sit in it — so the top of the application reads as a single
-machined line the full width of the window.
+The composition is a three-column chassis: a 244px rail, a fluid center, and a
+review panel that slides in from the right at 380px by default. Vertically, there
+is one 40px course running across the entire top edge — rail brand and shell tabs
+sit in it — so the top of the application reads as a single machined line the
+full width of the window.
 
-There is one breakpoint, at 1050px, and it governs one thing: below it the
-review panel gives back 60px so the terminal keeps a usable column. Nothing else
-in the chassis reflows — this is a desktop window, not a responsive page.
+The review panel's width is the one adjustable dimension. The 1px divider between
+the terminal and the panel is a drag handle: pulling it trades width between the
+two, clamped so the terminal never drops below a usable column. Nothing else in
+the chassis reflows — this is a desktop window, not a responsive page.
 
 Padding and gaps are strictly 4, 8, 12, 16, 20, 24 — Tailwind's `1`–`6`. The
 default density is tight: 12px is the standard padding, and anything looser has
 to earn it. This is a tool for people who keep it open all day; air spent on
 chrome is air taken from output.
 
-Structural dimensions are tokens — `rail`, `panel`, `header`. Anything else that
+Structural dimensions are tokens — `rail` and `header`. Anything else that
 occupies space stays on the same 4px grid. The sole exception is the 1–2px
-hairline: rules, markers, and the progress track live below the grid because they
-draw an edge rather than occupy space.
+hairline: rules and markers live below the grid because they draw an edge rather
+than occupy space.
 
 The terminal owns everything under the top course. No status bar, no footer, no
 chrome below the output — the pane runs to the bottom edge of the window.

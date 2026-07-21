@@ -70,13 +70,9 @@
 
 	--spacing: 4px;
 	--spacing-rail: 244px;
-	--spacing-panel: 380px;
-	--spacing-panel-narrow: 320px;
 	--spacing-header: 40px;
 
 	--radius-full: 9999px;
-
-	--breakpoint-narrow: 1050px;
 
 	--animate-panel-in: panel-in 220ms ease-out;
 

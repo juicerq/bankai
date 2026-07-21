@@ -1,9 +1,21 @@
-import { dialog } from "electron";
+import { type } from "arktype";
+import { dialog, shell } from "electron";
 import { base } from "@main/router/_base";
 import { Projects } from "@main/store/projects";
 
 export const projectsRouter = {
 	list: base.handler(() => Projects.list()),
+	openDirectory: base.input(type({ projectId: "string" })).handler(async ({ input }) => {
+		const project = await Projects.find(input.projectId);
+		const error = await shell.openPath(project.path);
+		if (error) {
+			throw new Error(error);
+		}
+	}),
+	remove: base.input(type({ projectId: "string" })).handler(async ({ input }) => {
+		await Projects.find(input.projectId);
+		await Projects.remove(input.projectId);
+	}),
 	chooseDirectory: base.handler(async () => {
 		const result = await dialog.showOpenDialog({
 			properties: ["openDirectory"],

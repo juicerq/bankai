@@ -5,6 +5,7 @@ import { orpc } from "@renderer/lib/api";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ProjectRail } from "@renderer/routes/-components/project-rail";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
+import { WindowControls } from "@renderer/routes/-components/window-controls";
 
 export const Route = createFileRoute("/")({ component: Bankai });
 
@@ -35,18 +36,31 @@ function Bankai() {
 			},
 		}),
 	);
+	const openDirectory = useMutation(orpc.projects.openDirectory.mutationOptions());
+	const removeProject = useMutation(
+		orpc.projects.remove.mutationOptions({
+			onSuccess: async (_, input) => {
+				setMountedProjectIds((current) => current.filter((id) => id !== input.projectId));
+				setActiveProjectId((current) => current === input.projectId ? null : current);
+				await queryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
+			},
+		}),
+	);
 	const mountedIds = selectedId && !mountedProjectIds.includes(selectedId)
 		? [...mountedProjectIds, selectedId]
 		: mountedProjectIds;
 
 	return (
-		<main className="flex h-full bg-surface">
+		<main className="relative flex h-full bg-surface">
+			<WindowControls />
 			<ProjectRail
 				projects={availableProjects}
 				loading={projects.isPending}
 				selectedId={selectedId}
 				onSelect={handleSelectProject}
 				onAdd={() => addProject.mutate({})}
+				onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
+				onRemove={(projectId) => removeProject.mutate({ projectId })}
 				adding={addProject.isPending}
 				addFailed={addProject.isError}
 			/>

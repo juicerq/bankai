@@ -4,6 +4,7 @@ import type {
 	TerminalEvent,
 	TerminalExitEvent,
 } from "@shared/terminal";
+import type { BankaiWindowApi } from "@shared/window";
 
 window.addEventListener("message", (event) => {
 	if (event.source !== window || event.data !== "start-orpc-client") {
@@ -42,3 +43,11 @@ const terminalApi: BankaiTerminalApi = {
 };
 
 contextBridge.exposeInMainWorld("bankaiTerminal", terminalApi);
+
+const windowApi: BankaiWindowApi = {
+	minimize: () => ipcRenderer.send("window:minimize"),
+	toggleMaximize: () => ipcRenderer.send("window:toggle-maximize"),
+	close: () => ipcRenderer.send("window:close"),
+};
+
+contextBridge.exposeInMainWorld("bankaiWindow", windowApi);

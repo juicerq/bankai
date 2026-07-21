@@ -31,6 +31,9 @@ export const Projects = {
 		}
 		return project;
 	},
+	remove: async (id: string) => {
+		await store.mutate((current) => current.filter((project) => project.id !== id));
+	},
 	add: async (path: string): Promise<Project> => {
 		const normalizedPath = resolve(path);
 		const projects = await store.mutate((current) => {

@@ -28,7 +28,6 @@ export function useTerminalSession(projectId: string) {
 		const fit = new FitAddon();
 		terminal.loadAddon(fit);
 		terminal.open(container);
-		fit.fit();
 
 		let sessionId: string | undefined;
 		let disposed = false;
@@ -52,14 +51,21 @@ export function useTerminalSession(projectId: string) {
 			}
 		});
 		let resizeFrame: number | undefined;
+		let lastCols: number | undefined;
+		let lastRows: number | undefined;
 		const resizeObserver = new ResizeObserver(() => {
 			if (resizeFrame !== undefined) {
 				cancelAnimationFrame(resizeFrame);
 			}
 			resizeFrame = requestAnimationFrame(() => {
 				resizeFrame = undefined;
+				if (container.clientWidth === 0 || container.clientHeight === 0) {
+					return;
+				}
 				fit.fit();
-				if (sessionId) {
+				if (sessionId && (terminal.cols !== lastCols || terminal.rows !== lastRows)) {
+					lastCols = terminal.cols;
+					lastRows = terminal.rows;
 					window.bankaiTerminal.resize(sessionId, terminal.cols, terminal.rows).catch((err) => {
 						if (!disposed) {
 							terminal.write(`\r\n\u001B[31mTerminal resize failed: ${String(err)}\u001B[0m\r\n`);
@@ -70,9 +76,20 @@ export function useTerminalSession(projectId: string) {
 		});
 		resizeObserver.observe(container);
 
-		window.bankaiTerminal
-			.open(projectId, terminal.cols, terminal.rows)
+		document.fonts.ready
+			.then(() => {
+				if (disposed) {
+					return;
+				}
+				fit.fit();
+				lastCols = terminal.cols;
+				lastRows = terminal.rows;
+				return window.bankaiTerminal.open(projectId, terminal.cols, terminal.rows);
+			})
 			.then((openedSessionId) => {
+				if (openedSessionId === undefined) {
+					return;
+				}
 				if (disposed) {
 					window.bankaiTerminal.close(openedSessionId).catch(() => {});
 					return;

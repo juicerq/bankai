@@ -1,4 +1,4 @@
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, ChevronRightIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { keepPreviousData, type UseQueryResult, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import type { FileChange, ReviewMode, ReviewSnapshot } from "@main/git/Git";
@@ -13,7 +13,7 @@ const MODES: { mode: ReviewMode; label: string }[] = [
 const DIFF_MARKERS = { context: " ", add: "+", remove: "−" } as const;
 
 const DIFF_INK = {
-	context: "text-primary",
+	context: "text-primary opacity-60",
 	add: "text-added",
 	remove: "text-removed",
 } as const;
@@ -53,13 +53,13 @@ export function ReviewPanel({
 			className="flex shrink-0 animate-panel-in flex-col bg-surface-raised motion-reduce:animate-none"
 			aria-label="Review"
 		>
-			<div className="flex items-center justify-between gap-2 border-outline border-b px-3 py-2">
-				<div className="flex border border-outline" role="group" aria-label="Diff scope">
-					{MODES.map((option, index) => (
+			<div className="flex h-header shrink-0 items-center justify-between border-outline border-b">
+				<div className="flex h-full" role="group" aria-label="Diff scope">
+					{MODES.map((option) => (
 						<button
 							type="button"
 							key={option.mode}
-							className={`px-2 py-1 text-body ${index > 0 ? "border-outline border-l" : ""} ${
+							className={`flex h-full items-center border-outline border-r px-3 text-body ${
 								mode === option.mode ? "bg-surface-active text-primary" : "text-secondary hover:bg-surface-hover hover:text-primary"
 							}`}
 							aria-pressed={mode === option.mode}
@@ -69,15 +69,7 @@ export function ReviewPanel({
 						</button>
 					))}
 				</div>
-				<div className="flex shrink-0 items-center gap-2">
-					<button
-						type="button"
-						className="-m-1 p-1 text-secondary hover:text-primary"
-						onClick={onClose}
-						aria-label="Close review"
-					>
-						<XMarkIcon className="size-4" />
-					</button>
+				<div className="flex shrink-0 items-center gap-2 px-3">
 					{snapshot.data?.isRepo && (
 						<div
 							className="flex gap-2 text-data"
@@ -87,6 +79,14 @@ export function ReviewPanel({
 							<span className="text-removed">−{snapshot.data.totals.deletions}</span>
 						</div>
 					)}
+					<button
+						type="button"
+						className="-m-1 p-1 text-secondary hover:text-primary"
+						onClick={onClose}
+						aria-label="Close review"
+					>
+						<XMarkIcon className="size-4" />
+					</button>
 				</div>
 			</div>
 
@@ -119,14 +119,26 @@ function ReviewBody({ snapshot }: { snapshot: UseQueryResult<ReviewSnapshot> }) 
 }
 
 function ReviewFile({ file }: { file: FileChange }) {
+	const [open, setOpen] = useState(true);
+
 	return (
 		<section className="border-outline border-b" aria-label={file.path}>
-			<header className="flex items-center justify-between gap-2 px-3 py-2 text-data">
+			<header className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-surface-raised px-3 py-2 text-data">
 				<span className="flex min-w-0 items-center gap-2">
 					<span className="shrink-0 text-secondary">{STATUS_MARK[file.status]}</span>
 					<span className="truncate" title={file.path}>
 						{file.path}
 					</span>
+					<button
+						type="button"
+						className="-m-1 shrink-0 p-1 text-secondary hover:text-primary"
+						aria-expanded={open}
+						aria-label={`${open ? "Close" : "Open"} ${file.path}`}
+						onClick={() => setOpen((current) => !current)}
+					>
+						{open && <ChevronDownIcon className="size-4" />}
+						{!open && <ChevronRightIcon className="size-4" />}
+					</button>
 				</span>
 				{(file.additions > 0 || file.deletions > 0) && (
 					<span className="flex shrink-0 gap-2">
@@ -135,12 +147,12 @@ function ReviewFile({ file }: { file: FileChange }) {
 					</span>
 				)}
 			</header>
-			{file.lines.length > 0 && (
+			{open && file.lines.length > 0 && (
 				<div className="pb-1">
 					{file.lines.map((line, index) => (
-						<div className={`flex text-code ${DIFF_INK[line.kind]}`} key={index}>
-							<span className="w-8 shrink-0 select-none pr-2 text-right text-outline-strong">{line.number}</span>
-							<code className="min-w-0 flex-1 whitespace-pre-wrap break-words">
+						<div className={`flex min-w-full w-max text-code ${DIFF_INK[line.kind]}`} key={index}>
+							<span className="sticky left-0 w-10 shrink-0 select-none border-outline border-r bg-surface-sunken pr-2 text-right text-secondary">{line.number}</span>
+							<code className="whitespace-pre">
 								{DIFF_MARKERS[line.kind]} {line.content}
 							</code>
 						</div>

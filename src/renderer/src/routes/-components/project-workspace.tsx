@@ -5,7 +5,7 @@ import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ReviewPanel } from "@renderer/routes/-components/review-panel";
 import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
 
-const DEFAULT_REVIEW_WIDTH = 380;
+const DEFAULT_REVIEW_WIDTH = 600;
 const MIN_REVIEW_WIDTH = 280;
 const MIN_TERMINAL_WIDTH = 360;
 
@@ -73,7 +73,7 @@ export function ProjectWorkspace({
 			className={active ? "flex h-full min-w-0 flex-col" : "hidden"}
 			aria-label={`${project.name} workspace`}
 		>
-			<header className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised">
+			<header className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised pr-[120px]">
 				<ProjectWorkspaceShellTabs
 					tabs={tabs}
 					activeTabId={activeTabId}
@@ -83,7 +83,7 @@ export function ProjectWorkspace({
 				/>
 				<button
 					type="button"
-					className={`flex size-header shrink-0 items-center justify-center border-outline border-l hover:bg-surface-hover hover:text-primary ${
+					className={`flex size-header shrink-0 items-center justify-center border-outline border-x hover:bg-surface-hover hover:text-primary ${
 						reviewOpen ? "text-tertiary" : "text-secondary"
 					}`}
 					aria-expanded={reviewOpen}
@@ -118,7 +118,7 @@ export function ProjectWorkspace({
 							role="separator"
 							aria-orientation="vertical"
 							aria-label="Resize review panel"
-							className="group flex w-2 shrink-0 cursor-col-resize touch-none justify-center"
+							className="group flex w-2 shrink-0 cursor-col-resize touch-none justify-end"
 							onPointerDown={handleResizeStart}
 							onPointerMove={handleResizeMove}
 							onPointerUp={handleResizeEnd}
@@ -159,8 +159,8 @@ function ProjectWorkspaceShellTabs({
 
 				return (
 					<div
-						className={`flex h-header shrink-0 items-center border-outline border-r border-b-2 ${
-							selected ? "border-b-tertiary bg-surface-active" : "border-b-transparent hover:bg-surface-hover"
+						className={`flex h-header shrink-0 items-center ${
+							selected ? "bg-surface-active" : "hover:bg-surface-hover"
 						}`}
 						key={tab.id}
 					>

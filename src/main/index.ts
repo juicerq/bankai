@@ -3,6 +3,7 @@ import { startOrpcServer } from "@main/ipc";
 import { Logger } from "@main/logger";
 import { type SettingsValue, Settings } from "@main/store/settings";
 import { setupTerminalIpc } from "@main/terminal/ipc";
+import { setupWindowIpc } from "@main/window/ipc";
 import { app, BrowserWindow, screen } from "electron";
 
 const here = import.meta.dirname;
@@ -63,7 +64,7 @@ async function createWindow() {
 		backgroundColor: "#09090b",
 		x: saved?.x,
 		y: saved?.y,
-		frame: true,
+		frame: false,
 		webPreferences: {
 			preload: join(here, "../preload/index.cjs"),
 			sandbox: true,
@@ -71,8 +72,6 @@ async function createWindow() {
 			nodeIntegration: false,
 		},
 	});
-
-	win.setMenuBarVisibility(false);
 
 	if (saved?.maximized) {
 		win.maximize();
@@ -106,6 +105,7 @@ async function start() {
 	try {
 		startOrpcServer();
 		setupTerminalIpc();
+		setupWindowIpc();
 		await createWindow();
 	} catch (err) {
 		Logger.error("startup:failed", { err: String(err) });

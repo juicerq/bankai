@@ -1,16 +1,25 @@
 # Bankai
 
-Bankai is a focused Electron desktop prototype for running project shell sessions and validating a compact review-panel workflow.
+Bankai is a personal Electron desktop app for running project shell sessions alongside a compact, read-only git review panel.
 
-## Prototype scope
+## Features
 
 - Persistent project list stored in Electron's user-data directory
 - Native directory picker for adding projects
-- Multiple real `node-pty` shell tabs per mounted project
+- Multiple real `node-pty` shell tabs per project
 - `xterm.js` terminal rendering, input, resizing, and scrollback
-- Read-only review panel showing the project's real `git diff`
+- Toggleable, resizable review panel showing the project's real `git diff`
 
 The review panel reads the selected project's working tree through `git` and renders the diff in two scopes: **Uncommitted** (working tree against `HEAD`) and **Branch** (the whole branch against its merge-base with the default branch). It polls while visible and never writes to the repository.
+
+## Install
+
+Download the latest `.AppImage` from the [releases page](https://github.com/juicerq/bankai-2/releases), then run it:
+
+```sh
+chmod +x Bankai-*.AppImage
+./Bankai-*.AppImage
+```
 
 ## Development
 
@@ -38,4 +47,4 @@ bun run dist:linux  # x64 AppImage
 bun run dist:win    # x64 NSIS
 ```
 
-Release publishing is configured for `juicerq/bankai`. Code signing and macOS packaging are not configured in this prototype.
+Pushing a `v*` tag triggers the release workflow, which builds the Linux AppImage and Windows NSIS installer and publishes them to a GitHub release on `juicerq/bankai-2`. Code signing and macOS packaging are not configured.

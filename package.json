@@ -3,10 +3,10 @@
 	"version": "0.1.0",
 	"private": true,
 	"description": "Focused Electron workspace for persistent project shell sessions",
-	"homepage": "https://github.com/juicerq/bankai",
+	"homepage": "https://github.com/juicerq/bankai-2",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/juicerq/bankai.git"
+		"url": "https://github.com/juicerq/bankai-2.git"
 	},
 	"author": {
 		"name": "juicerq",

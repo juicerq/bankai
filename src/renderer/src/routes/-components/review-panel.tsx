@@ -137,9 +137,9 @@ function ReviewFile({ file }: { file: FileChange }) {
 						aria-label={`${open ? "Close" : "Open"} ${file.path}`}
 						onClick={() => setOpen((current) => !current)}
 					>
-						<span className="truncate group-hover:underline">
-							<span className="opacity-60">{directoryPath}</span>
-							<span className="text-primary">{fileName}</span>
+						<span className="flex min-w-0 group-hover:underline">
+							<span dir="rtl" className="truncate opacity-60">{`${directoryPath}\u200E`}</span>
+							<span className="shrink-0 text-primary">{fileName}</span>
 						</span>
 						<ChevronIcon className="size-4 shrink-0 text-secondary group-hover:text-primary" />
 					</button>

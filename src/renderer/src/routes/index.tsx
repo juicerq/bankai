@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { orpc } from "@renderer/lib/api";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ProjectRail } from "@renderer/routes/-components/project-rail";
@@ -17,13 +17,32 @@ function Bankai() {
 	const availableProjects = projects.data || [];
 	const selectedId = activeProjectId || availableProjects[0]?.id;
 
-	const handleSelectProject = (projectId: string) => {
+	const handleSelectProject = useCallback((projectId: string) => {
 		setMountedProjectIds((current) => {
 			const retained = selectedId && !current.includes(selectedId) ? [...current, selectedId] : current;
 			return retained.includes(projectId) ? retained : [...retained, projectId];
 		});
 		setActiveProjectId(projectId);
-	};
+	}, [selectedId]);
+
+	const registerProjectShortcuts = useCallback(() => {
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (!event.ctrlKey || event.altKey || event.metaKey || !event.code.startsWith("Digit")) {
+				return;
+			}
+
+			const project = availableProjects[Number(event.code.slice(5)) - 1];
+			if (!project) {
+				return;
+			}
+
+			event.preventDefault();
+			handleSelectProject(project.id);
+		};
+
+		window.addEventListener("keydown", handleKeyDown, true);
+		return () => window.removeEventListener("keydown", handleKeyDown, true);
+	}, [availableProjects, handleSelectProject]);
 
 	const addProject = useMutation(
 		orpc.projects.chooseDirectory.mutationOptions({
@@ -51,7 +70,7 @@ function Bankai() {
 		: mountedProjectIds;
 
 	return (
-		<main className="relative flex h-full bg-surface">
+		<main ref={registerProjectShortcuts} className="relative flex h-full bg-surface">
 			<WindowControls />
 			<ProjectRail
 				projects={availableProjects}

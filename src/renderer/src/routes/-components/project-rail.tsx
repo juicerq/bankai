@@ -145,9 +145,7 @@ function ProjectRailItem({
 						danger
 						onClick={() => {
 							setMenuPosition(undefined);
-							if (window.confirm(`Remove ${project.name} from the project list?`)) {
-								onRemove(project.id);
-							}
+							onRemove(project.id);
 						}}
 					/>
 				</div>

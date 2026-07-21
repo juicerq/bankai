@@ -1,5 +1,5 @@
 import { ViewColumnsIcon } from "@heroicons/react/24/outline";
-import { type PointerEvent as ReactPointerEvent, useRef, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useCallback, useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ReviewPanel } from "@renderer/routes/-components/review-panel";
@@ -29,6 +29,25 @@ export function ProjectWorkspace({
 	const nextShellNumber = useRef(2);
 	const rowRef = useRef<HTMLDivElement>(null);
 	const dragStart = useRef<{ x: number; width: number } | null>(null);
+
+	const registerTabShortcuts = useCallback(() => {
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (!active || !event.altKey || event.ctrlKey || event.metaKey || !event.code.startsWith("Digit")) {
+				return;
+			}
+
+			const tab = tabs[Number(event.code.slice(5)) - 1];
+			if (!tab) {
+				return;
+			}
+
+			event.preventDefault();
+			setActiveTabId(tab.id);
+		};
+
+		window.addEventListener("keydown", handleKeyDown, true);
+		return () => window.removeEventListener("keydown", handleKeyDown, true);
+	}, [active, tabs]);
 
 	const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
 		event.currentTarget.setPointerCapture(event.pointerId);
@@ -70,6 +89,7 @@ export function ProjectWorkspace({
 
 	return (
 		<section
+			ref={registerTabShortcuts}
 			className={active ? "flex h-full min-w-0 flex-col" : "hidden"}
 			aria-label={`${project.name} workspace`}
 		>

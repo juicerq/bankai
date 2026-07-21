@@ -1,0 +1,54 @@
+import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "bun:test";
+import { LOGGER_MAX_SIZE_BYTES, Logger } from "@main/logger";
+import { assertDefined } from "./utils/assertions";
+
+describe("logger", () => {
+	it("appends a JSONL line with ts, severity, message and data", () => {
+		Logger.error("boom", { code: 42 });
+
+		assertDefined(process.env.DATA_DIR);
+		const raw = readFileSync(join(process.env.DATA_DIR, "log.ndjson"), "utf8");
+		const lines = raw.trim().split("\n");
+
+		expect(lines.length).toBe(1);
+		const [first] = lines;
+		assertDefined(first);
+		const event = JSON.parse(first) as {
+			ts: number;
+			severity: string;
+			message: string;
+			data: { code: number };
+		};
+
+		expect(event.severity).toBe("error");
+		expect(event.message).toBe("boom");
+		expect(event.data.code).toBe(42);
+		expect(event.ts).toBeGreaterThan(0);
+	});
+
+	it("omits data when not provided", () => {
+		Logger.info("plain");
+
+		assertDefined(process.env.DATA_DIR);
+		const raw = readFileSync(join(process.env.DATA_DIR, "log.ndjson"), "utf8");
+		const [first] = raw.trim().split("\n");
+		assertDefined(first);
+		const event = JSON.parse(first) as Record<string, unknown>;
+
+		expect(event).not.toHaveProperty("data");
+		expect(event.severity).toBe("info");
+	});
+
+	it("rotates before an append would exceed the size limit", () => {
+		assertDefined(process.env.DATA_DIR);
+		const path = join(process.env.DATA_DIR, "log.ndjson");
+		writeFileSync(path, "x".repeat(LOGGER_MAX_SIZE_BYTES - 4));
+
+		Logger.info("next");
+
+		expect(statSync(path).size).toBeLessThanOrEqual(LOGGER_MAX_SIZE_BYTES);
+		expect(statSync(`${path}.old`).size).toBe(LOGGER_MAX_SIZE_BYTES - 4);
+	});
+});

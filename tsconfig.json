@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"paths": {
+			"@main/*": ["./src/main/*"],
+			"@shared/*": ["./src/shared/*"]
+		}
+	},
+	"files": [],
+	"references": [
+		{ "path": "./tsconfig.node.json" },
+		{ "path": "./tsconfig.preload.json" },
+		{ "path": "./tsconfig.web.json" }
+	]
+}

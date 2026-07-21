@@ -118,7 +118,7 @@ export function ProjectWorkspace({
 							role="separator"
 							aria-orientation="vertical"
 							aria-label="Resize review panel"
-							className="group flex w-px shrink-0 cursor-col-resize touch-none"
+							className="group -mx-1 flex w-2 shrink-0 cursor-col-resize touch-none items-stretch justify-center"
 							{...separatorProps}
 						>
 							<span className={`w-px ${resizing ? "bg-primary" : "bg-outline group-hover:bg-outline-strong"}`} />

@@ -30,7 +30,7 @@ export function ProjectRail({
 				<span>BANKAI</span>
 			</h1>
 			<div className="flex items-center justify-between border-outline border-b px-3 py-2 text-label text-secondary">
-				<span>Projects</span>
+				<span>PROJECTS</span>
 				<button
 					type="button"
 					className="text-secondary hover:text-primary disabled:opacity-50"

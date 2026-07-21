@@ -31,11 +31,13 @@ export function ReviewPanel({
 	project,
 	active,
 	diffWidth,
+	minDiffWidth,
 	onClose,
 }: {
 	project: Project;
 	active: boolean;
 	diffWidth: number;
+	minDiffWidth: number;
 	onClose: () => void;
 }) {
 	const [mode, setMode] = useState<ReviewMode>("uncommitted");
@@ -78,7 +80,7 @@ export function ReviewPanel({
 
 	return (
 		<aside
-			className="flex shrink-0 animate-panel-in bg-surface-raised motion-reduce:animate-none"
+			className="flex animate-panel-in bg-surface-raised motion-reduce:animate-none"
 			aria-label="Review"
 		>
 			{treeOpen && (
@@ -94,7 +96,7 @@ export function ReviewPanel({
 				/>
 			)}
 
-			<div style={{ width: diffWidth }} className="flex shrink-0 flex-col">
+			<div style={{ width: diffWidth, minWidth: minDiffWidth }} className="flex flex-col">
 				<div className="flex h-header shrink-0 items-center justify-between border-outline border-b">
 					<div className="flex h-full min-w-0 overflow-hidden">
 						<button

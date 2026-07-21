@@ -96,7 +96,10 @@ export function ProjectWorkspace({
 			</header>
 
 			<div ref={rowRef} className={`flex min-h-0 flex-1 ${resizing ? "cursor-col-resize select-none" : ""}`}>
-				<div className="flex min-h-0 min-w-0 flex-1 flex-col bg-surface-sunken">
+				<div
+					style={{ minWidth: MIN_TERMINAL_WIDTH }}
+					className="flex min-h-0 flex-1 flex-col bg-surface-sunken"
+				>
 					{tabs.length === 0 && (
 						<EmptyState
 							mark="›_"
@@ -129,6 +132,7 @@ export function ProjectWorkspace({
 							project={project}
 							active={active}
 							diffWidth={diffWidth}
+							minDiffWidth={MIN_DIFF_WIDTH}
 							onClose={() => setReviewOpen(false)}
 						/>
 					</>

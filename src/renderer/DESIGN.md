@@ -56,9 +56,9 @@ typography:
     lineHeight: 1.55
   code:
     fontFamily: Maple Mono NF
-    fontSize: 11px
+    fontSize: 13px
     fontWeight: 400
-    lineHeight: 1.7
+    lineHeight: 1.5
   label:
     fontFamily: Maple Mono NF
     fontSize: 10px
@@ -201,8 +201,9 @@ grid whether it is output or label.
   appear once per region at most.
 - **Body** carries names and reading text. **Support** carries prose that runs
   more than a line, at a looser line height.
-- **Code** is the diff, at the loosest line height in the system, because dense
-  code needs the vertical air the surrounding chrome does not.
+- **Code** is the diff, a step larger than the chrome around it and on the
+  tallest line box in the reading stack, because dense code needs the vertical
+  air the surrounding chrome does not.
 - **Label** is the region marker — always uppercase, always letterspaced. It
   names a panel; it never carries content.
 - **Data** is the machine's voice: paths, timestamps, counters, status.

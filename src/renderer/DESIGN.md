@@ -13,8 +13,8 @@ colors:
   surface-active: "#202020"
   outline: "#292929"
   outline-strong: "#444444"
-  added: "#a6bca8"
-  removed: "#c09a9a"
+  added: "#7ee787"
+  removed: "#ff7b72"
   terminal-black: "#232322"
   terminal-blue: "#6f86a8"
   terminal-magenta: "#ab85ad"
@@ -168,9 +168,11 @@ amber accent borrowed from amber-phosphor CRTs.
   `surface-hover` and `surface-active` are interaction states, never regions.
 - **Outlines (#292929, #444444):** Machined edges. `outline` divides regions;
   `outline-strong` marks a control that accepts a click.
-- **Added / Removed (#a6bca8, #c09a9a):** Desaturated green and red. These are
-  not diff colors *resembling* the terminal's — they are the same two tokens the
-  terminal renders for ANSI green and red.
+- **Added / Removed (#7ee787, #ff7b72):** The only brightness in the enclosure
+  that is not amber. A diff has to be scannable at a glance against near-black,
+  so these two run hot — and they are not diff colors *resembling* the
+  terminal's, they are the same two tokens the terminal renders for ANSI green
+  and red.
 
 ### The terminal obeys the same system
 
@@ -180,10 +182,10 @@ outright: ANSI green is `added`, ANSI red is `removed`, ANSI yellow is
 `tertiary`. A `git diff` rendered by the shell and a diff rendered by the review
 panel are the same colors by construction, not by coincidence.
 
-The remaining hues are pulled down to the chroma of `added` and `removed` so
-nothing in the enclosure is more saturated than anything else. Because six
-near-neutral hues would be six indistinguishable grays, **lightness carries the
-separation**: blue sits darkest, cyan above it, white above that. Hue is the
+The remaining hues stay near-neutral so nothing competes with the three that
+carry meaning. Because six near-neutral hues would be six indistinguishable
+grays, **lightness carries the separation**: blue sits darkest, cyan above it,
+white above that. Hue is the
 secondary channel, which keeps the output legible without relying on color
 vision.
 

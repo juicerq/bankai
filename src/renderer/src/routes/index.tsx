@@ -34,12 +34,14 @@ function Bankai() {
 				return;
 			}
 
+			event.preventDefault();
+			event.stopPropagation();
+
 			const project = availableProjects[Number(event.code.slice(5)) - 1];
 			if (!project) {
 				return;
 			}
 
-			event.preventDefault();
 			selectProject(project.id);
 		};
 

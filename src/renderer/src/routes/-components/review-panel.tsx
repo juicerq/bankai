@@ -120,6 +120,7 @@ function ReviewBody({ snapshot }: { snapshot: UseQueryResult<ReviewSnapshot> }) 
 
 function ReviewFile({ file }: { file: FileChange }) {
 	const [open, setOpen] = useState(true);
+	const ChevronIcon = open ? ChevronDownIcon : ChevronRightIcon;
 	const fileNameStart = file.path.lastIndexOf("/") + 1;
 	const directoryPath = file.path.slice(0, fileNameStart);
 	const fileName = file.path.slice(fileNameStart);
@@ -140,8 +141,7 @@ function ReviewFile({ file }: { file: FileChange }) {
 							<span className="opacity-60">{directoryPath}</span>
 							<span className="text-primary">{fileName}</span>
 						</span>
-						{open && <ChevronDownIcon className="size-4 shrink-0 text-secondary group-hover:text-primary" />}
-						{!open && <ChevronRightIcon className="size-4 shrink-0 text-secondary group-hover:text-primary" />}
+						<ChevronIcon className="size-4 shrink-0 text-secondary group-hover:text-primary" />
 					</button>
 				</span>
 				{(file.additions > 0 || file.deletions > 0) && (

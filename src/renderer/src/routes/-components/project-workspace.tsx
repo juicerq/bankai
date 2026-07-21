@@ -1,9 +1,10 @@
 import { ViewColumnsIcon } from "@heroicons/react/24/outline";
-import { type PointerEvent as ReactPointerEvent, useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ReviewPanel } from "@renderer/routes/-components/review-panel";
 import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
+import { usePanelResize } from "@renderer/routes/-utils/use-panel-resize";
 
 const DEFAULT_REVIEW_WIDTH = 600;
 const MIN_REVIEW_WIDTH = 280;
@@ -24,11 +25,12 @@ export function ProjectWorkspace({
 	const [tabs, setTabs] = useState<ShellTab[]>(() => [newShellTab(1)]);
 	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
 	const [reviewOpen, setReviewOpen] = useState(true);
-	const [reviewWidth, setReviewWidth] = useState(DEFAULT_REVIEW_WIDTH);
-	const [resizing, setResizing] = useState(false);
 	const nextShellNumber = useRef(2);
-	const rowRef = useRef<HTMLDivElement>(null);
-	const dragStart = useRef<{ x: number; width: number } | null>(null);
+	const { width: reviewWidth, resizing, rowRef, separatorProps } = usePanelResize({
+		initialWidth: DEFAULT_REVIEW_WIDTH,
+		minWidth: MIN_REVIEW_WIDTH,
+		minRemaining: MIN_TERMINAL_WIDTH,
+	});
 
 	const registerTabShortcuts = useCallback(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
@@ -48,28 +50,6 @@ export function ProjectWorkspace({
 		window.addEventListener("keydown", handleKeyDown, true);
 		return () => window.removeEventListener("keydown", handleKeyDown, true);
 	}, [active, tabs]);
-
-	const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
-		event.currentTarget.setPointerCapture(event.pointerId);
-		dragStart.current = { x: event.clientX, width: reviewWidth };
-		setResizing(true);
-	};
-
-	const handleResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-		const start = dragStart.current;
-		if (!start) {
-			return;
-		}
-		const rowWidth = rowRef.current?.clientWidth ?? Number.POSITIVE_INFINITY;
-		const max = Math.max(MIN_REVIEW_WIDTH, rowWidth - MIN_TERMINAL_WIDTH);
-		const next = start.width + (start.x - event.clientX);
-		setReviewWidth(Math.min(Math.max(next, MIN_REVIEW_WIDTH), max));
-	};
-
-	const handleResizeEnd = () => {
-		dragStart.current = null;
-		setResizing(false);
-	};
 
 	const handleNewShell = () => {
 		const tab = newShellTab(nextShellNumber.current);
@@ -139,10 +119,7 @@ export function ProjectWorkspace({
 							aria-orientation="vertical"
 							aria-label="Resize review panel"
 							className="group flex w-px shrink-0 cursor-col-resize touch-none"
-							onPointerDown={handleResizeStart}
-							onPointerMove={handleResizeMove}
-							onPointerUp={handleResizeEnd}
-							onPointerCancel={handleResizeEnd}
+							{...separatorProps}
 						>
 							<span className={`w-px ${resizing ? "bg-primary" : "bg-outline group-hover:bg-outline-strong"}`} />
 						</div>

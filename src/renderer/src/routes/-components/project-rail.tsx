@@ -1,6 +1,7 @@
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { useEffect, useState } from "react";
 import type { Project } from "@main/store/projects";
+import { type DragReorder, useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
 
 export function ProjectRail({
 	projects,
@@ -10,6 +11,7 @@ export function ProjectRail({
 	onAdd,
 	onOpenDirectory,
 	onRemove,
+	onMove,
 	adding,
 	addFailed,
 }: {
@@ -20,9 +22,15 @@ export function ProjectRail({
 	onAdd: () => void;
 	onOpenDirectory: (projectId: string) => void;
 	onRemove: (projectId: string) => void;
+	onMove: (data: { projectId: string; toIndex: number }) => void;
 	adding: boolean;
 	addFailed: boolean;
 }) {
+	const drag = useDragReorder(
+		projects.map((project) => project.id),
+		(data) => onMove({ projectId: data.id, toIndex: data.toIndex }),
+	);
+
 	return (
 		<aside className="flex min-h-0 w-rail shrink-0 flex-col border-r border-outline bg-surface-raised">
 			<h1 className="m-0 flex h-header shrink-0 items-center gap-2 border-b border-outline px-3 text-label">
@@ -56,6 +64,7 @@ export function ProjectRail({
 						key={project.id}
 						project={project}
 						selected={selectedId === project.id}
+						drag={drag}
 						onSelect={onSelect}
 						onOpenDirectory={onOpenDirectory}
 						onRemove={onRemove}
@@ -69,17 +78,20 @@ export function ProjectRail({
 function ProjectRailItem({
 	project,
 	selected,
+	drag,
 	onSelect,
 	onOpenDirectory,
 	onRemove,
 }: {
 	project: Project;
 	selected: boolean;
+	drag: DragReorder;
 	onSelect: (projectId: string) => void;
 	onOpenDirectory: (projectId: string) => void;
 	onRemove: (projectId: string) => void;
 }) {
 	const [menuPosition, setMenuPosition] = useState<{ x: number; y: number }>();
+	const dropEdge = drag.dropEdge(project.id);
 
 	useEffect(() => {
 		if (!menuPosition) {
@@ -109,15 +121,21 @@ function ProjectRailItem({
 				type="button"
 				aria-current={selected ? "page" : undefined}
 				aria-pressed={selected}
-				className={`flex w-full items-center gap-3 px-3 py-[9px] text-left hover:bg-surface-hover ${
+				className={`relative flex w-full items-center gap-3 px-3 py-[9px] text-left hover:bg-surface-hover ${
 					selected ? "bg-surface-active" : ""
 				}`}
+				{...drag.itemProps(project.id)}
 				onClick={() => onSelect(project.id)}
 				onContextMenu={(event) => {
 					event.preventDefault();
 					setMenuPosition({ x: event.clientX, y: event.clientY });
 				}}
 			>
+				{dropEdge && (
+					<span
+						className={`absolute inset-x-0 h-0.5 bg-tertiary ${dropEdge === "before" ? "top-0" : "bottom-0"}`}
+					/>
+				)}
 				<span className="min-w-0">
 					<span className="block truncate text-body text-primary">{project.name}</span>
 					<span className="block truncate text-data text-secondary">{project.path}</span>

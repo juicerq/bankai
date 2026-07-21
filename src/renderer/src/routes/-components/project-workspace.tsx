@@ -4,6 +4,7 @@ import type { Project } from "@main/store/projects";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ReviewPanel } from "@renderer/routes/-components/review-panel";
 import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
+import { useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
 import { usePanelResize } from "@renderer/routes/-utils/use-panel-resize";
 
 const DEFAULT_DIFF_WIDTH = 600;
@@ -60,6 +61,15 @@ export function ProjectWorkspace({
 		setActiveTabId(tab.id);
 	};
 
+	const handleMoveShell = (data: { tabId: string; toIndex: number }) => {
+		setTabs((current) => {
+			const others = current.filter((tab) => tab.id !== data.tabId);
+			const moved = current.filter((tab) => tab.id === data.tabId);
+
+			return [...others.slice(0, data.toIndex), ...moved, ...others.slice(data.toIndex)];
+		});
+	};
+
 	const handleCloseShell = (tabId: string) => {
 		const tabIndex = tabs.findIndex((tab) => tab.id === tabId);
 		const remaining = tabs.filter((tab) => tab.id !== tabId);
@@ -81,6 +91,7 @@ export function ProjectWorkspace({
 					activeTabId={activeTabId}
 					onSelect={setActiveTabId}
 					onClose={handleCloseShell}
+					onMove={handleMoveShell}
 					onNew={handleNewShell}
 				/>
 				<button
@@ -149,26 +160,40 @@ function ProjectWorkspaceShellTabs({
 	activeTabId,
 	onSelect,
 	onClose,
+	onMove,
 	onNew,
 }: {
 	tabs: ShellTab[];
 	activeTabId: string | undefined;
 	onSelect: (tabId: string) => void;
 	onClose: (tabId: string) => void;
+	onMove: (data: { tabId: string; toIndex: number }) => void;
 	onNew: () => void;
 }) {
+	const drag = useDragReorder(
+		tabs.map((tab) => tab.id),
+		(data) => onMove({ tabId: data.id, toIndex: data.toIndex }),
+	);
+
 	return (
 		<div className="flex min-w-0 flex-1 items-center overflow-hidden" aria-label="Shells">
 			{tabs.map((tab) => {
 				const selected = tab.id === activeTabId;
+				const dropEdge = drag.dropEdge(tab.id);
 
 				return (
 					<div
-						className={`flex h-header shrink-0 items-center ${
+						className={`relative flex h-header shrink-0 items-center ${
 							selected ? "bg-surface-active" : "hover:bg-surface-hover"
 						}`}
 						key={tab.id}
+						{...drag.itemProps(tab.id)}
 					>
+						{dropEdge && (
+							<span
+								className={`absolute inset-y-0 w-0.5 bg-tertiary ${dropEdge === "before" ? "left-0" : "right-0"}`}
+							/>
+						)}
 						<button
 							type="button"
 							className={`flex h-full items-center gap-2 pr-1 pl-3 text-body ${

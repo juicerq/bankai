@@ -97,6 +97,13 @@ function Bankai() {
 		}),
 	);
 	const openDirectory = useMutation(orpc.projects.openDirectory.mutationOptions());
+	const moveProject = useMutation(
+		orpc.projects.move.mutationOptions({
+			onSuccess: async () => {
+				await queryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
+			},
+		}),
+	);
 	const removeProject = useMutation(
 		orpc.projects.remove.mutationOptions({
 			onSuccess: async (_, input) => {
@@ -119,6 +126,7 @@ function Bankai() {
 					onAdd={() => addProject.mutate({})}
 					onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
 					onRemove={(projectId) => removeProject.mutate({ projectId })}
+					onMove={moveProject.mutate}
 					adding={addProject.isPending}
 					addFailed={addProject.isError}
 				/>

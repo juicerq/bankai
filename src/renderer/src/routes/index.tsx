@@ -14,6 +14,7 @@ function Bankai() {
 	const projects = useQuery(orpc.projects.list.queryOptions());
 	const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 	const [mountedProjectIds, setMountedProjectIds] = useState<string[]>([]);
+	const [fullscreen, setFullscreen] = useState(false);
 	const availableProjects = projects.data || [];
 	const selectedId = activeProjectId || availableProjects[0]?.id;
 	const mountedIds = selectedId && !mountedProjectIds.includes(selectedId)
@@ -28,9 +29,20 @@ function Bankai() {
 		setActiveProjectId(projectId);
 	}, [selectedId]);
 
-	const registerProjectShortcuts = useCallback(() => {
+	const registerShortcuts = useCallback(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (!event.ctrlKey || event.altKey || event.metaKey || !event.code.startsWith("Digit")) {
+			if (!event.ctrlKey || event.altKey || event.metaKey) {
+				return;
+			}
+
+			if (event.code === "KeyF") {
+				event.preventDefault();
+				event.stopPropagation();
+				setFullscreen((current) => !current);
+				return;
+			}
+
+			if (!event.code.startsWith("Digit")) {
 				return;
 			}
 
@@ -40,6 +52,7 @@ function Bankai() {
 			}
 
 			event.preventDefault();
+			event.stopPropagation();
 			selectProject(project.id);
 		};
 
@@ -70,19 +83,21 @@ function Bankai() {
 	);
 
 	return (
-		<main ref={registerProjectShortcuts} className="relative flex h-full bg-surface">
+		<main ref={registerShortcuts} className="relative flex h-full bg-surface">
 			<WindowControls />
-			<ProjectRail
-				projects={availableProjects}
-				loading={projects.isPending}
-				selectedId={selectedId}
-				onSelect={selectProject}
-				onAdd={() => addProject.mutate({})}
-				onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
-				onRemove={(projectId) => removeProject.mutate({ projectId })}
-				adding={addProject.isPending}
-				addFailed={addProject.isError}
-			/>
+			{!fullscreen && (
+				<ProjectRail
+					projects={availableProjects}
+					loading={projects.isPending}
+					selectedId={selectedId}
+					onSelect={selectProject}
+					onAdd={() => addProject.mutate({})}
+					onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
+					onRemove={(projectId) => removeProject.mutate({ projectId })}
+					adding={addProject.isPending}
+					addFailed={addProject.isError}
+				/>
+			)}
 			<section className="flex min-h-0 min-w-0 flex-1 flex-col">
 				{projects.isError && (
 					<EmptyState

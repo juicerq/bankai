@@ -94,7 +94,7 @@ async function createWindow() {
 	win.on("maximize", saveBounds);
 	win.on("unmaximize", saveBounds);
 
-	if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
+	if (process.env.ELECTRON_RENDERER_URL) {
 		await win.loadURL(process.env.ELECTRON_RENDERER_URL);
 		win.webContents.openDevTools({ mode: "detach" });
 	} else {

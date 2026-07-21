@@ -1,3 +1,4 @@
+import { PlusIcon } from "@heroicons/react/24/outline";
 import { useEffect, useState } from "react";
 import type { Project } from "@main/store/projects";
 
@@ -28,7 +29,26 @@ export function ProjectRail({
 				<span className="text-tertiary text-title leading-none">卍</span>
 				<span>BANKAI</span>
 			</h1>
-			<div className="border-outline border-b px-3 py-2 text-label text-secondary">Projects</div>
+			<div className="flex items-center justify-between border-outline border-b px-3 py-2 text-label text-secondary">
+				<span>Projects</span>
+				<button
+					type="button"
+					className="text-secondary hover:text-primary disabled:opacity-50"
+					disabled={adding}
+					onClick={onAdd}
+					aria-label={adding ? "Opening project picker" : "Add project"}
+				>
+					<PlusIcon className="size-4" aria-hidden="true" />
+				</button>
+			</div>
+			{addFailed && (
+				<div className="px-3 py-2 text-data text-removed">
+					Picker failed.{" "}
+					<button type="button" className="text-primary underline" onClick={onAdd}>
+						Retry
+					</button>
+				</div>
+			)}
 			<nav className="min-h-0 flex-1 overflow-auto" aria-label="Projects">
 				{loading && <div className="p-3 text-data text-secondary">Loading workspace...</div>}
 				{projects.map((project) => (
@@ -42,27 +62,6 @@ export function ProjectRail({
 					/>
 				))}
 			</nav>
-			<button
-				type="button"
-				className="mx-3 my-2 border border-outline-strong border-dashed p-2 text-left text-secondary text-support hover:border-primary hover:text-primary"
-				disabled={adding}
-				onClick={onAdd}
-			>
-				<span className="mr-2">+</span>
-				{adding && "Opening..."}
-				{!adding && "Add project"}
-			</button>
-			{addFailed && (
-				<div className="px-3 pb-2 text-data text-removed">
-					Picker failed.{" "}
-					<button type="button" className="text-primary underline" onClick={onAdd}>
-						Retry
-					</button>
-				</div>
-			)}
-			<footer className="mt-auto flex shrink-0 items-center gap-2 border-outline border-t px-3 py-3 text-data text-secondary">
-				<span className="size-2 shrink-0 rounded-full bg-tertiary" /> Local sessions
-			</footer>
 		</aside>
 	);
 }

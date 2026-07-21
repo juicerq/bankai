@@ -118,7 +118,7 @@ export function ProjectWorkspace({
 							role="separator"
 							aria-orientation="vertical"
 							aria-label="Resize review panel"
-							className="group flex w-2 shrink-0 cursor-col-resize touch-none justify-end"
+							className="group flex w-px shrink-0 cursor-col-resize touch-none"
 							onPointerDown={handleResizeStart}
 							onPointerMove={handleResizeMove}
 							onPointerUp={handleResizeEnd}

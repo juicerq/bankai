@@ -120,24 +120,28 @@ function ReviewBody({ snapshot }: { snapshot: UseQueryResult<ReviewSnapshot> }) 
 
 function ReviewFile({ file }: { file: FileChange }) {
 	const [open, setOpen] = useState(true);
+	const fileNameStart = file.path.lastIndexOf("/") + 1;
+	const directoryPath = file.path.slice(0, fileNameStart);
+	const fileName = file.path.slice(fileNameStart);
 
 	return (
 		<section className="border-outline border-b" aria-label={file.path}>
 			<header className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-surface-raised px-3 py-2 text-data">
 				<span className="flex min-w-0 items-center gap-2">
 					<span className="shrink-0 text-secondary">{STATUS_MARK[file.status]}</span>
-					<span className="truncate" title={file.path}>
-						{file.path}
-					</span>
 					<button
 						type="button"
-						className="-m-1 shrink-0 p-1 text-secondary hover:text-primary"
+						className="group -m-1 flex min-w-0 items-center gap-2 p-1 text-left text-body"
 						aria-expanded={open}
 						aria-label={`${open ? "Close" : "Open"} ${file.path}`}
 						onClick={() => setOpen((current) => !current)}
 					>
-						{open && <ChevronDownIcon className="size-4" />}
-						{!open && <ChevronRightIcon className="size-4" />}
+						<span className="truncate group-hover:underline">
+							<span className="opacity-60">{directoryPath}</span>
+							<span className="text-primary">{fileName}</span>
+						</span>
+						{open && <ChevronDownIcon className="size-4 shrink-0 text-secondary group-hover:text-primary" />}
+						{!open && <ChevronRightIcon className="size-4 shrink-0 text-secondary group-hover:text-primary" />}
 					</button>
 				</span>
 				{(file.additions > 0 || file.deletions > 0) && (

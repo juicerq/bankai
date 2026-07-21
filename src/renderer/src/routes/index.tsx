@@ -16,11 +16,14 @@ function Bankai() {
 	const [mountedProjectIds, setMountedProjectIds] = useState<string[]>([]);
 	const availableProjects = projects.data || [];
 	const selectedId = activeProjectId || availableProjects[0]?.id;
+	const mountedIds = selectedId && !mountedProjectIds.includes(selectedId)
+		? [...mountedProjectIds, selectedId]
+		: mountedProjectIds;
 
-	const handleSelectProject = useCallback((projectId: string) => {
+	const selectProject = useCallback((projectId: string) => {
 		setMountedProjectIds((current) => {
-			const retained = selectedId && !current.includes(selectedId) ? [...current, selectedId] : current;
-			return retained.includes(projectId) ? retained : [...retained, projectId];
+			const withOutgoing = selectedId && !current.includes(selectedId) ? [...current, selectedId] : current;
+			return withOutgoing.includes(projectId) ? withOutgoing : [...withOutgoing, projectId];
 		});
 		setActiveProjectId(projectId);
 	}, [selectedId]);
@@ -37,12 +40,12 @@ function Bankai() {
 			}
 
 			event.preventDefault();
-			handleSelectProject(project.id);
+			selectProject(project.id);
 		};
 
 		window.addEventListener("keydown", handleKeyDown, true);
 		return () => window.removeEventListener("keydown", handleKeyDown, true);
-	}, [availableProjects, handleSelectProject]);
+	}, [availableProjects, selectProject]);
 
 	const addProject = useMutation(
 		orpc.projects.chooseDirectory.mutationOptions({
@@ -50,7 +53,7 @@ function Bankai() {
 				if (!project) {
 					return;
 				}
-				handleSelectProject(project.id);
+				selectProject(project.id);
 				await queryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
 			},
 		}),
@@ -65,9 +68,6 @@ function Bankai() {
 			},
 		}),
 	);
-	const mountedIds = selectedId && !mountedProjectIds.includes(selectedId)
-		? [...mountedProjectIds, selectedId]
-		: mountedProjectIds;
 
 	return (
 		<main ref={registerProjectShortcuts} className="relative flex h-full bg-surface">
@@ -76,7 +76,7 @@ function Bankai() {
 				projects={availableProjects}
 				loading={projects.isPending}
 				selectedId={selectedId}
-				onSelect={handleSelectProject}
+				onSelect={selectProject}
 				onAdd={() => addProject.mutate({})}
 				onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
 				onRemove={(projectId) => removeProject.mutate({ projectId })}

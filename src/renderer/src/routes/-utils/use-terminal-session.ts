@@ -33,6 +33,11 @@ export function useTerminalSession(projectId: string, active: boolean) {
 
 		let sessionId: string | undefined;
 		let disposed = false;
+		const fail = (message: string, err: unknown) => {
+			if (!disposed) {
+				terminal.write(`\r\n\u001B[31m${message}: ${String(err)}\u001B[0m\r\n`);
+			}
+		};
 		const removeDataListener = window.bankaiTerminal.onData((event) => {
 			if (event.sessionId === sessionId) {
 				terminal.write(event.data);
@@ -45,11 +50,7 @@ export function useTerminalSession(projectId: string, active: boolean) {
 		});
 		const input = terminal.onData((data) => {
 			if (sessionId) {
-				window.bankaiTerminal.write(sessionId, data).catch((err) => {
-					if (!disposed) {
-						terminal.write(`\r\n\u001B[31mTerminal input failed: ${String(err)}\u001B[0m\r\n`);
-					}
-				});
+				window.bankaiTerminal.write(sessionId, data).catch((err) => fail("Terminal input failed", err));
 			}
 		});
 		let resizeFrame: number | undefined;
@@ -68,11 +69,7 @@ export function useTerminalSession(projectId: string, active: boolean) {
 				if (sessionId && (terminal.cols !== lastCols || terminal.rows !== lastRows)) {
 					lastCols = terminal.cols;
 					lastRows = terminal.rows;
-					window.bankaiTerminal.resize(sessionId, terminal.cols, terminal.rows).catch((err) => {
-						if (!disposed) {
-							terminal.write(`\r\n\u001B[31mTerminal resize failed: ${String(err)}\u001B[0m\r\n`);
-						}
-					});
+					window.bankaiTerminal.resize(sessionId, terminal.cols, terminal.rows).catch((err) => fail("Terminal resize failed", err));
 				}
 			});
 		});
@@ -99,11 +96,7 @@ export function useTerminalSession(projectId: string, active: boolean) {
 				sessionId = openedSessionId;
 				terminal.focus();
 			})
-			.catch((err) => {
-				if (!disposed) {
-					terminal.write(`\r\n\u001B[31mFailed to open shell: ${String(err)}\u001B[0m\r\n`);
-				}
-			});
+			.catch((err) => fail("Failed to open shell", err));
 
 		return () => {
 			disposed = true;

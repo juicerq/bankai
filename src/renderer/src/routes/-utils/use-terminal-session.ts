@@ -15,8 +15,9 @@ const TERMINAL_OPTIONS = {
 	scrollback: 10_000,
 } satisfies ITerminalOptions;
 
-export function useTerminalSession(projectId: string) {
+export function useTerminalSession(projectId: string, active: boolean) {
 	const containerRef = useRef<HTMLDivElement>(null);
+	const terminalRef = useRef<Terminal | null>(null);
 
 	useEffect(() => {
 		const container = containerRef.current;
@@ -25,6 +26,7 @@ export function useTerminalSession(projectId: string) {
 		}
 
 		const terminal = new Terminal({ ...TERMINAL_OPTIONS, ...readTerminalStyle() });
+		terminalRef.current = terminal;
 		const fit = new FitAddon();
 		terminal.loadAddon(fit);
 		terminal.open(container);
@@ -115,9 +117,16 @@ export function useTerminalSession(projectId: string) {
 			if (sessionId) {
 				window.bankaiTerminal.close(sessionId).catch(() => {});
 			}
+			terminalRef.current = null;
 			terminal.dispose();
 		};
 	}, [projectId]);
+
+	useEffect(() => {
+		if (active) {
+			terminalRef.current?.focus();
+		}
+	}, [active]);
 
 	return containerRef;
 }

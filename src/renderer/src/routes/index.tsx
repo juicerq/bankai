@@ -7,6 +7,8 @@ import { ProjectRail } from "@renderer/routes/-components/project-rail";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
 import { WindowControls } from "@renderer/routes/-components/window-controls";
 
+const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
+
 export const Route = createFileRoute("/")({ component: Bankai });
 
 function Bankai() {
@@ -30,29 +32,53 @@ function Bankai() {
 	}, [selectedId]);
 
 	const registerShortcuts = useCallback(() => {
-		const handleKeyDown = (event: KeyboardEvent) => {
+		let leaderArmed = false;
+
+		const shortcutAction = (event: KeyboardEvent) => {
+			if (leaderArmed) {
+				leaderArmed = false;
+				if (event.code !== "KeyF") {
+					return;
+				}
+
+				return () => setFullscreen((current) => !current);
+			}
+
 			if (!event.ctrlKey || event.altKey || event.metaKey) {
 				return;
 			}
 
-			if (event.code !== "KeyF" && !event.code.startsWith("Digit")) {
+			if (event.code === "KeyX") {
+				return () => {
+					leaderArmed = true;
+				};
+			}
+
+			if (!event.code.startsWith("Digit")) {
+				return;
+			}
+
+			const project = availableProjects[Number(event.code.slice(5)) - 1];
+			return () => {
+				if (project) {
+					selectProject(project.id);
+				}
+			};
+		};
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (MODIFIER_KEYS.has(event.key)) {
+				return;
+			}
+
+			const action = shortcutAction(event);
+			if (!action) {
 				return;
 			}
 
 			event.preventDefault();
 			event.stopPropagation();
-
-			if (event.code === "KeyF") {
-				setFullscreen((current) => !current);
-				return;
-			}
-
-			const project = availableProjects[Number(event.code.slice(5)) - 1];
-			if (!project) {
-				return;
-			}
-
-			selectProject(project.id);
+			action();
 		};
 
 		window.addEventListener("keydown", handleKeyDown, true);

@@ -108,7 +108,7 @@ export function ProjectWorkspace({
 					)}
 					{tabs.map((tab) => (
 						<div className={tab.id === activeTabId ? "min-h-0 flex-1" : "hidden"} key={tab.id}>
-							<TerminalPane projectId={project.id} active={active && tab.id === activeTabId} />
+							<TerminalPane projectId={project.id} active={active && tab.id === activeTabId} resizing={resizing} />
 						</div>
 					))}
 				</div>

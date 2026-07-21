@@ -15,9 +15,11 @@ const TERMINAL_OPTIONS = {
 	scrollback: 10_000,
 } satisfies ITerminalOptions;
 
-export function useTerminalSession(projectId: string, active: boolean) {
+export function useTerminalSession(projectId: string, active: boolean, resizing: boolean) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const terminalRef = useRef<Terminal | null>(null);
+	const resizingRef = useRef(false);
+	const settleRef = useRef<(() => void) | null>(null);
 
 	useEffect(() => {
 		const container = containerRef.current;
@@ -53,25 +55,24 @@ export function useTerminalSession(projectId: string, active: boolean) {
 				window.bankaiTerminal.write(sessionId, data).catch((err) => fail("Terminal input failed", err));
 			}
 		});
-		let resizeFrame: number | undefined;
+		let settleTimer: ReturnType<typeof setTimeout> | undefined;
 		let lastCols: number | undefined;
 		let lastRows: number | undefined;
-		const resizeObserver = new ResizeObserver(() => {
-			if (resizeFrame !== undefined) {
-				cancelAnimationFrame(resizeFrame);
+		const settle = () => {
+			if (resizingRef.current || container.clientWidth === 0 || container.clientHeight === 0) {
+				return;
 			}
-			resizeFrame = requestAnimationFrame(() => {
-				resizeFrame = undefined;
-				if (container.clientWidth === 0 || container.clientHeight === 0) {
-					return;
-				}
-				fit.fit();
-				if (sessionId && (terminal.cols !== lastCols || terminal.rows !== lastRows)) {
-					lastCols = terminal.cols;
-					lastRows = terminal.rows;
-					window.bankaiTerminal.resize(sessionId, terminal.cols, terminal.rows).catch((err) => fail("Terminal resize failed", err));
-				}
-			});
+			fit.fit();
+			if (sessionId && (terminal.cols !== lastCols || terminal.rows !== lastRows)) {
+				lastCols = terminal.cols;
+				lastRows = terminal.rows;
+				window.bankaiTerminal.resize(sessionId, terminal.cols, terminal.rows).catch((err) => fail("Terminal resize failed", err));
+			}
+		};
+		settleRef.current = settle;
+		const resizeObserver = new ResizeObserver(() => {
+			clearTimeout(settleTimer);
+			settleTimer = setTimeout(settle, 120);
 		});
 		resizeObserver.observe(container);
 
@@ -100,10 +101,9 @@ export function useTerminalSession(projectId: string, active: boolean) {
 
 		return () => {
 			disposed = true;
+			settleRef.current = null;
 			resizeObserver.disconnect();
-			if (resizeFrame !== undefined) {
-				cancelAnimationFrame(resizeFrame);
-			}
+			clearTimeout(settleTimer);
 			input.dispose();
 			removeDataListener();
 			removeExitListener();
@@ -120,6 +120,13 @@ export function useTerminalSession(projectId: string, active: boolean) {
 			terminalRef.current?.focus();
 		}
 	}, [active]);
+
+	useEffect(() => {
+		resizingRef.current = resizing;
+		if (!resizing) {
+			settleRef.current?.();
+		}
+	}, [resizing]);
 
 	return containerRef;
 }

@@ -40,5 +40,6 @@ export default defineConfig({
 			tailwindcss(),
 		],
 		resolve: { alias: aliasWeb },
+		worker: { format: "es" },
 	},
 });

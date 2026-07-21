@@ -22,15 +22,22 @@
 	--color-primary: #e7e7e4;
 	--color-secondary: #858581;
 	--color-tertiary: #c9954a;
-	--color-surface-sunken: #080808;
-	--color-surface: #0b0b0b;
-	--color-surface-raised: #111111;
-	--color-surface-hover: #181818;
-	--color-surface-active: #202020;
+	--color-surface-sunken: #040404;
+	--color-surface: #060606;
+	--color-surface-raised: #0a0a0a;
+	--color-surface-hover: #0d0d0d;
+	--color-surface-active: #121212;
 	--color-outline: #292929;
 	--color-outline-strong: #444444;
 	--color-added: #7ee787;
 	--color-removed: #ff7b72;
+	--color-terminal-background: #020202;
+	--color-syntax-comment: #6a9955;
+	--color-syntax-keyword: #569cd6;
+	--color-syntax-string: #ce9178;
+	--color-syntax-constant: #b5cea8;
+	--color-syntax-entity: #dcdcaa;
+	--color-syntax-type: #4ec9b0;
 
 	--color-terminal-black: #232322;
 	--color-terminal-blue: #6f86a8;
@@ -148,5 +155,37 @@
 }
 
 .xterm .xterm-viewport {
-	background-color: var(--color-surface-sunken);
+	background-color: var(--color-terminal-background);
+}
+
+.diff-line-add {
+	background: color-mix(in srgb, var(--color-added) 20%, transparent);
+}
+
+.diff-line-remove {
+	background: color-mix(in srgb, var(--color-removed) 20%, transparent);
+}
+
+.diff-line .syntax-comment {
+	color: var(--color-syntax-comment);
+}
+
+.diff-line .syntax-keyword {
+	color: var(--color-syntax-keyword);
+}
+
+.diff-line .syntax-string {
+	color: var(--color-syntax-string);
+}
+
+.diff-line .syntax-constant {
+	color: var(--color-syntax-constant);
+}
+
+.diff-line .syntax-entity {
+	color: var(--color-syntax-entity);
+}
+
+.diff-line .syntax-type {
+	color: var(--color-syntax-type);
 }

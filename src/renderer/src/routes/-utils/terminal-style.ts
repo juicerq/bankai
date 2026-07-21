@@ -16,10 +16,10 @@ export function readTerminalStyle(): Pick<ITerminalOptions, "fontFamily" | "them
 	return {
 		fontFamily: token("--font-mono"),
 		theme: {
-			background: color("surface-sunken"),
+			background: color("terminal-background"),
 			foreground: color("primary"),
 			cursor: color("tertiary"),
-			cursorAccent: color("surface-sunken"),
+			cursorAccent: color("terminal-background"),
 			selectionBackground: color("terminal-selection"),
 			black: color("terminal-black"),
 			red: color("removed"),

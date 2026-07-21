@@ -61,7 +61,7 @@ async function createWindow() {
 		height: saved?.height ?? 900,
 		minWidth: 900,
 		minHeight: 620,
-		backgroundColor: "#09090b",
+		backgroundColor: "#060606",
 		x: saved?.x,
 		y: saved?.y,
 		frame: false,

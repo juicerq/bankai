@@ -4,7 +4,7 @@ export function TerminalPane({ projectId, active, resizing }: { projectId: strin
 	const containerRef = useTerminalSession(projectId, active, resizing);
 
 	return (
-		<div className="size-full px-3 pt-3">
+		<div className="size-full bg-terminal-background px-3 pt-3">
 			<div ref={containerRef} className="size-full" />
 		</div>
 	);

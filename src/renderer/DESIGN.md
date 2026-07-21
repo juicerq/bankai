@@ -6,15 +6,16 @@ colors:
   primary: "#e7e7e4"
   secondary: "#858581"
   tertiary: "#c9954a"
-  surface-sunken: "#080808"
-  surface: "#0b0b0b"
-  surface-raised: "#111111"
-  surface-hover: "#181818"
-  surface-active: "#202020"
+  surface-sunken: "#040404"
+  surface: "#060606"
+  surface-raised: "#0a0a0a"
+  surface-hover: "#0d0d0d"
+  surface-active: "#121212"
   outline: "#292929"
   outline-strong: "#444444"
   added: "#7ee787"
   removed: "#ff7b72"
+  terminal-background: "#020202"
   terminal-black: "#232322"
   terminal-blue: "#6f86a8"
   terminal-magenta: "#ab85ad"
@@ -162,7 +163,7 @@ amber accent borrowed from amber-phosphor CRTs.
   captions — everything that answers a question the eye did not ask.
 - **Tertiary (#c9954a):** Amber phosphor. The only chromatic accent in the
   product, reserved for live state.
-- **Surfaces (#080808 → #202020):** Five deliberate steps. `surface-sunken` is
+- **Surfaces (#040404 → #121212):** Five deliberate steps. `surface-sunken` is
   the terminal, the deepest plane because it holds the real work. `surface` is
   the frame. `surface-raised` carries the rail, header, and review panel.
   `surface-hover` and `surface-active` are interaction states, never regions.
@@ -304,9 +305,11 @@ are `secondary`, file names `primary` — the hierarchy is scaffolding, the file
 the content. The full-file control appears on hover and stays while that file is
 expanded; nothing else in the row reacts.
 
-**Diff line.** Number gutter in `outline-strong`, code in `added` or `removed`,
-context in `primary`. No background fill — the ink carries the meaning, matching
-how the terminal renders the same diff a few hundred pixels to the left.
+**Diff line.** Number gutter in `outline-strong`; code uses dedicated,
+high-contrast syntax colors at normal weight. Added and removed lines carry
+their meaning through a 20% `added` or `removed` background and the leading
+marker, keeping the code at full opacity and readable without losing the diff
+signal.
 
 **Empty state.** Centered, one mark in `secondary`, a title, a line of support
 prose, and a single primary action. It occupies the plane it replaces rather

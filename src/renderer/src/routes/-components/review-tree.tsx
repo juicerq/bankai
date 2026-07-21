@@ -1,5 +1,5 @@
 import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { FileChange } from "@main/git/Git";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
@@ -23,6 +23,7 @@ export function ReviewTree({
 	onToggleFullFile: (path: string) => void;
 }) {
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+	const tree = useMemo(() => arrange(build(files)), [files]);
 
 	return (
 		<div className="flex w-tree shrink-0 flex-col border-outline border-r" aria-label="Tree">
@@ -30,7 +31,7 @@ export function ReviewTree({
 				TREE
 			</div>
 			<div className="min-h-0 flex-1 overflow-auto">
-				{visibleRows(arrange(build(files)), collapsed).map((row) =>
+				{visibleRows(tree, collapsed).map((row) =>
 					row.node.kind === "directory" ? (
 						<TreeDirectoryRow
 							key={row.node.path}
@@ -127,6 +128,7 @@ function TreeFileRow({
 
 function build(files: FileChange[]): TreeNode[] {
 	const root: DirectoryNode = { kind: "directory", name: "", path: "", children: [] };
+	const directories = new Map<string, DirectoryNode>();
 
 	for (const file of files) {
 		const segments = file.path.split("/");
@@ -137,29 +139,22 @@ function build(files: FileChange[]): TreeNode[] {
 				directory.children.push({ kind: "file", name: segment, file });
 				continue;
 			}
-			directory = directoryChild(directory, segment);
+
+			const path = directory.path ? `${directory.path}/${segment}` : segment;
+			const existing = directories.get(path);
+			if (existing) {
+				directory = existing;
+				continue;
+			}
+
+			const created: DirectoryNode = { kind: "directory", name: segment, path, children: [] };
+			directories.set(path, created);
+			directory.children.push(created);
+			directory = created;
 		}
 	}
 
 	return root.children;
-}
-
-function directoryChild(parent: DirectoryNode, name: string): DirectoryNode {
-	const existing = parent.children.find(
-		(child): child is DirectoryNode => child.kind === "directory" && child.name === name,
-	);
-	if (existing) {
-		return existing;
-	}
-
-	const created: DirectoryNode = {
-		kind: "directory",
-		name,
-		path: parent.path ? `${parent.path}/${name}` : name,
-		children: [],
-	};
-	parent.children.push(created);
-	return created;
 }
 
 function arrange(nodes: TreeNode[]): TreeNode[] {

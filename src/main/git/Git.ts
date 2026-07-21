@@ -6,12 +6,13 @@ const run = promisify(execFile);
 
 const MAX_BUFFER = 10 * 1024 * 1024;
 const TIMEOUT_MS = 5000;
+const FULL_FILE_MAX_LINES = 3000;
 
 export const reviewModeSchema = type("'uncommitted' | 'branch'");
 export type ReviewMode = typeof reviewModeSchema.infer;
 
 type DiffLineKind = "context" | "add" | "remove";
-type DiffLine = { kind: DiffLineKind; number?: number; content: string };
+export type DiffLine = { kind: DiffLineKind; number?: number; content: string };
 type FileStatus = "modified" | "added" | "deleted" | "renamed" | "untracked";
 export type FileChange = {
 	path: string;
@@ -25,6 +26,7 @@ export type ReviewSnapshot = {
 	files: FileChange[];
 	totals: { additions: number; deletions: number; files: number };
 };
+export type FullFile = { status: "ready"; lines: DiffLine[] } | { status: "too-large"; lineCount: number };
 
 export const Git = {
 	snapshot: async (path: string, mode: ReviewMode): Promise<ReviewSnapshot> => {
@@ -49,6 +51,16 @@ export const Git = {
 				files: files.length,
 			},
 		};
+	},
+
+	fullFile: async (input: { path: string; file: string; mode: ReviewMode }): Promise<FullFile> => {
+		const lines = parseDiff(await fullFileDiff(input))[0]?.lines ?? [];
+
+		if (lines.length > FULL_FILE_MAX_LINES) {
+			return { status: "too-large", lineCount: lines.length };
+		}
+
+		return { status: "ready", lines };
 	},
 };
 
@@ -103,6 +115,35 @@ async function branchBase(path: string): Promise<string> {
 
 async function diffFiles(path: string, base: string): Promise<FileChange[]> {
 	return parseDiff(await gitText(path, ["diff", base, "-M", "--no-color", "--no-ext-diff"]));
+}
+
+async function fullFileDiff(input: { path: string; file: string; mode: ReviewMode }): Promise<string> {
+	const tracked = await gitText(input.path, ["ls-files", "--", `:(literal)${input.file}`]).then((out) => !!out.trim());
+	if (!tracked) {
+		return await gitText(input.path, ["diff", "--no-index", "--no-color", "--no-ext-diff", "--", "/dev/null", input.file])
+			.catch((err: { stdout?: string }) => {
+				if (err.stdout) {
+					return err.stdout;
+				}
+				throw err;
+			});
+	}
+
+	const base = await resolveBase(input.path, input.mode);
+	if (!base) {
+		throw new Error("Repository has no commits");
+	}
+
+	return await gitText(input.path, [
+		"diff",
+		base,
+		"-M",
+		"--no-color",
+		"--no-ext-diff",
+		"-U100000",
+		"--",
+		`:(literal)${input.file}`,
+	]);
 }
 
 async function untrackedFiles(path: string): Promise<FileChange[]> {

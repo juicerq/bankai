@@ -6,8 +6,8 @@ import { ReviewPanel } from "@renderer/routes/-components/review-panel";
 import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
 import { usePanelResize } from "@renderer/routes/-utils/use-panel-resize";
 
-const DEFAULT_REVIEW_WIDTH = 600;
-const MIN_REVIEW_WIDTH = 280;
+const DEFAULT_DIFF_WIDTH = 600;
+const MIN_DIFF_WIDTH = 280;
 const MIN_TERMINAL_WIDTH = 360;
 
 type ShellTab = {
@@ -26,9 +26,9 @@ export function ProjectWorkspace({
 	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
 	const [reviewOpen, setReviewOpen] = useState(true);
 	const nextShellNumber = useRef(2);
-	const { width: reviewWidth, resizing, rowRef, separatorProps } = usePanelResize({
-		initialWidth: DEFAULT_REVIEW_WIDTH,
-		minWidth: MIN_REVIEW_WIDTH,
+	const { width: diffWidth, resizing, rowRef, separatorProps } = usePanelResize({
+		initialWidth: DEFAULT_DIFF_WIDTH,
+		minWidth: MIN_DIFF_WIDTH,
 		minRemaining: MIN_TERMINAL_WIDTH,
 	});
 
@@ -128,7 +128,7 @@ export function ProjectWorkspace({
 						<ReviewPanel
 							project={project}
 							active={active}
-							width={reviewWidth}
+							diffWidth={diffWidth}
 							onClose={() => setReviewOpen(false)}
 						/>
 					</>

@@ -82,6 +82,7 @@ spacing:
   2xl: 24px
   rail: 244px
   header: 40px
+  tree: 200px
 components:
   terminal:
     backgroundColor: "{colors.surface-sunken}"
@@ -213,22 +214,29 @@ outside this set silently renders as something else.
 ## Layout
 
 The composition is a three-column chassis: a 244px rail, a fluid center, and a
-review panel that slides in from the right at 380px by default. Vertically, there
+review panel that slides in from the right at 600px by default. Vertically, there
 is one 40px course running across the entire top edge — rail brand and shell tabs
 sit in it — so the top of the application reads as a single machined line the
 full width of the window.
 
-The review panel's width is the one adjustable dimension. The 1px divider between
-the terminal and the panel is a drag handle: pulling it trades width between the
-two, clamped so the terminal never drops below a usable column. Nothing else in
-the chassis reflows — this is a desktop window, not a responsive page.
+The diff's width is the one adjustable dimension. The 1px divider between the
+terminal and the panel is a drag handle: pulling it trades width between the two,
+between a 280px diff and a 360px terminal. Nothing else in the chassis reflows —
+this is a desktop window, not a responsive page.
+
+The tree is a fourth column, 200px, bolted to the panel's left edge and spanning
+the row from the top course to the bottom edge. It is never dragged: opening it
+widens the panel by exactly 200px and closing it narrows it by exactly 200px, so
+the diff keeps the width the user set. When the window is too narrow to seat the
+terminal's 360px beside the tree and the diff, the terminal is what gives — a
+shell reflows to any width, and a 140px column of code does not.
 
 Padding and gaps are strictly 4, 8, 12, 16, 20, 24 — Tailwind's `1`–`6`. The
 default density is tight: 12px is the standard padding, and anything looser has
 to earn it. This is a tool for people who keep it open all day; air spent on
 chrome is air taken from output.
 
-Structural dimensions are tokens — `rail` and `header`. Anything else that
+Structural dimensions are tokens — `rail`, `header`, and `tree`. Anything else that
 occupies space stays on the same 4px grid. The sole exception is the 1–2px
 hairline: rules and markers live below the grid because they draw an edge rather
 than occupy space.
@@ -285,6 +293,13 @@ Icon-only controls always carry an `aria-label`.
 ink. There is at most one per region, and its inversion is the accent that
 amber is deliberately not spending. Disabled, it collapses to `surface-active`
 with `secondary` ink.
+
+**Tree row.** One changed file or one folder, indented 8px per level from a 12px
+margin. A 16px leading slot holds either the folder's chevron or the file's status
+mark, so both align down the column no matter how deep the row sits. Folder names
+are `secondary`, file names `primary` — the hierarchy is scaffolding, the files are
+the content. The full-file control appears on hover and stays while that file is
+expanded; nothing else in the row reacts.
 
 **Diff line.** Number gutter in `outline-strong`, code in `added` or `removed`,
 context in `primary`. No background fill — the ink carries the meaning, matching

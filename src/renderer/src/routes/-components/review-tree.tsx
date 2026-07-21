@@ -1,0 +1,193 @@
+import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { useState } from "react";
+import type { FileChange } from "@main/git/Git";
+import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
+import { toggledSet } from "@renderer/routes/-utils/toggled-set";
+
+const ROW_PADDING = 12;
+const ROW_INDENT = 8;
+
+type DirectoryNode = { kind: "directory"; name: string; path: string; children: TreeNode[] };
+type FileNode = { kind: "file"; name: string; file: FileChange };
+type TreeNode = DirectoryNode | FileNode;
+
+export function ReviewTree({
+	files,
+	fullFiles,
+	onOpenFile,
+	onToggleFullFile,
+}: {
+	files: FileChange[];
+	fullFiles: ReadonlySet<string>;
+	onOpenFile: (path: string) => void;
+	onToggleFullFile: (path: string) => void;
+}) {
+	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+
+	return (
+		<div className="flex w-tree shrink-0 flex-col border-outline border-r" aria-label="Tree">
+			<div className="flex h-header shrink-0 items-center border-outline border-b px-3 text-label text-secondary">
+				TREE
+			</div>
+			<div className="min-h-0 flex-1 overflow-auto">
+				{visibleRows(arrange(build(files)), collapsed).map((row) =>
+					row.node.kind === "directory" ? (
+						<TreeDirectoryRow
+							key={row.node.path}
+							node={row.node}
+							depth={row.depth}
+							collapsed={collapsed.has(row.node.path)}
+							onToggle={(path) => setCollapsed((current) => toggledSet(current, path))}
+						/>
+					) : (
+						<TreeFileRow
+							key={row.node.file.path}
+							node={row.node}
+							depth={row.depth}
+							full={fullFiles.has(row.node.file.path)}
+							onOpen={onOpenFile}
+							onToggleFull={onToggleFullFile}
+						/>
+					),
+				)}
+			</div>
+		</div>
+	);
+}
+
+function TreeDirectoryRow({
+	node,
+	depth,
+	collapsed,
+	onToggle,
+}: {
+	node: DirectoryNode;
+	depth: number;
+	collapsed: boolean;
+	onToggle: (path: string) => void;
+}) {
+	const ChevronIcon = collapsed ? ChevronRightIcon : ChevronDownIcon;
+
+	return (
+		<button
+			type="button"
+			className="flex w-full items-center gap-1 py-1 pr-3 text-left text-body text-secondary hover:bg-surface-hover hover:text-primary"
+			style={{ paddingLeft: ROW_PADDING + depth * ROW_INDENT }}
+			aria-expanded={!collapsed}
+			onClick={() => onToggle(node.path)}
+		>
+			<ChevronIcon className="size-4 shrink-0" />
+			<span className="truncate">{node.name}</span>
+		</button>
+	);
+}
+
+function TreeFileRow({
+	node,
+	depth,
+	full,
+	onOpen,
+	onToggleFull,
+}: {
+	node: FileNode;
+	depth: number;
+	full: boolean;
+	onOpen: (path: string) => void;
+	onToggleFull: (path: string) => void;
+}) {
+	return (
+		<div
+			className="group flex items-center pr-1 hover:bg-surface-hover"
+			style={{ paddingLeft: ROW_PADDING + depth * ROW_INDENT }}
+		>
+			<button
+				type="button"
+				className="flex min-w-0 flex-1 items-center gap-1 py-1 text-left text-body"
+				onClick={() => onOpen(node.file.path)}
+			>
+				<span className="flex size-4 shrink-0 items-center justify-center text-data text-secondary">
+					{STATUS_MARK[node.file.status]}
+				</span>
+				<span className="truncate text-primary group-hover:underline">{node.name}</span>
+			</button>
+			<button
+				type="button"
+				className={`shrink-0 p-1 hover:text-primary ${
+					full ? "text-tertiary" : "text-secondary opacity-0 group-hover:opacity-100"
+				}`}
+				aria-pressed={full}
+				aria-label={`${full ? "Collapse" : "Expand"} ${node.file.path} to the full file`}
+				onClick={() => onToggleFull(node.file.path)}
+			>
+				<ArrowsPointingOutIcon className="size-4" />
+			</button>
+		</div>
+	);
+}
+
+function build(files: FileChange[]): TreeNode[] {
+	const root: DirectoryNode = { kind: "directory", name: "", path: "", children: [] };
+
+	for (const file of files) {
+		const segments = file.path.split("/");
+		let directory = root;
+
+		for (const [index, segment] of segments.entries()) {
+			if (index === segments.length - 1) {
+				directory.children.push({ kind: "file", name: segment, file });
+				continue;
+			}
+			directory = directoryChild(directory, segment);
+		}
+	}
+
+	return root.children;
+}
+
+function directoryChild(parent: DirectoryNode, name: string): DirectoryNode {
+	const existing = parent.children.find(
+		(child): child is DirectoryNode => child.kind === "directory" && child.name === name,
+	);
+	if (existing) {
+		return existing;
+	}
+
+	const created: DirectoryNode = {
+		kind: "directory",
+		name,
+		path: parent.path ? `${parent.path}/${name}` : name,
+		children: [],
+	};
+	parent.children.push(created);
+	return created;
+}
+
+function arrange(nodes: TreeNode[]): TreeNode[] {
+	return nodes.map((node) => (node.kind === "file" ? node : collapseChain(node))).sort(byDirectoryThenName);
+}
+
+function byDirectoryThenName(a: TreeNode, b: TreeNode): number {
+	if (a.kind !== b.kind) {
+		return a.kind === "directory" ? -1 : 1;
+	}
+	return a.name.localeCompare(b.name);
+}
+
+function collapseChain(node: DirectoryNode): DirectoryNode {
+	const only = node.children.length === 1 ? node.children[0] : undefined;
+	if (only?.kind === "directory") {
+		const merged = collapseChain(only);
+		return { ...merged, name: `${node.name}/${merged.name}` };
+	}
+
+	return { ...node, children: arrange(node.children) };
+}
+
+function visibleRows(nodes: TreeNode[], collapsed: ReadonlySet<string>, depth = 0): { node: TreeNode; depth: number }[] {
+	return nodes.flatMap((node) => {
+		if (node.kind === "file" || collapsed.has(node.path)) {
+			return [{ node, depth }];
+		}
+		return [{ node, depth }, ...visibleRows(node.children, collapsed, depth + 1)];
+	});
+}

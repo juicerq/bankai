@@ -1,89 +1,156 @@
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { keepPreviousData, type UseQueryResult, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import type { FileChange, ReviewMode, ReviewSnapshot } from "@main/git/Git";
+import type { Project } from "@main/store/projects";
+import { orpc } from "@renderer/lib/api";
 
-const DIFF_LINES = [
-	{ number: 42, kind: "context", code: "export function createSession(project: Project) {" },
-	{ number: 43, kind: "remove", code: "  return sessions.push(project.path)" },
-	{ number: 43, kind: "add", code: "  const session = Session.open(project)" },
-	{ number: 44, kind: "add", code: "  sessions.set(session.id, session)" },
-	{ number: 45, kind: "add", code: "  return session" },
-	{ number: 46, kind: "context", code: "}" },
-] as const;
+const MODES: { mode: ReviewMode; label: string }[] = [
+	{ mode: "uncommitted", label: "Uncommitted" },
+	{ mode: "branch", label: "Branch" },
+];
 
-export function ReviewPanel({ onClose }: { onClose: () => void }) {
-	const [reviewed, setReviewed] = useState(false);
-	const progressWidth = reviewed ? "100%" : "92.8%";
+const DIFF_MARKERS = { context: " ", add: "+", remove: "−" } as const;
+
+const DIFF_INK = {
+	context: "text-primary",
+	add: "text-added",
+	remove: "text-removed",
+} as const;
+
+const STATUS_MARK = {
+	modified: "M",
+	added: "A",
+	deleted: "D",
+	renamed: "R",
+	untracked: "?",
+} as const;
+
+export function ReviewPanel({
+	project,
+	active,
+	onClose,
+}: {
+	project: Project;
+	active: boolean;
+	onClose: () => void;
+}) {
+	const [mode, setMode] = useState<ReviewMode>("uncommitted");
+	const snapshot = useQuery(
+		orpc.review.snapshot.queryOptions({
+			input: { projectId: project.id, mode },
+			enabled: active,
+			refetchInterval: 2000,
+			placeholderData: keepPreviousData,
+		}),
+	);
 
 	return (
-		<aside className="review-panel" aria-label="Sample review">
-			<header className="review-header">
-				<div>
-					<div className="eyebrow">Live review</div>
-					<h2>Turn 14</h2>
-				</div>
-				<button type="button" className="icon-button" onClick={onClose} aria-label="Close review">
-					<XMarkIcon />
-				</button>
-			</header>
-
-			<div className="review-limit">Sample data · interactions validate the UI only. No repository changes are applied.</div>
-
-			<div className="review-meta">
-				<span className="eyebrow">Sample diff</span>
-				<div className="diff-stat" aria-label="18 additions, 4 removals">
-					<span className="added">+18</span>
-					<span className="removed">-4</span>
-				</div>
-			</div>
-
-			<div className="turn-summary">
-				<div className="turn-author"><span className="agent-dot" /> Claude Code</div>
-				<p>Refactored terminal session ownership and removed the duplicate process state.</p>
-				<span className="turn-time">2 minutes ago · 1 file</span>
-			</div>
-
-			<section className="diff-card" aria-label="Session diff">
-				<header className="diff-file-header">
-					<div>
-						<span className="file-status">M</span>
-						<span>src/core/session.ts</span>
-					</div>
-					<span className="diff-stat"><span className="added">+3</span> <span className="removed">−1</span></span>
-				</header>
-				<div className="diff-code">
-					{DIFF_LINES.map((line, index) => (
-						<div className={`diff-line ${line.kind}`} key={`${line.number}-${index}`}>
-							<span className="line-number">{line.number}</span>
-							<code>{diffMarker(line.kind)} {line.code}</code>
-						</div>
-					))}
-				</div>
-			</section>
-
-			<footer className="review-footer">
-				<div className="review-progress">
-					<span>{reviewed && "14 of 14 reviewed"}{!reviewed && "13 of 14 reviewed"}</span>
-					<div><span style={{ width: progressWidth }} /></div>
+		<aside
+			className="flex w-panel max-narrow:w-panel-narrow shrink-0 animate-panel-in flex-col border-outline border-l bg-surface-raised motion-reduce:animate-none"
+			aria-label="Review"
+		>
+			<header className="flex h-header shrink-0 items-center justify-between border-outline border-b pl-3">
+				<div className="flex min-w-0 items-baseline gap-2">
+					<span className="shrink-0 text-label text-secondary">Review</span>
+					<h2 className="m-0 min-w-0 truncate text-subtitle">{project.name}</h2>
 				</div>
 				<button
 					type="button"
-					className="review-action"
-					disabled={reviewed}
-					onClick={() => setReviewed(true)}
+					className="flex size-header shrink-0 items-center justify-center border-outline border-l text-secondary hover:bg-surface-hover hover:text-primary"
+					onClick={onClose}
+					aria-label="Close review"
 				>
-					{reviewed && "Reviewed"}{!reviewed && "Mark reviewed"}
+					<XMarkIcon className="size-4" />
 				</button>
-			</footer>
+			</header>
+
+			<div className="flex items-center justify-between gap-2 border-outline border-b px-3 py-2">
+				<div className="flex border border-outline" role="group" aria-label="Diff scope">
+					{MODES.map((option, index) => (
+						<button
+							type="button"
+							key={option.mode}
+							className={`px-2 py-1 text-body ${index > 0 ? "border-outline border-l" : ""} ${
+								mode === option.mode ? "bg-surface-active text-primary" : "text-secondary hover:bg-surface-hover hover:text-primary"
+							}`}
+							aria-pressed={mode === option.mode}
+							onClick={() => setMode(option.mode)}
+						>
+							{option.label}
+						</button>
+					))}
+				</div>
+				{snapshot.data?.isRepo && (
+					<div
+						className="flex shrink-0 gap-2 text-data"
+						aria-label={`${snapshot.data.totals.additions} additions, ${snapshot.data.totals.deletions} removals`}
+					>
+						<span className="text-added">+{snapshot.data.totals.additions}</span>
+						<span className="text-removed">−{snapshot.data.totals.deletions}</span>
+					</div>
+				)}
+			</div>
+
+			<ReviewBody snapshot={snapshot} />
 		</aside>
 	);
 }
 
-function diffMarker(kind: (typeof DIFF_LINES)[number]["kind"]): string {
-	if (kind === "add") {
-		return "+";
+function ReviewBody({ snapshot }: { snapshot: UseQueryResult<ReviewSnapshot> }) {
+	if (!snapshot.data) {
+		if (snapshot.isError) {
+			return <ReviewNotice>{String(snapshot.error)}</ReviewNotice>;
+		}
+		return <ReviewNotice>Reading changes…</ReviewNotice>;
 	}
-	if (kind === "remove") {
-		return "−";
+	if (!snapshot.data.isRepo) {
+		return <ReviewNotice>Not a git repository.</ReviewNotice>;
 	}
-	return " ";
+	if (snapshot.data.files.length === 0) {
+		return <ReviewNotice>No changes in the working tree.</ReviewNotice>;
+	}
+
+	return (
+		<div className="min-h-0 flex-1 overflow-auto">
+			{snapshot.data.files.map((file) => (
+				<ReviewFile key={file.path} file={file} />
+			))}
+		</div>
+	);
+}
+
+function ReviewFile({ file }: { file: FileChange }) {
+	return (
+		<section className="border-outline border-b" aria-label={file.path}>
+			<header className="flex items-center justify-between gap-2 px-3 py-2 text-data">
+				<span className="flex min-w-0 items-center gap-2">
+					<span className="shrink-0 text-secondary">{STATUS_MARK[file.status]}</span>
+					<span className="truncate">{file.path}</span>
+				</span>
+				{(file.additions > 0 || file.deletions > 0) && (
+					<span className="flex shrink-0 gap-2">
+						<span className="text-added">+{file.additions}</span>
+						<span className="text-removed">−{file.deletions}</span>
+					</span>
+				)}
+			</header>
+			{file.lines.length > 0 && (
+				<div className="overflow-x-auto pb-1">
+					{file.lines.map((line, index) => (
+						<div className={`flex text-code ${DIFF_INK[line.kind]}`} key={index}>
+							<span className="w-8 shrink-0 pr-2 text-right text-outline-strong">{line.number}</span>
+							<code className="whitespace-pre">
+								{DIFF_MARKERS[line.kind]} {line.content}
+							</code>
+						</div>
+					))}
+				</div>
+			)}
+		</section>
+	);
+}
+
+function ReviewNotice({ children }: { children: string }) {
+	return <div className="px-3 py-3 text-data text-secondary">{children}</div>;
 }

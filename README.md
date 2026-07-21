@@ -8,9 +8,9 @@ Bankai is a focused Electron desktop prototype for running project shell session
 - Native directory picker for adding projects
 - Multiple real `node-pty` shell tabs per mounted project
 - `xterm.js` terminal rendering, input, resizing, and scrollback
-- Sample review panel with a UI-only reviewed state
+- Read-only review panel showing the project's real `git diff`
 
-The review panel uses fixed sample data and is **only for UI validation**. It does not read, modify, approve, or reject repository changes.
+The review panel reads the selected project's working tree through `git` and renders the diff in two scopes: **Uncommitted** (working tree against `HEAD`) and **Branch** (the whole branch against its merge-base with the default branch). It polls while visible and never writes to the repository.
 
 ## Development
 

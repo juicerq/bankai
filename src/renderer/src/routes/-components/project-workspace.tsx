@@ -1,6 +1,7 @@
 import { ViewColumnsIcon } from "@heroicons/react/24/outline";
 import { useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
+import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ReviewPanel } from "@renderer/routes/-components/review-panel";
 import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
 
@@ -38,70 +39,111 @@ export function ProjectWorkspace({
 	};
 
 	return (
-		<section className="project-workspace" hidden={!active} aria-label={`${project.name} workspace`}>
-			<header className="workspace-header">
-				<div className="workspace-identity">
-					<strong>{project.name}</strong>
-					<span>{project.path}</span>
-				</div>
-				<div className="shell-tabs" aria-label="Shells">
-					{tabs.map((tab) => (
-						<div className={`shell-tab ${activeTabId === tab.id ? "active" : ""}`} key={tab.id}>
-							<button type="button" aria-pressed={activeTabId === tab.id} onClick={() => setActiveTabId(tab.id)}>
-								<span className="shell-status" />
-								{tab.label}
-							</button>
-							<button
-								type="button"
-								className="close-tab"
-								onClick={() => handleCloseShell(tab.id)}
-								aria-label={`Close ${tab.label}`}
-							>
-								×
-							</button>
-						</div>
-					))}
-					<button type="button" className="new-tab" onClick={handleNewShell} aria-label="New shell">
-						+
-					</button>
-				</div>
-				<div className="workspace-actions">
-					<button
-						type="button"
-						className={reviewOpen ? "toolbar-button active" : "toolbar-button"}
-						aria-expanded={reviewOpen}
-						aria-pressed={reviewOpen}
-						onClick={() => setReviewOpen((current) => !current)}
-					>
-						<ViewColumnsIcon />
-						Sample review
-					</button>
-				</div>
+		<section
+			className={active ? "flex h-full min-w-0 flex-col" : "hidden"}
+			aria-label={`${project.name} workspace`}
+		>
+			<header className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised">
+				<ProjectWorkspaceShellTabs
+					tabs={tabs}
+					activeTabId={activeTabId}
+					onSelect={setActiveTabId}
+					onClose={handleCloseShell}
+					onNew={handleNewShell}
+				/>
+				<button
+					type="button"
+					className={`flex size-header shrink-0 items-center justify-center border-outline border-l hover:bg-surface-hover hover:text-primary ${
+						reviewOpen ? "text-tertiary" : "text-secondary"
+					}`}
+					aria-expanded={reviewOpen}
+					aria-label="Toggle review panel"
+					title="Toggle review panel"
+					onClick={() => setReviewOpen((current) => !current)}
+				>
+					<ViewColumnsIcon className="size-4" />
+				</button>
 			</header>
 
-			<div className="workspace-body">
-				<div className="terminal-stage">
+			<div className="flex min-h-0 flex-1">
+				<div className="flex min-h-0 min-w-0 flex-1 flex-col bg-surface-sunken">
 					{tabs.length === 0 && (
-						<div className="empty-shell">
-							<div className="empty-shell-mark">›_</div>
-							<h2>No open shells</h2>
-							<p>Start a shell in {project.name} to continue.</p>
-							<button type="button" onClick={handleNewShell}>New shell</button>
-						</div>
+						<EmptyState
+							mark="›_"
+							title="No open shells"
+							description={`Start a shell in ${project.name} to continue.`}
+							actionLabel="New shell"
+							onAction={handleNewShell}
+						/>
 					)}
 					{tabs.map((tab) => (
-						<div className="terminal-slot" hidden={tab.id !== activeTabId} key={tab.id}>
+						<div className={tab.id === activeTabId ? "min-h-0 flex-1" : "hidden"} key={tab.id}>
 							<TerminalPane projectId={project.id} />
 						</div>
 					))}
-					<footer className="terminal-statusbar">
-						<span className="status-spacer" />
-						<span>UTF-8</span>
-						</footer>
 				</div>
-				{reviewOpen && <ReviewPanel onClose={() => setReviewOpen(false)} />}
+				{reviewOpen && <ReviewPanel project={project} active={active} onClose={() => setReviewOpen(false)} />}
 			</div>
 		</section>
+	);
+}
+
+function ProjectWorkspaceShellTabs({
+	tabs,
+	activeTabId,
+	onSelect,
+	onClose,
+	onNew,
+}: {
+	tabs: ShellTab[];
+	activeTabId: string | undefined;
+	onSelect: (tabId: string) => void;
+	onClose: (tabId: string) => void;
+	onNew: () => void;
+}) {
+	return (
+		<div className="flex min-w-0 flex-1 items-center overflow-hidden" aria-label="Shells">
+			{tabs.map((tab) => {
+				const selected = tab.id === activeTabId;
+
+				return (
+					<div
+						className={`flex h-header shrink-0 items-center border-outline border-r border-b-2 ${
+							selected ? "border-b-tertiary bg-surface-active" : "border-b-transparent hover:bg-surface-hover"
+						}`}
+						key={tab.id}
+					>
+						<button
+							type="button"
+							className={`flex h-full items-center gap-2 pr-1 pl-3 text-body ${
+								selected ? "text-primary" : "text-secondary"
+							}`}
+							aria-pressed={selected}
+							onClick={() => onSelect(tab.id)}
+						>
+							<span className={`size-2 shrink-0 rounded-full ${selected ? "bg-tertiary" : "bg-outline-strong"}`} />
+							{tab.label}
+						</button>
+						<button
+							type="button"
+							className="h-full px-3 text-body text-outline-strong hover:text-primary"
+							onClick={() => onClose(tab.id)}
+							aria-label={`Close ${tab.label}`}
+						>
+							×
+						</button>
+					</div>
+				);
+			})}
+			<button
+				type="button"
+				className="flex size-header shrink-0 items-center justify-center border-outline border-r text-secondary text-subtitle hover:bg-surface-hover hover:text-primary"
+				onClick={onNew}
+				aria-label="New shell"
+			>
+				+
+			</button>
+		</div>
 	);
 }
 

@@ -1,4 +1,5 @@
 import { FitAddon } from "@xterm/addon-fit";
+import { WebglAddon } from "@xterm/addon-webgl";
 import { type ITerminalOptions, Terminal } from "@xterm/xterm";
 import { useEffect, useRef } from "react";
 import { readTerminalStyle } from "@renderer/routes/-utils/terminal-style";
@@ -32,6 +33,10 @@ export function useTerminalSession(projectId: string, active: boolean, resizing:
 		const fit = new FitAddon();
 		terminal.loadAddon(fit);
 		terminal.open(container);
+
+		const webgl = new WebglAddon();
+		webgl.onContextLoss(() => webgl.dispose());
+		terminal.loadAddon(webgl);
 
 		let sessionId: string | undefined;
 		let disposed = false;

@@ -14,12 +14,12 @@ const renderers = new Map<number, RendererWatches>();
 export function setupReviewIpc(): void {
 	ipcMain.handle(REVIEW_IPC.watch, async (event, raw: unknown) => {
 		const { projectId } = reviewWatchSchema.assert(raw);
+		const renderer = renderers.get(event.sender.id) ?? registerRenderer(event.sender);
 		const project = await Projects.find(projectId);
-		if (event.sender.isDestroyed()) {
+		if (event.sender.isDestroyed() || renderers.get(event.sender.id) !== renderer) {
 			return;
 		}
 
-		const renderer = renderers.get(event.sender.id) ?? registerRenderer(event.sender);
 		const watched = renderer.projects.get(projectId);
 		if (watched) {
 			watched.references += 1;

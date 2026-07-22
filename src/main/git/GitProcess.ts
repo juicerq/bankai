@@ -31,7 +31,6 @@ type ChildState = {
 class GitUtilityProcess {
 	private child?: ChildState;
 	private readonly pending = new Map<string, PendingRequest>();
-	private readonly active = new Map<string, Promise<unknown>>();
 	private closed = false;
 
 	async snapshot(path: string, mode: ReviewMode): Promise<ReviewSnapshot> {
@@ -60,17 +59,7 @@ class GitUtilityProcess {
 			return Promise.reject(new Error("Git utility process stopped"));
 		}
 
-		const key = JSON.stringify(input);
-		const running = this.active.get(key);
-		if (running) {
-			return running;
-		}
-
-		const request = this.send(input).finally(() => {
-			this.active.delete(key);
-		});
-		this.active.set(key, request);
-		return request;
+		return this.send(input);
 	}
 
 	private async send(input: GitRequestInput): Promise<unknown> {

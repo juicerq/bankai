@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { type WebContents } from "electron";
 import { type IPty, spawn } from "node-pty";
+import { Logger } from "@main/logger";
 import { Projects } from "@main/store/projects";
-import type { WebContents } from "electron";
+import { TerminalDataBuffer } from "@main/terminal/TerminalDataBuffer";
+import type { TerminalEvent, TerminalExitEvent } from "@shared/terminal";
 
 const SHELL = process.platform === "win32"
 	? process.env.ComSpec || "cmd.exe"
@@ -10,6 +13,7 @@ const SHELL = process.platform === "win32"
 type Session = {
 	ownerId: number;
 	pty: IPty;
+	output: TerminalDataBuffer;
 };
 
 const sessions = new Map<string, Session>();
@@ -35,18 +39,16 @@ export const TerminalSessions = {
 			cwd: project.path,
 			env: terminalEnv(),
 		});
-		sessions.set(sessionId, { ownerId: owner.id, pty: terminal });
-
-		terminal.onData((data) => {
-			if (!owner.isDestroyed()) {
-				owner.send("terminal:data", { sessionId, data });
-			}
+		const output = new TerminalDataBuffer((data) => {
+			sendTerminalEvent(owner, "terminal:data", { sessionId, data });
 		});
+		sessions.set(sessionId, { ownerId: owner.id, pty: terminal, output });
+
+		terminal.onData((data) => output.append(data));
 		terminal.onExit(({ exitCode }) => {
+			output.dispose();
 			sessions.delete(sessionId);
-			if (!owner.isDestroyed()) {
-				owner.send("terminal:exit", { sessionId, exitCode });
-			}
+			sendTerminalEvent(owner, "terminal:exit", { sessionId, exitCode });
 		});
 		return sessionId;
 	},
@@ -61,6 +63,7 @@ export const TerminalSessions = {
 		if (!session) {
 			return;
 		}
+		session.output.flush();
 		sessions.delete(sessionId);
 		session.pty.kill();
 	},
@@ -68,8 +71,17 @@ export const TerminalSessions = {
 		ownerGenerations.set(ownerId, (ownerGenerations.get(ownerId) || 0) + 1);
 		for (const [sessionId, session] of sessions) {
 			if (session.ownerId === ownerId) {
+				session.output.flush();
 				sessions.delete(sessionId);
-				session.pty.kill();
+				try {
+					session.pty.kill();
+				} catch (err) {
+					Logger.error("terminal:owner-close-failed", {
+						ownerId,
+						sessionId,
+						err: String(err),
+					});
+				}
 			}
 		}
 	},
@@ -78,6 +90,21 @@ export const TerminalSessions = {
 function ownedSession(ownerId: number, sessionId: string): Session | undefined {
 	const session = sessions.get(sessionId);
 	return session?.ownerId === ownerId ? session : undefined;
+}
+
+function sendTerminalEvent(
+	owner: WebContents,
+	channel: "terminal:data" | "terminal:exit",
+	payload: TerminalEvent | TerminalExitEvent,
+): void {
+	if (owner.isDestroyed()) {
+		return;
+	}
+	try {
+		owner.send(channel, payload);
+	} catch (err) {
+		Logger.error(`${channel}-send-failed`, { ownerId: owner.id, err: String(err) });
+	}
 }
 
 function terminalEnv(): Record<string, string> {

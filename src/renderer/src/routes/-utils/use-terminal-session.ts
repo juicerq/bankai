@@ -1,8 +1,9 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
-import { type ITerminalOptions, Terminal } from "@xterm/xterm";
-import { useEffect, useRef } from "react";
+import { type IDisposable, type ITerminalOptions, Terminal } from "@xterm/xterm";
+import { type RefObject, useEffect, useRef } from "react";
 import { readTerminalStyle } from "@renderer/routes/-utils/terminal-style";
+import type { TerminalCommandErrorEvent } from "@shared/terminal";
 import { throttle } from "@shared/throttle";
 
 const TERMINAL_OPTIONS = {
@@ -18,10 +19,21 @@ const TERMINAL_OPTIONS = {
 } satisfies ITerminalOptions;
 
 const TERMINAL_RESIZE_THROTTLE_MS = 150;
+const TERMINAL_COMMAND_FAILURES: Record<TerminalCommandErrorEvent["command"], string> = {
+	write: "Terminal input failed",
+	resize: "Terminal resize failed",
+	close: "Terminal close failed",
+};
+
+type ActiveWebgl = {
+	addon: WebglAddon;
+	contextLoss: IDisposable;
+};
 
 export function useTerminalSession(projectId: string, active: boolean) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const terminalRef = useRef<Terminal | null>(null);
+	const webglRef = useRef<ActiveWebgl | null>(null);
 
 	useEffect(() => {
 		const container = containerRef.current;
@@ -34,10 +46,6 @@ export function useTerminalSession(projectId: string, active: boolean) {
 		const fit = new FitAddon();
 		terminal.loadAddon(fit);
 		terminal.open(container);
-
-		const webgl = new WebglAddon();
-		webgl.onContextLoss(() => webgl.dispose());
-		terminal.loadAddon(webgl);
 
 		let sessionId: string | undefined;
 		let disposed = false;
@@ -56,9 +64,14 @@ export function useTerminalSession(projectId: string, active: boolean) {
 				terminal.write(`\r\n\u001B[90m[process exited ${event.exitCode}]\u001B[0m\r\n`);
 			}
 		});
+		const removeCommandErrorListener = window.bankaiTerminal.onCommandError((event) => {
+			if (event.sessionId === sessionId) {
+				fail(TERMINAL_COMMAND_FAILURES[event.command], event.error);
+			}
+		});
 		const input = terminal.onData((data) => {
 			if (sessionId) {
-				window.bankaiTerminal.write(sessionId, data).catch((err) => fail("Terminal input failed", err));
+				window.bankaiTerminal.write(sessionId, data);
 			}
 		});
 		let lastCols: number | undefined;
@@ -71,7 +84,7 @@ export function useTerminalSession(projectId: string, active: boolean) {
 			if (sessionId && (terminal.cols !== lastCols || terminal.rows !== lastRows)) {
 				lastCols = terminal.cols;
 				lastRows = terminal.rows;
-				window.bankaiTerminal.resize(sessionId, terminal.cols, terminal.rows).catch((err) => fail("Terminal resize failed", err));
+				window.bankaiTerminal.resize(sessionId, terminal.cols, terminal.rows);
 			}
 		}, TERMINAL_RESIZE_THROTTLE_MS);
 		const resizeObserver = new ResizeObserver(resizeTerminal);
@@ -92,7 +105,7 @@ export function useTerminalSession(projectId: string, active: boolean) {
 					return;
 				}
 				if (disposed) {
-					window.bankaiTerminal.close(openedSessionId).catch(() => {});
+					window.bankaiTerminal.close(openedSessionId);
 					return;
 				}
 				sessionId = openedSessionId;
@@ -107,19 +120,61 @@ export function useTerminalSession(projectId: string, active: boolean) {
 			input.dispose();
 			removeDataListener();
 			removeExitListener();
+			removeCommandErrorListener();
 			if (sessionId) {
-				window.bankaiTerminal.close(sessionId).catch(() => {});
+				window.bankaiTerminal.close(sessionId);
 			}
+			disposeWebgl(webglRef);
 			terminalRef.current = null;
 			terminal.dispose();
 		};
 	}, [projectId]);
 
 	useEffect(() => {
-		if (active) {
-			terminalRef.current?.focus();
+		const terminal = terminalRef.current;
+		if (!active || !terminal) {
+			return;
 		}
-	}, [active]);
+
+		terminal.focus();
+		const webgl = loadWebgl(terminal, webglRef);
+		if (!webgl) {
+			return;
+		}
+
+		return () => disposeWebgl(webglRef, webgl.addon);
+	}, [active, projectId]);
 
 	return containerRef;
+}
+
+function loadWebgl(
+	terminal: Terminal,
+	webglRef: RefObject<ActiveWebgl | null>,
+): ActiveWebgl | undefined {
+	disposeWebgl(webglRef);
+	try {
+		const addon = new WebglAddon();
+		const contextLoss = addon.onContextLoss(() => disposeWebgl(webglRef, addon));
+		const webgl = { addon, contextLoss };
+		webglRef.current = webgl;
+		terminal.loadAddon(addon);
+		return webgl;
+	} catch {
+		disposeWebgl(webglRef);
+		return undefined;
+	}
+}
+
+function disposeWebgl(
+	webglRef: RefObject<ActiveWebgl | null>,
+	addon?: WebglAddon,
+): void {
+	const webgl = webglRef.current;
+	if (!webgl || (addon && webgl.addon !== addon)) {
+		return;
+	}
+	webglRef.current = null;
+	webgl.contextLoss.dispose();
+	webgl.addon.dispose();
 }

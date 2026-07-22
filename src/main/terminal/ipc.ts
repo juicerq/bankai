@@ -1,7 +1,9 @@
 import { type } from "arktype";
 import { ipcMain, type WebContents } from "electron";
+import { Logger } from "@main/logger";
 import { terminalColumnsSchema, terminalRowsSchema } from "@main/terminal/dimensions";
 import { TerminalSessions } from "@main/terminal/TerminalSessions";
+import type { TerminalCommandErrorEvent } from "@shared/terminal";
 
 const TerminalSchemas = {
 	open: type({ projectId: "string", cols: terminalColumnsSchema, rows: terminalRowsSchema }),
@@ -18,21 +20,96 @@ export function setupTerminalIpc() {
 		registerOwner(event.sender);
 		return await TerminalSessions.open(event.sender, input.projectId, input.cols, input.rows);
 	});
-	ipcMain.handle("terminal:write", (event, raw: unknown) => {
-		const input = TerminalSchemas.write.assert(raw);
-		if (input.data.length > 65_536) {
-			throw new Error("Terminal input exceeds 64 KiB");
+	ipcMain.on("terminal:write", (event, raw: unknown) => {
+		const input = readTerminalCommand(event.sender, "write", raw, (value) => {
+			const parsed = TerminalSchemas.write.assert(value);
+			if (parsed.data.length > 65_536) {
+				throw new Error("Terminal input exceeds 64 KiB");
+			}
+			return parsed;
+		});
+		if (!input) {
+			return;
 		}
-		TerminalSessions.write(event.sender.id, input.sessionId, input.data);
+		runTerminalCommand(event.sender, "write", input.sessionId, () => {
+			TerminalSessions.write(event.sender.id, input.sessionId, input.data);
+		});
 	});
-	ipcMain.handle("terminal:resize", (event, raw: unknown) => {
-		const input = TerminalSchemas.resize.assert(raw);
-		TerminalSessions.resize(event.sender.id, input.sessionId, input.cols, input.rows);
+	ipcMain.on("terminal:resize", (event, raw: unknown) => {
+		const input = readTerminalCommand(
+			event.sender,
+			"resize",
+			raw,
+			(value) => TerminalSchemas.resize.assert(value),
+		);
+		if (!input) {
+			return;
+		}
+		runTerminalCommand(event.sender, "resize", input.sessionId, () => {
+			TerminalSessions.resize(event.sender.id, input.sessionId, input.cols, input.rows);
+		});
 	});
-	ipcMain.handle("terminal:close", (event, raw: unknown) => {
-		const input = TerminalSchemas.close.assert(raw);
-		TerminalSessions.close(event.sender.id, input.sessionId);
+	ipcMain.on("terminal:close", (event, raw: unknown) => {
+		const input = readTerminalCommand(
+			event.sender,
+			"close",
+			raw,
+			(value) => TerminalSchemas.close.assert(value),
+		);
+		if (!input) {
+			return;
+		}
+		runTerminalCommand(event.sender, "close", input.sessionId, () => {
+			TerminalSessions.close(event.sender.id, input.sessionId);
+		});
 	});
+}
+
+function readTerminalCommand<Input>(
+	owner: WebContents,
+	command: TerminalCommandErrorEvent["command"],
+	raw: unknown,
+	parse: (value: unknown) => Input,
+): Input | undefined {
+	try {
+		return parse(raw);
+	} catch (err) {
+		Logger.warn(`terminal:${command}-invalid`, {
+			ownerId: owner.id,
+			err: String(err),
+		});
+		return undefined;
+	}
+}
+
+function runTerminalCommand(
+	owner: WebContents,
+	command: TerminalCommandErrorEvent["command"],
+	sessionId: string,
+	run: () => void,
+): void {
+	try {
+		run();
+	} catch (err) {
+		const error = String(err);
+		Logger.error(`terminal:${command}-failed`, { ownerId: owner.id, sessionId, err: error });
+		if (owner.isDestroyed()) {
+			return;
+		}
+		try {
+			owner.send("terminal:command-error", {
+				sessionId,
+				command,
+				error,
+			} satisfies TerminalCommandErrorEvent);
+		} catch (sendErr) {
+			Logger.error("terminal:command-error-send-failed", {
+				ownerId: owner.id,
+				sessionId,
+				err: String(sendErr),
+			});
+		}
+	}
 }
 
 function registerOwner(owner: WebContents) {

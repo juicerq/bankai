@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
 	BankaiTerminalApi,
+	TerminalCommandErrorEvent,
 	TerminalEvent,
 	TerminalExitEvent,
 } from "@shared/terminal";
@@ -20,9 +21,9 @@ window.addEventListener("message", (event) => {
 const terminalApi: BankaiTerminalApi = {
 	open: (projectId, cols, rows) =>
 		ipcRenderer.invoke("terminal:open", { projectId, cols, rows }),
-	write: (sessionId, data) => ipcRenderer.invoke("terminal:write", { sessionId, data }),
-	resize: (sessionId, cols, rows) => ipcRenderer.invoke("terminal:resize", { sessionId, cols, rows }),
-	close: (sessionId) => ipcRenderer.invoke("terminal:close", { sessionId }),
+	write: (sessionId, data) => ipcRenderer.send("terminal:write", { sessionId, data }),
+	resize: (sessionId, cols, rows) => ipcRenderer.send("terminal:resize", { sessionId, cols, rows }),
+	close: (sessionId) => ipcRenderer.send("terminal:close", { sessionId }),
 	onData: (listener) => {
 		const handler = (_event: Electron.IpcRendererEvent, payload: TerminalEvent) => {
 			listener(payload);
@@ -39,6 +40,16 @@ const terminalApi: BankaiTerminalApi = {
 		};
 		ipcRenderer.on("terminal:exit", handler);
 		return () => ipcRenderer.removeListener("terminal:exit", handler);
+	},
+	onCommandError: (listener) => {
+		const handler = (
+			_event: Electron.IpcRendererEvent,
+			payload: TerminalCommandErrorEvent,
+		) => {
+			listener(payload);
+		};
+		ipcRenderer.on("terminal:command-error", handler);
+		return () => ipcRenderer.removeListener("terminal:command-error", handler);
 	},
 };
 

@@ -32,7 +32,9 @@ type ActiveWebgl = {
 
 export function useTerminalSession(projectId: string) {
 	const sessionRef = useRef<RendererTerminalSession | null>(null);
+	const warmRef = useRef(false);
 	const activeRef = useRef(false);
+	const warmthRef = useRef<symbol | null>(null);
 	const activationRef = useRef<symbol | null>(null);
 	const registerContainer = useCallback((container: HTMLDivElement | null) => {
 		if (!container) {
@@ -41,6 +43,7 @@ export function useTerminalSession(projectId: string) {
 
 		const session = new RendererTerminalSession(container, projectId);
 		sessionRef.current = session;
+		session.setWarm(warmRef.current);
 		session.setActive(activeRef.current);
 		return () => {
 			if (sessionRef.current === session) {
@@ -49,6 +52,21 @@ export function useTerminalSession(projectId: string) {
 			session.dispose();
 		};
 	}, [projectId]);
+	const registerWarmth = useCallback(() => {
+		const warmth = Symbol("terminal-warmth");
+		warmthRef.current = warmth;
+		warmRef.current = true;
+		sessionRef.current?.setWarm(true);
+		return () => {
+			if (warmthRef.current !== warmth) {
+				return;
+			}
+
+			warmthRef.current = null;
+			warmRef.current = false;
+			sessionRef.current?.setWarm(false);
+		};
+	}, []);
 	const registerActivation = useCallback(() => {
 		const activation = Symbol("terminal-activation");
 		activationRef.current = activation;
@@ -65,7 +83,7 @@ export function useTerminalSession(projectId: string) {
 		};
 	}, []);
 
-	return { registerContainer, registerActivation };
+	return { registerContainer, registerWarmth, registerActivation };
 }
 
 class RendererTerminalSession {
@@ -81,6 +99,7 @@ class RendererTerminalSession {
 	private lastCols: number | undefined;
 	private lastRows: number | undefined;
 	private webgl: ActiveWebgl | undefined;
+	private warm = false;
 	private active = false;
 	private disposed = false;
 	private lifecycle = 0;
@@ -117,6 +136,19 @@ class RendererTerminalSession {
 		this.open(projectId).catch((err) => this.fail("Failed to open shell", err));
 	}
 
+	setWarm(warm: boolean) {
+		if (warm === this.warm) {
+			return;
+		}
+
+		this.warm = warm;
+		if (warm) {
+			this.ensureWebgl();
+		} else if (!this.active) {
+			this.disposeWebgl();
+		}
+	}
+
 	setActive(active: boolean) {
 		if (active === this.active) {
 			return;
@@ -124,12 +156,14 @@ class RendererTerminalSession {
 
 		this.active = active;
 		if (!active) {
-			this.disposeWebgl();
+			if (!this.warm) {
+				this.disposeWebgl();
+			}
 			return;
 		}
 
+		this.ensureWebgl();
 		this.terminal.focus();
-		this.loadWebgl();
 	}
 
 	dispose() {
@@ -187,8 +221,11 @@ class RendererTerminalSession {
 		}
 	}
 
-	private loadWebgl() {
-		this.disposeWebgl();
+	private ensureWebgl() {
+		if (this.webgl) {
+			return;
+		}
+
 		try {
 			const addon = new WebglAddon();
 			const contextLoss = addon.onContextLoss(() => this.disposeWebgl(addon));

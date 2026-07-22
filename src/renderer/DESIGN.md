@@ -10,11 +10,17 @@ colors:
   surface: "#060606"
   surface-raised: "#0a0a0a"
   surface-hover: "#0d0d0d"
-  surface-active: "#121212"
+  surface-active: "#171715"
   outline: "#292929"
   outline-strong: "#444444"
   added: "#7ee787"
   removed: "#ff7b72"
+  syntax-comment: "#6a9955"
+  syntax-keyword: "#569cd6"
+  syntax-string: "#ce9178"
+  syntax-constant: "#b5cea8"
+  syntax-entity: "#dcdcaa"
+  syntax-type: "#4ec9b0"
   terminal-background: "#020202"
   terminal-black: "#232322"
   terminal-blue: "#6f86a8"
@@ -125,7 +131,8 @@ components:
   button-icon-hover:
     textColor: "{colors.primary}"
   button-icon-active:
-    textColor: "{colors.tertiary}"
+    backgroundColor: "{colors.surface-active}"
+    textColor: "{colors.primary}"
   diff-line-add:
     textColor: "{colors.added}"
     typography: "{typography.code}"
@@ -141,16 +148,18 @@ components:
 Bankai is a bench instrument for driving coding agents. Its world is the
 brushed-metal chassis of an 80s hardware console read by amber phosphor: every
 region is a panel bolted into a frame, every edge is a machined line, and the
-only light in the enclosure is the amber that marks what is running right now.
+only light in the enclosure is the amber that locates the operator's present
+workspace.
 
 The product is a window onto a terminal. That subordinates every decision — the
 chrome exists to frame someone else's output, never to compete with it. The
 interface is quiet by construction so that the shell, the diff, and the agent's
 work are the only things with voice.
 
-The signature is the amber: it never decorates, it only reports life. A session
-that is running, a project that is mounted, a cursor waiting for a keystroke.
-Everything the amber touches is a fact about the present moment.
+The signature is the amber: it never decorates, it only reports identity and
+presence. It marks the mounted project, the selected shell, the terminal cursor,
+and drag insertion points. Controls that are merely open, selected, or focused
+use the neutral active surface instead; amber is not a generic active color.
 
 ## Colors
 
@@ -161,19 +170,20 @@ amber accent borrowed from amber-phosphor CRTs.
   the surface of the one committing action per screen.
 - **Secondary (#858581):** The utilitarian slate. Paths, timestamps, counters,
   captions — everything that answers a question the eye did not ask.
-- **Tertiary (#c9954a):** Amber phosphor. The only chromatic accent in the
-  product, reserved for live state.
-- **Surfaces (#040404 → #121212):** Five deliberate steps. `surface-sunken` is
+- **Tertiary (#c9954a):** Amber phosphor. The only chrome accent in the product,
+  reserved for identity, presence, and insertion.
+- **Surfaces (#040404 → #171715):** Five deliberate steps. `surface-sunken` is
   the terminal, the deepest plane because it holds the real work. `surface` is
   the frame. `surface-raised` carries the rail, header, and review panel.
   `surface-hover` and `surface-active` are interaction states, never regions.
 - **Outlines (#292929, #444444):** Machined edges. `outline` divides regions;
   `outline-strong` marks a control that accepts a click.
-- **Added / Removed (#7ee787, #ff7b72):** The only brightness in the enclosure
-  that is not amber. A diff has to be scannable at a glance against near-black,
-  so these two run hot — and they are not diff colors *resembling* the
-  terminal's, they are the same two tokens the terminal renders for ANSI green
-  and red.
+- **Added / Removed (#7ee787, #ff7b72):** The diff's structural colors. A diff
+  has to be scannable at a glance against near-black, so these two run hot — and
+  they are the same two tokens the terminal renders for ANSI green and red.
+- **Syntax colors:** A restrained editor palette used only inside diff code.
+  Comment, keyword, string, constant, entity, and type each have a dedicated
+  token; these colors describe source syntax and never become chrome accents.
 
 ### The terminal obeys the same system
 
@@ -228,19 +238,20 @@ terminal and the panel is a drag handle: pulling it trades width between the two
 between a 280px diff and a 360px terminal. Nothing else in the chassis reflows —
 this is a desktop window, not a responsive page.
 
-The tree is a fourth column, 200px, bolted to the panel's left edge and spanning
-the row from the top course to the bottom edge. It is never dragged: opening it
-widens the panel by exactly 200px and closing it narrows it by exactly 200px, so
-the diff keeps the width the user set. When the window is too narrow to seat the
-terminal's 360px beside the tree and the diff, the terminal is what gives — a
-shell reflows to any width, and a 140px column of code does not.
+The tree is a fourth column, 200px by default, bolted to the panel's left edge
+and spanning the row from the top course to the bottom edge. Its right divider
+resizes it while the diff keeps the width the user set, so the panel grows into
+or yields space back to the terminal. Each project remembers its preferred tree
+width for the application session. When the window cannot fit that preference
+beside the 280px diff and 360px terminal minimums, the tree contracts as far as
+120px and restores itself when space returns.
 
 Padding and gaps are strictly 4, 8, 12, 16, 20, 24 — Tailwind's `1`–`6`. The
 default density is tight: 12px is the standard padding, and anything looser has
 to earn it. This is a tool for people who keep it open all day; air spent on
 chrome is air taken from output.
 
-Structural dimensions are tokens — `rail`, `header`, and `tree`. Anything else that
+Structural dimensions are tokens — `rail` and `header`. Anything else that
 occupies space stays on the same 4px grid. The sole exception is the 1–2px
 hairline: rules and markers live below the grid because they draw an edge rather
 than occupy space.
@@ -250,8 +261,8 @@ chrome below the output — the pane runs to the bottom edge of the window.
 
 ## Elevation & Depth
 
-Nothing casts a shadow. Depth is conveyed two ways at once, and both are
-required for a region to read as separate:
+Persistent regions do not cast shadows. Depth is conveyed two ways at once, and
+both are required for a region to read as separate:
 
 1. **A machined edge.** Every region boundary is a 1px `outline` rule. The
    border is what says where one panel ends and the next begins.
@@ -262,7 +273,8 @@ required for a region to read as separate:
 
 Interaction states use tone alone (`surface-hover`, `surface-active`) and never
 add or remove a border. A control that changes its own outline on hover reads as
-a panel coming loose.
+a panel coming loose. Temporary overlays such as context menus may use a compact
+shadow because they sit above the chassis rather than forming part of it.
 
 ## Shapes
 
@@ -283,15 +295,17 @@ selected.
 
 **Shell tab.** Fills the top course, divided from its neighbor by a vertical
 rule. Tabs are part of the chassis, not chips resting on it. The active tab lifts
-to `surface-active` and carries a 2px amber rule along its bottom edge, breaking
-the course's baseline exactly where the session lives. A status dot precedes the
-label: amber when the session is live, `outline-strong` when idle.
+to `surface-active`. A status dot precedes the label: amber for the selected
+shell and `outline-strong` for the others. Amber drag markers show the pending
+insertion edge while tabs are reordered.
 
 **Icon button.** A square the full height of the top course, transparent,
 `secondary` ink, brightening to `primary` on hover, divided from its neighbor by
-a rule on its leading edge. When it toggles a region open, the active state is
-amber — it is reporting a live panel, not a pressed key. Icon glyphs are 16px.
-Icon-only controls always carry an `aria-label`.
+a rule on its leading edge. When it toggles a region open, the active state uses
+`surface-active` with `primary` ink. Open and focused are neutral UI state, not
+identity, so they do
+not spend amber. Icon glyphs are 16px. Icon-only controls always carry an
+`aria-label`.
 
 **Primary action.** The one inverted surface in the product: paper ground, frame
 ink. There is at most one per region, and its inversion is the accent that
@@ -301,9 +315,12 @@ with `secondary` ink.
 **Tree row.** One changed file or one folder, indented 8px per level from a 12px
 margin. A 16px leading slot holds either the folder's chevron or the file's status
 mark, so both align down the column no matter how deep the row sits. Folder names
-are `secondary`, file names `primary` — the hierarchy is scaffolding, the files are
-the content. The full-file control appears on hover and stays while that file is
-expanded; nothing else in the row reacts.
+are `secondary`, file names `primary` — the hierarchy is scaffolding, the files
+are the content. The full-file control appears on hover and stays in `primary`
+while that file is focused; nothing else in the row reacts. The tree's right
+hairline is a resize
+handle. During resize it brightens to `primary`, and the header exposes a reset
+control whenever the preferred width differs from 200px.
 
 **Diff line.** Number gutter in `outline-strong`; code uses dedicated,
 high-contrast syntax colors at normal weight. Added and removed lines carry
@@ -317,8 +334,9 @@ than floating in a card.
 
 ## Do's and Don'ts
 
-- Do reserve amber for live state — a running session, a mounted project, the
-  cursor. If it isn't a fact about right now, it isn't amber.
+- Do reserve amber for identity, presence, and insertion — the mounted project,
+  selected shell, cursor, and drag target. Open panels and focused controls stay
+  neutral.
 - Don't introduce a second chromatic accent. Green and red already mean added
   and removed, in the panel and in the terminal alike.
 - Do keep every corner square. There is no radius token to reach for except
@@ -327,7 +345,8 @@ than floating in a card.
   bracket in a class name means the design system was missing something; fix the
   token instead.
 - Do let borders and tone separate regions together. Neither alone is enough.
-- Don't add a shadow, a blur, or a gradient. The enclosure is matte.
+- Don't add a shadow to persistent regions, or use blur or gradients. A compact
+  shadow is reserved for temporary overlays such as context menus.
 - Do keep type at 10px and above, in weights 400/500/600/700 only.
 - Don't set a font family in a component. There is one typeface.
 - Do read terminal colors from the tokens. A hex literal in the terminal theme

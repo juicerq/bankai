@@ -19,16 +19,29 @@ export function ReviewPanel({
 	active,
 	diffWidth,
 	minDiffWidth,
+	treeOpen,
+	defaultTreeWidth,
+	treeWidth,
+	minTreeWidth,
+	maxTreeWidth,
+	onTreeOpenChange,
+	onTreeWidthChange,
 	onClose,
 }: {
 	project: Project;
 	active: boolean;
 	diffWidth: number;
 	minDiffWidth: number;
+	treeOpen: boolean;
+	defaultTreeWidth: number;
+	treeWidth: number;
+	minTreeWidth: number;
+	maxTreeWidth?: number;
+	onTreeOpenChange: (open: boolean) => void;
+	onTreeWidthChange: (width: number) => void;
 	onClose: () => void;
 }) {
 	const [mode, setMode] = useState<ReviewMode>("uncommitted");
-	const [treeOpen, setTreeOpen] = useState(false);
 	const [closedFiles, setClosedFiles] = useState<ReadonlySet<string>>(new Set());
 	const [focusedPath, setFocusedPath] = useState<string>();
 	const diff = useRef<ReviewDiffHandle>(null);
@@ -134,6 +147,11 @@ export function ReviewPanel({
 					key={mode}
 					files={files}
 					focusedPath={focusedPath}
+					defaultWidth={defaultTreeWidth}
+					preferredWidth={treeWidth}
+					minWidth={minTreeWidth}
+					maxWidth={maxTreeWidth}
+					onWidthChange={onTreeWidthChange}
 					onOpenFile={openFromTree}
 					onToggleFocusFile={toggleFocus}
 				/>
@@ -145,12 +163,12 @@ export function ReviewPanel({
 						<button
 							type="button"
 							className={`flex size-header shrink-0 items-center justify-center border-outline border-r hover:bg-surface-hover hover:text-primary ${
-								treeOpen ? "text-tertiary" : "text-secondary"
+								treeOpen ? "bg-surface-active text-primary" : "text-secondary"
 							}`}
 							aria-expanded={treeOpen}
 							aria-label="Toggle file tree"
 							title="Toggle file tree"
-							onClick={() => setTreeOpen((current) => !current)}
+							onClick={() => onTreeOpenChange(!treeOpen)}
 						>
 							<FolderIcon className="size-4" />
 						</button>

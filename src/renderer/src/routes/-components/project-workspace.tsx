@@ -8,8 +8,10 @@ import { useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
 import { usePanelResize } from "@renderer/routes/-utils/use-panel-resize";
 
 const DEFAULT_DIFF_WIDTH = 600;
+const DEFAULT_TREE_WIDTH = 200;
 const MIN_DIFF_WIDTH = 280;
 const MIN_TERMINAL_WIDTH = 360;
+const MIN_TREE_WIDTH = 120;
 
 type ShellTab = {
 	id: string;
@@ -26,11 +28,13 @@ export function ProjectWorkspace({
 	const [tabs, setTabs] = useState<ShellTab[]>(() => [newShellTab(1)]);
 	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
 	const [reviewOpen, setReviewOpen] = useState(true);
+	const [treeOpen, setTreeOpen] = useState(false);
+	const [treeWidth, setTreeWidth] = useState(DEFAULT_TREE_WIDTH);
 	const nextShellNumber = useRef(2);
-	const { width: diffWidth, resizing, rowRef, separatorProps } = usePanelResize({
+	const { width: diffWidth, rowWidth, resizing, rowRef, separatorProps } = usePanelResize({
 		initialWidth: DEFAULT_DIFF_WIDTH,
 		minWidth: MIN_DIFF_WIDTH,
-		minRemaining: MIN_TERMINAL_WIDTH,
+		minRemaining: MIN_TERMINAL_WIDTH + (treeOpen ? MIN_TREE_WIDTH : 0),
 	});
 
 	const registerTabShortcuts = useCallback(() => {
@@ -97,7 +101,7 @@ export function ProjectWorkspace({
 				<button
 					type="button"
 					className={`flex size-header shrink-0 items-center justify-center border-outline border-x hover:bg-surface-hover hover:text-primary ${
-						reviewOpen ? "text-tertiary" : "text-secondary"
+						reviewOpen ? "bg-surface-active text-primary" : "text-secondary"
 					}`}
 					aria-expanded={reviewOpen}
 					aria-label="Toggle review panel"
@@ -146,6 +150,17 @@ export function ProjectWorkspace({
 							active={active}
 							diffWidth={diffWidth}
 							minDiffWidth={MIN_DIFF_WIDTH}
+							treeOpen={treeOpen}
+							defaultTreeWidth={DEFAULT_TREE_WIDTH}
+							treeWidth={treeWidth}
+							minTreeWidth={MIN_TREE_WIDTH}
+							maxTreeWidth={
+								rowWidth === undefined
+									? undefined
+									: Math.max(MIN_TREE_WIDTH, rowWidth - diffWidth - MIN_TERMINAL_WIDTH)
+							}
+							onTreeOpenChange={setTreeOpen}
+							onTreeWidthChange={setTreeWidth}
 							onClose={() => setReviewOpen(false)}
 						/>
 					</>
@@ -177,14 +192,16 @@ function ProjectWorkspaceShellTabs({
 
 	return (
 		<div className="flex min-w-0 flex-1 items-center overflow-hidden" aria-label="Shells">
-			{tabs.map((tab) => {
+			{tabs.map((tab, index) => {
 				const selected = tab.id === activeTabId;
 				const dropEdge = drag.dropEdge(tab.id);
 
 				return (
 					<div
 						className={`relative flex h-header shrink-0 items-center border-outline border-b ${
-							selected ? "border-x bg-surface-active" : "hover:bg-surface-hover"
+							selected
+								? `${index === 0 ? "border-r" : "border-x"} bg-surface-active`
+								: "hover:bg-surface-hover"
 						}`}
 						key={tab.id}
 						{...drag.itemProps(tab.id)}

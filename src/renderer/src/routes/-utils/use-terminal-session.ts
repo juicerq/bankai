@@ -1,7 +1,7 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { type IDisposable, type ITerminalOptions, Terminal } from "@xterm/xterm";
-import { type RefObject, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { readTerminalStyle } from "@renderer/routes/-utils/terminal-style";
 import type { TerminalCommandErrorEvent } from "@shared/terminal";
 import { throttle } from "@shared/throttle";
@@ -30,151 +30,189 @@ type ActiveWebgl = {
 	contextLoss: IDisposable;
 };
 
-export function useTerminalSession(projectId: string, active: boolean) {
-	const containerRef = useRef<HTMLDivElement>(null);
-	const terminalRef = useRef<Terminal | null>(null);
-	const webglRef = useRef<ActiveWebgl | null>(null);
-
-	useEffect(() => {
-		const container = containerRef.current;
+export function useTerminalSession(projectId: string) {
+	const sessionRef = useRef<RendererTerminalSession | null>(null);
+	const activeRef = useRef(false);
+	const activationRef = useRef<symbol | null>(null);
+	const registerContainer = useCallback((container: HTMLDivElement | null) => {
 		if (!container) {
 			return;
 		}
 
-		const terminal = new Terminal({ ...TERMINAL_OPTIONS, ...readTerminalStyle() });
-		terminalRef.current = terminal;
-		const fit = new FitAddon();
-		terminal.loadAddon(fit);
-		terminal.open(container);
-
-		let sessionId: string | undefined;
-		let disposed = false;
-		const fail = (message: string, err: unknown) => {
-			if (!disposed) {
-				terminal.write(`\r\n\u001B[31m${message}: ${String(err)}\u001B[0m\r\n`);
-			}
-		};
-		const removeDataListener = window.bankaiTerminal.onData((event) => {
-			if (event.sessionId === sessionId) {
-				terminal.write(event.data);
-			}
-		});
-		const removeExitListener = window.bankaiTerminal.onExit((event) => {
-			if (event.sessionId === sessionId) {
-				terminal.write(`\r\n\u001B[90m[process exited ${event.exitCode}]\u001B[0m\r\n`);
-			}
-		});
-		const removeCommandErrorListener = window.bankaiTerminal.onCommandError((event) => {
-			if (event.sessionId === sessionId) {
-				fail(TERMINAL_COMMAND_FAILURES[event.command], event.error);
-			}
-		});
-		const input = terminal.onData((data) => {
-			if (sessionId) {
-				window.bankaiTerminal.write(sessionId, data);
-			}
-		});
-		let lastCols: number | undefined;
-		let lastRows: number | undefined;
-		const resizeTerminal = throttle(() => {
-			if (container.clientWidth === 0 || container.clientHeight === 0) {
-				return;
-			}
-			fit.fit();
-			if (sessionId && (terminal.cols !== lastCols || terminal.rows !== lastRows)) {
-				lastCols = terminal.cols;
-				lastRows = terminal.rows;
-				window.bankaiTerminal.resize(sessionId, terminal.cols, terminal.rows);
-			}
-		}, TERMINAL_RESIZE_THROTTLE_MS);
-		const resizeObserver = new ResizeObserver(resizeTerminal);
-		resizeObserver.observe(container);
-
-		document.fonts.ready
-			.then(() => {
-				if (disposed) {
-					return;
-				}
-				fit.fit();
-				lastCols = terminal.cols;
-				lastRows = terminal.rows;
-				return window.bankaiTerminal.open(projectId, terminal.cols, terminal.rows);
-			})
-			.then((openedSessionId) => {
-				if (openedSessionId === undefined) {
-					return;
-				}
-				if (disposed) {
-					window.bankaiTerminal.close(openedSessionId);
-					return;
-				}
-				sessionId = openedSessionId;
-				terminal.focus();
-			})
-			.catch((err) => fail("Failed to open shell", err));
-
+		const session = new RendererTerminalSession(container, projectId);
+		sessionRef.current = session;
+		session.setActive(activeRef.current);
 		return () => {
-			disposed = true;
-			resizeObserver.disconnect();
-			resizeTerminal.cancel();
-			input.dispose();
-			removeDataListener();
-			removeExitListener();
-			removeCommandErrorListener();
-			if (sessionId) {
-				window.bankaiTerminal.close(sessionId);
+			if (sessionRef.current === session) {
+				sessionRef.current = null;
 			}
-			disposeWebgl(webglRef);
-			terminalRef.current = null;
-			terminal.dispose();
+			session.dispose();
 		};
 	}, [projectId]);
+	const registerActivation = useCallback(() => {
+		const activation = Symbol("terminal-activation");
+		activationRef.current = activation;
+		activeRef.current = true;
+		sessionRef.current?.setActive(true);
+		return () => {
+			if (activationRef.current !== activation) {
+				return;
+			}
 
-	useEffect(() => {
-		const terminal = terminalRef.current;
-		if (!active || !terminal) {
+			activationRef.current = null;
+			activeRef.current = false;
+			sessionRef.current?.setActive(false);
+		};
+	}, []);
+
+	return { registerContainer, registerActivation };
+}
+
+class RendererTerminalSession {
+	private readonly terminal = new Terminal({ ...TERMINAL_OPTIONS, ...readTerminalStyle() });
+	private readonly fit = new FitAddon();
+	private readonly resizeTerminal;
+	private readonly resizeObserver;
+	private readonly input;
+	private readonly removeDataListener;
+	private readonly removeExitListener;
+	private readonly removeCommandErrorListener;
+	private sessionId: string | undefined;
+	private lastCols: number | undefined;
+	private lastRows: number | undefined;
+	private webgl: ActiveWebgl | undefined;
+	private active = false;
+	private disposed = false;
+	private lifecycle = 0;
+
+	constructor(
+		private readonly container: HTMLDivElement,
+		projectId: string,
+	) {
+		this.terminal.loadAddon(this.fit);
+		this.terminal.open(container);
+		this.removeDataListener = window.bankaiTerminal.onData((event) => {
+			if (event.sessionId === this.sessionId) {
+				this.terminal.write(event.data);
+			}
+		});
+		this.removeExitListener = window.bankaiTerminal.onExit((event) => {
+			if (event.sessionId === this.sessionId) {
+				this.terminal.write(`\r\n\u001B[90m[process exited ${event.exitCode}]\u001B[0m\r\n`);
+			}
+		});
+		this.removeCommandErrorListener = window.bankaiTerminal.onCommandError((event) => {
+			if (event.sessionId === this.sessionId) {
+				this.fail(TERMINAL_COMMAND_FAILURES[event.command], event.error);
+			}
+		});
+		this.input = this.terminal.onData((data) => {
+			if (this.sessionId) {
+				window.bankaiTerminal.write(this.sessionId, data);
+			}
+		});
+		this.resizeTerminal = throttle(() => this.resize(), TERMINAL_RESIZE_THROTTLE_MS);
+		this.resizeObserver = new ResizeObserver(this.resizeTerminal);
+		this.resizeObserver.observe(container);
+		this.open(projectId).catch((err) => this.fail("Failed to open shell", err));
+	}
+
+	setActive(active: boolean) {
+		if (active === this.active) {
 			return;
 		}
 
-		terminal.focus();
-		const webgl = loadWebgl(terminal, webglRef);
-		if (!webgl) {
+		this.active = active;
+		if (!active) {
+			this.disposeWebgl();
 			return;
 		}
 
-		return () => disposeWebgl(webglRef, webgl.addon);
-	}, [active, projectId]);
-
-	return containerRef;
-}
-
-function loadWebgl(
-	terminal: Terminal,
-	webglRef: RefObject<ActiveWebgl | null>,
-): ActiveWebgl | undefined {
-	disposeWebgl(webglRef);
-	try {
-		const addon = new WebglAddon();
-		const contextLoss = addon.onContextLoss(() => disposeWebgl(webglRef, addon));
-		const webgl = { addon, contextLoss };
-		webglRef.current = webgl;
-		terminal.loadAddon(addon);
-		return webgl;
-	} catch {
-		disposeWebgl(webglRef);
-		return undefined;
+		this.terminal.focus();
+		this.loadWebgl();
 	}
-}
 
-function disposeWebgl(
-	webglRef: RefObject<ActiveWebgl | null>,
-	addon?: WebglAddon,
-): void {
-	const webgl = webglRef.current;
-	if (!webgl || (addon && webgl.addon !== addon)) {
-		return;
+	dispose() {
+		if (this.disposed) {
+			return;
+		}
+
+		this.disposed = true;
+		this.lifecycle += 1;
+		this.resizeObserver.disconnect();
+		this.resizeTerminal.cancel();
+		this.input.dispose();
+		this.removeDataListener();
+		this.removeExitListener();
+		this.removeCommandErrorListener();
+		if (this.sessionId) {
+			window.bankaiTerminal.close(this.sessionId);
+		}
+		this.disposeWebgl();
+		this.terminal.dispose();
 	}
-	webglRef.current = null;
-	webgl.contextLoss.dispose();
-	webgl.addon.dispose();
+
+	private async open(projectId: string) {
+		const openingLifecycle = this.lifecycle;
+		await document.fonts.ready;
+		if (this.lifecycle !== openingLifecycle) {
+			return;
+		}
+
+		this.fit.fit();
+		this.lastCols = this.terminal.cols;
+		this.lastRows = this.terminal.rows;
+		const sessionId = await window.bankaiTerminal.open(projectId, this.terminal.cols, this.terminal.rows);
+		if (this.lifecycle !== openingLifecycle) {
+			window.bankaiTerminal.close(sessionId);
+			return;
+		}
+
+		this.sessionId = sessionId;
+		if (this.active) {
+			this.terminal.focus();
+		}
+	}
+
+	private resize() {
+		if (this.container.clientWidth === 0 || this.container.clientHeight === 0) {
+			return;
+		}
+
+		this.fit.fit();
+		if (this.sessionId && (this.terminal.cols !== this.lastCols || this.terminal.rows !== this.lastRows)) {
+			this.lastCols = this.terminal.cols;
+			this.lastRows = this.terminal.rows;
+			window.bankaiTerminal.resize(this.sessionId, this.terminal.cols, this.terminal.rows);
+		}
+	}
+
+	private loadWebgl() {
+		this.disposeWebgl();
+		try {
+			const addon = new WebglAddon();
+			const contextLoss = addon.onContextLoss(() => this.disposeWebgl(addon));
+			this.webgl = { addon, contextLoss };
+			this.terminal.loadAddon(addon);
+		} catch {
+			this.disposeWebgl();
+		}
+	}
+
+	private disposeWebgl(addon?: WebglAddon) {
+		if (!this.webgl || (addon && this.webgl.addon !== addon)) {
+			return;
+		}
+
+		const { contextLoss, addon: activeAddon } = this.webgl;
+		this.webgl = undefined;
+		contextLoss.dispose();
+		activeAddon.dispose();
+	}
+
+	private fail(message: string, err: unknown) {
+		if (!this.disposed) {
+			this.terminal.write(`\r\n\u001B[31m${message}: ${String(err)}\u001B[0m\r\n`);
+		}
+	}
 }

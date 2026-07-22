@@ -1,15 +1,14 @@
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, useRef } from "react";
-import type { FileChange, ReviewMode } from "@main/git/contracts";
+import { useCallback, useRef, useState } from "react";
+import type { FileChange, FullFile, ReviewMode } from "@main/git/contracts";
 import { orpc } from "@renderer/lib/api";
 import { ReviewDiffLine, ReviewNotice, reviewContentNotice } from "@renderer/routes/-components/review-line";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 
 const LINE_HEIGHT = 20;
 const LEADING_CONTEXT = 3;
-const NO_LINES = [] as const;
 
 export function ReviewFocusedFile({
 	projectId,
@@ -24,60 +23,13 @@ export function ReviewFocusedFile({
 	file: FileChange;
 	onClose: () => void;
 }) {
-	const scroll = useRef<HTMLDivElement>(null);
-	const positioned = useRef(false);
 	const { data: content } = useQuery(
 		orpc.review.fullFile.queryOptions({
 			input: { projectId, path: file.path, mode },
 			enabled: active,
 		}),
 	);
-	const lines = content?.status === "ready" ? content.lines : NO_LINES;
-	const virtualizer = useVirtualizer({
-		count: lines.length,
-		getScrollElement: () => scroll.current,
-		estimateSize: () => LINE_HEIGHT,
-		overscan: 24,
-	});
-
-	useEffect(() => {
-		// Imperative scroll: place the reader at the first changed line once the content first loads.
-		if (positioned.current || content?.status !== "ready") {
-			return;
-		}
-		positioned.current = true;
-		const firstChange = content.lines.findIndex((line) => line.kind !== "context");
-		if (firstChange > 0) {
-			virtualizer.scrollToIndex(Math.max(0, firstChange - LEADING_CONTEXT), { align: "start" });
-		}
-	}, [content, virtualizer]);
-
 	const notice = content && content.status !== "ready" ? reviewContentNotice(content, true) : "Reading file\u2026";
-	const body =
-		content?.status === "ready" ? (
-			<div ref={scroll} className="min-h-0 flex-1 overflow-auto">
-				<div className="relative min-w-full" style={{ height: virtualizer.getTotalSize() }}>
-					{virtualizer.getVirtualItems().map((virtualRow) => {
-						const line = lines[virtualRow.index];
-						if (!line) {
-							return null;
-						}
-
-						return (
-							<div
-								key={virtualRow.key}
-								className="absolute top-0 left-0 min-w-full w-max"
-								style={{ height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
-							>
-								<ReviewDiffLine path={file.path} line={line} lines={content.lines} lineIndex={virtualRow.index} />
-							</div>
-						);
-					})}
-				</div>
-			</div>
-		) : (
-			<ReviewNotice>{notice}</ReviewNotice>
-		);
 
 	return (
 		<section
@@ -90,8 +42,64 @@ export function ReviewFocusedFile({
 			}}
 		>
 			<ReviewFocusedFileHeader file={file} onClose={onClose} />
-			{body}
+			{content?.status === "ready" && <ReviewFocusedFileReader file={file} content={content} />}
+			{content?.status !== "ready" && <ReviewNotice>{notice}</ReviewNotice>}
 		</section>
+	);
+}
+
+function ReviewFocusedFileReader({
+	file,
+	content,
+}: {
+	file: FileChange;
+	content: Extract<FullFile, { status: "ready" }>;
+}) {
+	const scroll = useRef<HTMLDivElement>(null);
+	const [initialOffset] = useState(() => {
+		const firstChange = content.lines.findIndex((line) => line.kind !== "context");
+		return firstChange > 0 ? Math.max(0, firstChange - LEADING_CONTEXT) * LINE_HEIGHT : 0;
+	});
+	const virtualizer = useVirtualizer({
+		count: content.lines.length,
+		getScrollElement: () => scroll.current,
+		estimateSize: () => LINE_HEIGHT,
+		initialOffset,
+		overscan: 24,
+	});
+	const registerScroll = useCallback((node: HTMLDivElement | null) => {
+		scroll.current = node;
+		if (node) {
+			node.scrollTop = initialOffset;
+		}
+	}, [initialOffset]);
+
+	return (
+		<div ref={registerScroll} className="min-h-0 flex-1 overflow-auto">
+			<div className="relative min-w-full" style={{ height: virtualizer.getTotalSize() }}>
+				{virtualizer.getVirtualItems().map((virtualRow) => {
+					const line = content.lines[virtualRow.index];
+					if (!line) {
+						return null;
+					}
+
+					return (
+						<div
+							key={virtualRow.key}
+							className="absolute top-0 left-0 min-w-full w-max"
+							style={{ height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
+						>
+							<ReviewDiffLine
+								path={file.path}
+								line={line}
+								lines={content.lines}
+								lineIndex={virtualRow.index}
+							/>
+						</div>
+					);
+				})}
+			</div>
+		</div>
 	);
 }
 

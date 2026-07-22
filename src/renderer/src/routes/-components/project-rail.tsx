@@ -1,5 +1,5 @@
 import { PlusIcon } from "@heroicons/react/24/outline";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { Project } from "@main/store/projects";
 import { type DragReorder, useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
 
@@ -99,12 +99,7 @@ function ProjectRailItem({
 }) {
 	const [menuPosition, setMenuPosition] = useState<{ x: number; y: number }>();
 	const dropEdge = drag.dropEdge(project.id);
-
-	useEffect(() => {
-		if (!menuPosition) {
-			return;
-		}
-
+	const registerMenuDismissal = useCallback(() => {
 		const close = () => setMenuPosition(undefined);
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
@@ -120,7 +115,7 @@ function ProjectRailItem({
 			window.removeEventListener("blur", close);
 			window.removeEventListener("keydown", handleKeyDown);
 		};
-	}, [menuPosition]);
+	}, []);
 
 	return (
 		<>
@@ -151,6 +146,7 @@ function ProjectRailItem({
 			</button>
 			{menuPosition && (
 				<div
+					ref={registerMenuDismissal}
 					role="menu"
 					aria-label={`Actions for ${project.name}`}
 					className="fixed z-50 min-w-44 border border-outline-strong bg-surface-raised text-body shadow-lg"

@@ -1,6 +1,6 @@
 import { ChevronDownIcon, ChevronUpIcon, FolderIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useCallback, useRef, useState } from "react";
 import type { ReviewMode } from "@main/git/contracts";
 import type { Project } from "@main/store/projects";
 import { orpc } from "@renderer/lib/api";
@@ -8,6 +8,7 @@ import { ReviewDiff, type ReviewAnchor, type ReviewDiffHandle } from "@renderer/
 import { ReviewFocusedFile } from "@renderer/routes/-components/review-focused-file";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
+import { useReviewChanges } from "@renderer/routes/-utils/use-review-changes";
 
 const MODES: { mode: ReviewMode; label: string }[] = [
 	{ mode: "uncommitted", label: "Uncommitted" },
@@ -44,10 +45,10 @@ export function ReviewPanel({
 	const [mode, setMode] = useState<ReviewMode>("uncommitted");
 	const [closedFiles, setClosedFiles] = useState<ReadonlySet<string>>(new Set());
 	const [focusedPath, setFocusedPath] = useState<string>();
-	const [watchReady, setWatchReady] = useState(false);
 	const diff = useRef<ReviewDiffHandle>(null);
 	const anchor = useRef<ReviewAnchor | null>(null);
-	const queryClient = useQueryClient();
+	const watch = useReviewChanges(project.id, active);
+	const watchReady = watch.status === "ready";
 	const { data: snapshot, error, isError } = useQuery(
 		orpc.review.snapshot.queryOptions({
 			input: { projectId: project.id, mode },
@@ -55,48 +56,6 @@ export function ReviewPanel({
 			placeholderData: keepPreviousData,
 		}),
 	);
-
-	useEffect(() => {
-		setWatchReady(false);
-		if (!active) {
-			return;
-		}
-
-		let watching = false;
-		let disposed = false;
-		// Filesystem events are an external event source; bridge them into TanStack Query's cache owner.
-		const stopListening = window.bankaiReview.onChanged((event) => {
-			if (event.projectId !== project.id) {
-				return;
-			}
-
-			const filters = [
-				{ queryKey: orpc.review.snapshot.key({ type: "query", input: { projectId: project.id } }) },
-				{ queryKey: orpc.review.file.key({ type: "query", input: { projectId: project.id } }) },
-				{ queryKey: orpc.review.fullFile.key({ type: "query", input: { projectId: project.id } }) },
-			];
-			Promise.all(filters.map((filter) => queryClient.cancelQueries(filter)))
-				.then(() => Promise.all(filters.map((filter) => queryClient.invalidateQueries(filter))))
-				.catch((err) => console.error("Failed to refresh review changes", err));
-		});
-		window.bankaiReview.watch(project.id).then(() => {
-			watching = true;
-			if (disposed) {
-				window.bankaiReview.unwatch(project.id);
-				return;
-			}
-			setWatchReady(true);
-		}).catch((err) => console.error("Failed to observe review changes", err));
-
-		return () => {
-			disposed = true;
-			setWatchReady(false);
-			stopListening();
-			if (watching) {
-				window.bankaiReview.unwatch(project.id);
-			}
-		};
-	}, [active, project.id, queryClient]);
 
 	const selectMode = useCallback((next: ReviewMode) => {
 		setMode(next);
@@ -159,9 +118,12 @@ export function ReviewPanel({
 		[focusedPath, focusFile, revealFile],
 	);
 
-	const files = snapshot?.files ?? [];
+	const watchError = watch.status === "error" ? watch.error : undefined;
+	const queryError = isError ? String(error) : undefined;
+	const currentSnapshot = watch.status === "error" ? undefined : snapshot;
+	const files = currentSnapshot?.files ?? [];
 	const focusedFile = focusedPath ? files.find((file) => file.path === focusedPath) : undefined;
-	if (focusedPath && snapshot && !focusedFile) {
+	if (focusedPath && currentSnapshot && !focusedFile) {
 		// A focused path is only valid while the snapshot still contains it; drop it when the file leaves the scope.
 		setFocusedPath(undefined);
 	}
@@ -234,16 +196,16 @@ export function ReviewPanel({
 						</div>
 					</div>
 					<div className="flex shrink-0 items-center gap-2 px-3">
-						{snapshot?.isRepo && (
+						{currentSnapshot?.isRepo && (
 							<div
 								className="flex gap-2 text-data"
-								aria-label={`${snapshot.totals.additions} additions, ${snapshot.totals.deletions} removals`}
+								aria-label={`${currentSnapshot.totals.additions} additions, ${currentSnapshot.totals.deletions} removals`}
 							>
-								<span className="text-added">+{snapshot.totals.additions}</span>
-								<span className="text-removed">−{snapshot.totals.deletions}</span>
+								<span className="text-added">+{currentSnapshot.totals.additions}</span>
+								<span className="text-removed">−{currentSnapshot.totals.deletions}</span>
 							</div>
 						)}
-						{snapshot?.isRepo && (
+						{currentSnapshot?.isRepo && (
 							<div className="flex items-center" role="group" aria-label="Collapse or expand all files">
 								<button
 									type="button"
@@ -282,8 +244,8 @@ export function ReviewPanel({
 						projectId={project.id}
 						mode={mode}
 						active={active && watchReady}
-						snapshot={snapshot}
-						error={isError ? String(error) : undefined}
+						snapshot={currentSnapshot}
+						error={watchError ?? queryError}
 						covered={!!focusedFile}
 						closedFiles={closedFiles}
 						onToggleOpen={toggleOpen}

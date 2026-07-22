@@ -1,3 +1,17 @@
 {
-	"extends": ["./node_modules/@lobomfz/check/.oxlintrc.json"]
+	"extends": ["./node_modules/@lobomfz/check/.oxlintrc.json"],
+	"rules": {
+		"no-restricted-imports": [
+			"error",
+			{
+				"paths": [
+					{
+						"name": "react",
+						"importNames": ["useEffect", "useLayoutEffect"],
+						"message": "Use an event handler, callback ref, or useSyncExternalStore owner instead."
+					}
+				]
+			}
+		]
+	}
 }

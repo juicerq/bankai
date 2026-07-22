@@ -1,10 +1,9 @@
-import { parentPort } from "electron";
 import { Git } from "@main/git/Git";
 import { gitRequestSchema, type GitResponse } from "@main/git/protocol";
 
 let queue = Promise.resolve();
 
-parentPort.on("message", (event) => {
+process.parentPort.on("message", (event) => {
 	queue = queue.then(async () => {
 		const raw: unknown = event.data;
 		const id = requestId(raw);
@@ -14,11 +13,11 @@ parentPort.on("message", (event) => {
 			const result = await execute(request);
 			// Electron ParentPort has no target-origin parameter.
 			// eslint-disable-next-line unicorn/require-post-message-target-origin
-			parentPort.postMessage({ id: request.id, ok: true, result } satisfies GitResponse);
+			process.parentPort.postMessage({ id: request.id, ok: true, result } satisfies GitResponse);
 		} catch (err) {
 			// Electron ParentPort has no target-origin parameter.
 			// eslint-disable-next-line unicorn/require-post-message-target-origin
-			parentPort.postMessage({ id, ok: false, error: errorMessage(err) } satisfies GitResponse);
+			process.parentPort.postMessage({ id, ok: false, error: errorMessage(err) } satisfies GitResponse);
 		}
 	});
 });

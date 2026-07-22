@@ -98,7 +98,7 @@ class GitUtilityProcess {
 	private spawn(): ChildState {
 		const child = utilityProcess.fork(join(import.meta.dirname, "git-worker.js"), [], {
 			serviceName: "Bankai Git",
-			stdio: "ignore",
+			stdio: ["ignore", "ignore", "pipe"],
 		});
 		let markReady: () => void;
 		let failReady: (err: Error) => void;
@@ -113,6 +113,10 @@ class GitUtilityProcess {
 		this.child = state;
 
 		child.once("spawn", () => markReady());
+		child.stderr?.setEncoding("utf8");
+		child.stderr?.on("data", (data: string) => {
+			Logger.error("git-process:stderr", { data: data.trim() });
+		});
 		child.on("message", (raw) => this.handleMessage(raw));
 		child.on("error", (type, location) => {
 			Logger.error("git-process:error", { type, location });

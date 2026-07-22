@@ -19,6 +19,7 @@ export function ReviewPanel({
 	project,
 	active,
 	warm,
+	preload,
 	diffWidth,
 	minDiffWidth,
 	treeOpen,
@@ -33,6 +34,7 @@ export function ReviewPanel({
 	project: Project;
 	active: boolean;
 	warm: boolean;
+	preload: boolean;
 	diffWidth: number;
 	minDiffWidth: number;
 	treeOpen: boolean;
@@ -54,7 +56,7 @@ export function ReviewPanel({
 	const { data: snapshot, error, isError } = useQuery(
 		orpc.review.snapshot.queryOptions({
 			input: { projectId: project.id, mode },
-			enabled: active && watchReady,
+			enabled: (active || preload) && watchReady,
 			placeholderData: keepPreviousData,
 		}),
 	);

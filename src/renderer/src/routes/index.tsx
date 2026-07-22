@@ -16,26 +16,33 @@ function Bankai() {
 	const queryClient = useQueryClient();
 	const projects = useQuery(orpc.projects.list.queryOptions());
 	const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-	const [mountedProjectIds, setMountedProjectIds] = useState<string[]>([]);
+	const [openedProjectIds, setOpenedProjectIds] = useState<string[]>([]);
 	const [fullscreen, setFullscreen] = useState(false);
 	const [warmPool] = useState(() => new ProjectWarmPool());
 	const inactiveWarmProjectIds = useSyncExternalStore(warmPool.subscribe, warmPool.getSnapshot, warmPool.getSnapshot);
 	const availableProjects = projects.data || [];
 	const selectedId = activeProjectId || availableProjects[0]?.id;
-	const mountedIds = selectedId && !mountedProjectIds.includes(selectedId)
-		? [...mountedProjectIds, selectedId]
-		: mountedProjectIds;
+	const renderedProjectIds = new Set([...openedProjectIds, ...inactiveWarmProjectIds]);
+	if (selectedId) {
+		renderedProjectIds.add(selectedId);
+	}
 
 	const selectProject = useCallback((projectId: string) => {
 		warmPool.activate(projectId);
 		if (selectedId && selectedId !== projectId) {
 			warmPool.deactivate(selectedId);
 		}
-		setMountedProjectIds((current) => {
+		setOpenedProjectIds((current) => {
 			const withOutgoing = selectedId && !current.includes(selectedId) ? [...current, selectedId] : current;
 			return withOutgoing.includes(projectId) ? withOutgoing : [...withOutgoing, projectId];
 		});
 		setActiveProjectId(projectId);
+	}, [selectedId, warmPool]);
+
+	const prepareProject = useCallback((projectId: string) => {
+		if (projectId !== selectedId) {
+			warmPool.prepare(projectId);
+		}
 	}, [selectedId, warmPool]);
 
 	const registerShortcuts = useCallback(() => {
@@ -115,7 +122,7 @@ function Bankai() {
 		orpc.projects.remove.mutationOptions({
 			onSuccess: async (_, input) => {
 				warmPool.remove(input.projectId);
-				setMountedProjectIds((current) => current.filter((id) => id !== input.projectId));
+				setOpenedProjectIds((current) => current.filter((id) => id !== input.projectId));
 				setActiveProjectId((current) => current === input.projectId ? null : current);
 				await queryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
 			},
@@ -131,6 +138,7 @@ function Bankai() {
 					loading={projects.isPending}
 					selectedId={selectedId}
 					onSelect={selectProject}
+					onPrepare={prepareProject}
 					onAdd={() => addProject.mutate({})}
 					onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
 					onRemove={(projectId) => removeProject.mutate({ projectId })}
@@ -158,14 +166,17 @@ function Bankai() {
 						onAction={() => addProject.mutate({})}
 					/>
 				)}
-				{!projects.isError && availableProjects.filter((project) => mountedIds.includes(project.id)).map((project) => {
+				{!projects.isError && availableProjects.filter((project) => renderedProjectIds.has(project.id)).map((project) => {
 					const active = project.id === selectedId;
+					const opened = active || openedProjectIds.includes(project.id);
 					return (
 						<ProjectWorkspace
 							key={project.id}
 							project={project}
 							active={active}
 							warm={active || inactiveWarmProjectIds.includes(project.id)}
+							opened={opened}
+							preloadReview={!opened}
 						/>
 					);
 				})}

@@ -35,7 +35,15 @@ export class ProjectWarmPool {
 		this.update(this.inactiveProjects.filter((id) => id !== projectId));
 	}
 
+	prepare(projectId: string) {
+		this.retain(projectId);
+	}
+
 	deactivate(projectId: string) {
+		this.retain(projectId);
+	}
+
+	private retain(projectId: string) {
 		this.cancelExpiration(projectId);
 		const next = [projectId, ...this.inactiveProjects.filter((id) => id !== projectId)];
 		const retained = next.slice(0, MAX_INACTIVE_WARM_PROJECTS);

@@ -22,10 +22,14 @@ export function ProjectWorkspace({
 	project,
 	active,
 	warm,
+	opened,
+	preloadReview,
 }: {
 	project: Project;
 	active: boolean;
 	warm: boolean;
+	opened: boolean;
+	preloadReview: boolean;
 }) {
 	const [tabs, setTabs] = useState<ShellTab[]>(() => [newShellTab(1)]);
 	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
@@ -128,7 +132,7 @@ export function ProjectWorkspace({
 							onAction={handleNewShell}
 						/>
 					)}
-					{tabs.map((tab) => {
+					{opened && tabs.map((tab) => {
 						const selected = tab.id === activeTabId;
 						return (
 							<div className={selected ? "min-h-0 flex-1" : "hidden"} key={tab.id}>
@@ -154,6 +158,7 @@ export function ProjectWorkspace({
 							project={project}
 							active={active}
 							warm={warm}
+							preload={preloadReview}
 							diffWidth={diffWidth}
 							minDiffWidth={MIN_DIFF_WIDTH}
 							treeOpen={treeOpen}

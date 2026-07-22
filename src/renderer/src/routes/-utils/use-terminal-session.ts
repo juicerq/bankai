@@ -41,15 +41,19 @@ export function useTerminalSession(projectId: string) {
 			return;
 		}
 
-		const session = new RendererTerminalSession(container, projectId);
-		sessionRef.current = session;
-		session.setWarm(warmRef.current);
-		session.setActive(activeRef.current);
+		let session: RendererTerminalSession | undefined;
+		const frame = window.requestAnimationFrame(() => {
+			session = new RendererTerminalSession(container, projectId);
+			sessionRef.current = session;
+			session.setWarm(warmRef.current);
+			session.setActive(activeRef.current);
+		});
 		return () => {
+			window.cancelAnimationFrame(frame);
 			if (sessionRef.current === session) {
 				sessionRef.current = null;
 			}
-			session.dispose();
+			session?.dispose();
 		};
 	}, [projectId]);
 	const registerWarmth = useCallback(() => {
@@ -193,7 +197,9 @@ class RendererTerminalSession {
 			return;
 		}
 
-		this.fit.fit();
+		if (this.container.clientWidth > 0 && this.container.clientHeight > 0) {
+			this.fit.fit();
+		}
 		this.lastCols = this.terminal.cols;
 		this.lastRows = this.terminal.rows;
 		const sessionId = await window.bankaiTerminal.open(projectId, this.terminal.cols, this.terminal.rows);

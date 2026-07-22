@@ -20,6 +20,14 @@ export default defineConfig({
 	main: {
 		plugins: [externalizeDepsPlugin()],
 		resolve: { alias: aliasNode },
+		build: {
+			rollupOptions: {
+				input: {
+					index: resolve(import.meta.dirname, "./src/main/index.ts"),
+					"git-worker": resolve(import.meta.dirname, "./src/main/git/worker.ts"),
+				},
+			},
+		},
 	},
 	preload: {
 		plugins: [externalizeDepsPlugin()],

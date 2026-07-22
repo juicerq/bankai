@@ -1,4 +1,6 @@
 import { join } from "node:path";
+import { GitProcess } from "@main/git/GitProcess";
+import { setupReviewIpc } from "@main/git/ipc";
 import { startOrpcServer } from "@main/ipc";
 import { Logger } from "@main/logger";
 import { type SettingsValue, Settings } from "@main/store/settings";
@@ -104,6 +106,7 @@ async function createWindow() {
 async function start() {
 	try {
 		startOrpcServer();
+		setupReviewIpc();
 		setupTerminalIpc();
 		setupWindowIpc();
 		await createWindow();
@@ -114,5 +117,7 @@ async function start() {
 }
 
 app.on("ready", start);
+
+app.on("before-quit", () => GitProcess.close());
 
 app.on("window-all-closed", () => app.quit());

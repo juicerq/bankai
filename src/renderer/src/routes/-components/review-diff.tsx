@@ -1,7 +1,9 @@
 import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { useQueries } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useImperativeHandle, useMemo, useRef, type Ref } from "react";
-import type { DiffLine, FileChange, ReviewSnapshot } from "@main/git/Git";
+import { useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
+import type { DiffLine, FileChange, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/contracts";
+import { orpc } from "@renderer/lib/api";
 import { ReviewDiffLine, ReviewNotice, reviewContentNotice } from "@renderer/routes/-components/review-line";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 
@@ -10,7 +12,7 @@ const ROW_HEIGHT = { file: 32, line: 20, notice: 40 } as const;
 type ReviewRow =
 	| { kind: "file"; key: string; file: FileChange; open: boolean; first: boolean }
 	| { kind: "line"; key: string; path: string; line: DiffLine; lines: DiffLine[]; lineIndex: number }
-	| { kind: "notice"; key: string; message: string };
+	| { kind: "notice"; key: string; path: string; message: string };
 
 export type ReviewAnchor = { rowKey: string; path: string; scrollLeft: number };
 
@@ -22,6 +24,9 @@ export type ReviewDiffHandle = {
 
 export function ReviewDiff({
 	ref,
+	projectId,
+	mode,
+	active,
 	snapshot,
 	error,
 	covered,
@@ -30,6 +35,9 @@ export function ReviewDiff({
 	onFocusFile,
 }: {
 	ref?: Ref<ReviewDiffHandle>;
+	projectId: string;
+	mode: ReviewMode;
+	active: boolean;
 	snapshot?: ReviewSnapshot;
 	error?: string;
 	covered: boolean;
@@ -38,8 +46,32 @@ export function ReviewDiff({
 	onFocusFile: (path: string) => void;
 }) {
 	const scroll = useRef<HTMLDivElement>(null);
+	const [visibleFiles, setVisibleFiles] = useState<ReadonlySet<string>>(new Set());
 	const files = snapshot?.files ?? [];
-	const rows = useMemo(() => reviewRows(files, closedFiles), [closedFiles, files]);
+	const fileQueries = useQueries({
+		queries: files.map((file) =>
+			orpc.review.file.queryOptions({
+				input: { projectId, path: file.path, mode },
+				enabled: active && !covered && !closedFiles.has(file.path) && visibleFiles.has(file.path),
+			}),
+		),
+	});
+	const contentByPath = useMemo(() => {
+		const content = new Map<string, ReviewContent>();
+		for (const [index, query] of fileQueries.entries()) {
+			const file = files[index];
+			if (file && query.data) {
+				content.set(file.path, query.data);
+			} else if (file && query.isError) {
+				content.set(file.path, { status: "unavailable" });
+			}
+		}
+		return content;
+	}, [fileQueries, files]);
+	const rows = useMemo(
+		() => reviewRows(files, closedFiles, contentByPath),
+		[closedFiles, contentByPath, files],
+	);
 	const fileRowByPath = useMemo(
 		() => new Map(rows.flatMap((row, index) => (row.kind === "file" ? [[row.file.path, index] as const] : []))),
 		[rows],
@@ -50,6 +82,16 @@ export function ReviewDiff({
 		getItemKey: (index) => rows[index]?.key ?? index,
 		estimateSize: (index) => ROW_HEIGHT[rows[index]?.kind ?? "notice"],
 		overscan: 16,
+		onChange: (instance) => {
+			const next = new Set<string>();
+			for (const item of instance.getVirtualItems()) {
+				const row = rows[item.index];
+				if (row) {
+					next.add(row.kind === "file" ? row.file.path : row.path);
+				}
+			}
+			setVisibleFiles((current) => (sameSet(current, next) ? current : next));
+		},
 	});
 
 	useImperativeHandle(
@@ -203,7 +245,11 @@ function ReviewFileHeader({
 	);
 }
 
-function reviewRows(files: FileChange[], closedFiles: ReadonlySet<string>): ReviewRow[] {
+function reviewRows(
+	files: FileChange[],
+	closedFiles: ReadonlySet<string>,
+	contentByPath: ReadonlyMap<string, ReviewContent>,
+): ReviewRow[] {
 	const rows: ReviewRow[] = [];
 
 	for (const file of files) {
@@ -213,24 +259,34 @@ function reviewRows(files: FileChange[], closedFiles: ReadonlySet<string>): Revi
 			continue;
 		}
 
-		if (file.content.status !== "ready") {
-			rows.push({ kind: "notice", key: `notice:${file.path}`, message: reviewContentNotice(file.content, false) });
+		const content = contentByPath.get(file.path);
+		if (!content || content.status !== "ready") {
+			rows.push({
+				kind: "notice",
+				key: `notice:${file.path}`,
+				path: file.path,
+				message: content ? reviewContentNotice(content, false) : "Reading file\u2026",
+			});
 			continue;
 		}
 
-		for (const [lineIndex, line] of file.content.lines.entries()) {
+		for (const [lineIndex, line] of content.lines.entries()) {
 			rows.push({
 				kind: "line",
 				key: lineKey(file.path, line),
 				path: file.path,
 				line,
-				lines: file.content.lines,
+				lines: content.lines,
 				lineIndex,
 			});
 		}
 	}
 
 	return rows;
+}
+
+function sameSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+	return left.size === right.size && [...left].every((value) => right.has(value));
 }
 
 function lineKey(path: string, line: DiffLine): string {

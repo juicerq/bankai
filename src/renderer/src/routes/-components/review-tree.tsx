@@ -5,7 +5,7 @@ import {
 	ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import { type KeyboardEvent, type PointerEvent, useMemo, useRef, useState } from "react";
-import type { FileChange } from "@main/git/Git";
+import type { FileChange } from "@main/git/contracts";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
 

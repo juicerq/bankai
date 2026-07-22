@@ -5,6 +5,7 @@ import type {
 	TerminalEvent,
 	TerminalExitEvent,
 } from "@shared/terminal";
+import { REVIEW_IPC, type BankaiReviewApi, type ReviewChangedEvent } from "@shared/review";
 import type { BankaiWindowApi } from "@shared/window";
 
 window.addEventListener("message", (event) => {
@@ -54,6 +55,22 @@ const terminalApi: BankaiTerminalApi = {
 };
 
 contextBridge.exposeInMainWorld("bankaiTerminal", terminalApi);
+
+const reviewApi: BankaiReviewApi = {
+	watch: async (projectId) => {
+		await ipcRenderer.invoke(REVIEW_IPC.watch, { projectId });
+	},
+	unwatch: (projectId) => ipcRenderer.send(REVIEW_IPC.unwatch, { projectId }),
+	onChanged: (listener) => {
+		const handler = (_event: Electron.IpcRendererEvent, payload: ReviewChangedEvent) => {
+			listener(payload);
+		};
+		ipcRenderer.on(REVIEW_IPC.changed, handler);
+		return () => ipcRenderer.removeListener(REVIEW_IPC.changed, handler);
+	},
+};
+
+contextBridge.exposeInMainWorld("bankaiReview", reviewApi);
 
 const windowApi: BankaiWindowApi = {
 	minimize: () => ipcRenderer.send("window:minimize"),

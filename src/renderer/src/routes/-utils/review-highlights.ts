@@ -1,4 +1,4 @@
-import type { DiffLine } from "@main/git/Git";
+import type { DiffLine } from "@main/git/contracts";
 import { reviewLanguage } from "@renderer/routes/-utils/review-language";
 import type { HighlightedLines } from "@renderer/routes/-utils/review-syntax";
 import type { ReviewSyntaxRequest, ReviewSyntaxResponse } from "@renderer/routes/-utils/review-syntax.worker";

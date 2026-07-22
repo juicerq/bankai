@@ -1,7 +1,7 @@
 import { ChevronDownIcon, ChevronUpIcon, FolderIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useCallback, useRef, useState } from "react";
-import type { ReviewMode } from "@main/git/Git";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReviewMode } from "@main/git/contracts";
 import type { Project } from "@main/store/projects";
 import { orpc } from "@renderer/lib/api";
 import { ReviewDiff, type ReviewAnchor, type ReviewDiffHandle } from "@renderer/routes/-components/review-diff";
@@ -46,14 +46,52 @@ export function ReviewPanel({
 	const [focusedPath, setFocusedPath] = useState<string>();
 	const diff = useRef<ReviewDiffHandle>(null);
 	const anchor = useRef<ReviewAnchor | null>(null);
+	const queryClient = useQueryClient();
 	const { data: snapshot, error, isError } = useQuery(
 		orpc.review.snapshot.queryOptions({
 			input: { projectId: project.id, mode },
 			enabled: active,
-			refetchInterval: 2000,
 			placeholderData: keepPreviousData,
 		}),
 	);
+
+	useEffect(() => {
+		if (!active) {
+			return;
+		}
+
+		let watching = false;
+		let disposed = false;
+		// Filesystem events are an external event source; bridge them into TanStack Query's cache owner.
+		const stopListening = window.bankaiReview.onChanged((event) => {
+			if (event.projectId !== project.id) {
+				return;
+			}
+			queryClient.invalidateQueries({
+				queryKey: orpc.review.snapshot.key({ type: "query", input: { projectId: project.id } }),
+			});
+			queryClient.invalidateQueries({
+				queryKey: orpc.review.file.key({ type: "query", input: { projectId: project.id } }),
+			});
+			queryClient.invalidateQueries({
+				queryKey: orpc.review.fullFile.key({ type: "query", input: { projectId: project.id } }),
+			});
+		});
+		window.bankaiReview.watch(project.id).then(() => {
+			watching = true;
+			if (disposed) {
+				window.bankaiReview.unwatch(project.id);
+			}
+		}).catch((err) => console.error("Failed to observe review changes", err));
+
+		return () => {
+			disposed = true;
+			stopListening();
+			if (watching) {
+				window.bankaiReview.unwatch(project.id);
+			}
+		};
+	}, [active, project.id, queryClient]);
 
 	const selectMode = useCallback((next: ReviewMode) => {
 		setMode(next);
@@ -236,6 +274,9 @@ export function ReviewPanel({
 				<div className="relative flex min-h-0 flex-1 flex-col">
 					<ReviewDiff
 						ref={diff}
+						projectId={project.id}
+						mode={mode}
+						active={active}
 						snapshot={snapshot}
 						error={isError ? String(error) : undefined}
 						covered={!!focusedFile}
@@ -248,6 +289,7 @@ export function ReviewPanel({
 							key={focusedFile.path}
 							projectId={project.id}
 							mode={mode}
+							active={active}
 							file={focusedFile}
 							onClose={closeFocus}
 						/>

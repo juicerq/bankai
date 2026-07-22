@@ -1,6 +1,6 @@
 import { createHighlighterCore } from "@shikijs/core";
 import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
-import type { DiffLine } from "@main/git/Git";
+import type { DiffLine } from "@main/git/contracts";
 import { REVIEW_LANGUAGE_LOADERS, type ReviewLanguage } from "@renderer/routes/-utils/review-language";
 
 export type SyntaxTone = "plain" | "comment" | "keyword" | "string" | "constant" | "entity" | "type";

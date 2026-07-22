@@ -1,8 +1,8 @@
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef } from "react";
-import type { FileChange, ReviewMode } from "@main/git/Git";
+import type { FileChange, ReviewMode } from "@main/git/contracts";
 import { orpc } from "@renderer/lib/api";
 import { ReviewDiffLine, ReviewNotice, reviewContentNotice } from "@renderer/routes/-components/review-line";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
@@ -14,11 +14,13 @@ const NO_LINES = [] as const;
 export function ReviewFocusedFile({
 	projectId,
 	mode,
+	active,
 	file,
 	onClose,
 }: {
 	projectId: string;
 	mode: ReviewMode;
+	active: boolean;
 	file: FileChange;
 	onClose: () => void;
 }) {
@@ -27,8 +29,7 @@ export function ReviewFocusedFile({
 	const { data: content } = useQuery(
 		orpc.review.fullFile.queryOptions({
 			input: { projectId, path: file.path, mode },
-			refetchInterval: (query) => (query.state.data?.status === "too-large" ? false : 2000),
-			placeholderData: keepPreviousData,
+			enabled: active,
 		}),
 	);
 	const lines = content?.status === "ready" ? content.lines : NO_LINES;

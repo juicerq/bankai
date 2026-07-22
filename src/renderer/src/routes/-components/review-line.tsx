@@ -1,5 +1,5 @@
 import { Suspense, use } from "react";
-import type { DiffLine, ReviewContent } from "@main/git/Git";
+import type { DiffLine, ReviewContent } from "@main/git/contracts";
 import { reviewHighlights } from "@renderer/routes/-utils/review-highlights";
 import type { HighlightedLines, SyntaxSpan, SyntaxTone } from "@renderer/routes/-utils/review-syntax";
 

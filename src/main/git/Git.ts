@@ -1,47 +1,23 @@
 import { execFile } from "node:child_process";
-import { realpath } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { lstat, readlink, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
-import { type } from "arktype";
+import type {
+	FileChange,
+	FullFile,
+	ReviewContent,
+	ReviewMode,
+	ReviewSnapshot,
+} from "@main/git/contracts";
 
 const run = promisify(execFile);
 
 export const GIT_OUTPUT_MAX_BYTES = 10 * 1024 * 1024;
-const TIMEOUT_MS = 5000;
+const GIT_TIMEOUT_MS = 5000;
 export const FULL_FILE_MAX_LINES = 3000;
+const NEW_FILE_COUNT_CONCURRENCY = 16;
 const NULL_FILE = process.platform === "win32" ? "NUL" : "/dev/null";
-
-export const reviewModeSchema = type("'uncommitted' | 'branch'");
-export type ReviewMode = typeof reviewModeSchema.infer;
-
-type DiffLineKind = "context" | "add" | "remove";
-export type DiffLine = {
-	kind: DiffLineKind;
-	number?: number;
-	oldNumber?: number;
-	hunk: number;
-	content: string;
-};
-type FileStatus = "modified" | "added" | "deleted" | "renamed" | "untracked";
-export type ReviewContent =
-	| { status: "ready"; lines: DiffLine[] }
-	| { status: "empty" }
-	| { status: "binary" }
-	| { status: "too-large"; lineCount?: number }
-	| { status: "unavailable" };
-export type FileChange = {
-	path: string;
-	status: FileStatus;
-	additions: number;
-	deletions: number;
-	content: ReviewContent;
-};
-export type ReviewSnapshot = {
-	isRepo: boolean;
-	files: FileChange[];
-	totals: { additions: number; deletions: number; files: number };
-};
-export type FullFile = ReviewContent;
 
 export const Git = {
 	snapshot: async (path: string, mode: ReviewMode): Promise<ReviewSnapshot> => {
@@ -51,10 +27,8 @@ export const Git = {
 		}
 
 		const base = await resolveBase(path, mode);
-		const [tracked, untracked] = await Promise.all([
-			base ? diffFiles(path, base) : indexedFiles(path),
-			untrackedFiles(path),
-		]);
+		const tracked = base ? await diffFiles(path, base) : await indexedFiles(path);
+		const untracked = await untrackedFiles(path);
 		const files = [...tracked, ...untracked];
 
 		return {
@@ -68,26 +42,12 @@ export const Git = {
 		};
 	},
 
+	file: async (input: { path: string; file: string; mode: ReviewMode }): Promise<ReviewContent> => {
+		return await readFileDiff(input, false);
+	},
+
 	fullFile: async (input: { path: string; file: string; mode: ReviewMode }): Promise<FullFile> => {
-		await assertFileWithinRepo(input.path, input.file);
-
-		const raw: unknown = await fullFileDiff(input).catch((err) => err);
-		if (isGitOutputOverflow(raw)) {
-			return { status: "too-large" };
-		}
-		if (typeof raw !== "string") {
-			return { status: "unavailable" };
-		}
-
-		const file = parseDiff(raw)[0];
-		if (!file || (file.status === "added" && file.content.status === "ready" && file.content.lines.length === 0)) {
-			return { status: "empty" };
-		}
-		if (file.content.status === "ready" && file.content.lines.length > FULL_FILE_MAX_LINES) {
-			return { status: "too-large", lineCount: file.content.lines.length };
-		}
-
-		return file.content;
+		return await readFileDiff(input, true);
 	},
 };
 
@@ -95,7 +55,7 @@ async function gitText(cwd: string, args: string[]): Promise<string> {
 	const { stdout } = await run("git", args, {
 		cwd,
 		maxBuffer: GIT_OUTPUT_MAX_BYTES,
-		timeout: TIMEOUT_MS,
+		timeout: GIT_TIMEOUT_MS,
 		windowsHide: true,
 	});
 	return stdout;
@@ -117,6 +77,7 @@ async function resolveBase(path: string, mode: ReviewMode): Promise<string | nul
 	if (mode === "uncommitted") {
 		return "HEAD";
 	}
+
 	return await branchBase(path);
 }
 
@@ -141,24 +102,113 @@ async function branchBase(path: string): Promise<string> {
 }
 
 async function diffFiles(path: string, base: string): Promise<FileChange[]> {
-	const addedPaths = await gitText(path, ["diff", base, "-M", "--no-ext-diff", "--name-only", "--diff-filter=A", "-z"])
-		.then(nulSeparatedPaths);
-	const additions = await Promise.all(addedPaths.map((file) => newFile(path, file, "added")));
-	const exclusions = addedPaths.map((file) => `:(exclude,literal)${file}`);
-	const raw = await gitText(path, [
-		"diff",
-		base,
-		"-M",
-		"--no-color",
-		"--no-ext-diff",
-		"--",
-		...exclusions,
-	]);
-
-	return [...parseDiff(raw), ...additions];
+	const raw = await gitText(path, ["diff", base, "-M", "--raw", "--numstat", "-z", "--no-ext-diff"]);
+	return parseTrackedMetadata(raw);
 }
 
-async function fullFileDiff(input: { path: string; file: string; mode: ReviewMode }): Promise<string> {
+async function indexedFiles(path: string): Promise<FileChange[]> {
+	const files = await gitText(path, ["ls-files", "--cached", "-z"]).then(nulSeparatedPaths);
+	return await addedFileMetadata(path, files, "added");
+}
+
+async function untrackedFiles(path: string): Promise<FileChange[]> {
+	const files = await gitText(path, ["ls-files", "--others", "--exclude-standard", "-z"]).then(nulSeparatedPaths);
+	return await addedFileMetadata(path, files, "untracked");
+}
+
+async function addedFileMetadata(
+	path: string,
+	files: string[],
+	status: "added" | "untracked",
+): Promise<FileChange[]> {
+	const changes: FileChange[] = [];
+
+	for (let offset = 0; offset < files.length; offset += NEW_FILE_COUNT_CONCURRENCY) {
+		const batch = files.slice(offset, offset + NEW_FILE_COUNT_CONCURRENCY);
+		const counts = await Promise.all(batch.map((file) => countAddedLines(resolve(path, file))));
+		changes.push(
+			...batch.map((file, index) => ({
+				path: file,
+				status,
+				additions: counts[index] ?? 0,
+				deletions: 0,
+			})),
+		);
+	}
+
+	return changes;
+}
+
+async function countAddedLines(path: string): Promise<number> {
+	const stats = await lstat(path).catch(() => null);
+	if (!stats) {
+		return 0;
+	}
+	if (stats.isSymbolicLink()) {
+		return await readlink(path).then((target) => (target.length > 0 ? 1 : 0)).catch(() => 0);
+	}
+	if (!stats.isFile()) {
+		return 0;
+	}
+
+	let bytes = 0;
+	let lines = 0;
+	let lastByte = 0;
+
+	try {
+		for await (const chunk of createReadStream(path)) {
+			const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+			if (buffer.includes(0)) {
+				return 0;
+			}
+			bytes += buffer.length;
+			lastByte = buffer.at(-1) ?? lastByte;
+			for (const byte of buffer) {
+				if (byte === 10) {
+					lines += 1;
+				}
+			}
+		}
+	} catch {
+		return 0;
+	}
+
+	return lines + (bytes > 0 && lastByte !== 10 ? 1 : 0);
+}
+
+async function readFileDiff(
+	input: { path: string; file: string; mode: ReviewMode },
+	full: boolean,
+): Promise<ReviewContent> {
+	await assertFileWithinRepo(input.path, input.file);
+
+	const raw: unknown = await fileDiff(input, full).catch((err) => err);
+	if (isGitOutputOverflow(raw)) {
+		return { status: "too-large" };
+	}
+	if (typeof raw !== "string") {
+		return { status: "unavailable" };
+	}
+
+	const file = parseDiff(raw)[0];
+	if (!file || (file.status === "added" && file.content.status === "ready" && file.content.lines.length === 0)) {
+		return { status: "empty" };
+	}
+	if (
+		file.content.status === "ready" &&
+		(full || file.status === "added") &&
+		file.content.lines.length > FULL_FILE_MAX_LINES
+	) {
+		return { status: "too-large", lineCount: file.content.lines.length };
+	}
+
+	return file.content;
+}
+
+async function fileDiff(
+	input: { path: string; file: string; mode: ReviewMode },
+	full: boolean,
+): Promise<string> {
 	const base = await resolveBase(input.path, input.mode);
 	if (base) {
 		const tracked = await gitText(input.path, [
@@ -167,7 +217,7 @@ async function fullFileDiff(input: { path: string; file: string; mode: ReviewMod
 			"-M",
 			"--no-color",
 			"--no-ext-diff",
-			"-U100000",
+			...(full ? ["-U100000"] : []),
 			"--",
 			`:(literal)${input.file}`,
 		]);
@@ -199,7 +249,6 @@ async function assertFileWithinRepo(root: string, file: string): Promise<void> {
 		if (err instanceof Error && "code" in err && err.code === "ENOENT") {
 			return null;
 		}
-
 		throw err;
 	});
 	if (!resolvedFile) {
@@ -241,84 +290,63 @@ function isGitOutputOverflow(err: unknown): boolean {
 	return err.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER";
 }
 
-async function indexedFiles(path: string): Promise<FileChange[]> {
-	const files = await gitText(path, ["ls-files", "--cached", "-z"]).then(nulSeparatedPaths);
-	return await Promise.all(files.map((file) => newFile(path, file, "added")));
-}
-
-async function untrackedFiles(path: string): Promise<FileChange[]> {
-	const files = await gitText(path, ["ls-files", "--others", "--exclude-standard", "-z"]).then(nulSeparatedPaths);
-	return await Promise.all(files.map((file) => newFile(path, file, "untracked")));
-}
-
-async function newFile(path: string, file: string, status: "added" | "untracked"): Promise<FileChange> {
-	const raw: unknown = await noIndexDiff(path, file).catch((err) => err);
-	if (isGitOutputOverflow(raw)) {
-		const additions = await noIndexAdditions(path, file).catch(() => 0);
-		return {
-			path: file,
-			status,
-			additions,
-			deletions: 0,
-			content: { status: "too-large", ...(additions > 0 ? { lineCount: additions } : {}) },
-		};
-	}
-	if (typeof raw !== "string") {
-		return { path: file, status, additions: 0, deletions: 0, content: { status: "unavailable" } };
-	}
-	const parsed = parseDiff(raw)[0];
-	if (!parsed) {
-		return { path: file, status, additions: 0, deletions: 0, content: { status: "empty" } };
-	}
-	if (parsed.content.status === "ready" && parsed.content.lines.length === 0) {
-		return { ...parsed, path: file, status, content: { status: "empty" } };
-	}
-	if (parsed.content.status === "ready" && parsed.content.lines.length > FULL_FILE_MAX_LINES) {
-		return {
-			...parsed,
-			path: file,
-			status,
-			content: { status: "too-large", lineCount: parsed.content.lines.length },
-		};
-	}
-
-	return { ...parsed, path: file, status };
-}
-
-async function noIndexDiff(path: string, file: string): Promise<string> {
-	return await gitText(path, ["diff", "--no-index", "--no-color", "--no-ext-diff", "--", NULL_FILE, file])
-		.catch((err) => {
-			if (isNoIndexPatch(err)) {
-				return err.stdout;
-			}
-
-			throw err;
-		});
-}
-
-async function noIndexAdditions(path: string, file: string): Promise<number> {
-	const raw = await gitText(path, ["diff", "--no-index", "--no-ext-diff", "--numstat", "--", NULL_FILE, file])
-		.catch((err) => {
-			if (isNoIndexDifference(err)) {
-				return err.stdout;
-			}
-
-			throw err;
-		});
-	const additions = raw.split("\t", 1)[0];
-	return additions && additions !== "-" ? Number(additions) : 0;
-}
-
 function nulSeparatedPaths(raw: string): string[] {
 	return raw.split("\0").filter(Boolean);
 }
 
-const HEADER_PATH = /^diff --git a\/.+ b\/(.+)$/;
+function parseTrackedMetadata(raw: string): FileChange[] {
+	const tokens = raw.split("\0");
+	const files: FileChange[] = [];
+	let index = 0;
+
+	while (tokens[index]?.startsWith(":")) {
+		const header = tokens[index] ?? "";
+		const statusCode = / ([A-Z])\d*$/.exec(header)?.[1];
+		const renamed = statusCode === "R";
+		const path = tokens[index + (renamed ? 2 : 1)];
+		if (path) {
+			files.push({
+				path,
+				status:
+					statusCode === "A"
+						? "added"
+						: statusCode === "D"
+							? "deleted"
+							: renamed
+								? "renamed"
+								: "modified",
+				additions: 0,
+				deletions: 0,
+			});
+		}
+		index += renamed ? 3 : 2;
+	}
+
+	const byPath = new Map(files.map((file) => [file.path, file]));
+	while (index < tokens.length) {
+		const record = tokens[index] ?? "";
+		const [additions, deletions, path] = record.split("\t");
+		const renamed = path === "";
+		const finalPath = renamed ? tokens[index + 2] : path;
+		const file = finalPath ? byPath.get(finalPath) : undefined;
+		if (file) {
+			file.additions = additions && additions !== "-" ? Number(additions) : 0;
+			file.deletions = deletions && deletions !== "-" ? Number(deletions) : 0;
+		}
+		index += renamed ? 3 : 1;
+	}
+
+	return files;
+}
+
+interface ParsedFile extends FileChange {
+	content: ReviewContent;
+}
 const HUNK_START = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 
-function parseDiff(raw: string): FileChange[] {
-	const files: FileChange[] = [];
-	let current: FileChange | undefined;
+function parseDiff(raw: string): ParsedFile[] {
+	const files: ParsedFile[] = [];
+	let current: ParsedFile | undefined;
 	let nextOldLine = 0;
 	let nextNewLine = 0;
 	let hunk = 0;
@@ -326,7 +354,7 @@ function parseDiff(raw: string): FileChange[] {
 	for (const line of raw.split("\n")) {
 		if (line.startsWith("diff --git ")) {
 			current = {
-				path: HEADER_PATH.exec(line)?.[1] ?? "",
+				path: "",
 				status: "modified",
 				additions: 0,
 				deletions: 0,

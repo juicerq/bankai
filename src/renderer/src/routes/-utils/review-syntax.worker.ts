@@ -1,5 +1,5 @@
 import { highlightDiff, type HighlightedLines } from "@renderer/routes/-utils/review-syntax";
-import type { DiffLine } from "@main/git/Git";
+import type { DiffLine } from "@main/git/contracts";
 import type { ReviewLanguage } from "@renderer/routes/-utils/review-language";
 
 export type ReviewSyntaxRequest = { id: number; lines: DiffLine[]; language: ReviewLanguage };

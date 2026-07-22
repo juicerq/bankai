@@ -3,6 +3,7 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { type ITerminalOptions, Terminal } from "@xterm/xterm";
 import { useEffect, useRef } from "react";
 import { readTerminalStyle } from "@renderer/routes/-utils/terminal-style";
+import { throttle } from "@shared/throttle";
 
 const TERMINAL_OPTIONS = {
 	allowProposedApi: false,
@@ -16,11 +17,11 @@ const TERMINAL_OPTIONS = {
 	scrollback: 10_000,
 } satisfies ITerminalOptions;
 
-export function useTerminalSession(projectId: string, active: boolean, resizing: boolean) {
+const TERMINAL_RESIZE_THROTTLE_MS = 150;
+
+export function useTerminalSession(projectId: string, active: boolean) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const terminalRef = useRef<Terminal | null>(null);
-	const resizingRef = useRef(false);
-	const settleRef = useRef<(() => void) | null>(null);
 
 	useEffect(() => {
 		const container = containerRef.current;
@@ -60,11 +61,10 @@ export function useTerminalSession(projectId: string, active: boolean, resizing:
 				window.bankaiTerminal.write(sessionId, data).catch((err) => fail("Terminal input failed", err));
 			}
 		});
-		let settleTimer: ReturnType<typeof setTimeout> | undefined;
 		let lastCols: number | undefined;
 		let lastRows: number | undefined;
-		const settle = () => {
-			if (resizingRef.current || container.clientWidth === 0 || container.clientHeight === 0) {
+		const resizeTerminal = throttle(() => {
+			if (container.clientWidth === 0 || container.clientHeight === 0) {
 				return;
 			}
 			fit.fit();
@@ -73,12 +73,8 @@ export function useTerminalSession(projectId: string, active: boolean, resizing:
 				lastRows = terminal.rows;
 				window.bankaiTerminal.resize(sessionId, terminal.cols, terminal.rows).catch((err) => fail("Terminal resize failed", err));
 			}
-		};
-		settleRef.current = settle;
-		const resizeObserver = new ResizeObserver(() => {
-			clearTimeout(settleTimer);
-			settleTimer = setTimeout(settle, 120);
-		});
+		}, TERMINAL_RESIZE_THROTTLE_MS);
+		const resizeObserver = new ResizeObserver(resizeTerminal);
 		resizeObserver.observe(container);
 
 		document.fonts.ready
@@ -106,9 +102,8 @@ export function useTerminalSession(projectId: string, active: boolean, resizing:
 
 		return () => {
 			disposed = true;
-			settleRef.current = null;
 			resizeObserver.disconnect();
-			clearTimeout(settleTimer);
+			resizeTerminal.cancel();
 			input.dispose();
 			removeDataListener();
 			removeExitListener();
@@ -125,13 +120,6 @@ export function useTerminalSession(projectId: string, active: boolean, resizing:
 			terminalRef.current?.focus();
 		}
 	}, [active]);
-
-	useEffect(() => {
-		resizingRef.current = resizing;
-		if (!resizing) {
-			settleRef.current?.();
-		}
-	}, [resizing]);
 
 	return containerRef;
 }

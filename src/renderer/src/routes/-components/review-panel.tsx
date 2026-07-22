@@ -1,4 +1,4 @@
-import { FolderIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, ChevronUpIcon, FolderIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import type { ReviewMode } from "@main/git/Git";
@@ -62,6 +62,25 @@ export function ReviewPanel({
 		setFullFiles((current) => toggledSet(current, path));
 	}, []);
 
+	const files = snapshot?.files ?? [];
+
+	const setScopeClosed = (closed: boolean) => {
+		if (files.every((file) => closedFiles.has(file.path) === closed)) {
+			return;
+		}
+		setClosedFiles((current) => {
+			const next = new Set(current);
+			for (const file of files) {
+				if (closed) {
+					next.add(file.path);
+				} else {
+					next.delete(file.path);
+				}
+			}
+			return next;
+		});
+	};
+
 	return (
 		<aside className="flex animate-panel-in bg-surface-raised motion-reduce:animate-none" aria-label="Review">
 			{treeOpen && (
@@ -118,6 +137,28 @@ export function ReviewPanel({
 							>
 								<span className="text-added">+{snapshot.totals.additions}</span>
 								<span className="text-removed">−{snapshot.totals.deletions}</span>
+							</div>
+						)}
+						{snapshot?.isRepo && (
+							<div className="flex items-center" role="group" aria-label="Collapse or expand all files">
+								<button
+									type="button"
+									className="p-1 text-secondary hover:text-primary"
+									onClick={() => setScopeClosed(true)}
+									aria-label="Collapse all files"
+									title="Collapse all files"
+								>
+									<ChevronUpIcon className="size-4" />
+								</button>
+								<button
+									type="button"
+									className="p-1 text-secondary hover:text-primary"
+									onClick={() => setScopeClosed(false)}
+									aria-label="Expand all files"
+									title="Expand all files"
+								>
+									<ChevronDownIcon className="size-4" />
+								</button>
 							</div>
 						)}
 						<button

@@ -23,19 +23,25 @@ export type DiffLine = {
 	content: string;
 };
 type FileStatus = "modified" | "added" | "deleted" | "renamed" | "untracked";
+export type ReviewContent =
+	| { status: "ready"; lines: DiffLine[] }
+	| { status: "empty" }
+	| { status: "binary" }
+	| { status: "too-large"; lineCount?: number }
+	| { status: "unavailable" };
 export type FileChange = {
 	path: string;
 	status: FileStatus;
 	additions: number;
 	deletions: number;
-	lines: DiffLine[];
+	content: ReviewContent;
 };
 export type ReviewSnapshot = {
 	isRepo: boolean;
 	files: FileChange[];
 	totals: { additions: number; deletions: number; files: number };
 };
-export type FullFile = { status: "ready"; lines: DiffLine[] } | { status: "too-large"; lineCount?: number };
+export type FullFile = ReviewContent;
 
 export const Git = {
 	snapshot: async (path: string, mode: ReviewMode): Promise<ReviewSnapshot> => {
@@ -46,7 +52,7 @@ export const Git = {
 
 		const base = await resolveBase(path, mode);
 		const [tracked, untracked] = await Promise.all([
-			base ? diffFiles(path, base) : Promise.resolve<FileChange[]>([]),
+			base ? diffFiles(path, base) : indexedFiles(path),
 			untrackedFiles(path),
 		]);
 		const files = [...tracked, ...untracked];
@@ -65,24 +71,23 @@ export const Git = {
 	fullFile: async (input: { path: string; file: string; mode: ReviewMode }): Promise<FullFile> => {
 		await assertFileWithinRepo(input.path, input.file);
 
-		const raw = await fullFileDiff(input).catch((err) => {
-			if (isGitOutputOverflow(err)) {
-				return null;
-			}
-
-			throw err;
-		});
-		if (raw === null) {
+		const raw: unknown = await fullFileDiff(input).catch((err) => err);
+		if (isGitOutputOverflow(raw)) {
 			return { status: "too-large" };
 		}
-
-		const lines = parseDiff(raw)[0]?.lines ?? [];
-
-		if (lines.length > FULL_FILE_MAX_LINES) {
-			return { status: "too-large", lineCount: lines.length };
+		if (typeof raw !== "string") {
+			return { status: "unavailable" };
 		}
 
-		return { status: "ready", lines };
+		const file = parseDiff(raw)[0];
+		if (!file || (file.status === "added" && file.content.status === "ready" && file.content.lines.length === 0)) {
+			return { status: "empty" };
+		}
+		if (file.content.status === "ready" && file.content.lines.length > FULL_FILE_MAX_LINES) {
+			return { status: "too-large", lineCount: file.content.lines.length };
+		}
+
+		return file.content;
 	},
 };
 
@@ -136,7 +141,21 @@ async function branchBase(path: string): Promise<string> {
 }
 
 async function diffFiles(path: string, base: string): Promise<FileChange[]> {
-	return parseDiff(await gitText(path, ["diff", base, "-M", "--no-color", "--no-ext-diff"]));
+	const addedPaths = await gitText(path, ["diff", base, "-M", "--no-ext-diff", "--name-only", "--diff-filter=A", "-z"])
+		.then(nulSeparatedPaths);
+	const additions = await Promise.all(addedPaths.map((file) => newFile(path, file, "added")));
+	const exclusions = addedPaths.map((file) => `:(exclude,literal)${file}`);
+	const raw = await gitText(path, [
+		"diff",
+		base,
+		"-M",
+		"--no-color",
+		"--no-ext-diff",
+		"--",
+		...exclusions,
+	]);
+
+	return [...parseDiff(raw), ...additions];
 }
 
 async function fullFileDiff(input: { path: string; file: string; mode: ReviewMode }): Promise<string> {
@@ -159,7 +178,7 @@ async function fullFileDiff(input: { path: string; file: string; mode: ReviewMod
 
 	return await gitText(input.path, ["diff", "--no-index", "--no-color", "--no-ext-diff", "--", NULL_FILE, input.file])
 		.catch((err) => {
-			if (isNoIndexDifference(err)) {
+			if (isNoIndexPatch(err)) {
 				return err.stdout;
 			}
 			throw err;
@@ -210,6 +229,10 @@ function isNoIndexDifference(err: unknown): err is Error & { stdout: string } {
 	return "stdout" in err && typeof err.stdout === "string";
 }
 
+function isNoIndexPatch(err: unknown): err is Error & { stdout: string } {
+	return isNoIndexDifference(err) && err.stdout.includes("diff --git ");
+}
+
 function isGitOutputOverflow(err: unknown): boolean {
 	if (!(err instanceof Error) || !("code" in err)) {
 		return false;
@@ -218,12 +241,76 @@ function isGitOutputOverflow(err: unknown): boolean {
 	return err.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER";
 }
 
+async function indexedFiles(path: string): Promise<FileChange[]> {
+	const files = await gitText(path, ["ls-files", "--cached", "-z"]).then(nulSeparatedPaths);
+	return await Promise.all(files.map((file) => newFile(path, file, "added")));
+}
+
 async function untrackedFiles(path: string): Promise<FileChange[]> {
-	const raw = await gitText(path, ["ls-files", "--others", "--exclude-standard", "-z"]);
-	return raw
-		.split("\0")
-		.filter(Boolean)
-		.map((file) => ({ path: file, status: "untracked" as const, additions: 0, deletions: 0, lines: [] }));
+	const files = await gitText(path, ["ls-files", "--others", "--exclude-standard", "-z"]).then(nulSeparatedPaths);
+	return await Promise.all(files.map((file) => newFile(path, file, "untracked")));
+}
+
+async function newFile(path: string, file: string, status: "added" | "untracked"): Promise<FileChange> {
+	const raw: unknown = await noIndexDiff(path, file).catch((err) => err);
+	if (isGitOutputOverflow(raw)) {
+		const additions = await noIndexAdditions(path, file).catch(() => 0);
+		return {
+			path: file,
+			status,
+			additions,
+			deletions: 0,
+			content: { status: "too-large", ...(additions > 0 ? { lineCount: additions } : {}) },
+		};
+	}
+	if (typeof raw !== "string") {
+		return { path: file, status, additions: 0, deletions: 0, content: { status: "unavailable" } };
+	}
+	const parsed = parseDiff(raw)[0];
+	if (!parsed) {
+		return { path: file, status, additions: 0, deletions: 0, content: { status: "empty" } };
+	}
+	if (parsed.content.status === "ready" && parsed.content.lines.length === 0) {
+		return { ...parsed, path: file, status, content: { status: "empty" } };
+	}
+	if (parsed.content.status === "ready" && parsed.content.lines.length > FULL_FILE_MAX_LINES) {
+		return {
+			...parsed,
+			path: file,
+			status,
+			content: { status: "too-large", lineCount: parsed.content.lines.length },
+		};
+	}
+
+	return { ...parsed, path: file, status };
+}
+
+async function noIndexDiff(path: string, file: string): Promise<string> {
+	return await gitText(path, ["diff", "--no-index", "--no-color", "--no-ext-diff", "--", NULL_FILE, file])
+		.catch((err) => {
+			if (isNoIndexPatch(err)) {
+				return err.stdout;
+			}
+
+			throw err;
+		});
+}
+
+async function noIndexAdditions(path: string, file: string): Promise<number> {
+	const raw = await gitText(path, ["diff", "--no-index", "--no-ext-diff", "--numstat", "--", NULL_FILE, file])
+		.catch((err) => {
+			if (isNoIndexDifference(err)) {
+				return err.stdout;
+			}
+
+			throw err;
+		});
+	const additions = raw.split("\t", 1)[0];
+	return additions && additions !== "-" ? Number(additions) : 0;
+}
+
+function nulSeparatedPaths(raw: string): string[] {
+	return raw.split("\0").filter(Boolean);
 }
 
 const HEADER_PATH = /^diff --git a\/.+ b\/(.+)$/;
@@ -238,7 +325,13 @@ function parseDiff(raw: string): FileChange[] {
 
 	for (const line of raw.split("\n")) {
 		if (line.startsWith("diff --git ")) {
-			current = { path: HEADER_PATH.exec(line)?.[1] ?? "", status: "modified", additions: 0, deletions: 0, lines: [] };
+			current = {
+				path: HEADER_PATH.exec(line)?.[1] ?? "",
+				status: "modified",
+				additions: 0,
+				deletions: 0,
+				content: { status: "ready", lines: [] },
+			};
 			files.push(current);
 			nextOldLine = 0;
 			nextNewLine = 0;
@@ -261,6 +354,10 @@ function parseDiff(raw: string): FileChange[] {
 			current.path = line.slice("rename to ".length);
 			continue;
 		}
+		if (line.startsWith("Binary files ")) {
+			current.content = { status: "binary" };
+			continue;
+		}
 		if (line.startsWith("+++ ")) {
 			const target = line.slice(4);
 			if (target !== "/dev/null") {
@@ -278,20 +375,20 @@ function parseDiff(raw: string): FileChange[] {
 			hunk += 1;
 			continue;
 		}
-		if (line.startsWith("+")) {
-			current.lines.push({ kind: "add", number: nextNewLine, hunk, content: line.slice(1) });
+		if (line.startsWith("+") && current.content.status === "ready") {
+			current.content.lines.push({ kind: "add", number: nextNewLine, hunk, content: line.slice(1) });
 			current.additions += 1;
 			nextNewLine += 1;
 			continue;
 		}
-		if (line.startsWith("-")) {
-			current.lines.push({ kind: "remove", oldNumber: nextOldLine, hunk, content: line.slice(1) });
+		if (line.startsWith("-") && current.content.status === "ready") {
+			current.content.lines.push({ kind: "remove", oldNumber: nextOldLine, hunk, content: line.slice(1) });
 			current.deletions += 1;
 			nextOldLine += 1;
 			continue;
 		}
-		if (line.startsWith(" ")) {
-			current.lines.push({
+		if (line.startsWith(" ") && current.content.status === "ready") {
+			current.content.lines.push({
 				kind: "context",
 				number: nextNewLine,
 				oldNumber: nextOldLine,

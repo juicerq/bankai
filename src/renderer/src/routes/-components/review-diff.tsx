@@ -6,7 +6,7 @@ import {
 import { useQueries, type UseQueryResult } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Suspense, use, useImperativeHandle, useMemo, useRef, type Ref } from "react";
-import type { DiffLine, FileChange, FullFile, ReviewMode, ReviewSnapshot } from "@main/git/Git";
+import type { DiffLine, FileChange, FullFile, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/Git";
 import { orpc } from "@renderer/lib/api";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 import { reviewHighlights } from "@renderer/routes/-utils/review-highlights";
@@ -302,7 +302,8 @@ function reviewRows(
 		}
 
 		const state = full ? fullFileByPath.get(file.path) : undefined;
-		if (full && !state?.data) {
+		const content = full ? state?.data : file.content;
+		if (!content) {
 			rows.push({
 				kind: "notice",
 				key: `notice:${file.path}`,
@@ -310,31 +311,44 @@ function reviewRows(
 			});
 			continue;
 		}
-			if (state?.data?.status === "too-large") {
+		if (content.status !== "ready") {
 			rows.push({
 				kind: "notice",
 				key: `notice:${file.path}`,
-				message: state.data.lineCount
-					? `Too large to show in full: ${state.data.lineCount} lines.`
-					: "Too large to show in full.",
+				message: reviewContentNotice(content, full),
 			});
 			continue;
 		}
 
-			const lines = state?.data?.status === "ready" ? state.data.lines : file.lines;
-		for (const [lineIndex, line] of lines.entries()) {
+		for (const [lineIndex, line] of content.lines.entries()) {
 			rows.push({
 				kind: "line",
 				key: lineKey(file.path, full, line),
 				path: file.path,
 				line,
-				lines,
+				lines: content.lines,
 				lineIndex,
 			});
 		}
 	}
 
 	return rows;
+}
+
+function reviewContentNotice(content: Exclude<ReviewContent, { status: "ready" }>, full: boolean): string {
+	switch (content.status) {
+		case "empty":
+			return "Empty file.";
+		case "binary":
+			return "Binary content cannot be shown.";
+		case "too-large":
+			if (content.lineCount) {
+				return `${full ? "Too large to show in full" : "Too large to show"}: ${content.lineCount} lines.`;
+			}
+			return full ? "Too large to show in full." : "Too large to show.";
+		case "unavailable":
+			return "File unavailable. Retrying\u2026";
+	}
 }
 
 function lineKey(path: string, full: boolean, line: DiffLine): string {

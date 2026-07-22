@@ -29,7 +29,8 @@
 		"test": "bun test",
 		"test:watch": "bun test --watch",
 		"routes:generate": "tsr generate",
-		"check": "bun run routes:generate && lobomfz-check",
+		"typecheck": "tsc --build",
+		"check": "bun run routes:generate && bun run typecheck && lobomfz-check",
 		"check:fix": "lobomfz-check --fix",
 		"prepare": "simple-git-hooks"
 	},
@@ -71,7 +72,7 @@
 		"oxlint-tsgolint": "^0.22.1",
 		"simple-git-hooks": "^2.13.1",
 		"tailwindcss": "^4.2.4",
-		"typescript": "^5.9.0",
+		"typescript": "^7.0.2",
 		"vite": "^6.0.0"
 	}
 }

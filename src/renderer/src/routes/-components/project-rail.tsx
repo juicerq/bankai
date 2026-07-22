@@ -128,8 +128,8 @@ function ProjectRailItem({
 				type="button"
 				aria-current={selected ? "page" : undefined}
 				aria-pressed={selected}
-				className={`relative flex w-full items-center gap-3 px-3 py-[9px] text-left hover:bg-surface-hover ${
-					selected ? "bg-surface-active" : ""
+				className={`relative flex w-full items-center gap-3 px-3 py-[9px] text-left ${
+					selected ? "bg-surface-active" : "hover:bg-surface-hover"
 				}`}
 				{...drag.itemProps(project.id)}
 				onClick={() => onSelect(project.id)}
@@ -138,6 +138,7 @@ function ProjectRailItem({
 					setMenuPosition({ x: event.clientX, y: event.clientY });
 				}}
 			>
+				{selected && <span className="absolute inset-y-0 left-0 w-0.5 bg-tertiary" aria-hidden="true" />}
 				{dropEdge && (
 					<span
 						className={`absolute inset-x-0 h-0.5 bg-tertiary ${dropEdge === "before" ? "top-0" : "bottom-0"}`}

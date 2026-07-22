@@ -183,8 +183,8 @@ function ProjectWorkspaceShellTabs({
 
 				return (
 					<div
-						className={`relative flex h-header shrink-0 items-center ${
-							selected ? "bg-surface-active" : "hover:bg-surface-hover"
+						className={`relative flex h-header shrink-0 items-center border-outline border-b ${
+							selected ? "border-x bg-surface-active" : "hover:bg-surface-hover"
 						}`}
 						key={tab.id}
 						{...drag.itemProps(tab.id)}

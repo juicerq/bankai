@@ -8,6 +8,10 @@ A desktop workspace that runs shell sessions against a local project and reads t
 A local directory the user has mounted into the app. Owns the shells opened against it and the changes the review reads.
 _Avoid_: Repository, folder, workspace
 
+**Active project**:
+The project whose workspace is visible and receives project-level shortcuts. Exactly one mounted project is active at a time.
+_Avoid_: Selected project, focused project
+
 **Workspace**:
 The region of the window that belongs to one project: its shells and its review.
 _Avoid_: Tab, view, pane

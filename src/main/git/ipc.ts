@@ -27,8 +27,16 @@ export function setupReviewIpc(): void {
 		}
 
 		const stop = ReviewChanges.subscribe(project.path, () => {
-			if (!event.sender.isDestroyed()) {
+			if (event.sender.isDestroyed()) {
+				return;
+			}
+			try {
 				event.sender.send(REVIEW_IPC.changed, { projectId } satisfies ReviewChangedEvent);
+			} catch (err) {
+				Logger.error("review-watch:notify-failed", {
+					projectId,
+					err: String(err),
+				});
 			}
 		});
 		renderer.projects.set(projectId, { references: 1, stop });
@@ -61,11 +69,25 @@ export function setupReviewIpc(): void {
 function registerRenderer(sender: WebContents): RendererWatches {
 	const renderer: RendererWatches = { projects: new Map() };
 	renderers.set(sender.id, renderer);
-	sender.once("destroyed", () => {
+
+	const closeWatches = () => {
+		if (renderers.get(sender.id) !== renderer) {
+			return;
+		}
 		for (const project of renderer.projects.values()) {
 			project.stop();
 		}
+		renderer.projects.clear();
 		renderers.delete(sender.id);
+	};
+
+	sender.on("did-start-navigation", (_event, _url, _isInPlace, isMainFrame) => {
+		if (isMainFrame) {
+			closeWatches();
+		}
 	});
+	sender.on("render-process-gone", closeWatches);
+	sender.once("destroyed", closeWatches);
+
 	return renderer;
 }

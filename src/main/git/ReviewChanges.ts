@@ -1,4 +1,5 @@
-import { watch, type FSWatcher } from "node:fs";
+import { readFileSync, statSync, watch, type FSWatcher } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { Logger } from "@main/logger";
 
 export const REVIEW_CHANGE_DEBOUNCE_MS = 250;
@@ -6,7 +7,7 @@ const REVIEW_FALLBACK_INTERVAL_MS = 30_000;
 
 type ObservedProject = {
 	listeners: Set<() => void>;
-	watcher?: FSWatcher;
+	watchers: FSWatcher[];
 	debounce?: ReturnType<typeof setTimeout>;
 	fallback: ReturnType<typeof setInterval>;
 };
@@ -38,19 +39,22 @@ class ReviewChangeObserver {
 	private observe(path: string): ObservedProject {
 		const project: ObservedProject = {
 			listeners: new Set(),
+			watchers: [],
 			fallback: setInterval(() => this.notify(project), REVIEW_FALLBACK_INTERVAL_MS),
 		};
 		project.fallback.unref();
 
-		try {
-			project.watcher = watch(path, { recursive: true }, () => this.schedule(project));
-			project.watcher.on("error", (err) => {
-				Logger.error("review-watch:error", { path, err: String(err) });
-				project.watcher?.close();
-				project.watcher = undefined;
-			});
-		} catch (err) {
-			Logger.error("review-watch:unavailable", { path, err: String(err) });
+		for (const watchedPath of reviewWatchPaths(path)) {
+			try {
+				const watcher = watch(watchedPath, { recursive: true }, () => this.schedule(project));
+				project.watchers.push(watcher);
+				watcher.on("error", (err) => {
+					Logger.error("review-watch:error", { path: watchedPath, err: String(err) });
+					watcher.close();
+				});
+			} catch (err) {
+				Logger.error("review-watch:unavailable", { path: watchedPath, err: String(err) });
+			}
 		}
 
 		return project;
@@ -78,8 +82,37 @@ class ReviewChangeObserver {
 			clearTimeout(project.debounce);
 		}
 		clearInterval(project.fallback);
-		project.watcher?.close();
+		for (const watcher of project.watchers) {
+			watcher.close();
+		}
 	}
+}
+
+function reviewWatchPaths(root: string): string[] {
+	const paths = [root];
+	const dotGit = join(root, ".git");
+	try {
+		if (!statSync(dotGit).isFile()) {
+			return paths;
+		}
+
+		const match = /^gitdir:\s*(.+)$/m.exec(readFileSync(dotGit, "utf8"));
+		if (!match?.[1]) {
+			return paths;
+		}
+
+		const gitDirPath = match[1].trim();
+		const gitDir = isAbsolute(gitDirPath) ? gitDirPath : resolve(dirname(dotGit), gitDirPath);
+		paths.push(gitDir);
+		const commonDir = readFileSync(join(gitDir, "commondir"), "utf8").trim();
+		if (commonDir) {
+			paths.push(resolve(gitDir, commonDir));
+		}
+	} catch {
+		return paths;
+	}
+
+	return [...new Set(paths)];
 }
 
 export const ReviewChanges = new ReviewChangeObserver();

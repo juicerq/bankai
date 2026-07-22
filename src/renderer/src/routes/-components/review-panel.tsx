@@ -44,18 +44,20 @@ export function ReviewPanel({
 	const [mode, setMode] = useState<ReviewMode>("uncommitted");
 	const [closedFiles, setClosedFiles] = useState<ReadonlySet<string>>(new Set());
 	const [focusedPath, setFocusedPath] = useState<string>();
+	const [watchReady, setWatchReady] = useState(false);
 	const diff = useRef<ReviewDiffHandle>(null);
 	const anchor = useRef<ReviewAnchor | null>(null);
 	const queryClient = useQueryClient();
 	const { data: snapshot, error, isError } = useQuery(
 		orpc.review.snapshot.queryOptions({
 			input: { projectId: project.id, mode },
-			enabled: active,
+			enabled: active && watchReady,
 			placeholderData: keepPreviousData,
 		}),
 	);
 
 	useEffect(() => {
+		setWatchReady(false);
 		if (!active) {
 			return;
 		}
@@ -67,25 +69,28 @@ export function ReviewPanel({
 			if (event.projectId !== project.id) {
 				return;
 			}
-			queryClient.invalidateQueries({
-				queryKey: orpc.review.snapshot.key({ type: "query", input: { projectId: project.id } }),
-			});
-			queryClient.invalidateQueries({
-				queryKey: orpc.review.file.key({ type: "query", input: { projectId: project.id } }),
-			});
-			queryClient.invalidateQueries({
-				queryKey: orpc.review.fullFile.key({ type: "query", input: { projectId: project.id } }),
-			});
+
+			const filters = [
+				{ queryKey: orpc.review.snapshot.key({ type: "query", input: { projectId: project.id } }) },
+				{ queryKey: orpc.review.file.key({ type: "query", input: { projectId: project.id } }) },
+				{ queryKey: orpc.review.fullFile.key({ type: "query", input: { projectId: project.id } }) },
+			];
+			Promise.all(filters.map((filter) => queryClient.cancelQueries(filter)))
+				.then(() => Promise.all(filters.map((filter) => queryClient.invalidateQueries(filter))))
+				.catch((err) => console.error("Failed to refresh review changes", err));
 		});
 		window.bankaiReview.watch(project.id).then(() => {
 			watching = true;
 			if (disposed) {
 				window.bankaiReview.unwatch(project.id);
+				return;
 			}
+			setWatchReady(true);
 		}).catch((err) => console.error("Failed to observe review changes", err));
 
 		return () => {
 			disposed = true;
+			setWatchReady(false);
 			stopListening();
 			if (watching) {
 				window.bankaiReview.unwatch(project.id);
@@ -276,7 +281,7 @@ export function ReviewPanel({
 						ref={diff}
 						projectId={project.id}
 						mode={mode}
-						active={active}
+						active={active && watchReady}
 						snapshot={snapshot}
 						error={isError ? String(error) : undefined}
 						covered={!!focusedFile}
@@ -289,7 +294,7 @@ export function ReviewPanel({
 							key={focusedFile.path}
 							projectId={project.id}
 							mode={mode}
-							active={active}
+							active={active && watchReady}
 							file={focusedFile}
 							onClose={closeFocus}
 						/>

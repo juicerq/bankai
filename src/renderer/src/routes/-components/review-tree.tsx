@@ -13,14 +13,14 @@ type TreeNode = DirectoryNode | FileNode;
 
 export function ReviewTree({
 	files,
-	fullFiles,
+	focusedPath,
 	onOpenFile,
-	onToggleFullFile,
+	onToggleFocusFile,
 }: {
 	files: FileChange[];
-	fullFiles: ReadonlySet<string>;
+	focusedPath?: string;
 	onOpenFile: (path: string) => void;
-	onToggleFullFile: (path: string) => void;
+	onToggleFocusFile: (path: string) => void;
 }) {
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	const tree = useMemo(() => arrange(build(files)), [files]);
@@ -45,9 +45,9 @@ export function ReviewTree({
 							key={row.node.file.path}
 							node={row.node}
 							depth={row.depth}
-							full={fullFiles.has(row.node.file.path)}
+							focused={row.node.file.path === focusedPath}
 							onOpen={onOpenFile}
-							onToggleFull={onToggleFullFile}
+							onToggleFocus={onToggleFocusFile}
 						/>
 					),
 				)}
@@ -86,15 +86,15 @@ function TreeDirectoryRow({
 function TreeFileRow({
 	node,
 	depth,
-	full,
+	focused,
 	onOpen,
-	onToggleFull,
+	onToggleFocus,
 }: {
 	node: FileNode;
 	depth: number;
-	full: boolean;
+	focused: boolean;
 	onOpen: (path: string) => void;
-	onToggleFull: (path: string) => void;
+	onToggleFocus: (path: string) => void;
 }) {
 	return (
 		<div
@@ -114,11 +114,11 @@ function TreeFileRow({
 			<button
 				type="button"
 				className={`shrink-0 p-1 hover:text-primary ${
-					full ? "text-tertiary" : "text-secondary opacity-0 group-hover:opacity-100"
+					focused ? "text-tertiary" : "text-secondary opacity-0 group-hover:opacity-100"
 				}`}
-				aria-pressed={full}
-				aria-label={`${full ? "Collapse" : "Expand"} ${node.file.path} to the full file`}
-				onClick={() => onToggleFull(node.file.path)}
+				aria-pressed={focused}
+				aria-label={`${focused ? "Return from focused file" : "Focus"} ${node.file.path}`}
+				onClick={() => onToggleFocus(node.file.path)}
 			>
 				<ArrowsPointingOutIcon className="size-4" />
 			</button>

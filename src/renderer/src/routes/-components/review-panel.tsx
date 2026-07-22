@@ -4,7 +4,8 @@ import { useCallback, useRef, useState } from "react";
 import type { ReviewMode } from "@main/git/Git";
 import type { Project } from "@main/store/projects";
 import { orpc } from "@renderer/lib/api";
-import { ReviewDiff, type ReviewDiffHandle } from "@renderer/routes/-components/review-diff";
+import { ReviewDiff, type ReviewAnchor, type ReviewDiffHandle } from "@renderer/routes/-components/review-diff";
+import { ReviewFocusedFile } from "@renderer/routes/-components/review-focused-file";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
 
@@ -29,8 +30,9 @@ export function ReviewPanel({
 	const [mode, setMode] = useState<ReviewMode>("uncommitted");
 	const [treeOpen, setTreeOpen] = useState(false);
 	const [closedFiles, setClosedFiles] = useState<ReadonlySet<string>>(new Set());
-	const [fullFiles, setFullFiles] = useState<ReadonlySet<string>>(new Set());
+	const [focusedPath, setFocusedPath] = useState<string>();
 	const diff = useRef<ReviewDiffHandle>(null);
+	const anchor = useRef<ReviewAnchor | null>(null);
 	const { data: snapshot, error, isError } = useQuery(
 		orpc.review.snapshot.queryOptions({
 			input: { projectId: project.id, mode },
@@ -42,7 +44,8 @@ export function ReviewPanel({
 
 	const selectMode = useCallback((next: ReviewMode) => {
 		setMode(next);
-		setFullFiles(new Set());
+		setFocusedPath(undefined);
+		anchor.current = null;
 	}, []);
 
 	const revealFile = useCallback((path: string) => {
@@ -58,11 +61,54 @@ export function ReviewPanel({
 		setClosedFiles((current) => toggledSet(current, path));
 	}, []);
 
-	const toggleFull = useCallback((path: string) => {
-		setFullFiles((current) => toggledSet(current, path));
+	const focusFile = useCallback(
+		(path: string) => {
+			if (!focusedPath && diff.current) {
+				anchor.current = diff.current.captureAnchor();
+			}
+			setFocusedPath(path);
+		},
+		[focusedPath],
+	);
+
+	const closeFocus = useCallback(() => {
+		setFocusedPath(undefined);
+		const saved = anchor.current;
+		anchor.current = null;
+		if (saved) {
+			// Imperative scroll: restore the underlying reading position after the overlay uncovers it.
+			requestAnimationFrame(() => diff.current?.restoreAnchor(saved));
+		}
 	}, []);
 
+	const toggleFocus = useCallback(
+		(path: string) => {
+			if (focusedPath === path) {
+				closeFocus();
+				return;
+			}
+			focusFile(path);
+		},
+		[focusedPath, closeFocus, focusFile],
+	);
+
+	const openFromTree = useCallback(
+		(path: string) => {
+			if (focusedPath) {
+				focusFile(path);
+				return;
+			}
+			revealFile(path);
+		},
+		[focusedPath, focusFile, revealFile],
+	);
+
 	const files = snapshot?.files ?? [];
+	const focusedFile = focusedPath ? files.find((file) => file.path === focusedPath) : undefined;
+	if (focusedPath && snapshot && !focusedFile) {
+		// A focused path is only valid while the snapshot still contains it; drop it when the file leaves the scope.
+		setFocusedPath(undefined);
+	}
 
 	const setScopeClosed = (closed: boolean) => {
 		if (files.every((file) => closedFiles.has(file.path) === closed)) {
@@ -86,13 +132,10 @@ export function ReviewPanel({
 			{treeOpen && (
 				<ReviewTree
 					key={mode}
-					files={snapshot?.files ?? []}
-					fullFiles={fullFiles}
-					onOpenFile={revealFile}
-					onToggleFullFile={(path) => {
-						revealFile(path);
-						toggleFull(path);
-					}}
+					files={files}
+					focusedPath={focusedPath}
+					onOpenFile={openFromTree}
+					onToggleFocusFile={toggleFocus}
 				/>
 			)}
 
@@ -172,17 +215,26 @@ export function ReviewPanel({
 					</div>
 				</div>
 
-				<ReviewDiff
-					ref={diff}
-					snapshot={snapshot}
-					error={isError ? String(error) : undefined}
-					projectId={project.id}
-					mode={mode}
-					closedFiles={closedFiles}
-					fullFiles={fullFiles}
-					onToggleOpen={toggleOpen}
-					onToggleFull={toggleFull}
-				/>
+				<div className="relative flex min-h-0 flex-1 flex-col">
+					<ReviewDiff
+						ref={diff}
+						snapshot={snapshot}
+						error={isError ? String(error) : undefined}
+						covered={!!focusedFile}
+						closedFiles={closedFiles}
+						onToggleOpen={toggleOpen}
+						onFocusFile={focusFile}
+					/>
+					{focusedFile && (
+						<ReviewFocusedFile
+							key={focusedFile.path}
+							projectId={project.id}
+							mode={mode}
+							file={focusedFile}
+							onClose={closeFocus}
+						/>
+					)}
+				</div>
 			</div>
 		</aside>
 	);

@@ -1,96 +1,45 @@
-import {
-	ArrowsPointingOutIcon,
-	ChevronDownIcon,
-	ChevronRightIcon,
-} from "@heroicons/react/24/outline";
-import { useQueries, type UseQueryResult } from "@tanstack/react-query";
+import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Suspense, use, useImperativeHandle, useMemo, useRef, type Ref } from "react";
-import type { DiffLine, FileChange, FullFile, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/Git";
-import { orpc } from "@renderer/lib/api";
+import { useImperativeHandle, useMemo, useRef, type Ref } from "react";
+import type { DiffLine, FileChange, ReviewSnapshot } from "@main/git/Git";
+import { ReviewDiffLine, ReviewNotice, reviewContentNotice } from "@renderer/routes/-components/review-line";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
-import { reviewHighlights } from "@renderer/routes/-utils/review-highlights";
-import type { HighlightedLines, SyntaxSpan, SyntaxTone } from "@renderer/routes/-utils/review-syntax";
-
-const DIFF_MARKERS = { context: " ", add: "+", remove: "−" } as const;
-
-const DIFF_INK = {
-	context: "diff-line-context",
-	add: "diff-line-add",
-	remove: "diff-line-remove",
-} as const;
-
-const DIFF_MARKER_INK = {
-	context: "text-primary",
-	add: "text-added",
-	remove: "text-removed",
-} as const;
-
-const SYNTAX_CLASS: Record<SyntaxTone, string> = {
-	plain: "syntax-plain",
-	comment: "syntax-comment",
-	keyword: "syntax-keyword",
-	string: "syntax-string",
-	constant: "syntax-constant",
-	entity: "syntax-entity",
-	type: "syntax-type",
-};
 
 const ROW_HEIGHT = { file: 32, line: 20, notice: 40 } as const;
 
-type FullFileState = { data?: FullFile; error?: string };
-
 type ReviewRow =
-	| { kind: "file"; key: string; file: FileChange; open: boolean; full: boolean; first: boolean }
+	| { kind: "file"; key: string; file: FileChange; open: boolean; first: boolean }
 	| { kind: "line"; key: string; path: string; line: DiffLine; lines: DiffLine[]; lineIndex: number }
 	| { kind: "notice"; key: string; message: string };
 
-export type ReviewDiffHandle = { revealFile: (path: string) => void };
+export type ReviewAnchor = { rowKey: string; path: string; scrollLeft: number };
+
+export type ReviewDiffHandle = {
+	revealFile: (path: string) => void;
+	captureAnchor: () => ReviewAnchor | null;
+	restoreAnchor: (anchor: ReviewAnchor) => void;
+};
 
 export function ReviewDiff({
 	ref,
 	snapshot,
 	error,
-	projectId,
-	mode,
+	covered,
 	closedFiles,
-	fullFiles,
 	onToggleOpen,
-	onToggleFull,
+	onFocusFile,
 }: {
 	ref?: Ref<ReviewDiffHandle>;
 	snapshot?: ReviewSnapshot;
 	error?: string;
-	projectId: string;
-	mode: ReviewMode;
+	covered: boolean;
 	closedFiles: ReadonlySet<string>;
-	fullFiles: ReadonlySet<string>;
 	onToggleOpen: (path: string) => void;
-	onToggleFull: (path: string) => void;
+	onFocusFile: (path: string) => void;
 }) {
 	const scroll = useRef<HTMLDivElement>(null);
 	const files = snapshot?.files ?? [];
-	const requestedFullFiles = useMemo(
-		() => files.filter((file) => fullFiles.has(file.path) && !closedFiles.has(file.path)).map((file) => file.path),
-		[closedFiles, files, fullFiles],
-	);
-	const fullFileStates = useQueries({
-		queries: requestedFullFiles.map((path) =>
-			orpc.review.fullFile.queryOptions({
-				input: { projectId, path, mode },
-				refetchInterval: (query) => (query.state.data?.status === "too-large" ? false : 2000),
-			}),
-		),
-		combine: combineFullFileStates,
-	});
-	const fullFileByPath = useMemo(
-		() => new Map(requestedFullFiles.map((path, index) => [path, fullFileStates[index]])),
-		[fullFileStates, requestedFullFiles],
-	);
-	const rows = useMemo(
-		() => reviewRows(files, closedFiles, fullFiles, fullFileByPath),
-		[closedFiles, files, fullFileByPath, fullFiles],
-	);
+	const rows = useMemo(() => reviewRows(files, closedFiles), [closedFiles, files]);
 	const fileRowByPath = useMemo(
 		() => new Map(rows.flatMap((row, index) => (row.kind === "file" ? [[row.file.path, index] as const] : []))),
 		[rows],
@@ -112,8 +61,29 @@ export function ReviewDiff({
 					virtualizer.scrollToIndex(row, { align: "start" });
 				}
 			},
+			captureAnchor() {
+				const startIndex = virtualizer.range?.startIndex ?? 0;
+				const row = rows[startIndex];
+				const path =
+					row?.kind === "line" ? row.path : row?.kind === "file" ? row.file.path : activeFile(rows, startIndex)?.file.path;
+				if (!path) {
+					return null;
+				}
+
+				return { rowKey: row?.key ?? `file:${path}`, path, scrollLeft: scroll.current?.scrollLeft ?? 0 };
+			},
+			restoreAnchor(anchor) {
+				const exact = rows.findIndex((row) => row.key === anchor.rowKey);
+				const index = exact >= 0 ? exact : fileRowByPath.get(anchor.path);
+				if (index !== undefined) {
+					virtualizer.scrollToIndex(index, { align: "start" });
+				}
+				if (scroll.current) {
+					scroll.current.scrollLeft = anchor.scrollLeft;
+				}
+			},
 		}),
-		[fileRowByPath, virtualizer],
+		[fileRowByPath, rows, virtualizer],
 	);
 
 	if (!snapshot) {
@@ -130,10 +100,10 @@ export function ReviewDiff({
 	const activeFileRow = activeFile(rows, virtualizer.range?.startIndex ?? 0);
 
 	return (
-		<div ref={scroll} className="min-h-0 flex-1 overflow-auto">
+		<div ref={scroll} className="min-h-0 flex-1 overflow-auto" inert={covered} aria-hidden={covered || undefined}>
 			{activeFileRow && (
 				<div className="sticky top-0 left-0 z-20 h-0 min-w-full w-fit">
-					<ReviewFileHeader row={activeFileRow} onToggleOpen={onToggleOpen} onToggleFull={onToggleFull} />
+					<ReviewFileHeader row={activeFileRow} onToggleOpen={onToggleOpen} onFocusFile={onFocusFile} />
 				</div>
 			)}
 			<div className="relative min-w-full" style={{ height: virtualizer.getTotalSize() }}>
@@ -146,12 +116,10 @@ export function ReviewDiff({
 					return (
 						<div
 							key={row.key}
-								className="absolute top-0 left-0 min-w-full w-max"
-								style={{ height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
-							>
-								{row !== activeFileRow && (
-									<ReviewVirtualRow row={row} onToggleOpen={onToggleOpen} onToggleFull={onToggleFull} />
-								)}
+							className="absolute top-0 left-0 min-w-full w-max"
+							style={{ height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
+						>
+							{row !== activeFileRow && <ReviewVirtualRow row={row} onToggleOpen={onToggleOpen} onFocusFile={onFocusFile} />}
 						</div>
 					);
 				})}
@@ -163,30 +131,30 @@ export function ReviewDiff({
 function ReviewVirtualRow({
 	row,
 	onToggleOpen,
-	onToggleFull,
+	onFocusFile,
 }: {
 	row: ReviewRow;
 	onToggleOpen: (path: string) => void;
-	onToggleFull: (path: string) => void;
+	onFocusFile: (path: string) => void;
 }) {
 	if (row.kind === "file") {
-		return <ReviewFileHeader row={row} onToggleOpen={onToggleOpen} onToggleFull={onToggleFull} />;
+		return <ReviewFileHeader row={row} onToggleOpen={onToggleOpen} onFocusFile={onFocusFile} />;
 	}
 	if (row.kind === "notice") {
 		return <ReviewNotice>{row.message}</ReviewNotice>;
 	}
 
-	return <ReviewDiffLine row={row} />;
+	return <ReviewDiffLine path={row.path} line={row.line} lines={row.lines} lineIndex={row.lineIndex} />;
 }
 
 function ReviewFileHeader({
 	row,
 	onToggleOpen,
-	onToggleFull,
+	onFocusFile,
 }: {
 	row: Extract<ReviewRow, { kind: "file" }>;
 	onToggleOpen: (path: string) => void;
-	onToggleFull: (path: string) => void;
+	onFocusFile: (path: string) => void;
 }) {
 	const ChevronIcon = row.open ? ChevronDownIcon : ChevronRightIcon;
 	const fileNameStart = row.file.path.lastIndexOf("/") + 1;
@@ -224,10 +192,9 @@ function ReviewFileHeader({
 				)}
 				<button
 					type="button"
-					className={`-m-1 p-1 hover:text-primary ${row.full ? "text-tertiary" : "text-secondary"}`}
-					aria-pressed={row.full}
-					aria-label={`${row.full ? "Collapse" : "Expand"} ${row.file.path} to the full file`}
-					onClick={() => onToggleFull(row.file.path)}
+					className="-m-1 p-1 text-secondary hover:text-primary"
+					aria-label={`Focus ${row.file.path}`}
+					onClick={() => onFocusFile(row.file.path)}
 				>
 					<ArrowsPointingOutIcon className="size-4" />
 				</button>
@@ -236,97 +203,28 @@ function ReviewFileHeader({
 	);
 }
 
-function ReviewDiffLine({ row }: { row: Extract<ReviewRow, { kind: "line" }> }) {
-	const highlights = reviewHighlights(row.path, row.lines);
-
-	return (
-		<div className={`diff-line flex h-5 min-w-full w-max items-center text-code text-primary ${DIFF_INK[row.line.kind]}`}>
-			<span className="sticky left-0 flex h-5 w-10 shrink-0 select-none items-center justify-end border-outline border-r bg-surface-sunken pr-2 text-secondary">
-				{row.line.number ?? row.line.oldNumber}
-			</span>
-			<code className="whitespace-pre">
-				<span className={`select-none ${DIFF_MARKER_INK[row.line.kind]}`}>{DIFF_MARKERS[row.line.kind]} </span>
-				{!highlights && row.line.content}
-				{!!highlights && (
-					<Suspense fallback={row.line.content}>
-						<ReviewHighlightedCode content={row.line.content} highlights={highlights} lineIndex={row.lineIndex} />
-					</Suspense>
-				)}
-			</code>
-		</div>
-	);
-}
-
-function ReviewHighlightedCode({
-	content,
-	highlights,
-	lineIndex,
-}: {
-	content: string;
-	highlights: Promise<HighlightedLines | null>;
-	lineIndex: number;
-}) {
-	const spans = use(highlights)?.[lineIndex];
-	if (!spans) {
-		return content;
-	}
-
-	return <>{renderSpans(content, spans)}</>;
-}
-
-function ReviewNotice({ children }: { children: string }) {
-	return <div className="flex h-10 min-w-full items-center px-3 text-data text-secondary">{children}</div>;
-}
-
-function combineFullFileStates(results: UseQueryResult<FullFile>[]): FullFileState[] {
-	return results.map((result) => ({
-		data: result.data,
-		error: result.isError ? String(result.error) : undefined,
-	}));
-}
-
-function reviewRows(
-	files: FileChange[],
-	closedFiles: ReadonlySet<string>,
-	fullFiles: ReadonlySet<string>,
-	fullFileByPath: ReadonlyMap<string, FullFileState | undefined>,
-): ReviewRow[] {
+function reviewRows(files: FileChange[], closedFiles: ReadonlySet<string>): ReviewRow[] {
 	const rows: ReviewRow[] = [];
 
 	for (const file of files) {
 		const open = !closedFiles.has(file.path);
-		const full = fullFiles.has(file.path);
-		rows.push({ kind: "file", key: `file:${file.path}`, file, open, full, first: rows.length === 0 });
+		rows.push({ kind: "file", key: `file:${file.path}`, file, open, first: rows.length === 0 });
 		if (!open) {
 			continue;
 		}
 
-		const state = full ? fullFileByPath.get(file.path) : undefined;
-		const content = full ? state?.data : file.content;
-		if (!content) {
-			rows.push({
-				kind: "notice",
-				key: `notice:${file.path}`,
-				message: state?.error ?? "Reading file\u2026",
-			});
-			continue;
-		}
-		if (content.status !== "ready") {
-			rows.push({
-				kind: "notice",
-				key: `notice:${file.path}`,
-				message: reviewContentNotice(content, full),
-			});
+		if (file.content.status !== "ready") {
+			rows.push({ kind: "notice", key: `notice:${file.path}`, message: reviewContentNotice(file.content, false) });
 			continue;
 		}
 
-		for (const [lineIndex, line] of content.lines.entries()) {
+		for (const [lineIndex, line] of file.content.lines.entries()) {
 			rows.push({
 				kind: "line",
-				key: lineKey(file.path, full, line),
+				key: lineKey(file.path, line),
 				path: file.path,
 				line,
-				lines: content.lines,
+				lines: file.content.lines,
 				lineIndex,
 			});
 		}
@@ -335,24 +233,8 @@ function reviewRows(
 	return rows;
 }
 
-function reviewContentNotice(content: Exclude<ReviewContent, { status: "ready" }>, full: boolean): string {
-	switch (content.status) {
-		case "empty":
-			return "Empty file.";
-		case "binary":
-			return "Binary content cannot be shown.";
-		case "too-large":
-			if (content.lineCount) {
-				return `${full ? "Too large to show in full" : "Too large to show"}: ${content.lineCount} lines.`;
-			}
-			return full ? "Too large to show in full." : "Too large to show.";
-		case "unavailable":
-			return "File unavailable. Retrying\u2026";
-	}
-}
-
-function lineKey(path: string, full: boolean, line: DiffLine): string {
-	return `line:${path}:${full ? "full" : "diff"}:${line.hunk}:${line.oldNumber ?? ""}:${line.number ?? ""}:${line.kind}`;
+function lineKey(path: string, line: DiffLine): string {
+	return `line:${path}:${line.hunk}:${line.oldNumber ?? ""}:${line.number ?? ""}:${line.kind}`;
 }
 
 function activeFile(rows: ReviewRow[], startIndex: number): Extract<ReviewRow, { kind: "file" }> | undefined {
@@ -364,24 +246,4 @@ function activeFile(rows: ReviewRow[], startIndex: number): Extract<ReviewRow, {
 	}
 
 	return undefined;
-}
-
-function renderSpans(content: string, spans: SyntaxSpan[]) {
-	let offset = 0;
-	const rendered = spans.map((span, index) => {
-		const start = offset;
-		offset += span.length;
-
-		return (
-			<span className={SYNTAX_CLASS[span.tone]} key={`${start}:${index}`}>
-				{content.slice(start, offset)}
-			</span>
-		);
-	});
-
-	if (offset < content.length) {
-		rendered.push(<span key={offset}>{content.slice(offset)}</span>);
-	}
-
-	return rendered;
 }

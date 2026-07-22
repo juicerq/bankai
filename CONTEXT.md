@@ -40,6 +40,6 @@ _Avoid_: State, type, kind
 The navigator that arranges the current scope's changed files as a folder hierarchy. It contains only changed files — never the rest of the project.
 _Avoid_: Explorer, file browser, sidebar
 
-**Full-file view**:
-A changed file shown in its entirety with its diff still embedded — unchanged lines as context, changed lines still marked. A per-file state, not a separate screen.
-_Avoid_: Preview, expand, open file, source view
+**Focused file**:
+The one changed file occupying the Review's content area in full, with unchanged lines as context and changed lines still marked. The underlying Review remains present and current.
+_Avoid_: Full-file view, preview, expand, open file, source view, modal

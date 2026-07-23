@@ -10,6 +10,6 @@ export function resolveDataDir(): string {
 		return fromEnv;
 	}
 
-	const { app } = require("electron") as typeof ElectronModule;
+	const { app }: typeof ElectronModule = require("electron");
 	return join(app.getPath("userData"), "store");
 }

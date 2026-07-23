@@ -93,5 +93,5 @@ function isNotFound(err: unknown): boolean {
 	if (!("code" in err)) {
 		return false;
 	}
-	return (err as { code: string }).code === "ENOENT";
+	return err.code === "ENOENT";
 }

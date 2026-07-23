@@ -89,7 +89,12 @@ export const TerminalSessions = {
 
 function ownedSession(ownerId: number, sessionId: string): Session | undefined {
 	const session = sessions.get(sessionId);
-	return session?.ownerId === ownerId ? session : undefined;
+
+	if (session?.ownerId === ownerId) {
+		return session;
+	}
+
+	return undefined;
 }
 
 function sendTerminalEvent(

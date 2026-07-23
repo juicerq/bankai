@@ -14,7 +14,7 @@ function resolveLogPath(): string {
 	if (fromEnv) {
 		return join(fromEnv, "log.ndjson");
 	}
-	const { app } = require("electron") as typeof ElectronModule;
+	const { app }: typeof ElectronModule = require("electron");
 	return join(app.getPath("userData"), "log.ndjson");
 }
 

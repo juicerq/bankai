@@ -24,6 +24,6 @@ const store = new Store({
 });
 
 export const Settings = {
-	get: () => store.read(),
+	get: store.read.bind(store),
 	update: (patch: SettingsValue) => store.mutate((current) => ({ ...current, ...patch })),
 };

@@ -20,7 +20,11 @@ export function useDragReorder(
 				return;
 			}
 
-			return ids.indexOf(draggingId) < ids.indexOf(id) ? "after" : "before";
+			if (ids.indexOf(draggingId) < ids.indexOf(id)) {
+				return "after";
+			}
+
+			return "before";
 		},
 		itemProps: (id: string) => ({
 			draggable: true,

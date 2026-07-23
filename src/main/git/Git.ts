@@ -350,6 +350,22 @@ function nulSeparatedPaths(raw: string): string[] {
 	return raw.split("\0").filter(Boolean);
 }
 
+function trackedStatus(statusCode: string | undefined, renamed: boolean): FileChange["status"] {
+	if (statusCode === "A") {
+		return "added";
+	}
+
+	if (statusCode === "D") {
+		return "deleted";
+	}
+
+	if (renamed) {
+		return "renamed";
+	}
+
+	return "modified";
+}
+
 function parseTrackedMetadata(raw: string): FileChange[] {
 	const tokens = raw.split("\0");
 	const files: FileChange[] = [];
@@ -363,14 +379,7 @@ function parseTrackedMetadata(raw: string): FileChange[] {
 		if (path) {
 			files.push({
 				path,
-				status:
-					statusCode === "A"
-						? "added"
-						: statusCode === "D"
-							? "deleted"
-							: renamed
-								? "renamed"
-								: "modified",
+				status: trackedStatus(statusCode, renamed),
 				additions: 0,
 				deletions: 0,
 			});

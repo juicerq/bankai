@@ -72,7 +72,11 @@ export function reviewContentNotice(content: Exclude<ReviewContent, { status: "r
 			if (content.lineCount) {
 				return `${full ? "Too large to show in full" : "Too large to show"}: ${content.lineCount} lines.`;
 			}
-			return full ? "Too large to show in full." : "Too large to show.";
+			if (full) {
+				return "Too large to show in full.";
+			}
+
+			return "Too large to show.";
 		case "unavailable":
 			return "File unavailable. Retrying\u2026";
 	}

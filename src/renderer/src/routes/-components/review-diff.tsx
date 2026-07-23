@@ -115,8 +115,7 @@ function ReviewDiffView({
 			captureAnchor() {
 				const startIndex = virtualizer.range?.startIndex ?? 0;
 				const row = rows[startIndex];
-				const path =
-					row?.kind === "line" ? row.path : row?.kind === "file" ? row.file.path : activeFile(rows, startIndex)?.file.path;
+				const path = anchorPath(rows, startIndex);
 				if (!path) {
 					return null;
 				}
@@ -299,6 +298,19 @@ function reviewRows(
 
 function lineKey(path: string, line: DiffLine): string {
 	return `line:${path}:${line.hunk}:${line.oldNumber ?? ""}:${line.number ?? ""}:${line.kind}`;
+}
+
+function anchorPath(rows: ReviewRow[], startIndex: number): string | undefined {
+	const row = rows[startIndex];
+
+	if (row?.kind === "line") {
+		return row.path;
+	}
+	if (row?.kind === "file") {
+		return row.file.path;
+	}
+
+	return activeFile(rows, startIndex)?.file.path;
 }
 
 function activeFile(rows: ReviewRow[], startIndex: number): Extract<ReviewRow, { kind: "file" }> | undefined {

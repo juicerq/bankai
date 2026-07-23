@@ -23,7 +23,7 @@ const store = new Store({
 });
 
 export const Projects = {
-	list: () => store.read(),
+	list: store.read.bind(store),
 	find: async (id: string): Promise<Project> => {
 		const project = (await store.read()).find((candidate) => candidate.id === id);
 		if (!project) {

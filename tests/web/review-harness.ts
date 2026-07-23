@@ -10,7 +10,7 @@ type WatchListener = (event: ReviewChangedEvent) => void;
 interface PendingWatch { projectId: string; resolve: () => void; reject: (error: unknown) => void }
 
 class ReviewIpc {
-	readonly events: ("listen" | "watch")[] = [];
+	readonly events: ("listen" | "watch" | "unwatch")[] = [];
 	readonly watchCalls: string[] = [];
 	readonly unwatchCalls: string[] = [];
 	private readonly listeners = new Set<WatchListener>();
@@ -25,6 +25,7 @@ class ReviewIpc {
 			});
 		},
 		unwatch: (projectId) => {
+			this.events.push("unwatch");
 			this.unwatchCalls.push(projectId);
 		},
 		onChanged: (listener) => {

@@ -3,7 +3,9 @@ import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
 import type { DiffLine } from "@main/git/contracts";
 import { REVIEW_LANGUAGE_LOADERS, type ReviewLanguage } from "@renderer/routes/-utils/review-language";
 
-export type SyntaxTone = "plain" | "comment" | "keyword" | "string" | "constant" | "entity" | "type";
+const SYNTAX_TONES = ["plain", "comment", "keyword", "string", "constant", "entity", "type"] as const;
+
+export type SyntaxTone = (typeof SYNTAX_TONES)[number];
 export interface SyntaxSpan { length: number; tone: SyntaxTone }
 export type HighlightedLines = SyntaxSpan[][];
 
@@ -17,9 +19,9 @@ const COLORS: Record<SyntaxTone, string> = {
 	type: "#000007",
 };
 
-const TONE_BY_COLOR = Object.fromEntries(
-	Object.entries(COLORS).map(([tone, color]) => [color, tone]),
-) as Record<string, SyntaxTone>;
+const TONE_BY_COLOR: Record<string, SyntaxTone> = Object.fromEntries(
+	SYNTAX_TONES.map((tone): [string, SyntaxTone] => [COLORS[tone], tone]),
+);
 
 const BANKAI_SYNTAX_THEME = {
 	name: "bankai-syntax",
@@ -77,7 +79,6 @@ export async function highlightDiff(lines: DiffLine[], language: ReviewLanguage)
 			newState = undefined;
 		}
 
-		let visible: SyntaxSpan[] | undefined;
 		if (line.kind !== "add") {
 			const tokens = highlighter.codeToTokensBase(line.content, {
 				lang: language,
@@ -90,25 +91,26 @@ export async function highlightDiff(lines: DiffLine[], language: ReviewLanguage)
 			if (!oldState) {
 				throw new Error("Missing old grammar state");
 			}
-			visible = spans(tokens[0] ?? []);
-		}
 
-		if (line.kind !== "remove") {
-			const tokens = highlighter.codeToTokensBase(line.content, {
-				lang: language,
-				theme: BANKAI_SYNTAX_THEME,
-				grammarState: newState,
-				tokenizeMaxLineLength: 2000,
-				tokenizeTimeLimit: 0,
-			});
-			newState = highlighter.getLastGrammarState(tokens);
-			if (!newState) {
-				throw new Error("Missing new grammar state");
+			if (line.kind === "remove") {
+				highlighted.push(spans(tokens[0] ?? []));
+				continue;
 			}
-			visible = spans(tokens[0] ?? []);
 		}
 
-		highlighted.push(visible ?? []);
+		const tokens = highlighter.codeToTokensBase(line.content, {
+			lang: language,
+			theme: BANKAI_SYNTAX_THEME,
+			grammarState: newState,
+			tokenizeMaxLineLength: 2000,
+			tokenizeTimeLimit: 0,
+		});
+		newState = highlighter.getLastGrammarState(tokens);
+		if (!newState) {
+			throw new Error("Missing new grammar state");
+		}
+
+		highlighted.push(spans(tokens[0] ?? []));
 	}
 
 	return highlighted;

@@ -250,10 +250,15 @@ function arrange(nodes: TreeNode[]): TreeNode[] {
 }
 
 function byDirectoryThenName(a: TreeNode, b: TreeNode): number {
-	if (a.kind !== b.kind) {
-		return a.kind === "directory" ? -1 : 1;
+	if (a.kind === b.kind) {
+		return a.name.localeCompare(b.name);
 	}
-	return a.name.localeCompare(b.name);
+
+	if (a.kind === "directory") {
+		return -1;
+	}
+
+	return 1;
 }
 
 function collapseChain(node: DirectoryNode): DirectoryNode {

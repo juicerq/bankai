@@ -53,7 +53,11 @@ function ReviewFocusedFileReader({
 	const scroll = useRef<HTMLDivElement>(null);
 	const [initialOffset] = useState(() => {
 		const firstChange = content.lines.findIndex((line) => line.kind !== "context");
-		return firstChange > 0 ? Math.max(0, firstChange - LEADING_CONTEXT) * LINE_HEIGHT : 0;
+		if (firstChange <= 0) {
+			return 0;
+		}
+
+		return Math.max(0, firstChange - LEADING_CONTEXT) * LINE_HEIGHT;
 	});
 	const virtualizer = useVirtualizer({
 		count: content.lines.length,

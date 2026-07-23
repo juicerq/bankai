@@ -1,5 +1,6 @@
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { type } from "arktype";
 import { describe, expect, it } from "bun:test";
 import { LOGGER_MAX_SIZE_BYTES, Logger } from "@main/logger";
 import { assertDefined } from "./utils/assertions";
@@ -15,12 +16,12 @@ describe("logger", () => {
 		expect(lines.length).toBe(1);
 		const [first] = lines;
 		assertDefined(first);
-		const event = JSON.parse(first) as {
-			ts: number;
-			severity: string;
-			message: string;
-			data: { code: number };
-		};
+		const event = type({
+			ts: "number",
+			severity: "string",
+			message: "string",
+			data: type({ code: "number" }),
+		}).assert(JSON.parse(first));
 
 		expect(event.severity).toBe("error");
 		expect(event.message).toBe("boom");
@@ -35,7 +36,11 @@ describe("logger", () => {
 		const raw = readFileSync(join(process.env.DATA_DIR, "log.ndjson"), "utf8");
 		const [first] = raw.trim().split("\n");
 		assertDefined(first);
-		const event = JSON.parse(first) as Record<string, unknown>;
+		const event = type({
+			ts: "number",
+			severity: "string",
+			message: "string",
+		}).assert(JSON.parse(first));
 
 		expect(event).not.toHaveProperty("data");
 		expect(event.severity).toBe("info");

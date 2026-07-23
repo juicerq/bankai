@@ -23,7 +23,7 @@ describe("store envelope migration", () => {
 			version: 2,
 			contract: profileV2,
 			migrators: {
-				1: (raw) => ({ ...(raw as { name: string }), joinedAt: 0 }),
+				1: (raw) => ({ ...type({ name: "string" }).assert(raw), joinedAt: 0 }),
 			},
 			seed: () => ({ name: "default", joinedAt: 0 }),
 		});
@@ -43,7 +43,7 @@ describe("store envelope migration", () => {
 			migrators: {
 				1: (raw) => raw,
 				2: (raw) => {
-					const prev = raw as { count: number };
+					const prev = type({ count: "number" }).assert(raw);
 					return { ...prev, doubled: prev.count * 2 };
 				},
 			},
@@ -91,7 +91,7 @@ describe("store envelope migration", () => {
 			version: 2,
 			contract: v2,
 			migrators: {
-				1: (raw) => ({ ...(raw as { value: string }), marker: "migrated" }),
+				1: (raw) => ({ ...type({ value: "string" }).assert(raw), marker: "migrated" }),
 			},
 			seed: () => ({ value: "", marker: "" }),
 		});
@@ -99,9 +99,12 @@ describe("store envelope migration", () => {
 		await store.mutate((current) => ({ ...current, value: "new" }));
 
 		assertDefined(process.env.DATA_DIR);
-		const onDisk = JSON.parse(
-			readFileSync(join(process.env.DATA_DIR, "written-back.json"), "utf8"),
-		) as { version: number; data: { value: string; marker: string } };
+		const onDisk = type({
+			version: "number",
+			data: type({ value: "string", marker: "string" }),
+		}).assert(
+			JSON.parse(readFileSync(join(process.env.DATA_DIR, "written-back.json"), "utf8")),
+		);
 
 		expect(onDisk.version).toBe(2);
 		expect(onDisk.data).toEqual({ value: "new", marker: "migrated" });

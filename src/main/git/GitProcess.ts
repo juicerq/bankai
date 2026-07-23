@@ -84,9 +84,10 @@ class GitUtilityProcess {
 				// Electron UtilityProcess has no target-origin parameter.
 				// eslint-disable-next-line unicorn/require-post-message-target-origin
 				child.process.postMessage(request);
-			} catch (err: any) {
+			} catch (err) {
 				this.pending.delete(id);
-				reject(new Error(err.message, { cause: err }));
+				const message = err instanceof Error ? err.message : String(err);
+				reject(new Error(message, { cause: err }));
 			}
 		});
 	}
@@ -96,15 +97,11 @@ class GitUtilityProcess {
 			serviceName: "Bankai Git",
 			stdio: ["ignore", "ignore", "pipe"],
 		});
-		let markReady: () => void;
-		let failReady: (err: Error) => void;
+		const { promise: ready, resolve: markReady, reject: failReady } = Promise.withResolvers<void>();
 		const state: ChildState = {
 			process: child,
-			ready: new Promise<void>((resolve, reject) => {
-				markReady = resolve;
-				failReady = reject;
-			}),
-			rejectReady: (err) => failReady(err),
+			ready,
+			rejectReady: failReady,
 		};
 		this.child = state;
 

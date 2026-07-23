@@ -1,9 +1,13 @@
+import { type } from "arktype";
 import { afterEach, expect, test } from "bun:test";
 import type { ReviewContent, ReviewFiles, ReviewSnapshot } from "@main/git/contracts";
 import { cleanup, waitFor } from "./testing-library";
 import { renderReviewReading, type ReviewReadingProps } from "./review-harness";
 
 afterEach(cleanup);
+
+const modeInput = type({ mode: "string" });
+const pathInput = type({ path: "string" });
 
 const openAll = () => true;
 
@@ -38,7 +42,11 @@ function contentText(content?: ReviewContent) {
 		return;
 	}
 
-	return content.status === "ready" ? content.lines[0]?.content : content.status;
+	if (content.status === "ready") {
+		return content.lines[0]?.content;
+	}
+
+	return content.status;
 }
 
 type View = ReturnType<typeof renderReviewReading>;
@@ -313,18 +321,18 @@ test("switching mode keeps the previous snapshot while withholding cross-mode co
 	view.rerender(base({ mode: "branch" }));
 
 	await waitFor(() =>
-		expect(view.transport.callsFor("snapshot").some((input) => (input as { mode: string }).mode === "branch")).toBe(
+		expect(view.transport.callsFor("snapshot").some((input) => modeInput.assert(input).mode === "branch")).toBe(
 			true,
 		),
 	);
 	expect(view.result.current.generation?.snapshot.files.map((file) => file.path)).toEqual(["a", "b"]);
 	expect(view.result.current.generation?.contentByPath).toBeUndefined();
-	expect(view.transport.callsFor("files").filter((input) => (input as { mode: string }).mode === "branch")).toEqual([]);
+	expect(view.transport.callsFor("files").filter((input) => modeInput.assert(input).mode === "branch")).toEqual([]);
 
-	view.transport.resolve("snapshot", snapshotOf(["x", "y"]), (input) => (input as { mode: string }).mode === "branch");
+	view.transport.resolve("snapshot", snapshotOf(["x", "y"]), (input) => modeInput.assert(input).mode === "branch");
 	await waitFor(() => expect(view.result.current.generation?.snapshot.files.map((file) => file.path)).toEqual(["x", "y"]));
 	await waitFor(() =>
-		expect(view.transport.callsFor("files").some((input) => (input as { mode: string }).mode === "branch")).toBe(true),
+		expect(view.transport.callsFor("files").some((input) => modeInput.assert(input).mode === "branch")).toBe(true),
 	);
 	view.transport.resolve("files", filesResponse({ x: "x-branch", y: "y-branch" }));
 	await waitFor(() => expect(view.result.current.generation?.contentByPath?.size).toBe(2));
@@ -383,11 +391,11 @@ test("switching the focused path shows no stale full file", async () => {
 	view.rerender(base({ focusedPath: "b" }));
 
 	await waitFor(() =>
-		expect(view.transport.callsFor("fullFile").some((input) => (input as { path: string }).path === "b")).toBe(true),
+		expect(view.transport.callsFor("fullFile").some((input) => pathInput.assert(input).path === "b")).toBe(true),
 	);
 	expect(view.result.current.fullFile).toBeUndefined();
 
-	view.transport.resolve("fullFile", readyContent("full-b"), (input) => (input as { path: string }).path === "b");
+	view.transport.resolve("fullFile", readyContent("full-b"), (input) => pathInput.assert(input).path === "b");
 	await waitFor(() => expect(contentText(view.result.current.fullFile)).toBe("full-b"));
 });
 
@@ -437,10 +445,10 @@ test("the layout generation advances only on path-list or mode changes", async (
 
 	view.rerender(base({ mode: "branch" }));
 	await waitFor(() =>
-		expect(view.transport.callsFor("snapshot").some((input) => (input as { mode: string }).mode === "branch")).toBe(
+		expect(view.transport.callsFor("snapshot").some((input) => modeInput.assert(input).mode === "branch")).toBe(
 			true,
 		),
 	);
-	view.transport.resolve("snapshot", snapshotOf(["a", "b", "c"]), (input) => (input as { mode: string }).mode === "branch");
+	view.transport.resolve("snapshot", snapshotOf(["a", "b", "c"]), (input) => modeInput.assert(input).mode === "branch");
 	await waitFor(() => expect(view.result.current.generation?.layoutGeneration).toBe((first ?? 0) + 2));
 });

@@ -81,13 +81,26 @@ const router = {
 const handler = new RPCHandler(router);
 const realPostMessage = window.postMessage.bind(window);
 
-window.postMessage = ((message: unknown, targetOrigin: unknown, transfer?: unknown) => {
-	const port = (transfer as MessagePort[] | undefined)?.[0];
-	if (message === "start-orpc-client" && port) {
+function isMessagePort(value: Transferable | undefined): value is MessagePort {
+	return typeof value === "object" && value !== null && "start" in value && "postMessage" in value;
+}
+
+window.postMessage = (
+	message: unknown,
+	targetOrigin?: string | WindowPostMessageOptions,
+	transfer?: Transferable[],
+) => {
+	const port = transfer?.[0];
+	if (message === "start-orpc-client" && isMessagePort(port)) {
 		handler.upgrade(port);
 		port.start();
 		return;
 	}
 
-	return realPostMessage(message as string, targetOrigin as string, transfer as Transferable[]);
-}) as typeof window.postMessage;
+	if (typeof targetOrigin === "string") {
+		realPostMessage(message, targetOrigin, transfer);
+		return;
+	}
+
+	realPostMessage(message, targetOrigin);
+};

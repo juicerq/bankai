@@ -157,7 +157,9 @@ class RendererTerminalSession {
 	}
 
 	focus() {
-		this.terminal.focus();
+		if (!this.disposed) {
+			this.terminal.focus();
+		}
 	}
 
 	setResizeDeferred(deferred: boolean) {

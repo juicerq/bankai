@@ -6,6 +6,7 @@ import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ProjectRail } from "@renderer/routes/-components/project-rail";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
 import { WindowControls } from "@renderer/routes/-components/window-controls";
+import { useWorkspaceActivation } from "@renderer/routes/-utils/use-workspace-activation";
 
 const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
 
@@ -14,22 +15,11 @@ export const Route = createFileRoute("/")({ component: Bankai });
 function Bankai() {
 	const queryClient = useQueryClient();
 	const projects = useQuery(orpc.projects.list.queryOptions());
-	const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-	const [mountedProjectIds, setMountedProjectIds] = useState<string[]>([]);
 	const [fullscreen, setFullscreen] = useState(false);
 	const availableProjects = projects.data || [];
-	const selectedId = activeProjectId || availableProjects[0]?.id;
-	const mountedIds = selectedId && !mountedProjectIds.includes(selectedId)
-		? [...mountedProjectIds, selectedId]
-		: mountedProjectIds;
-
-	const selectProject = useCallback((projectId: string) => {
-		setMountedProjectIds((current) => {
-			const withOutgoing = selectedId && !current.includes(selectedId) ? [...current, selectedId] : current;
-			return withOutgoing.includes(projectId) ? withOutgoing : [...withOutgoing, projectId];
-		});
-		setActiveProjectId(projectId);
-	}, [selectedId]);
+	const { activeProjectId, residentProjectIds, activateProject, dropWorkspace } = useWorkspaceActivation(
+		availableProjects.map((project) => project.id),
+	);
 
 	const registerShortcuts = useCallback(() => {
 		let leaderArmed = false;
@@ -61,7 +51,7 @@ function Bankai() {
 			const project = availableProjects[Number(event.code.slice(5)) - 1];
 			return () => {
 				if (project) {
-					selectProject(project.id);
+					activateProject(project.id);
 				}
 			};
 		};
@@ -83,7 +73,7 @@ function Bankai() {
 
 		window.addEventListener("keydown", handleKeyDown, true);
 		return () => window.removeEventListener("keydown", handleKeyDown, true);
-	}, [availableProjects, selectProject]);
+	}, [availableProjects, activateProject]);
 
 	const addProject = useMutation(
 		orpc.projects.chooseDirectory.mutationOptions({
@@ -91,7 +81,7 @@ function Bankai() {
 				if (!project) {
 					return;
 				}
-				selectProject(project.id);
+				activateProject(project.id);
 				await queryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
 			},
 		}),
@@ -107,8 +97,7 @@ function Bankai() {
 	const removeProject = useMutation(
 		orpc.projects.remove.mutationOptions({
 			onSuccess: async (_, input) => {
-				setMountedProjectIds((current) => current.filter((id) => id !== input.projectId));
-				setActiveProjectId((current) => current === input.projectId ? null : current);
+				dropWorkspace(input.projectId);
 				await queryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
 			},
 		}),
@@ -121,8 +110,8 @@ function Bankai() {
 				<ProjectRail
 					projects={availableProjects}
 					loading={projects.isPending}
-					selectedId={selectedId}
-					onSelect={selectProject}
+					selectedId={activeProjectId}
+					onSelect={activateProject}
 					onAdd={() => addProject.mutate({})}
 					onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
 					onRemove={(projectId) => removeProject.mutate({ projectId })}
@@ -150,8 +139,8 @@ function Bankai() {
 						onAction={() => addProject.mutate({})}
 					/>
 				)}
-				{!projects.isError && availableProjects.filter((project) => mountedIds.includes(project.id)).map((project) => (
-					<ProjectWorkspace key={project.id} project={project} active={project.id === selectedId} />
+				{!projects.isError && availableProjects.filter((project) => residentProjectIds.includes(project.id)).map((project) => (
+					<ProjectWorkspace key={project.id} project={project} active={project.id === activeProjectId} />
 				))}
 			</section>
 		</main>

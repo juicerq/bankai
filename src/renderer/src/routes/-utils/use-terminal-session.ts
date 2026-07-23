@@ -39,10 +39,18 @@ export function useTerminalSession(projectId: string) {
 			return;
 		}
 
-		const session = new RendererTerminalSession(container, projectId);
-		sessionRef.current = session;
-		session.setActive(activeRef.current);
+		let session: RendererTerminalSession | undefined;
+		const cancelStart = scheduleAfterPaint(() => {
+			session = new RendererTerminalSession(container, projectId);
+			sessionRef.current = session;
+			session.setActive(activeRef.current);
+		});
+
 		return () => {
+			cancelStart();
+			if (!session) {
+				return;
+			}
 			if (sessionRef.current === session) {
 				sessionRef.current = null;
 			}
@@ -129,7 +137,9 @@ class RendererTerminalSession {
 		}
 
 		this.terminal.focus();
-		this.loadWebgl();
+		if (this.sessionId) {
+			this.loadWebgl();
+		}
 	}
 
 	dispose() {
@@ -171,6 +181,7 @@ class RendererTerminalSession {
 		this.sessionId = sessionId;
 		if (this.active) {
 			this.terminal.focus();
+			this.loadWebgl();
 		}
 	}
 
@@ -215,4 +226,12 @@ class RendererTerminalSession {
 			this.terminal.write(`\r\n\u001B[31m${message}: ${String(err)}\u001B[0m\r\n`);
 		}
 	}
+}
+
+function scheduleAfterPaint(run: () => void): () => void {
+	let frame = requestAnimationFrame(() => {
+		frame = requestAnimationFrame(run);
+	});
+
+	return () => cancelAnimationFrame(frame);
 }

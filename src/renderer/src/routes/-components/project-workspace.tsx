@@ -28,6 +28,7 @@ export function ProjectWorkspace({
 	const [tabs, setTabs] = useState<ShellTab[]>(() => [newShellTab(1)]);
 	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
 	const [reviewOpen, setReviewOpen] = useState(true);
+	const [animateReviewOpen, setAnimateReviewOpen] = useState(false);
 	const [treeOpen, setTreeOpen] = useState(false);
 	const [treeWidth, setTreeWidth] = useState(DEFAULT_TREE_WIDTH);
 	const nextShellNumber = useRef(2);
@@ -63,6 +64,17 @@ export function ProjectWorkspace({
 		nextShellNumber.current += 1;
 		setTabs((current) => [...current, tab]);
 		setActiveTabId(tab.id);
+	};
+
+	const handleToggleReview = () => {
+		const open = !reviewOpen;
+		setReviewOpen(open);
+		setAnimateReviewOpen(open);
+	};
+
+	const handleCloseReview = () => {
+		setReviewOpen(false);
+		setAnimateReviewOpen(false);
 	};
 
 	const handleMoveShell = (data: { tabId: string; toIndex: number }) => {
@@ -106,7 +118,7 @@ export function ProjectWorkspace({
 					aria-expanded={reviewOpen}
 					aria-label="Toggle review panel"
 					title="Toggle review panel"
-					onClick={() => setReviewOpen((current) => !current)}
+					onClick={handleToggleReview}
 				>
 					<ViewColumnsIcon className="size-4" />
 				</button>
@@ -148,6 +160,7 @@ export function ProjectWorkspace({
 						<ReviewPanel
 							project={project}
 							active={active}
+							animateOpen={animateReviewOpen}
 							diffWidth={diffWidth}
 							minDiffWidth={MIN_DIFF_WIDTH}
 							treeOpen={treeOpen}
@@ -161,7 +174,7 @@ export function ProjectWorkspace({
 							}
 							onTreeOpenChange={setTreeOpen}
 							onTreeWidthChange={setTreeWidth}
-							onClose={() => setReviewOpen(false)}
+							onClose={handleCloseReview}
 						/>
 					</>
 				)}

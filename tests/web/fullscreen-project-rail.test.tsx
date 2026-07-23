@@ -82,7 +82,13 @@ describe("fullscreen Project rail", () => {
 		const workspaceLayout = get("project-workspace-layout");
 		expect(frame.dataset.revealed).toBe("false");
 		expect(workspaceLayout.dataset.fullscreen).toBe("true");
+		expect(workspaceLayout.dataset.animating).toBe("true");
 		expect(frame.inert).toBe(true);
+
+		const widthTransition = new Event("transitionend", { bubbles: true });
+		Object.defineProperty(widthTransition, "propertyName", { value: "width" });
+		fireEvent(workspaceLayout, widthTransition);
+		expect(workspaceLayout.dataset.animating).toBe("false");
 
 		fireEvent.pointerEnter(get("project-rail-activation"));
 		expect(frame.dataset.revealed).toBe("false");

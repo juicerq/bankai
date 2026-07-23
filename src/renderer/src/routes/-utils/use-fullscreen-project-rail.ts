@@ -5,6 +5,7 @@ const PROJECT_RAIL_ACTIVATION_WIDTH = 8;
 export function useFullscreenProjectRail(onRequestShellFocus: () => void) {
 	const [fullscreen, setFullscreen] = useState(false);
 	const [revealed, setRevealed] = useState(false);
+	const [animating, setAnimating] = useState(false);
 	const railRef = useRef<HTMLDivElement | null>(null);
 	const edgeArmed = useRef(true);
 	const pointerInside = useRef(false);
@@ -33,6 +34,7 @@ export function useFullscreenProjectRail(onRequestShellFocus: () => void) {
 	}, []);
 
 	const toggleFullscreen = useCallback(() => {
+		setAnimating(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 		if (fullscreen) {
 			setRevealed(false);
 			setFullscreen(false);
@@ -55,6 +57,7 @@ export function useFullscreenProjectRail(onRequestShellFocus: () => void) {
 		menuOpen.current = false;
 		setFullscreen(true);
 	}, [fullscreen, onRequestShellFocus]);
+	const finishMotion = useCallback(() => setAnimating(false), []);
 
 	const trackPointer = useCallback((x: number) => {
 		if (x > PROJECT_RAIL_ACTIVATION_WIDTH) {
@@ -151,7 +154,9 @@ export function useFullscreenProjectRail(onRequestShellFocus: () => void) {
 	return {
 		fullscreen,
 		revealed,
+		animating,
 		toggleFullscreen,
+		finishMotion,
 		registerRail,
 		handleEdgeEnter,
 		handleRailPointerEnter,

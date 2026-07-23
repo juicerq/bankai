@@ -25,15 +25,17 @@ const TERMINAL_COMMAND_FAILURES: Record<TerminalCommandErrorEvent["command"], st
 	close: "Terminal close failed",
 };
 
-type ActiveWebgl = {
+interface ActiveWebgl {
 	addon: WebglAddon;
 	contextLoss: IDisposable;
-};
+}
 
-export function useTerminalSession(projectId: string, focusRequest: number) {
+export function useTerminalSession(projectId: string, focusRequest: number, resizeDeferred: boolean) {
 	const sessionRef = useRef<RendererTerminalSession | null>(null);
 	const activeRef = useRef(false);
 	const activationRef = useRef<symbol | null>(null);
+	const resizeDeferredRef = useRef(resizeDeferred);
+	resizeDeferredRef.current = resizeDeferred;
 	const registerContainer = useCallback((container: HTMLDivElement | null) => {
 		if (!container) {
 			return;
@@ -41,7 +43,7 @@ export function useTerminalSession(projectId: string, focusRequest: number) {
 
 		let session: RendererTerminalSession | undefined;
 		const cancelStart = scheduleAfterPaint(() => {
-			session = new RendererTerminalSession(container, projectId);
+			session = new RendererTerminalSession(container, projectId, resizeDeferredRef.current);
 			sessionRef.current = session;
 			session.setActive(activeRef.current);
 		});
@@ -77,14 +79,19 @@ export function useTerminalSession(projectId: string, focusRequest: number) {
 			sessionRef.current?.focus();
 		}
 	}, [focusRequest]);
+	const registerResizeDeferral = useCallback((node: HTMLSpanElement | null) => {
+		if (node) {
+			sessionRef.current?.setResizeDeferred(resizeDeferred);
+		}
+	}, [resizeDeferred]);
 
-	return { registerContainer, registerActivation, registerFocusRequest };
+	return { registerContainer, registerActivation, registerFocusRequest, registerResizeDeferral };
 }
 
 class RendererTerminalSession {
 	private readonly terminal = new Terminal({ ...TERMINAL_OPTIONS, ...readTerminalStyle() });
 	private readonly fit = new FitAddon();
-	private readonly resizeTerminal;
+	private readonly resizeProcess;
 	private readonly resizeObserver;
 	private readonly input;
 	private readonly removeDataListener;
@@ -97,10 +104,12 @@ class RendererTerminalSession {
 	private active = false;
 	private disposed = false;
 	private lifecycle = 0;
+	private resizePending = false;
 
 	constructor(
 		private readonly container: HTMLDivElement,
 		projectId: string,
+		private resizeDeferred: boolean,
 	) {
 		this.terminal.loadAddon(this.fit);
 		this.terminal.open(container);
@@ -124,8 +133,8 @@ class RendererTerminalSession {
 				window.bankaiTerminal.write(this.sessionId, data);
 			}
 		});
-		this.resizeTerminal = throttle(() => this.resize(), TERMINAL_RESIZE_THROTTLE_MS);
-		this.resizeObserver = new ResizeObserver(this.resizeTerminal);
+		this.resizeProcess = throttle(() => this.syncProcessDimensions(), TERMINAL_RESIZE_THROTTLE_MS);
+		this.resizeObserver = new ResizeObserver(() => this.handleContainerResize());
 		this.resizeObserver.observe(container);
 		this.open(projectId).catch((err) => this.fail("Failed to open shell", err));
 	}
@@ -151,6 +160,22 @@ class RendererTerminalSession {
 		this.terminal.focus();
 	}
 
+	setResizeDeferred(deferred: boolean) {
+		if (deferred === this.resizeDeferred) {
+			return;
+		}
+
+		this.resizeDeferred = deferred;
+		if (deferred) {
+			this.resizeProcess.cancel();
+			return;
+		}
+		if (this.resizePending) {
+			this.resizePending = false;
+			this.fitToContainer();
+		}
+	}
+
 	dispose() {
 		if (this.disposed) {
 			return;
@@ -159,7 +184,7 @@ class RendererTerminalSession {
 		this.disposed = true;
 		this.lifecycle += 1;
 		this.resizeObserver.disconnect();
-		this.resizeTerminal.cancel();
+		this.resizeProcess.cancel();
 		this.input.dispose();
 		this.removeDataListener();
 		this.removeExitListener();
@@ -194,12 +219,25 @@ class RendererTerminalSession {
 		}
 	}
 
-	private resize() {
+	private handleContainerResize() {
+		if (this.resizeDeferred) {
+			this.resizePending = true;
+			return;
+		}
+
+		this.fitToContainer();
+	}
+
+	private fitToContainer() {
 		if (this.container.clientWidth === 0 || this.container.clientHeight === 0) {
 			return;
 		}
 
 		this.fit.fit();
+		this.resizeProcess();
+	}
+
+	private syncProcessDimensions() {
 		if (this.sessionId && (this.terminal.cols !== this.lastCols || this.terminal.rows !== this.lastRows)) {
 			this.lastCols = this.terminal.cols;
 			this.lastRows = this.terminal.rows;

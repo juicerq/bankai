@@ -245,11 +245,12 @@ exceptions that reflow the chassis.
 
 The tree is a fourth column, 200px by default, bolted to the panel's left edge
 and spanning the row from the top course to the bottom edge. Its right divider
-resizes it while the diff keeps the width the user set, so the panel grows into
-or yields space back to the terminal. Each project remembers its preferred tree
-width for the application session. When the window cannot fit that preference
-beside the 280px diff and 360px terminal minimums, the tree contracts as far as
-120px and restores itself when space returns.
+redistributes the panel's fixed width between tree and diff: every pixel gained
+by one is yielded by the other. The outer divider resizes the complete Review
+against the terminal: shrinking the Review yields diff width first down to 280px,
+then narrows the tree down to 120px, while growing restores the tree to its
+preferred width before the diff widens again. The tree remains above 120px, the
+diff above 280px, and the terminal above 360px.
 
 Padding and gaps are strictly 4, 8, 12, 16, 20, 24 — Tailwind's `1`–`6`. The
 default density is tight: 12px is the standard padding, and anything looser has
@@ -275,8 +276,20 @@ leave a gap.
 
 Temporary Project rail reveal is an overlay and never changes Workspace width.
 Panel resize follows the pointer directly and never inherits the open/close
-transition. When the operating system requests reduced motion, structural
-changes happen immediately.
+transition. During structural motion and direct panel resize, the terminal
+surface follows the moving boundary while its character grid stays stable. The
+terminal column is the paint boundary: it clips the unchanged grid and every
+tab surface at that edge, so neither canvas nor WebGL composition can paint over
+an adjacent panel. Direct resize updates the shared layout width outside React's
+render path and commits it when the pointer is released, so fast movement cannot
+leave the visible boundary behind. The grid and shell process receive the final
+size once the motion ends. When the operating system requests reduced motion,
+structural changes happen immediately.
+
+Loading content never replaces a panel's structural surface. A cold Focused
+file read keeps its header and full-height body mounted while the data and
+virtual rows become ready, so asynchronous work cannot flash the underlying
+diff or an unpainted frame.
 
 ## Elevation & Depth
 

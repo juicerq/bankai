@@ -13,38 +13,47 @@ const KEYBOARD_RESIZE_STEP = 8;
 const ROW_PADDING = 12;
 const ROW_INDENT = 8;
 
-type DirectoryNode = { kind: "directory"; name: string; path: string; children: TreeNode[] };
-type FileNode = { kind: "file"; name: string; file: FileChange };
+interface DirectoryNode { kind: "directory"; name: string; path: string; children: TreeNode[] }
+interface FileNode { kind: "file"; name: string; file: FileChange }
 type TreeNode = DirectoryNode | FileNode;
 
 export function ReviewTree({
 	files,
 	focusedPath,
 	defaultWidth,
+	liveWidth,
 	preferredWidth,
 	minWidth,
 	maxWidth,
-	onWidthChange,
+	diffWidth,
+	minDiffWidth,
+	onWidthsChange,
 	onOpenFile,
 	onToggleFocusFile,
 }: {
 	files: FileChange[];
 	focusedPath?: string;
 	defaultWidth: number;
+	liveWidth: string;
 	preferredWidth: number;
 	minWidth: number;
 	maxWidth?: number;
-	onWidthChange: (width: number) => void;
+	diffWidth: number;
+	minDiffWidth: number;
+	onWidthsChange: (widths: { treeWidth: number; diffWidth: number }) => void;
 	onOpenFile: (path: string) => void;
 	onToggleFocusFile: (path: string) => void;
 }) {
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	const [resizing, setResizing] = useState(false);
-	const dragStart = useRef<{ x: number; width: number } | null>(null);
+	const dragStart = useRef<{ x: number; treeWidth: number; diffWidth: number } | null>(null);
 	const tree = useMemo(() => arrange(build(files)), [files]);
-	const availableMax = maxWidth ?? preferredWidth;
+	const availableMax = Math.min(maxWidth ?? Number.POSITIVE_INFINITY, preferredWidth + diffWidth - minDiffWidth);
 	const renderedWidth = Math.min(preferredWidth, availableMax);
-	const clampWidth = (width: number) => Math.min(Math.max(width, minWidth), availableMax);
+	const resize = (nextTreeWidth: number, totalWidth = renderedWidth + diffWidth) => {
+		const treeWidth = Math.min(Math.max(nextTreeWidth, minWidth), totalWidth - minDiffWidth);
+		onWidthsChange({ treeWidth, diffWidth: totalWidth - treeWidth });
+	};
 	const endResize = () => {
 		dragStart.current = null;
 		setResizing(false);
@@ -55,12 +64,14 @@ export function ReviewTree({
 		}
 
 		event.preventDefault();
-		onWidthChange(clampWidth(preferredWidth + (event.key === "ArrowRight" ? KEYBOARD_RESIZE_STEP : -KEYBOARD_RESIZE_STEP)));
+		resize(renderedWidth + (event.key === "ArrowRight" ? KEYBOARD_RESIZE_STEP : -KEYBOARD_RESIZE_STEP));
 	};
 
 	return (
 		<div
-			style={{ width: renderedWidth }}
+			data-component="review-tree"
+			data-width={renderedWidth}
+			style={{ width: liveWidth }}
 			className={`relative flex shrink-0 flex-col ${resizing ? "cursor-col-resize select-none" : ""}`}
 			aria-label="Tree"
 		>
@@ -72,7 +83,7 @@ export function ReviewTree({
 						className="-m-1 p-1 hover:text-primary"
 						aria-label="Reset tree width"
 						title="Reset tree width"
-						onClick={() => onWidthChange(defaultWidth)}
+						onClick={() => resize(defaultWidth)}
 					>
 						<ArrowUturnLeftIcon className="size-4" />
 					</button>
@@ -108,19 +119,20 @@ export function ReviewTree({
 				aria-valuemax={availableMax}
 				aria-valuenow={renderedWidth}
 				tabIndex={0}
+				data-slot="resize"
 				className={`group absolute inset-y-0 right-0 w-px cursor-col-resize touch-none focus-visible:bg-primary focus-visible:outline-none ${
 					resizing ? "bg-primary" : "bg-outline group-hover:bg-outline-strong"
 				}`}
 				onKeyDown={handleKeyDown}
 				onPointerDown={(event: PointerEvent<HTMLDivElement>) => {
 					event.currentTarget.setPointerCapture(event.pointerId);
-					dragStart.current = { x: event.clientX, width: preferredWidth };
+					dragStart.current = { x: event.clientX, treeWidth: renderedWidth, diffWidth };
 					setResizing(true);
 				}}
 				onPointerMove={(event: PointerEvent<HTMLDivElement>) => {
 					const start = dragStart.current;
 					if (start) {
-						onWidthChange(clampWidth(start.width + event.clientX - start.x));
+						resize(start.treeWidth + event.clientX - start.x, start.treeWidth + start.diffWidth);
 					}
 				}}
 				onPointerUp={endResize}

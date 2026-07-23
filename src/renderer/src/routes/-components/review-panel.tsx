@@ -6,6 +6,7 @@ import { ReviewDiff, type ReviewAnchor, type ReviewDiffHandle } from "@renderer/
 import { ReviewFocusedFile } from "@renderer/routes/-components/review-focused-file";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
+import { REVIEW_DIFF_WIDTH_VALUE, REVIEW_TREE_WIDTH_VALUE } from "@renderer/routes/-utils/use-panel-resize";
 import { useReviewReading } from "@renderer/routes/-utils/use-review-reading";
 
 const MODES: { mode: ReviewMode; label: string }[] = [
@@ -23,8 +24,8 @@ export function ReviewPanel({
 	treeWidth,
 	minTreeWidth,
 	maxTreeWidth,
+	onTreeWidthsChange,
 	onTreeOpenChange,
-	onTreeWidthChange,
 	onClose,
 }: {
 	project: Project;
@@ -36,8 +37,8 @@ export function ReviewPanel({
 	treeWidth: number;
 	minTreeWidth: number;
 	maxTreeWidth?: number;
+	onTreeWidthsChange: (widths: { treeWidth: number; diffWidth: number }) => void;
 	onTreeOpenChange: (open: boolean) => void;
-	onTreeWidthChange: (width: number) => void;
 	onClose: () => void;
 }) {
 	const [mode, setMode] = useState<ReviewMode>("uncommitted");
@@ -148,16 +149,19 @@ export function ReviewPanel({
 					files={files}
 					focusedPath={focusedPath}
 					defaultWidth={defaultTreeWidth}
+					liveWidth={REVIEW_TREE_WIDTH_VALUE}
 					preferredWidth={treeWidth}
 					minWidth={minTreeWidth}
 					maxWidth={maxTreeWidth}
-					onWidthChange={onTreeWidthChange}
+					diffWidth={diffWidth}
+					minDiffWidth={minDiffWidth}
+					onWidthsChange={onTreeWidthsChange}
 					onOpenFile={openFromTree}
 					onToggleFocusFile={toggleFocus}
 				/>
 			)}
 
-			<div style={{ width: diffWidth, minWidth: minDiffWidth }} className="flex flex-col">
+			<div style={{ width: REVIEW_DIFF_WIDTH_VALUE, minWidth: minDiffWidth }} className="flex flex-col">
 				<div className="flex h-header shrink-0 items-center justify-between border-outline border-b">
 					<div className="flex h-full min-w-0 overflow-hidden">
 						<button

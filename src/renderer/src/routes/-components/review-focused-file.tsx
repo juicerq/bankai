@@ -21,6 +21,7 @@ export function ReviewFocusedFile({
 
 	return (
 		<section
+			data-component="review-focused-file"
 			className="absolute inset-0 z-30 flex flex-col bg-surface-raised"
 			aria-label={`Focused file ${file.path}`}
 			onKeyDown={(event) => {
@@ -30,8 +31,14 @@ export function ReviewFocusedFile({
 			}}
 		>
 			<ReviewFocusedFileHeader file={file} onClose={onClose} />
-			{content?.status === "ready" && <ReviewFocusedFileReader file={file} content={content} />}
-			{content?.status !== "ready" && <ReviewNotice>{notice}</ReviewNotice>}
+			<div
+				data-slot="body"
+				data-content-status={content ? content.status : "pending"}
+				className="relative min-h-0 flex-1 bg-surface-raised"
+			>
+				{content?.status === "ready" && <ReviewFocusedFileReader file={file} content={content} />}
+				{content?.status !== "ready" && <ReviewNotice>{notice}</ReviewNotice>}
+			</div>
 		</section>
 	);
 }
@@ -55,6 +62,7 @@ function ReviewFocusedFileReader({
 		initialOffset,
 		overscan: 24,
 	});
+	const virtualRows = virtualizer.getVirtualItems();
 	const registerScroll = useCallback((node: HTMLDivElement | null) => {
 		scroll.current = node;
 		if (node) {
@@ -63,9 +71,10 @@ function ReviewFocusedFileReader({
 	}, [initialOffset]);
 
 	return (
-		<div ref={registerScroll} className="min-h-0 flex-1 overflow-auto">
+		<div ref={registerScroll} className="size-full overflow-auto">
+			{virtualRows.length === 0 && <ReviewNotice>Reading file…</ReviewNotice>}
 			<div className="relative min-w-full" style={{ height: virtualizer.getTotalSize() }}>
-				{virtualizer.getVirtualItems().map((virtualRow) => {
+				{virtualRows.map((virtualRow) => {
 					const line = content.lines[virtualRow.index];
 					if (!line) {
 						return null;

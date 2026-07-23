@@ -19,6 +19,7 @@ test("publishes the shared layout motion contract while open", () => {
 			open
 			animate
 			width={811}
+			liveWidth="811px"
 			resizing={false}
 			separatorProps={separatorProps}
 			onMotionEnd={() => {}}
@@ -37,6 +38,24 @@ test("publishes the shared layout motion contract while open", () => {
 	expect(get("review-content")).toBeDefined();
 });
 
+test("suppresses the open/close motion while the panel is being resized", () => {
+	render(
+		<ReviewPanelFrame
+			open
+			animate
+			width={811}
+			liveWidth="811px"
+			resizing
+			separatorProps={separatorProps}
+			onMotionEnd={() => {}}
+		>
+			<div data-component="review-content" />
+		</ReviewPanelFrame>,
+	);
+
+	expect(get("review-panel-frame").dataset.animating).toBe("false");
+});
+
 test("becomes inert when closed and owns the end of its width motion", () => {
 	let motionEnds = 0;
 	render(
@@ -44,6 +63,7 @@ test("becomes inert when closed and owns the end of its width motion", () => {
 			open={false}
 			animate
 			width={811}
+			liveWidth="811px"
 			resizing={false}
 			separatorProps={separatorProps}
 			onMotionEnd={() => {

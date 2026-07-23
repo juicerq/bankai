@@ -6,7 +6,11 @@ import { ReviewPanel } from "@renderer/routes/-components/review-panel";
 import { ReviewPanelFrame } from "@renderer/routes/-components/review-panel-frame";
 import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
 import { useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
-import { usePanelResize } from "@renderer/routes/-utils/use-panel-resize";
+import {
+	REVIEW_DIFF_WIDTH_VALUE,
+	REVIEW_TREE_WIDTH_VALUE,
+	usePanelResize,
+} from "@renderer/routes/-utils/use-panel-resize";
 
 const DEFAULT_DIFF_WIDTH = 810;
 const DEFAULT_TREE_WIDTH = 200;
@@ -15,31 +19,42 @@ const MIN_TERMINAL_WIDTH = 360;
 const MIN_TREE_WIDTH = 120;
 const REVIEW_SEPARATOR_WIDTH = 1;
 
-type ShellTab = {
+interface ShellTab {
 	id: string;
 	label: string;
-};
+}
 
 export function ProjectWorkspace({
 	project,
 	active,
 	shellFocusRequest,
+	fullscreenAnimating,
 }: {
 	project: Project;
 	active: boolean;
 	shellFocusRequest: number;
+	fullscreenAnimating: boolean;
 }) {
 	const [tabs, setTabs] = useState<ShellTab[]>(() => [newShellTab(1)]);
 	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
 	const [reviewOpen, setReviewOpen] = useState(true);
 	const [reviewAnimating, setReviewAnimating] = useState(false);
-	const [treeOpen, setTreeOpen] = useState(false);
+	const [treeOpen, setTreeOpen] = useState(true);
 	const [treeWidth, setTreeWidth] = useState(DEFAULT_TREE_WIDTH);
 	const nextShellNumber = useRef(2);
-	const { width: diffWidth, rowWidth, resizing, rowRef, separatorProps } = usePanelResize({
+	const {
+		width: diffWidth,
+		treeWidth: renderedTreeWidth,
+		setPreferredWidth: setDiffWidth,
+		rowWidth,
+		resizing,
+		rowRef,
+		separatorProps,
+	} = usePanelResize({
 		initialWidth: DEFAULT_DIFF_WIDTH,
 		minWidth: MIN_DIFF_WIDTH,
-		minRemaining: MIN_TERMINAL_WIDTH + (treeOpen ? MIN_TREE_WIDTH : 0),
+		terminalReserve: MIN_TERMINAL_WIDTH,
+		tree: treeOpen ? { width: treeWidth, minWidth: MIN_TREE_WIDTH, onSqueeze: setTreeWidth } : undefined,
 	});
 
 	const registerTabShortcuts = useCallback(() => {
@@ -103,8 +118,12 @@ export function ProjectWorkspace({
 	const maxTreeWidth = rowWidth === undefined
 		? undefined
 		: Math.max(MIN_TREE_WIDTH, rowWidth - diffWidth - MIN_TERMINAL_WIDTH);
-	const renderedTreeWidth = treeOpen ? Math.min(treeWidth, maxTreeWidth ?? treeWidth) : 0;
 	const reviewWidth = REVIEW_SEPARATOR_WIDTH + diffWidth + renderedTreeWidth;
+	const handleTreeWidthsChange = (widths: { treeWidth: number; diffWidth: number }) => {
+		setTreeWidth(widths.treeWidth);
+		setDiffWidth(widths.diffWidth);
+	};
+	const liveReviewWidth = `calc(${REVIEW_DIFF_WIDTH_VALUE} + ${REVIEW_TREE_WIDTH_VALUE} + ${REVIEW_SEPARATOR_WIDTH}px)`;
 
 	return (
 		<section
@@ -135,10 +154,13 @@ export function ProjectWorkspace({
 				</button>
 			</header>
 
-			<div ref={rowRef} className={`flex min-h-0 flex-1 ${resizing ? "cursor-col-resize select-none" : ""}`}>
+			<div
+				ref={rowRef}
+				className={`flex min-h-0 flex-1 ${resizing ? "cursor-col-resize select-none" : ""}`}
+			>
 				<div
-					style={{ minWidth: MIN_TERMINAL_WIDTH }}
-					className="flex min-h-0 flex-1 flex-col bg-surface-sunken"
+					style={{ minWidth: MIN_TERMINAL_WIDTH, contain: "paint" }}
+					className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-sunken"
 				>
 					{tabs.length === 0 && (
 						<EmptyState
@@ -150,11 +172,15 @@ export function ProjectWorkspace({
 						/>
 					)}
 					{tabs.map((tab) => (
-						<div className={tab.id === activeTabId ? "min-h-0 flex-1" : "hidden"} key={tab.id}>
+						<div
+							className={tab.id === activeTabId ? "min-h-0 min-w-0 flex-1 overflow-hidden" : "hidden"}
+							key={tab.id}
+						>
 							<TerminalPane
 								projectId={project.id}
 								active={active && tab.id === activeTabId}
 								focusRequest={shellFocusRequest}
+								resizeDeferred={fullscreenAnimating || reviewAnimating || resizing}
 							/>
 						</div>
 					))}
@@ -163,6 +189,7 @@ export function ProjectWorkspace({
 					open={reviewOpen}
 					animate={reviewAnimating}
 					width={reviewWidth}
+					liveWidth={liveReviewWidth}
 					resizing={resizing}
 					separatorProps={separatorProps}
 					onMotionEnd={() => setReviewAnimating(false)}
@@ -177,8 +204,8 @@ export function ProjectWorkspace({
 						treeWidth={treeWidth}
 						minTreeWidth={MIN_TREE_WIDTH}
 						maxTreeWidth={maxTreeWidth}
+						onTreeWidthsChange={handleTreeWidthsChange}
 						onTreeOpenChange={setTreeOpen}
-						onTreeWidthChange={setTreeWidth}
 						onClose={handleCloseReview}
 					/>
 				</ReviewPanelFrame>

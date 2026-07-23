@@ -244,10 +244,12 @@ export function ReviewPanel({
 
 				<div className="relative flex min-h-0 flex-1 flex-col">
 					<ReviewDiff
+						key={`${mode}:${files.map((file) => file.path).join("\n")}`}
 						ref={diff}
 						projectId={project.id}
 						mode={mode}
 						active={active && watchReady}
+						prepare={(active || preload) && watchReady}
 						snapshot={currentSnapshot}
 						error={watchError ?? queryError}
 						covered={!!focusedFile}

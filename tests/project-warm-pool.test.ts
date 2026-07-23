@@ -1,13 +1,13 @@
 import { expect, it } from "bun:test";
-import { ProjectWarmPool } from "@renderer/routes/-utils/project-warm-pool";
+import { PROJECT_IDLE_TIMEOUT_MS, ProjectWarmPool } from "@renderer/routes/-utils/project-warm-pool";
 
-it("keeps an inactive project warm for fifteen minutes", () => {
+it("keeps an inactive project warm for thirty minutes", () => {
 	const timers = new ManualTimers();
 	const pool = new ProjectWarmPool(timers.schedule);
 
 	pool.deactivate("alpha");
 	expect(pool.getSnapshot()).toEqual(["alpha"]);
-	expect(timers.at(0).delay).toBe(15 * 60 * 1000);
+	expect(timers.at(0).delay).toBe(PROJECT_IDLE_TIMEOUT_MS);
 
 	timers.run(0);
 	expect(pool.getSnapshot()).toEqual([]);

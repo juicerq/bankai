@@ -1,4 +1,4 @@
-const PROJECT_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+export const PROJECT_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const MAX_INACTIVE_WARM_PROJECTS = 2;
 
 const EMPTY_PROJECTS: readonly string[] = [];

@@ -7,6 +7,7 @@ import type {
 	FileChange,
 	FullFile,
 	ReviewContent,
+	ReviewFiles,
 	ReviewMode,
 	ReviewSnapshot,
 } from "@main/git/contracts";
@@ -40,6 +41,44 @@ export const Git = {
 				files: files.length,
 			},
 		};
+	},
+
+	files: async (input: { path: string; files: string[]; mode: ReviewMode }): Promise<ReviewFiles> => {
+		await Promise.all(input.files.map((file) => assertFileWithinRepo(input.path, file)));
+
+		const base = await resolveBase(input.path, input.mode);
+		const raw: unknown = base
+			? await gitText(input.path, ["diff", base, "-M", "--no-color", "--no-ext-diff"]).catch((err) => err)
+			: "";
+		if (typeof raw !== "string" || isGitOutputOverflow(raw)) {
+			return await readFilesIndividually(input);
+		}
+
+		const parsedByPath = new Map(parseDiff(raw).map((file) => [file.path, compactContent(file)]));
+		const files: ReviewFiles["files"] = [];
+		const missing: { path: string; index: number }[] = [];
+		for (const path of input.files) {
+			const content = parsedByPath.get(path);
+			files.push({ path, content: content ?? { status: "unavailable" } });
+			if (!content) {
+				missing.push({ path, index: files.length - 1 });
+			}
+		}
+
+		for (let offset = 0; offset < missing.length; offset += NEW_FILE_COUNT_CONCURRENCY) {
+			const batch = missing.slice(offset, offset + NEW_FILE_COUNT_CONCURRENCY);
+			const contents = await Promise.all(
+				batch.map(({ path: file }) => readFileDiff({ path: input.path, file, mode: input.mode }, false)),
+			);
+			for (const [index, item] of batch.entries()) {
+				const result = files[item.index];
+				if (result) {
+					result.content = contents[index] ?? { status: "unavailable" };
+				}
+			}
+		}
+
+		return { files };
 	},
 
 	file: async (input: { path: string; file: string; mode: ReviewMode }): Promise<ReviewContent> => {
@@ -174,6 +213,23 @@ async function countAddedLines(path: string): Promise<number> {
 	}
 
 	return lines + (bytes > 0 && lastByte !== 10 ? 1 : 0);
+}
+
+async function readFilesIndividually(input: {
+	path: string;
+	files: string[];
+	mode: ReviewMode;
+}): Promise<ReviewFiles> {
+	const files: ReviewFiles["files"] = [];
+	for (let offset = 0; offset < input.files.length; offset += NEW_FILE_COUNT_CONCURRENCY) {
+		const batch = input.files.slice(offset, offset + NEW_FILE_COUNT_CONCURRENCY);
+		const contents = await Promise.all(
+			batch.map((file) => readFileDiff({ path: input.path, file, mode: input.mode }, false)),
+		);
+		files.push(...batch.map((path, index) => ({ path, content: contents[index] ?? { status: "unavailable" } })));
+	}
+
+	return { files };
 }
 
 async function readFileDiff(
@@ -342,6 +398,18 @@ function parseTrackedMetadata(raw: string): FileChange[] {
 interface ParsedFile extends FileChange {
 	content: ReviewContent;
 }
+
+function compactContent(file: ParsedFile): ReviewContent {
+	if (file.status === "added" && file.content.status === "ready" && file.content.lines.length === 0) {
+		return { status: "empty" };
+	}
+	if (file.status === "added" && file.content.status === "ready" && file.content.lines.length > FULL_FILE_MAX_LINES) {
+		return { status: "too-large", lineCount: file.content.lines.length };
+	}
+
+	return file.content;
+}
+
 const HUNK_START = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 
 function parseDiff(raw: string): ParsedFile[] {

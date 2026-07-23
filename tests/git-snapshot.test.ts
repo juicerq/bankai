@@ -120,6 +120,28 @@ describe("Git.snapshot", () => {
 		});
 	});
 
+	it("loads tracked and untracked compact content in requested order", async () => {
+		const path = repo("batch-content");
+		writeFileSync(join(path, "first.txt"), "before\n");
+		writeFileSync(join(path, "second.txt"), "before\n");
+		git(path, "add", "first.txt", "second.txt");
+		git(path, "commit", "-m", "init");
+		writeFileSync(join(path, "first.txt"), "after first\n");
+		writeFileSync(join(path, "second.txt"), "after second\n");
+		writeFileSync(join(path, "fresh.txt"), "fresh\n");
+
+		const result = await Git.files({
+			path,
+			files: ["second.txt", "fresh.txt", "first.txt"],
+			mode: "uncommitted",
+		});
+
+		expect(result.files.map((file) => file.path)).toEqual(["second.txt", "fresh.txt", "first.txt"]);
+		expect(readyLines(result.files[0]?.content ?? { status: "unavailable" }).at(-1)?.content).toBe("after second");
+		expect(readyLines(result.files[1]?.content ?? { status: "unavailable" }).at(-1)?.content).toBe("fresh");
+		expect(readyLines(result.files[2]?.content ?? { status: "unavailable" }).at(-1)?.content).toBe("after first");
+	});
+
 	it("shows indexed and untracked files before the first commit", async () => {
 		const path = repo("unborn-index");
 		writeFileSync(join(path, "indexed.txt"), "indexed\ncurrent\n");

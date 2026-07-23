@@ -1,7 +1,7 @@
 import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useImperativeHandle, useMemo, useRef, type Ref } from "react";
+import { useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import type { DiffLine, FileChange, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/contracts";
 import { orpc } from "@renderer/lib/api";
 import { ReviewDiffLine, ReviewNotice, reviewContentNotice } from "@renderer/routes/-components/review-line";
@@ -48,16 +48,32 @@ export function ReviewDiff({
 }) {
 	const scroll = useRef<HTMLDivElement>(null);
 	const files = snapshot?.files ?? [];
+	const [initialPaths] = useState(() => files.filter((file) => !closedFiles.has(file.path)).map((file) => file.path));
+	const initialPathSet = useMemo(() => new Set(initialPaths), [initialPaths]);
+	const { data: initialContent, isError: initialContentError } = useQuery(
+		orpc.review.files.queryOptions({
+			input: { projectId, files: initialPaths, mode },
+			enabled: prepare && initialPaths.length > 0,
+		}),
+	);
 	const fileQueries = useQueries({
 		queries: files.map((file) =>
 			orpc.review.file.queryOptions({
 				input: { projectId, path: file.path, mode },
-				enabled: prepare && !closedFiles.has(file.path),
+				enabled: prepare && !closedFiles.has(file.path) && !initialPathSet.has(file.path),
 			}),
 		),
 	});
 	const contentByPath = useMemo(() => {
 		const content = new Map<string, ReviewContent>();
+		for (const file of initialContent?.files ?? []) {
+			content.set(file.path, file.content);
+		}
+		if (initialContentError) {
+			for (const path of initialPaths) {
+				content.set(path, { status: "unavailable" });
+			}
+		}
 		for (const [index, query] of fileQueries.entries()) {
 			const file = files[index];
 			if (file && query.data) {
@@ -67,7 +83,7 @@ export function ReviewDiff({
 			}
 		}
 		return content;
-	}, [fileQueries, files]);
+	}, [fileQueries, files, initialContent, initialContentError, initialPaths]);
 	const rows = useMemo(
 		() => reviewRows(files, closedFiles, contentByPath),
 		[closedFiles, contentByPath, files],
@@ -129,6 +145,9 @@ export function ReviewDiff({
 	const contentReady = files.every((file, index) => {
 		if (closedFiles.has(file.path)) {
 			return true;
+		}
+		if (initialPathSet.has(file.path)) {
+			return contentByPath.has(file.path);
 		}
 		const query = fileQueries[index];
 		return !!query?.data || !!query?.isError;

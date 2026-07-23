@@ -26,6 +26,8 @@ async function execute(request: typeof gitRequestSchema.infer) {
 	switch (request.operation) {
 		case "snapshot":
 			return await Git.snapshot(request.path, request.mode);
+		case "files":
+			return await Git.files({ path: request.path, files: request.files, mode: request.mode });
 		case "file":
 			return await Git.file({ path: request.path, file: request.file, mode: request.mode });
 		case "fullFile":

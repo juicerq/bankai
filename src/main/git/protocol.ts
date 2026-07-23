@@ -9,6 +9,13 @@ export const gitRequestSchema = type({
 })
 	.or({
 		id: "string",
+		operation: "'files'",
+		path: "string",
+		files: "string[]",
+		mode: reviewModeSchema,
+	})
+	.or({
+		id: "string",
 		operation: "'file'",
 		path: "string",
 		file: "string",

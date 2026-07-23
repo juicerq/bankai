@@ -3,9 +3,11 @@ import { join } from "node:path";
 import { utilityProcess, type UtilityProcess } from "electron";
 import {
 	reviewContentSchema,
+	reviewFilesSchema,
 	reviewSnapshotSchema,
 	type FullFile,
 	type ReviewContent,
+	type ReviewFiles,
 	type ReviewMode,
 	type ReviewSnapshot,
 } from "@main/git/contracts";
@@ -14,6 +16,7 @@ import { Logger } from "@main/logger";
 
 type GitRequestInput =
 	| { operation: "snapshot"; path: string; mode: ReviewMode }
+	| { operation: "files"; path: string; files: string[]; mode: ReviewMode }
 	| { operation: "file"; path: string; file: string; mode: ReviewMode }
 	| { operation: "fullFile"; path: string; file: string; mode: ReviewMode };
 
@@ -35,6 +38,10 @@ class GitUtilityProcess {
 
 	async snapshot(path: string, mode: ReviewMode): Promise<ReviewSnapshot> {
 		return reviewSnapshotSchema.assert(await this.request({ operation: "snapshot", path, mode }));
+	}
+
+	async files(input: { path: string; files: string[]; mode: ReviewMode }): Promise<ReviewFiles> {
+		return reviewFilesSchema.assert(await this.request({ operation: "files", ...input }));
 	}
 
 	async file(input: { path: string; file: string; mode: ReviewMode }): Promise<ReviewContent> {

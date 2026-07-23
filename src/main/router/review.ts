@@ -12,6 +12,17 @@ export const reviewRouter = {
 			return await GitProcess.snapshot(project.path, input.mode);
 		}),
 
+	files: base
+		.input(type({ projectId: "string", files: "string[]", mode: reviewModeSchema }))
+		.handler(async ({ input }) => {
+			if (new Set(input.files).size !== input.files.length) {
+				throw new Error("Review file paths must be unique");
+			}
+
+			const project = await Projects.find(input.projectId);
+			return await GitProcess.files({ path: project.path, files: input.files, mode: input.mode });
+		}),
+
 	file: base
 		.input(type({ projectId: "string", path: "string", mode: reviewModeSchema }))
 		.handler(async ({ input }) => {

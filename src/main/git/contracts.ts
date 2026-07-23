@@ -19,6 +19,11 @@ export const reviewContentSchema = type({ status: "'ready'", lines: diffLineSche
 	.or({ status: "'unavailable'" });
 export type ReviewContent = typeof reviewContentSchema.infer;
 
+export const reviewFilesSchema = type({
+	files: type({ path: "string", content: reviewContentSchema }).array(),
+});
+export type ReviewFiles = typeof reviewFilesSchema.infer;
+
 const fileStatusSchema = type("'modified' | 'added' | 'deleted' | 'renamed' | 'untracked'");
 const fileChangeSchema = type({
 	path: "string",

@@ -86,6 +86,7 @@ class ReviewQueryObserver {
 	private async refresh() {
 		const filters = [
 			{ queryKey: orpc.review.snapshot.key({ type: "query", input: { projectId: this.projectId } }) },
+			{ queryKey: orpc.review.files.key({ type: "query", input: { projectId: this.projectId } }) },
 			{ queryKey: orpc.review.file.key({ type: "query", input: { projectId: this.projectId } }) },
 			{ queryKey: orpc.review.fullFile.key({ type: "query", input: { projectId: this.projectId } }) },
 		];

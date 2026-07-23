@@ -1,24 +1,80 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { orpc } from "@renderer/lib/api";
+import { queryClient } from "@renderer/lib/query-client";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ProjectRail } from "@renderer/routes/-components/project-rail";
 import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
 import { WindowControls } from "@renderer/routes/-components/window-controls";
+import {
+	MAX_RAIL_WIDTH,
+	MIN_RAIL_WIDTH,
+	RAIL_WIDTH_PROPERTY,
+	resolveRailWidth,
+} from "@renderer/routes/-utils/rail-layout";
 import { useBankaiShortcuts } from "@renderer/routes/-utils/use-bankai-shortcuts";
+import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
+import { useLayoutPreferences } from "@renderer/routes/-utils/use-layout-preferences";
 import { useWorkspaceActivation } from "@renderer/routes/-utils/use-workspace-activation";
 
-export const Route = createFileRoute("/")({ component: Bankai });
+export const Route = createFileRoute("/")({
+	component: Bankai,
+	loader: () => queryClient.ensureQueryData(orpc.settings.getLayout.queryOptions()).catch(() => null),
+});
 
 function Bankai() {
-	const queryClient = useQueryClient();
+	const reactQueryClient = useQueryClient();
 	const projects = useQuery(orpc.projects.list.queryOptions());
+	const layout = useLayoutPreferences();
 	const [shellFocusRequest, setShellFocusRequest] = useState(0);
 	const requestShellFocus = useCallback(() => setShellFocusRequest((current) => current + 1), []);
-	const projectRail = useFullscreenProjectRail(requestShellFocus);
+	const persistFullscreen = useCallback(
+		(fullscreen: boolean) => layout.persist({ fullscreen }),
+		[layout.persist],
+	);
+	const projectRail = useFullscreenProjectRail(requestShellFocus, {
+		initialFullscreen: layout.initial.fullscreen,
+		onFullscreenChange: persistFullscreen,
+	});
+	const [railWidth, setRailWidth] = useState(layout.initial.railWidth);
+	const railFrameRef = useRef<HTMLDivElement>(null);
+	const railDivider = useDivider({
+		value: railWidth,
+		min: MIN_RAIL_WIDTH,
+		max: MAX_RAIL_WIDTH,
+		sign: 1,
+		target: railFrameRef,
+		resolve: (proposed) => {
+			const { width, snap } = resolveRailWidth(proposed);
+
+			if (projectRail.fullscreen) {
+				return {
+					vars: [{ property: RAIL_WIDTH_PROPERTY, value: width }],
+					commit: () => {
+						projectRail.toggleFullscreen({ animate: false });
+						setRailWidth(width);
+						layout.persist({ railWidth: width });
+					},
+				};
+			}
+
+			return {
+				vars: [{ property: RAIL_WIDTH_PROPERTY, value: width }],
+				commit: snap
+					? () => {
+						railFrameRef.current?.style.setProperty(RAIL_WIDTH_PROPERTY, `${railWidth}px`);
+						projectRail.toggleFullscreen();
+					}
+					: () => {
+						setRailWidth(width);
+						layout.persist({ railWidth: width });
+					},
+			};
+		},
+	});
 	const availableProjects = projects.data || [];
 	const { activeProjectId, residentProjectIds, activateProject, dropWorkspace } = useWorkspaceActivation(
 		availableProjects.map((project) => project.id),
@@ -36,7 +92,7 @@ function Bankai() {
 					return;
 				}
 				activateProject(project.id);
-				await queryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
+				await reactQueryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
 			},
 		}),
 	);
@@ -44,7 +100,7 @@ function Bankai() {
 	const moveProject = useMutation(
 		orpc.projects.move.mutationOptions({
 			onSuccess: async () => {
-				await queryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
+				await reactQueryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
 			},
 		}),
 	);
@@ -52,7 +108,7 @@ function Bankai() {
 		orpc.projects.remove.mutationOptions({
 			onSuccess: async (_, input) => {
 				dropWorkspace(input.projectId);
-				await queryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
+				await reactQueryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
 			},
 		}),
 	);
@@ -66,7 +122,7 @@ function Bankai() {
 	return (
 		<main ref={registerShortcuts} className="relative flex h-full bg-surface">
 			<WindowControls />
-			<ProjectRailFrame projectRail={projectRail}>
+			<ProjectRailFrame projectRail={projectRail} divider={railDivider} frameRef={railFrameRef} railWidth={railWidth}>
 				<ProjectRail
 					projects={availableProjects}
 					loading={projects.isPending}
@@ -110,6 +166,9 @@ function Bankai() {
 						fullscreen={projectRail.fullscreen}
 						fullscreenAnimating={projectRail.animating}
 						onToggleFullscreen={projectRail.toggleFullscreen}
+						initialDiffWidth={layout.initial.diffWidth}
+						initialTreeWidth={layout.initial.treeWidth}
+						onPersistLayout={layout.persist}
 					/>
 				))}
 			</section>

@@ -62,7 +62,7 @@ export function ProjectRail({
 		<>
 			<aside
 				data-component="project-rail"
-				className="flex min-h-0 w-rail shrink-0 flex-col border-r border-outline bg-surface-raised"
+				className="flex min-h-0 w-full shrink-0 flex-col border-r border-outline bg-surface-raised"
 			>
 				<h1 className="m-0 flex h-header shrink-0 items-center justify-between border-b border-outline px-3 text-label">
 					<span className="relative isolate flex items-center justify-center">

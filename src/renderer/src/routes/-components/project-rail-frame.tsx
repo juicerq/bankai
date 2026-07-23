@@ -1,12 +1,21 @@
-import type { ReactNode, TransitionEvent } from "react";
+import { type ReactNode, type RefObject, type TransitionEvent, useCallback } from "react";
+import { Divider } from "@renderer/routes/-components/divider";
 import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-utils/layout-motion";
+import { RAIL_WIDTH_PROPERTY, RAIL_WIDTH_VALUE } from "@renderer/routes/-utils/rail-layout";
+import type { useDivider } from "@renderer/routes/-utils/use-divider";
 import type { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
 
 export function ProjectRailFrame({
 	projectRail,
+	divider,
+	frameRef,
+	railWidth,
 	children,
 }: {
 	projectRail: ReturnType<typeof useFullscreenProjectRail>;
+	divider: ReturnType<typeof useDivider>;
+	frameRef: RefObject<HTMLDivElement | null>;
+	railWidth: number;
 	children: ReactNode;
 }) {
 	const handleTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
@@ -14,16 +23,24 @@ export function ProjectRailFrame({
 			projectRail.finishMotion();
 		}
 	};
+	const registerFrame = useCallback(
+		(node: HTMLDivElement | null) => {
+			frameRef.current = node;
+			node?.style.setProperty(RAIL_WIDTH_PROPERTY, `${railWidth}px`);
+		},
+		[frameRef, railWidth],
+	);
 
 	return (
 		<div
+			ref={registerFrame}
 			data-component="project-workspace-layout"
 			data-fullscreen={projectRail.fullscreen}
 			data-animating={projectRail.animating}
 			data-motion-duration={LAYOUT_MOTION_DURATION_MS}
-			style={{ transitionDuration: `${LAYOUT_MOTION_DURATION_MS}ms` }}
-			className={`relative h-full shrink-0 transition-[width] ease-out motion-reduce:transition-none ${
-				projectRail.fullscreen ? "w-0" : "w-rail"
+			style={{ width: projectRail.fullscreen ? 0 : RAIL_WIDTH_VALUE, transitionDuration: `${LAYOUT_MOTION_DURATION_MS}ms` }}
+			className={`relative h-full shrink-0 ease-out motion-reduce:transition-none ${
+				projectRail.animating ? "transition-[width]" : "transition-none"
 			}`}
 			onTransitionEnd={handleTransitionEnd}
 			onTransitionCancel={handleTransitionEnd}
@@ -43,15 +60,15 @@ export function ProjectRailFrame({
 				data-revealed={projectRail.fullscreen ? projectRail.revealed : true}
 				data-motion-duration={LAYOUT_MOTION_DURATION_MS}
 				inert={projectRail.fullscreen && !projectRail.revealed}
-				style={{ transitionDuration: `${LAYOUT_MOTION_DURATION_MS}ms` }}
+				style={{ width: RAIL_WIDTH_VALUE, transitionDuration: `${LAYOUT_MOTION_DURATION_MS}ms` }}
 				className={
 					projectRail.fullscreen
-						? `absolute inset-y-0 left-0 z-40 flex w-rail shrink-0 transition-[transform,opacity] ease-out motion-reduce:transition-none ${
+						? `absolute inset-y-0 left-0 z-40 flex shrink-0 transition-[transform,opacity] ease-out motion-reduce:transition-none ${
 							projectRail.revealed
 								? "translate-x-0 opacity-100 shadow-[4px_0_16px_rgba(0,0,0,0.32)]"
 								: "pointer-events-none -translate-x-full opacity-0"
 						}`
-						: "absolute inset-y-0 left-0 z-40 flex w-rail shrink-0 transition-none"
+						: "absolute inset-y-0 left-0 z-40 flex shrink-0 transition-none"
 				}
 				onPointerEnter={projectRail.handleRailPointerEnter}
 				onPointerLeave={projectRail.handleRailPointerLeave}
@@ -59,6 +76,7 @@ export function ProjectRailFrame({
 				onBlurCapture={projectRail.handleRailBlur}
 			>
 				{children}
+				<Divider control={divider} side="right" label="Resize project rail" />
 			</div>
 		</div>
 	);

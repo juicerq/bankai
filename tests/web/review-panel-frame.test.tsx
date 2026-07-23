@@ -1,16 +1,24 @@
 import { afterEach, expect, test } from "bun:test";
 import { ReviewPanelFrame } from "@renderer/routes/-components/review-panel-frame";
 import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-utils/layout-motion";
+import type { useDivider } from "@renderer/routes/-utils/use-divider";
 import { get } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
 afterEach(cleanup);
 
-const separatorProps = {
-	onPointerDown: () => {},
-	onPointerMove: () => {},
-	onPointerUp: () => {},
-	onPointerCancel: () => {},
+const divider: ReturnType<typeof useDivider> = {
+	resizing: false,
+	valueMin: 280,
+	valueMax: 1000,
+	valueNow: 648,
+	onKeyDown: () => {},
+	pointerProps: {
+		onPointerDown: () => {},
+		onPointerMove: () => {},
+		onPointerUp: () => {},
+		onPointerCancel: () => {},
+	},
 };
 
 test("publishes the shared layout motion contract while open", () => {
@@ -20,8 +28,7 @@ test("publishes the shared layout motion contract while open", () => {
 			animate
 			width={811}
 			liveWidth="811px"
-			resizing={false}
-			separatorProps={separatorProps}
+			divider={divider}
 			onMotionEnd={() => {}}
 		>
 			<div data-component="review-content" />
@@ -45,8 +52,7 @@ test("suppresses the open/close motion while the panel is being resized", () => 
 			animate
 			width={811}
 			liveWidth="811px"
-			resizing
-			separatorProps={separatorProps}
+			divider={{ ...divider, resizing: true }}
 			onMotionEnd={() => {}}
 		>
 			<div data-component="review-content" />
@@ -64,8 +70,7 @@ test("becomes inert when closed and owns the end of its width motion", () => {
 			animate
 			width={811}
 			liveWidth="811px"
-			resizing={false}
-			separatorProps={separatorProps}
+			divider={divider}
 			onMotionEnd={() => {
 				motionEnds += 1;
 			}}

@@ -2,8 +2,12 @@ import { useCallback, useRef, useState } from "react";
 
 const PROJECT_RAIL_ACTIVATION_WIDTH = 8;
 
-export function useFullscreenProjectRail(onRequestShellFocus: () => void) {
-	const [fullscreen, setFullscreen] = useState(false);
+export function useFullscreenProjectRail(
+	onRequestShellFocus: () => void,
+	options?: { initialFullscreen?: boolean; onFullscreenChange?: (fullscreen: boolean) => void },
+) {
+	const onFullscreenChange = options?.onFullscreenChange;
+	const [fullscreen, setFullscreen] = useState(options?.initialFullscreen ?? false);
 	const [revealed, setRevealed] = useState(false);
 	const [animating, setAnimating] = useState(false);
 	const railRef = useRef<HTMLDivElement | null>(null);
@@ -33,11 +37,12 @@ export function useFullscreenProjectRail(onRequestShellFocus: () => void) {
 		setRevealed(true);
 	}, []);
 
-	const toggleFullscreen = useCallback(() => {
-		setAnimating(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+	const toggleFullscreen = useCallback((options?: { animate?: boolean }) => {
+		setAnimating(options?.animate !== false && !window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 		if (fullscreen) {
 			setRevealed(false);
 			setFullscreen(false);
+			onFullscreenChange?.(false);
 			return;
 		}
 
@@ -56,7 +61,8 @@ export function useFullscreenProjectRail(onRequestShellFocus: () => void) {
 		dismissMenu.current = null;
 		menuOpen.current = false;
 		setFullscreen(true);
-	}, [fullscreen, onRequestShellFocus]);
+		onFullscreenChange?.(true);
+	}, [fullscreen, onRequestShellFocus, onFullscreenChange]);
 	const finishMotion = useCallback(() => setAnimating(false), []);
 
 	const trackPointer = useCallback((x: number) => {

@@ -5,8 +5,9 @@ import type { Project } from "@main/store/projects";
 import { ReviewDiff, type ReviewAnchor, type ReviewDiffHandle } from "@renderer/routes/-components/review-diff";
 import { ReviewFocusedFile } from "@renderer/routes/-components/review-focused-file";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
+import { REVIEW_DIFF_WIDTH_VALUE } from "@renderer/routes/-utils/review-layout";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
-import { REVIEW_DIFF_WIDTH_VALUE, REVIEW_TREE_WIDTH_VALUE } from "@renderer/routes/-utils/use-panel-resize";
+import type { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useReviewReading } from "@renderer/routes/-utils/use-review-reading";
 
 const MODES: { mode: ReviewMode; label: string }[] = [
@@ -17,27 +18,17 @@ const MODES: { mode: ReviewMode; label: string }[] = [
 export function ReviewPanel({
 	project,
 	active,
-	diffWidth,
 	minDiffWidth,
 	treeOpen,
-	defaultTreeWidth,
-	treeWidth,
-	minTreeWidth,
-	maxTreeWidth,
-	onTreeWidthsChange,
+	treeDivider,
 	onTreeOpenChange,
 	onClose,
 }: {
 	project: Project;
 	active: boolean;
-	diffWidth: number;
 	minDiffWidth: number;
 	treeOpen: boolean;
-	defaultTreeWidth: number;
-	treeWidth: number;
-	minTreeWidth: number;
-	maxTreeWidth?: number;
-	onTreeWidthsChange: (widths: { treeWidth: number; diffWidth: number }) => void;
+	treeDivider: ReturnType<typeof useDivider>;
 	onTreeOpenChange: (open: boolean) => void;
 	onClose: () => void;
 }) {
@@ -148,14 +139,7 @@ export function ReviewPanel({
 					key={mode}
 					files={files}
 					focusedPath={focusedPath}
-					defaultWidth={defaultTreeWidth}
-					liveWidth={REVIEW_TREE_WIDTH_VALUE}
-					preferredWidth={treeWidth}
-					minWidth={minTreeWidth}
-					maxWidth={maxTreeWidth}
-					diffWidth={diffWidth}
-					minDiffWidth={minDiffWidth}
-					onWidthsChange={onTreeWidthsChange}
+					divider={treeDivider}
 					onOpenFile={openFromTree}
 					onToggleFocusFile={toggleFocus}
 				/>

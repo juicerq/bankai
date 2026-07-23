@@ -1,15 +1,12 @@
-import {
-	ArrowUturnLeftIcon,
-	ChevronDownIcon,
-	ChevronRightIcon,
-	ViewfinderCircleIcon,
-} from "@heroicons/react/24/outline";
-import { type KeyboardEvent, type PointerEvent, useMemo, useRef, useState } from "react";
+import { ChevronDownIcon, ChevronRightIcon, ViewfinderCircleIcon } from "@heroicons/react/24/outline";
+import { useMemo, useState } from "react";
 import type { FileChange } from "@main/git/contracts";
+import { Divider } from "@renderer/routes/-components/divider";
+import { REVIEW_TREE_WIDTH_VALUE } from "@renderer/routes/-utils/review-layout";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
+import type { useDivider } from "@renderer/routes/-utils/use-divider";
 
-const KEYBOARD_RESIZE_STEP = 8;
 const ROW_PADDING = 12;
 const ROW_INDENT = 8;
 
@@ -20,74 +17,29 @@ type TreeNode = DirectoryNode | FileNode;
 export function ReviewTree({
 	files,
 	focusedPath,
-	defaultWidth,
-	liveWidth,
-	preferredWidth,
-	minWidth,
-	maxWidth,
-	diffWidth,
-	minDiffWidth,
-	onWidthsChange,
+	divider,
 	onOpenFile,
 	onToggleFocusFile,
 }: {
 	files: FileChange[];
 	focusedPath?: string;
-	defaultWidth: number;
-	liveWidth: string;
-	preferredWidth: number;
-	minWidth: number;
-	maxWidth?: number;
-	diffWidth: number;
-	minDiffWidth: number;
-	onWidthsChange: (widths: { treeWidth: number; diffWidth: number }) => void;
+	divider: ReturnType<typeof useDivider>;
 	onOpenFile: (path: string) => void;
 	onToggleFocusFile: (path: string) => void;
 }) {
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-	const [resizing, setResizing] = useState(false);
-	const dragStart = useRef<{ x: number; treeWidth: number; diffWidth: number } | null>(null);
 	const tree = useMemo(() => arrange(build(files)), [files]);
-	const availableMax = Math.min(maxWidth ?? Number.POSITIVE_INFINITY, preferredWidth + diffWidth - minDiffWidth);
-	const renderedWidth = Math.min(preferredWidth, availableMax);
-	const resize = (nextTreeWidth: number, totalWidth = renderedWidth + diffWidth) => {
-		const treeWidth = Math.min(Math.max(nextTreeWidth, minWidth), totalWidth - minDiffWidth);
-		onWidthsChange({ treeWidth, diffWidth: totalWidth - treeWidth });
-	};
-	const endResize = () => {
-		dragStart.current = null;
-		setResizing(false);
-	};
-	const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-		if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
-			return;
-		}
-
-		event.preventDefault();
-		resize(renderedWidth + (event.key === "ArrowRight" ? KEYBOARD_RESIZE_STEP : -KEYBOARD_RESIZE_STEP));
-	};
 
 	return (
 		<div
 			data-component="review-tree"
-			data-width={renderedWidth}
-			style={{ width: liveWidth }}
-			className={`relative flex shrink-0 flex-col ${resizing ? "cursor-col-resize select-none" : ""}`}
+			data-width={divider.valueNow}
+			style={{ width: REVIEW_TREE_WIDTH_VALUE }}
+			className={`relative flex shrink-0 flex-col ${divider.resizing ? "cursor-col-resize select-none" : ""}`}
 			aria-label="Tree"
 		>
-			<div className="flex h-header shrink-0 items-center justify-between border-outline border-b px-3 text-label text-secondary">
+			<div className="flex h-header shrink-0 items-center border-outline border-b px-3 text-label text-secondary">
 				<span>TREE</span>
-				{preferredWidth !== defaultWidth && (
-					<button
-						type="button"
-						className="-m-1 p-1 hover:text-primary"
-						aria-label="Reset tree width"
-						title="Reset tree width"
-						onClick={() => resize(defaultWidth)}
-					>
-						<ArrowUturnLeftIcon className="size-4" />
-					</button>
-				)}
 			</div>
 			<div className="min-h-0 flex-1 overflow-auto">
 				{visibleRows(tree, collapsed).map((row) =>
@@ -111,35 +63,7 @@ export function ReviewTree({
 					),
 				)}
 			</div>
-			<div
-				role="separator"
-				aria-orientation="vertical"
-				aria-label="Resize tree"
-				aria-valuemin={minWidth}
-				aria-valuemax={availableMax}
-				aria-valuenow={renderedWidth}
-				tabIndex={0}
-				data-slot="resize"
-				className={`absolute inset-y-0 right-0 z-10 w-px cursor-col-resize touch-none focus-visible:bg-primary focus-visible:outline-none ${
-					resizing ? "bg-primary" : "bg-outline hover:bg-primary"
-				}`}
-				onKeyDown={handleKeyDown}
-				onPointerDown={(event: PointerEvent<HTMLDivElement>) => {
-					event.currentTarget.setPointerCapture(event.pointerId);
-					dragStart.current = { x: event.clientX, treeWidth: renderedWidth, diffWidth };
-					setResizing(true);
-				}}
-				onPointerMove={(event: PointerEvent<HTMLDivElement>) => {
-					const start = dragStart.current;
-					if (start) {
-						resize(start.treeWidth + event.clientX - start.x, start.treeWidth + start.diffWidth);
-					}
-				}}
-				onPointerUp={endResize}
-				onPointerCancel={endResize}
-			>
-				<span className="absolute inset-y-0 -right-1.5 -left-1.5" />
-			</div>
+			<Divider control={divider} side="right" label="Resize tree" />
 		</div>
 	);
 }

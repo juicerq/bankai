@@ -351,8 +351,7 @@ are `secondary`, file names `primary` — the hierarchy is scaffolding, the file
 are the content. The full-file control appears on hover and stays in `primary`
 while that file is focused; nothing else in the row reacts. The tree's right
 hairline is a resize
-handle. During resize it brightens to `primary`, and the header exposes a reset
-control whenever the preferred width differs from 200px.
+handle. During resize it brightens to `primary`.
 
 **Diff line.** Number gutter in `outline-strong`; code uses dedicated,
 high-contrast syntax colors at normal weight. Added and removed lines carry

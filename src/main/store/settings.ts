@@ -9,7 +9,15 @@ const windowBoundsSchema = type({
 	maximized: "boolean",
 });
 
-const settingsContract = type({ "windowBounds?": windowBoundsSchema });
+export const layoutSchema = type({
+	"railWidth?": "number",
+	"diffWidth?": "number",
+	"treeWidth?": "number",
+	"fullscreen?": "boolean",
+});
+export type LayoutSettings = typeof layoutSchema.infer;
+
+const settingsContract = type({ "windowBounds?": windowBoundsSchema, "layout?": layoutSchema });
 export type SettingsValue = typeof settingsContract.infer;
 
 const store = new Store({
@@ -26,4 +34,8 @@ const store = new Store({
 export const Settings = {
 	get: store.read.bind(store),
 	update: (patch: SettingsValue) => store.mutate((current) => ({ ...current, ...patch })),
+	updateLayout: async (patch: LayoutSettings): Promise<LayoutSettings> => {
+		const next = await store.mutate((current) => ({ ...current, layout: { ...current.layout, ...patch } }));
+		return next.layout ?? {};
+	},
 };

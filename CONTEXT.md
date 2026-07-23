@@ -21,8 +21,16 @@ The left edge region that lists mounted projects and lets the user manage or act
 _Avoid_: Sidebar
 
 **Fullscreen mode**:
-The internal layout state that removes the Project rail from its fixed position and gives the Workspace the full window width.
-_Avoid_: Native fullscreen, system fullscreen
+The internal layout state that removes the Project rail from its fixed position and gives the Workspace the full window width. Entered by the explicit toggle or by dragging the rail's divider below the rail's minimum width. Exited by the toggle or by resizing the revealed rail, which docks it at the chosen width.
+_Avoid_: Native fullscreen, system fullscreen, collapsed rail
+
+**Divider**:
+The draggable hairline between two adjacent regions that trades width between them. Every divider supports pointer drag and keyboard steps.
+_Avoid_: Resize handle, separator, splitter, gutter
+
+**Layout preferences**:
+The user's chosen region widths and fullscreen state, remembered across app launches. Global to the app, not per project.
+_Avoid_: Panel sizes, UI state
 
 **Shell**:
 One live terminal session running inside a project.
@@ -51,6 +59,10 @@ _Avoid_: State, type, kind
 **Tree**:
 The navigator that arranges the current scope's changed files as a folder hierarchy. It contains only changed files — never the rest of the project.
 _Avoid_: Explorer, file browser, sidebar
+
+**Prewarm**:
+Preparing a mounted project's review in the background before its first activation, so the first visit paints from already-known state.
+_Avoid_: Preload, eager load, warmup
 
 **Focused file**:
 The one changed file occupying the Review's content area in full, with unchanged lines as context and changed lines still marked. The underlying Review remains present and current.

@@ -1,9 +1,17 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
 import { ProjectRail } from "@renderer/routes/-components/project-rail";
 import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
 import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-utils/layout-motion";
+import {
+	DEFAULT_RAIL_WIDTH,
+	MAX_RAIL_WIDTH,
+	MIN_RAIL_WIDTH,
+	RAIL_WIDTH_PROPERTY,
+	resolveRailWidth,
+} from "@renderer/routes/-utils/rail-layout";
+import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
 import { get, query, slot } from "./dom";
 import { act, cleanup, fireEvent, render } from "./testing-library";
@@ -21,13 +29,51 @@ function ProjectRailHarness() {
 	const [selectedId, setSelectedId] = useState("bankai");
 	const [focusRequests, setFocusRequests] = useState(0);
 	const projectRail = useFullscreenProjectRail(() => setFocusRequests((current) => current + 1));
+	const [railWidth, setRailWidth] = useState(DEFAULT_RAIL_WIDTH);
+	const railFrameRef = useRef<HTMLDivElement>(null);
+	const railDivider = useDivider({
+		value: railWidth,
+		min: MIN_RAIL_WIDTH,
+		max: MAX_RAIL_WIDTH,
+		sign: 1,
+		target: railFrameRef,
+		resolve: (proposed) => {
+			const { width, snap } = resolveRailWidth(proposed);
+
+			if (projectRail.fullscreen) {
+				return {
+					vars: [{ property: RAIL_WIDTH_PROPERTY, value: width }],
+					commit: () => {
+						projectRail.toggleFullscreen({ animate: false });
+						setRailWidth(width);
+					},
+				};
+			}
+
+			return {
+				vars: [{ property: RAIL_WIDTH_PROPERTY, value: width }],
+				commit: snap
+					? () => {
+						railFrameRef.current?.style.setProperty(RAIL_WIDTH_PROPERTY, `${railWidth}px`);
+						projectRail.toggleFullscreen();
+					}
+					: () => setRailWidth(width),
+			};
+		},
+	});
 
 	return (
 		<main>
-			<button type="button" data-component="fullscreen-toggle" onClick={projectRail.toggleFullscreen} />
+			<button type="button" data-component="fullscreen-toggle" onClick={() => projectRail.toggleFullscreen()} />
 			<button type="button" data-component="picker-release" onClick={() => projectRail.setPickerActive(false)} />
 			<span data-component="shell-focus-requests" data-count={focusRequests} />
-			<ProjectRailFrame projectRail={projectRail}>
+			<span data-component="rail-width" data-value={railWidth} />
+			<ProjectRailFrame
+				projectRail={projectRail}
+				divider={railDivider}
+				frameRef={railFrameRef}
+				railWidth={railWidth}
+			>
 				<ProjectRail
 					projects={projects}
 					loading={false}

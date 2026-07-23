@@ -1,14 +1,14 @@
 import type { ReactNode, TransitionEvent } from "react";
-import type { usePanelResize } from "@renderer/routes/-utils/use-panel-resize";
+import { Divider } from "@renderer/routes/-components/divider";
 import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-utils/layout-motion";
+import type { useDivider } from "@renderer/routes/-utils/use-divider";
 
 export function ReviewPanelFrame({
 	open,
 	animate,
 	width,
 	liveWidth,
-	resizing,
-	separatorProps,
+	divider,
 	onMotionEnd,
 	children,
 }: {
@@ -16,12 +16,11 @@ export function ReviewPanelFrame({
 	animate: boolean;
 	width: number;
 	liveWidth: string;
-	resizing: boolean;
-	separatorProps: ReturnType<typeof usePanelResize>["separatorProps"];
+	divider: ReturnType<typeof useDivider>;
 	onMotionEnd: () => void;
 	children: ReactNode;
 }) {
-	const animating = animate && !resizing;
+	const animating = animate && !divider.resizing;
 	const handleTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
 		if (event.target === event.currentTarget && event.propertyName === "width") {
 			onMotionEnd();
@@ -52,17 +51,7 @@ export function ReviewPanelFrame({
 				</div>
 			</div>
 			{(open || animating) && (
-				<div
-					role="separator"
-					aria-orientation="vertical"
-					aria-label="Resize review panel"
-					className={`absolute inset-y-0 left-0 z-10 w-px cursor-col-resize touch-none ${
-						resizing ? "bg-primary" : "bg-outline hover:bg-primary"
-					}`}
-					{...separatorProps}
-				>
-					<span className="absolute inset-y-0 -right-1.5 -left-1.5" />
-				</div>
+				<Divider control={divider} side="left" label="Resize review panel" />
 			)}
 		</div>
 	);

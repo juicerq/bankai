@@ -98,11 +98,11 @@ function ReviewFocusedFileHeader({ file, onClose }: { file: FileChange; onClose:
 
 	return (
 		<header className="flex h-8 shrink-0 items-center justify-between gap-2 border-outline border-b bg-surface-raised px-3 text-data">
-			<span className="flex min-w-0 items-center gap-2">
+			<span className="flex min-w-0 flex-1 items-center gap-2">
 				<span className="shrink-0 text-secondary">{STATUS_MARK[file.status]}</span>
-				<span className="flex min-w-0">
+				<span className="flex min-w-0 flex-1" title={file.path}>
 					<span dir="rtl" className="truncate opacity-60">{`${directoryPath}\u200E`}</span>
-					<span className="shrink-0 text-primary">{fileName}</span>
+					<span dir="rtl" className="max-w-full shrink-0 truncate text-primary">{`${fileName}\u200E`}</span>
 				</span>
 			</span>
 			<span className="flex shrink-0 items-center gap-2">

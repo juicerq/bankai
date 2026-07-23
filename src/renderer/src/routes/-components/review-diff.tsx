@@ -143,8 +143,13 @@ function ReviewDiffView({
 	return (
 		<div ref={scroll} className="min-h-0 flex-1 overflow-auto" inert={covered} aria-hidden={covered || undefined}>
 			{activeFileRow && (
-				<div className="sticky top-0 left-0 z-20 h-0 min-w-full w-fit">
-					<ReviewFileHeader row={activeFileRow} onToggleOpen={onToggleOpen} onFocusFile={onFocusFile} />
+				<div className="sticky top-0 left-0 z-20 h-0 w-full">
+					<ReviewFileHeader
+						row={activeFileRow}
+						sticky
+						onToggleOpen={onToggleOpen}
+						onFocusFile={onFocusFile}
+					/>
 				</div>
 			)}
 			<div className="relative min-w-full" style={{ height: virtualizer.getTotalSize() }}>
@@ -157,7 +162,7 @@ function ReviewDiffView({
 					return (
 						<div
 							key={row.key}
-							className="absolute top-0 left-0 min-w-full w-max"
+							className={`absolute top-0 left-0 min-w-full ${row.kind === "file" ? "w-full" : "w-max"}`}
 							style={{ height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
 						>
 							{row !== activeFileRow && (
@@ -196,10 +201,12 @@ function ReviewVirtualRow({
 
 function ReviewFileHeader({
 	row,
+	sticky = false,
 	onToggleOpen,
 	onFocusFile,
 }: {
 	row: Extract<ReviewRow, { kind: "file" }>;
+	sticky?: boolean;
 	onToggleOpen: (path: string) => void;
 	onFocusFile: (path: string) => void;
 }) {
@@ -210,22 +217,22 @@ function ReviewFileHeader({
 
 	return (
 		<header
-			className={`flex h-8 min-w-full items-center justify-between gap-2 border-outline bg-surface-raised px-3 text-data ${
-				row.first ? "" : "border-t"
+			className={`flex h-8 w-full items-center justify-between gap-2 border-outline bg-surface-raised px-3 text-data ${
+				row.first || sticky ? "" : "border-t"
 			}`}
 		>
-			<span className="flex min-w-0 items-center gap-2">
+			<span className="flex min-w-0 flex-1 items-center gap-2">
 				<span className="shrink-0 text-secondary">{STATUS_MARK[row.file.status]}</span>
 				<button
 					type="button"
-					className="group -m-1 flex min-w-0 items-center gap-2 p-1 text-left text-body"
+					className="group -m-1 flex min-w-0 flex-1 items-center gap-2 p-1 text-left text-body"
 					aria-expanded={row.open}
 					aria-label={`${row.open ? "Close" : "Open"} ${row.file.path}`}
 					onClick={() => onToggleOpen(row.file.path)}
 				>
-					<span className="flex min-w-0 group-hover:underline">
+					<span className="flex min-w-0 flex-1 group-hover:underline" title={row.file.path}>
 						<span dir="rtl" className="truncate opacity-60">{`${directoryPath}\u200E`}</span>
-						<span className="shrink-0 text-primary">{fileName}</span>
+						<span dir="rtl" className="max-w-full shrink-0 truncate text-primary">{`${fileName}\u200E`}</span>
 					</span>
 					<ChevronIcon className="size-4 shrink-0 text-secondary group-hover:text-primary" />
 				</button>

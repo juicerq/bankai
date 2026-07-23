@@ -7,7 +7,7 @@ import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
 import { useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
 import { usePanelResize } from "@renderer/routes/-utils/use-panel-resize";
 
-const DEFAULT_DIFF_WIDTH = 600;
+const DEFAULT_DIFF_WIDTH = 810;
 const DEFAULT_TREE_WIDTH = 200;
 const MIN_DIFF_WIDTH = 280;
 const MIN_TERMINAL_WIDTH = 360;
@@ -224,13 +224,12 @@ function ProjectWorkspaceShellTabs({
 						)}
 						<button
 							type="button"
-							className={`flex h-full items-center gap-2 pr-1 pl-3 text-body ${
+							className={`flex h-full items-center pr-1 pl-3 text-body ${
 								selected ? "text-primary" : "text-secondary"
 							}`}
 							aria-pressed={selected}
 							onClick={() => onSelect(tab.id)}
 						>
-							<span className={`size-2 shrink-0 rounded-full ${selected ? "bg-tertiary" : "bg-outline-strong"}`} />
 							{tab.label}
 						</button>
 						<button

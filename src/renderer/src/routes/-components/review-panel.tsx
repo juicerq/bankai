@@ -1,14 +1,12 @@
 import { ChevronDownIcon, ChevronUpIcon, FolderIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import type { ReviewMode } from "@main/git/contracts";
 import type { Project } from "@main/store/projects";
-import { orpc } from "@renderer/lib/api";
 import { ReviewDiff, type ReviewAnchor, type ReviewDiffHandle } from "@renderer/routes/-components/review-diff";
 import { ReviewFocusedFile } from "@renderer/routes/-components/review-focused-file";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
-import { useReviewChanges } from "@renderer/routes/-utils/use-review-changes";
+import { useReviewReading } from "@renderer/routes/-utils/use-review-reading";
 
 const MODES: { mode: ReviewMode; label: string }[] = [
 	{ mode: "uncommitted", label: "Uncommitted" },
@@ -49,15 +47,14 @@ export function ReviewPanel({
 	const [focusedPath, setFocusedPath] = useState<string>();
 	const diff = useRef<ReviewDiffHandle>(null);
 	const anchor = useRef<ReviewAnchor | null>(null);
-	const watch = useReviewChanges(project.id, active);
-	const watchReady = watch.status === "ready";
-	const { data: snapshot, error, isError } = useQuery(
-		orpc.review.snapshot.queryOptions({
-			input: { projectId: project.id, mode },
-			enabled: active && watchReady,
-			placeholderData: keepPreviousData,
-		}),
-	);
+	const isFileOpen = useCallback((path: string) => !closedFiles.has(path), [closedFiles]);
+	const { generation, fullFile, error } = useReviewReading({
+		projectId: project.id,
+		mode,
+		active,
+		isFileOpen,
+		focusedPath,
+	});
 
 	const selectMode = useCallback((next: ReviewMode) => {
 		setMode(next);
@@ -120,9 +117,7 @@ export function ReviewPanel({
 		[focusedPath, focusFile, revealFile],
 	);
 
-	const watchError = watch.status === "error" ? watch.error : undefined;
-	const queryError = isError ? String(error) : undefined;
-	const currentSnapshot = watch.status === "error" ? undefined : snapshot;
+	const currentSnapshot = generation?.snapshot;
 	const files = currentSnapshot?.files ?? [];
 	const focusedFile = focusedPath ? files.find((file) => file.path === focusedPath) : undefined;
 	if (focusedPath && currentSnapshot && !focusedFile) {
@@ -245,13 +240,9 @@ export function ReviewPanel({
 
 				<div className="relative flex min-h-0 flex-1 flex-col">
 					<ReviewDiff
-						key={`${mode}:${files.map((file) => file.path).join("\n")}`}
 						ref={diff}
-						projectId={project.id}
-						mode={mode}
-						prepare={active && watchReady}
-						snapshot={currentSnapshot}
-						error={watchError ?? queryError}
+						generation={generation}
+						error={error}
 						covered={!!focusedFile}
 						closedFiles={closedFiles}
 						onToggleOpen={toggleOpen}
@@ -260,9 +251,7 @@ export function ReviewPanel({
 					{focusedFile && (
 						<ReviewFocusedFile
 							key={focusedFile.path}
-							projectId={project.id}
-							mode={mode}
-							active={active && watchReady}
+							content={fullFile}
 							file={focusedFile}
 							onClose={closeFocus}
 						/>

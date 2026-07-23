@@ -1,9 +1,7 @@
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useRef, useState } from "react";
-import type { FileChange, FullFile, ReviewMode } from "@main/git/contracts";
-import { orpc } from "@renderer/lib/api";
+import type { FileChange, FullFile } from "@main/git/contracts";
 import { ReviewDiffLine, ReviewNotice, reviewContentNotice } from "@renderer/routes/-components/review-line";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 
@@ -11,24 +9,14 @@ const LINE_HEIGHT = 20;
 const LEADING_CONTEXT = 3;
 
 export function ReviewFocusedFile({
-	projectId,
-	mode,
-	active,
+	content,
 	file,
 	onClose,
 }: {
-	projectId: string;
-	mode: ReviewMode;
-	active: boolean;
+	content?: FullFile;
 	file: FileChange;
 	onClose: () => void;
 }) {
-	const { data: content } = useQuery(
-		orpc.review.fullFile.queryOptions({
-			input: { projectId, path: file.path, mode },
-			enabled: active,
-		}),
-	);
 	const notice = content && content.status !== "ready" ? reviewContentNotice(content, true) : "Reading file\u2026";
 
 	return (

@@ -1,10 +1,9 @@
 import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import { useQueries, useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
-import type { DiffLine, FileChange, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/contracts";
-import { orpc } from "@renderer/lib/api";
+import { useImperativeHandle, useMemo, useRef, type Ref } from "react";
+import type { DiffLine, FileChange, ReviewContent } from "@main/git/contracts";
 import { ReviewDiffLine, ReviewNotice, reviewContentNotice } from "@renderer/routes/-components/review-line";
+import type { ReviewReading } from "@renderer/routes/-utils/use-review-reading";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 
 const ROW_HEIGHT = { file: 32, line: 20, notice: 40 } as const;
@@ -25,10 +24,7 @@ export type ReviewDiffHandle = {
 
 export function ReviewDiff({
 	ref,
-	projectId,
-	mode,
-	prepare,
-	snapshot,
+	generation,
 	error,
 	covered,
 	closedFiles,
@@ -36,54 +32,62 @@ export function ReviewDiff({
 	onFocusFile,
 }: {
 	ref?: Ref<ReviewDiffHandle>;
-	projectId: string;
-	mode: ReviewMode;
-	prepare: boolean;
-	snapshot?: ReviewSnapshot;
+	generation?: NonNullable<ReviewReading["generation"]>;
 	error?: string;
 	covered: boolean;
 	closedFiles: ReadonlySet<string>;
 	onToggleOpen: (path: string) => void;
 	onFocusFile: (path: string) => void;
 }) {
-	const scroll = useRef<HTMLDivElement>(null);
+	const snapshot = generation?.snapshot;
+	const contentByPath = generation?.contentByPath;
 	const files = snapshot?.files ?? [];
-	const [initialPaths] = useState(() => files.filter((file) => !closedFiles.has(file.path)).map((file) => file.path));
-	const initialPathSet = useMemo(() => new Set(initialPaths), [initialPaths]);
-	const { data: initialContent, isError: initialContentError } = useQuery(
-		orpc.review.files.queryOptions({
-			input: { projectId, files: initialPaths, mode },
-			enabled: prepare && initialPaths.length > 0,
-		}),
+
+	if (!snapshot) {
+		return <ReviewNotice>{error ?? "Reading changes\u2026"}</ReviewNotice>;
+	}
+	if (!snapshot.isRepo) {
+		return <ReviewNotice>Not a git repository.</ReviewNotice>;
+	}
+	if (files.length === 0) {
+		return <ReviewNotice>No changes in the working tree.</ReviewNotice>;
+	}
+	if (!contentByPath) {
+		return <ReviewNotice>Reading changes…</ReviewNotice>;
+	}
+
+	return (
+		<ReviewDiffView
+			key={generation.layoutGeneration}
+			ref={ref}
+			files={files}
+			contentByPath={contentByPath}
+			covered={covered}
+			closedFiles={closedFiles}
+			onToggleOpen={onToggleOpen}
+			onFocusFile={onFocusFile}
+		/>
 	);
-	const fileQueries = useQueries({
-		queries: files.map((file) =>
-			orpc.review.file.queryOptions({
-				input: { projectId, path: file.path, mode },
-				enabled: prepare && !closedFiles.has(file.path) && !initialPathSet.has(file.path),
-			}),
-		),
-	});
-	const contentByPath = useMemo(() => {
-		const content = new Map<string, ReviewContent>();
-		for (const file of initialContent?.files ?? []) {
-			content.set(file.path, file.content);
-		}
-		if (initialContentError) {
-			for (const path of initialPaths) {
-				content.set(path, { status: "unavailable" });
-			}
-		}
-		for (const [index, query] of fileQueries.entries()) {
-			const file = files[index];
-			if (file && query.data) {
-				content.set(file.path, query.data);
-			} else if (file && query.isError) {
-				content.set(file.path, { status: "unavailable" });
-			}
-		}
-		return content;
-	}, [fileQueries, files, initialContent, initialContentError, initialPaths]);
+}
+
+function ReviewDiffView({
+	ref,
+	files,
+	contentByPath,
+	covered,
+	closedFiles,
+	onToggleOpen,
+	onFocusFile,
+}: {
+	ref?: Ref<ReviewDiffHandle>;
+	files: FileChange[];
+	contentByPath: ReadonlyMap<string, ReviewContent>;
+	covered: boolean;
+	closedFiles: ReadonlySet<string>;
+	onToggleOpen: (path: string) => void;
+	onFocusFile: (path: string) => void;
+}) {
+	const scroll = useRef<HTMLDivElement>(null);
 	const rows = useMemo(
 		() => reviewRows(files, closedFiles, contentByPath),
 		[closedFiles, contentByPath, files],
@@ -132,29 +136,6 @@ export function ReviewDiff({
 		}),
 		[fileRowByPath, rows, virtualizer],
 	);
-
-	if (!snapshot) {
-		return <ReviewNotice>{error ?? "Reading changes\u2026"}</ReviewNotice>;
-	}
-	if (!snapshot.isRepo) {
-		return <ReviewNotice>Not a git repository.</ReviewNotice>;
-	}
-	if (files.length === 0) {
-		return <ReviewNotice>No changes in the working tree.</ReviewNotice>;
-	}
-	const contentReady = files.every((file, index) => {
-		if (closedFiles.has(file.path)) {
-			return true;
-		}
-		if (initialPathSet.has(file.path)) {
-			return contentByPath.has(file.path);
-		}
-		const query = fileQueries[index];
-		return !!query?.data || !!query?.isError;
-	});
-	if (!contentReady) {
-		return <ReviewNotice>Reading changes…</ReviewNotice>;
-	}
 
 	const virtualRows = virtualizer.getVirtualItems();
 	const activeFileRow = activeFile(rows, virtualizer.range?.startIndex ?? 0);

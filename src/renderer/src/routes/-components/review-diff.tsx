@@ -11,6 +11,8 @@ import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 const ROW_HEIGHT = { file: 32, line: 20, notice: 40 } as const;
 const REVIEW_LOOKAHEAD_LINE_BUDGET = 300;
 const REVIEW_FAST_LOOKAHEAD_LINE_BUDGET = 600;
+const REVIEW_ROW_OVERSCAN = 96;
+const REVIEW_FAST_ROW_OVERSCAN = 320;
 const FAST_SCROLL_ROWS_PER_SECOND = 80;
 
 type ReviewRow =
@@ -55,6 +57,7 @@ export function ReviewDiff({
 	const lastRange = useRef({ startIndex: 0, timestamp: performance.now() });
 	const [visibleFiles, setVisibleFiles] = useState<ReadonlySet<string>>(new Set());
 	const [lookaheadFiles, setLookaheadFiles] = useState<ReadonlySet<string>>(new Set());
+	const [rowOverscan, setRowOverscan] = useState(REVIEW_ROW_OVERSCAN);
 	const [requestedFiles, setRequestedFiles] = useState<ReadonlySet<string>>(new Set());
 	const files = snapshot?.files ?? [];
 	const initialFiles = useMemo(() => selectInitialReviewPaths(files), [files]);
@@ -100,7 +103,7 @@ export function ReviewDiff({
 		getScrollElement: () => scroll.current,
 		getItemKey: (index) => rows[index]?.key ?? index,
 		estimateSize: (index) => ROW_HEIGHT[rows[index]?.kind ?? "notice"],
-		overscan: 16,
+		overscan: rowOverscan,
 		onChange: (instance) => {
 			const virtualItems = instance.getVirtualItems();
 			const nextVisible = new Set<string>();
@@ -116,7 +119,8 @@ export function ReviewDiff({
 			const elapsedSeconds = Math.max((now - lastRange.current.timestamp) / 1000, 0.001);
 			const rowsPerSecond = Math.abs(startIndex - lastRange.current.startIndex) / elapsedSeconds;
 			lastRange.current = { startIndex, timestamp: now };
-			const budget = rowsPerSecond >= FAST_SCROLL_ROWS_PER_SECOND
+			const fastScroll = instance.isScrolling && rowsPerSecond >= FAST_SCROLL_ROWS_PER_SECOND;
+			const budget = fastScroll
 				? REVIEW_FAST_LOOKAHEAD_LINE_BUDGET
 				: REVIEW_LOOKAHEAD_LINE_BUDGET;
 			const lastVisibleFileIndex = Math.max(
@@ -136,6 +140,7 @@ export function ReviewDiff({
 
 			setVisibleFiles((current) => (sameSet(current, nextVisible) ? current : nextVisible));
 			setLookaheadFiles((current) => (sameSet(current, nextLookahead) ? current : nextLookahead));
+			setRowOverscan(fastScroll ? REVIEW_FAST_ROW_OVERSCAN : REVIEW_ROW_OVERSCAN);
 		},
 	});
 	useImperativeHandle(

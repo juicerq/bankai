@@ -30,8 +30,7 @@
 		"test:watch": "bun test --watch",
 		"routes:generate": "tsr generate",
 		"typecheck": "tsc --build",
-		"check": "bun run routes:generate && bun run typecheck && lobomfz-check",
-		"check:fix": "lobomfz-check --fix",
+		"check": "bun run routes:generate && juicerq-check",
 		"prepare": "simple-git-hooks"
 	},
 	"simple-git-hooks": {
@@ -58,7 +57,7 @@
 	},
 	"devDependencies": {
 		"@happy-dom/global-registrator": "^20.11.1",
-		"@lobomfz/check": "^0.1.10",
+		"@juicerq/check": "file:../agent-setup/check",
 		"@tailwindcss/vite": "^4.2.4",
 		"@tanstack/router-cli": "^1.167.21",
 		"@tanstack/router-plugin": "^1.167.22",

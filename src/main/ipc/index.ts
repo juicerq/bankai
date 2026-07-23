@@ -14,7 +14,7 @@ const handler = new RPCHandler(router, {
 export function startOrpcServer() {
 	ipcMain.on("start-orpc-server", (event) => {
 		const [port] = event.ports;
-		if (!port) return;
+		if (!port) {return;}
 		handler.upgrade(port);
 		port.start();
 	});

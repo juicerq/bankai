@@ -4,12 +4,12 @@ import { RPCHandler } from "@orpc/server/message-port";
 
 export type ReviewProcedure = "snapshot" | "files" | "file" | "fullFile";
 
-type PendingRequest = {
+interface PendingRequest {
 	procedure: ReviewProcedure;
 	input: unknown;
 	resolve: (value: unknown) => void;
 	reject: (error: unknown) => void;
-};
+}
 
 export class ReviewTransport {
 	readonly calls: { procedure: ReviewProcedure; input: unknown }[] = [];

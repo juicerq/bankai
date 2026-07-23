@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 export const LOGGER_MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
 type Severity = "info" | "warn" | "error";
-type LogEvent = { ts: number; severity: Severity; message: string; data?: unknown };
+interface LogEvent { ts: number; severity: Severity; message: string; data?: unknown }
 
 function resolveLogPath(): string {
 	const fromEnv = process.env.DATA_DIR;

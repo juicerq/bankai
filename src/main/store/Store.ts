@@ -4,13 +4,13 @@ import { atomicWrite } from "@main/store/atomic";
 import { envelopeSchema } from "@main/store/envelope";
 import { resolveDataDir } from "@main/store/paths";
 
-type StoreOptions<T> = {
+interface StoreOptions<T> {
 	name: string;
 	version: number;
 	contract: { assert: (raw: unknown) => T };
 	migrators: Record<number, (raw: unknown) => unknown>;
 	seed: () => T;
-};
+}
 
 export class Store<T> {
 	private queue: Promise<unknown> = Promise.resolve();

@@ -14,13 +14,13 @@ type ReviewRow =
 	| { kind: "line"; key: string; path: string; line: DiffLine; lines: DiffLine[]; lineIndex: number }
 	| { kind: "notice"; key: string; path: string; message: string };
 
-export type ReviewAnchor = { rowKey: string; path: string; scrollLeft: number };
+export interface ReviewAnchor { rowKey: string; path: string; scrollLeft: number }
 
-export type ReviewDiffHandle = {
+export interface ReviewDiffHandle {
 	revealFile: (path: string) => void;
 	captureAnchor: () => ReviewAnchor | null;
 	restoreAnchor: (anchor: ReviewAnchor) => void;
-};
+}
 
 export function ReviewDiff({
 	ref,

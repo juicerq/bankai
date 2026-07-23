@@ -5,12 +5,12 @@ import { Logger } from "@main/logger";
 export const REVIEW_CHANGE_DEBOUNCE_MS = 250;
 const REVIEW_FALLBACK_INTERVAL_MS = 30_000;
 
-type ObservedProject = {
+interface ObservedProject {
 	listeners: Set<() => void>;
 	watchers: FSWatcher[];
 	debounce?: ReturnType<typeof setTimeout>;
 	fallback: ReturnType<typeof setInterval>;
-};
+}
 
 class ReviewChangeObserver {
 	private readonly projects = new Map<string, ObservedProject>();

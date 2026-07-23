@@ -1,5 +1,5 @@
 {
-	"extends": ["./node_modules/@lobomfz/check/.oxlintrc.json"],
+	"extends": ["./node_modules/@juicerq/check/.oxlintrc.json"],
 	"rules": {
 		"no-restricted-imports": [
 			"error",

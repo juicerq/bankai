@@ -20,16 +20,16 @@ type GitRequestInput =
 	| { operation: "file"; path: string; file: string; mode: ReviewMode }
 	| { operation: "fullFile"; path: string; file: string; mode: ReviewMode };
 
-type PendingRequest = {
+interface PendingRequest {
 	resolve: (value: unknown) => void;
 	reject: (reason: Error) => void;
-};
+}
 
-type ChildState = {
+interface ChildState {
 	process: UtilityProcess;
 	ready: Promise<void>;
 	rejectReady: (err: Error) => void;
-};
+}
 
 class GitUtilityProcess {
 	private child?: ChildState;

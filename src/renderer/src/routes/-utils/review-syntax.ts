@@ -4,7 +4,7 @@ import type { DiffLine } from "@main/git/contracts";
 import { REVIEW_LANGUAGE_LOADERS, type ReviewLanguage } from "@renderer/routes/-utils/review-language";
 
 export type SyntaxTone = "plain" | "comment" | "keyword" | "string" | "constant" | "entity" | "type";
-export type SyntaxSpan = { length: number; tone: SyntaxTone };
+export interface SyntaxSpan { length: number; tone: SyntaxTone }
 export type HighlightedLines = SyntaxSpan[][];
 
 const COLORS: Record<SyntaxTone, string> = {

@@ -7,7 +7,7 @@ import { type ReviewReading, useReviewReading } from "@renderer/routes/-utils/us
 
 type WatchListener = (event: ReviewChangedEvent) => void;
 
-type PendingWatch = { projectId: string; resolve: () => void; reject: (error: unknown) => void };
+interface PendingWatch { projectId: string; resolve: () => void; reject: (error: unknown) => void }
 
 class ReviewIpc {
 	readonly events: ("listen" | "watch")[] = [];

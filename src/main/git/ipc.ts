@@ -7,8 +7,8 @@ import { REVIEW_IPC, type ReviewChangedEvent } from "@shared/review";
 
 const reviewWatchSchema = type({ projectId: "string" });
 
-type WatchedProject = { references: number; stop: () => void };
-type RendererWatches = { projects: Map<string, WatchedProject> };
+interface WatchedProject { references: number; stop: () => void }
+interface RendererWatches { projects: Map<string, WatchedProject> }
 const renderers = new Map<number, RendererWatches>();
 
 export function setupReviewIpc(): void {

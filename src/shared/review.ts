@@ -4,7 +4,7 @@ export const REVIEW_IPC = {
 	changed: "review:changed",
 } as const;
 
-export type ReviewChangedEvent = { projectId: string };
+export interface ReviewChangedEvent { projectId: string }
 
 export interface BankaiReviewApi {
 	watch: (projectId: string) => Promise<void>;

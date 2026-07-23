@@ -10,11 +10,11 @@ const SHELL = process.platform === "win32"
 	? process.env.ComSpec || "cmd.exe"
 	: process.env.SHELL || "/bin/sh";
 
-type Session = {
+interface Session {
 	ownerId: number;
 	pty: IPty;
 	output: TerminalDataBuffer;
-};
+}
 
 const sessions = new Map<string, Session>();
 const ownerGenerations = new Map<number, number>();

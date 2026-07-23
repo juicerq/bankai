@@ -120,8 +120,8 @@ export function ReviewTree({
 				aria-valuenow={renderedWidth}
 				tabIndex={0}
 				data-slot="resize"
-				className={`group absolute inset-y-0 right-0 w-px cursor-col-resize touch-none focus-visible:bg-primary focus-visible:outline-none ${
-					resizing ? "bg-primary" : "bg-outline group-hover:bg-outline-strong"
+				className={`absolute inset-y-0 right-0 z-10 w-px cursor-col-resize touch-none focus-visible:bg-primary focus-visible:outline-none ${
+					resizing ? "bg-primary" : "bg-outline hover:bg-primary"
 				}`}
 				onKeyDown={handleKeyDown}
 				onPointerDown={(event: PointerEvent<HTMLDivElement>) => {
@@ -138,7 +138,7 @@ export function ReviewTree({
 				onPointerUp={endResize}
 				onPointerCancel={endResize}
 			>
-				<span className="absolute inset-y-0 -right-1 -left-1" />
+				<span className="absolute inset-y-0 -right-1.5 -left-1.5" />
 			</div>
 		</div>
 	);

@@ -11,6 +11,7 @@ import {
 	REVIEW_TREE_WIDTH_VALUE,
 	usePanelResize,
 } from "@renderer/routes/-utils/use-panel-resize";
+import { useProjectWorkspaceShortcuts } from "@renderer/routes/-utils/use-project-workspace-shortcuts";
 
 const DEFAULT_DIFF_WIDTH = 648;
 const DEFAULT_TREE_WIDTH = 200;
@@ -61,46 +62,31 @@ export function ProjectWorkspace({
 		tree: treeOpen ? { width: treeWidth, minWidth: MIN_TREE_WIDTH, onSqueeze: setTreeWidth } : undefined,
 	});
 
-	const registerTabShortcuts = useCallback(() => {
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (!active || !event.altKey || event.ctrlKey || event.metaKey || !event.code.startsWith("Digit")) {
-				return;
-			}
-
-			event.preventDefault();
-			event.stopPropagation();
-
-			const tab = tabs[Number(event.code.slice(5)) - 1];
-			if (!tab) {
-				return;
-			}
-
-			setActiveTabId(tab.id);
-		};
-
-		window.addEventListener("keydown", handleKeyDown, true);
-		return () => window.removeEventListener("keydown", handleKeyDown, true);
-	}, [active, tabs]);
-
 	const handleNewShell = () => {
 		const tab = newShellTab(nextShellNumber.current);
 		nextShellNumber.current += 1;
 		setTabs((current) => [...current, tab]);
 		setActiveTabId(tab.id);
 	};
-	const startReviewMotion = () => {
+	const startReviewMotion = useCallback(() => {
 		setReviewAnimating(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-	};
+	}, []);
 
-	const handleToggleReview = () => {
+	const handleToggleReview = useCallback(() => {
 		startReviewMotion();
 		setReviewOpen((open) => !open);
-	};
+	}, [startReviewMotion]);
 
 	const handleCloseReview = () => {
 		startReviewMotion();
 		setReviewOpen(false);
 	};
+	const registerWorkspaceShortcuts = useProjectWorkspaceShortcuts({
+		active,
+		tabs,
+		onActivateTab: setActiveTabId,
+		onToggleReview: handleToggleReview,
+	});
 
 	const handleMoveShell = (data: { tabId: string; toIndex: number }) => {
 		setTabs((current) => {
@@ -131,7 +117,7 @@ export function ProjectWorkspace({
 
 	return (
 		<section
-			ref={registerTabShortcuts}
+			ref={registerWorkspaceShortcuts}
 			className={active ? "flex h-full min-w-0 flex-col" : "hidden"}
 			aria-label={`${project.name} workspace`}
 		>
@@ -163,7 +149,7 @@ export function ProjectWorkspace({
 					}`}
 					aria-expanded={reviewOpen}
 					aria-label="Toggle review panel"
-					title="Toggle review panel"
+					title="Toggle review panel (Ctrl+X R)"
 					onClick={handleToggleReview}
 				>
 					<ViewColumnsIcon className="size-4" />

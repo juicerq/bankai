@@ -1,19 +1,14 @@
 import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useQueries } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
+import { useImperativeHandle, useMemo, useRef, type Ref } from "react";
 import type { DiffLine, FileChange, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/contracts";
 import { orpc } from "@renderer/lib/api";
 import { ReviewDiffLine, ReviewNotice, reviewContentNotice } from "@renderer/routes/-components/review-line";
-import { selectInitialReviewPaths } from "@renderer/routes/-utils/review-initial-content";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 
 const ROW_HEIGHT = { file: 32, line: 20, notice: 40 } as const;
-const REVIEW_LOOKAHEAD_LINE_BUDGET = 300;
-const REVIEW_FAST_LOOKAHEAD_LINE_BUDGET = 600;
 const REVIEW_ROW_OVERSCAN = 96;
-const REVIEW_FAST_ROW_OVERSCAN = 320;
-const FAST_SCROLL_ROWS_PER_SECOND = 80;
 
 type ReviewRow =
 	| { kind: "file"; key: string; file: FileChange; open: boolean; first: boolean }
@@ -32,7 +27,6 @@ export function ReviewDiff({
 	ref,
 	projectId,
 	mode,
-	active,
 	prepare,
 	snapshot,
 	error,
@@ -44,7 +38,6 @@ export function ReviewDiff({
 	ref?: Ref<ReviewDiffHandle>;
 	projectId: string;
 	mode: ReviewMode;
-	active: boolean;
 	prepare: boolean;
 	snapshot?: ReviewSnapshot;
 	error?: string;
@@ -54,30 +47,15 @@ export function ReviewDiff({
 	onFocusFile: (path: string) => void;
 }) {
 	const scroll = useRef<HTMLDivElement>(null);
-	const lastRange = useRef({ startIndex: 0, timestamp: performance.now() });
-	const [visibleFiles, setVisibleFiles] = useState<ReadonlySet<string>>(new Set());
-	const [lookaheadFiles, setLookaheadFiles] = useState<ReadonlySet<string>>(new Set());
-	const [rowOverscan, setRowOverscan] = useState(REVIEW_ROW_OVERSCAN);
-	const [requestedFiles, setRequestedFiles] = useState<ReadonlySet<string>>(new Set());
 	const files = snapshot?.files ?? [];
-	const initialFiles = useMemo(() => selectInitialReviewPaths(files), [files]);
 	const fileQueries = useQueries({
 		queries: files.map((file) =>
 			orpc.review.file.queryOptions({
 				input: { projectId, path: file.path, mode },
-				enabled:
-					(prepare && initialFiles.has(file.path)) ||
-					(active
-						&& !covered
-						&& !closedFiles.has(file.path)
-						&& (visibleFiles.has(file.path) || lookaheadFiles.has(file.path) || requestedFiles.has(file.path))),
+				enabled: prepare && !closedFiles.has(file.path),
 			}),
 		),
 	});
-	const fetchingPaths = useMemo(
-		() => new Set(files.flatMap((file, index) => (fileQueries[index]?.isFetching ? [file.path] : []))),
-		[fileQueries, files],
-	);
 	const contentByPath = useMemo(() => {
 		const content = new Map<string, ReviewContent>();
 		for (const [index, query] of fileQueries.entries()) {
@@ -91,8 +69,8 @@ export function ReviewDiff({
 		return content;
 	}, [fileQueries, files]);
 	const rows = useMemo(
-		() => reviewRows(files, closedFiles, contentByPath, fetchingPaths),
-		[closedFiles, contentByPath, fetchingPaths, files],
+		() => reviewRows(files, closedFiles, contentByPath),
+		[closedFiles, contentByPath, files],
 	);
 	const fileRowByPath = useMemo(
 		() => new Map(rows.flatMap((row, index) => (row.kind === "file" ? [[row.file.path, index] as const] : []))),
@@ -103,51 +81,12 @@ export function ReviewDiff({
 		getScrollElement: () => scroll.current,
 		getItemKey: (index) => rows[index]?.key ?? index,
 		estimateSize: (index) => ROW_HEIGHT[rows[index]?.kind ?? "notice"],
-		overscan: rowOverscan,
-		onChange: (instance) => {
-			const virtualItems = instance.getVirtualItems();
-			const nextVisible = new Set<string>();
-			for (const item of virtualItems) {
-				const row = rows[item.index];
-				if (row) {
-					nextVisible.add(row.kind === "file" ? row.file.path : row.path);
-				}
-			}
-
-			const now = performance.now();
-			const startIndex = instance.range?.startIndex ?? 0;
-			const elapsedSeconds = Math.max((now - lastRange.current.timestamp) / 1000, 0.001);
-			const rowsPerSecond = Math.abs(startIndex - lastRange.current.startIndex) / elapsedSeconds;
-			lastRange.current = { startIndex, timestamp: now };
-			const fastScroll = instance.isScrolling && rowsPerSecond >= FAST_SCROLL_ROWS_PER_SECOND;
-			const budget = fastScroll
-				? REVIEW_FAST_LOOKAHEAD_LINE_BUDGET
-				: REVIEW_LOOKAHEAD_LINE_BUDGET;
-			const lastVisibleFileIndex = Math.max(
-				...files.map((file, index) => (nextVisible.has(file.path) ? index : -1)),
-			);
-			const nextLookahead = new Set<string>();
-			let changedLines = 0;
-			for (const file of files.slice(lastVisibleFileIndex + 1)) {
-				if (changedLines >= budget) {
-					break;
-				}
-				if (!closedFiles.has(file.path)) {
-					nextLookahead.add(file.path);
-					changedLines += file.additions + file.deletions;
-				}
-			}
-
-			setVisibleFiles((current) => (sameSet(current, nextVisible) ? current : nextVisible));
-			setLookaheadFiles((current) => (sameSet(current, nextLookahead) ? current : nextLookahead));
-			setRowOverscan(fastScroll ? REVIEW_FAST_ROW_OVERSCAN : REVIEW_ROW_OVERSCAN);
-		},
+		overscan: REVIEW_ROW_OVERSCAN,
 	});
 	useImperativeHandle(
 		ref,
 		() => ({
 			revealFile(path) {
-				setRequestedFiles((current) => new Set(current).add(path));
 				const row = fileRowByPath.get(path);
 				if (row !== undefined) {
 					virtualizer.scrollToIndex(row, { align: "start" });
@@ -187,50 +126,25 @@ export function ReviewDiff({
 	if (files.length === 0) {
 		return <ReviewNotice>No changes in the working tree.</ReviewNotice>;
 	}
-	const initialReady = files.every((file, index) => {
-		if (!initialFiles.has(file.path)) {
+	const contentReady = files.every((file, index) => {
+		if (closedFiles.has(file.path)) {
 			return true;
 		}
 		const query = fileQueries[index];
 		return !!query?.data || !!query?.isError;
 	});
-	if (!initialReady) {
+	if (!contentReady) {
 		return <ReviewNotice>Reading changes…</ReviewNotice>;
 	}
 
 	const virtualRows = virtualizer.getVirtualItems();
 	const activeFileRow = activeFile(rows, virtualizer.range?.startIndex ?? 0);
-	const visibleReady = files.every((file, index) => {
-		if (!visibleFiles.has(file.path) || closedFiles.has(file.path)) {
-			return true;
-		}
-		const query = fileQueries[index];
-		return !!query?.data || !!query?.isError;
-	});
-	const handleToggleOpen = (path: string) => {
-		if (closedFiles.has(path)) {
-			setRequestedFiles((current) => new Set(current).add(path));
-		}
-		onToggleOpen(path);
-	};
 
 	return (
-		<div ref={scroll} className="relative min-h-0 flex-1 overflow-auto" inert={covered} aria-hidden={covered || undefined}>
-			{!visibleReady && (
-				<div
-					className="absolute left-0 z-30 flex items-center bg-surface-raised px-3 text-data text-secondary"
-					style={{
-						top: scroll.current?.scrollTop ?? 0,
-						width: scroll.current?.clientWidth ?? "100%",
-						height: scroll.current?.clientHeight ?? "100%",
-					}}
-				>
-					Reading changes…
-				</div>
-			)}
+		<div ref={scroll} className="min-h-0 flex-1 overflow-auto" inert={covered} aria-hidden={covered || undefined}>
 			{activeFileRow && (
 				<div className="sticky top-0 left-0 z-20 h-0 min-w-full w-fit">
-					<ReviewFileHeader row={activeFileRow} onToggleOpen={handleToggleOpen} onFocusFile={onFocusFile} />
+					<ReviewFileHeader row={activeFileRow} onToggleOpen={onToggleOpen} onFocusFile={onFocusFile} />
 				</div>
 			)}
 			<div className="relative min-w-full" style={{ height: virtualizer.getTotalSize() }}>
@@ -249,7 +163,7 @@ export function ReviewDiff({
 							{row !== activeFileRow && (
 								<ReviewVirtualRow
 									row={row}
-									onToggleOpen={handleToggleOpen}
+									onToggleOpen={onToggleOpen}
 									onFocusFile={onFocusFile}
 								/>
 							)}
@@ -340,7 +254,6 @@ function reviewRows(
 	files: FileChange[],
 	closedFiles: ReadonlySet<string>,
 	contentByPath: ReadonlyMap<string, ReviewContent>,
-	fetchingPaths: ReadonlySet<string>,
 ): ReviewRow[] {
 	const rows: ReviewRow[] = [];
 
@@ -357,11 +270,7 @@ function reviewRows(
 				kind: "notice",
 				key: `notice:${file.path}`,
 				path: file.path,
-				message: content
-					? reviewContentNotice(content, false)
-					: fetchingPaths.has(file.path)
-						? "Reading file\u2026"
-						: "File content is not loaded.",
+				message: content ? reviewContentNotice(content, false) : "File unavailable.",
 			});
 			continue;
 		}
@@ -379,10 +288,6 @@ function reviewRows(
 	}
 
 	return rows;
-}
-
-function sameSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
-	return left.size === right.size && [...left].every((value) => right.has(value));
 }
 
 function lineKey(path: string, line: DiffLine): string {

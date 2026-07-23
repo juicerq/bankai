@@ -248,7 +248,6 @@ export function ReviewPanel({
 						ref={diff}
 						projectId={project.id}
 						mode={mode}
-						active={active && watchReady}
 						prepare={(active || preload) && watchReady}
 						snapshot={currentSnapshot}
 						error={watchError ?? queryError}

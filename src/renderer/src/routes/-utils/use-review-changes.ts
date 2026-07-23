@@ -27,9 +27,11 @@ export function useReviewChanges(projectId: string, active: boolean) {
 	);
 }
 
-class ReviewQueryObserver {
+export class ReviewQueryObserver {
 	private state: ReviewWatchState = PENDING;
 	private generation = 0;
+	private refreshTask?: Promise<void>;
+	private refreshAgain = false;
 
 	constructor(
 		private readonly projectId: string,
@@ -83,14 +85,35 @@ class ReviewQueryObserver {
 		};
 	};
 
-	private async refresh() {
+	private refresh(): Promise<void> {
+		if (this.refreshTask) {
+			this.refreshAgain = true;
+			return this.refreshTask;
+		}
+
+		this.refreshTask = this.invalidateUntilQuiet().finally(() => {
+			this.refreshTask = undefined;
+		});
+
+		return this.refreshTask;
+	}
+
+	private async invalidateUntilQuiet() {
 		const filters = [
 			{ queryKey: orpc.review.snapshot.key({ type: "query", input: { projectId: this.projectId } }) },
 			{ queryKey: orpc.review.files.key({ type: "query", input: { projectId: this.projectId } }) },
 			{ queryKey: orpc.review.file.key({ type: "query", input: { projectId: this.projectId } }) },
 			{ queryKey: orpc.review.fullFile.key({ type: "query", input: { projectId: this.projectId } }) },
 		];
-		await Promise.all(filters.map((filter) => this.queryClient.cancelQueries(filter)));
-		await Promise.all(filters.map((filter) => this.queryClient.invalidateQueries(filter)));
+
+		do {
+			await Promise.all(filters.map((filter) => this.queryClient.invalidateQueries(filter)));
+		} while (this.consumeRefreshAgain());
+	}
+
+	private consumeRefreshAgain() {
+		const again = this.refreshAgain;
+		this.refreshAgain = false;
+		return again;
 	}
 }

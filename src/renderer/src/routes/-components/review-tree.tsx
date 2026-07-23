@@ -1,8 +1,8 @@
 import {
 	ArrowUturnLeftIcon,
-	ArrowsPointingOutIcon,
 	ChevronDownIcon,
 	ChevronRightIcon,
+	ViewfinderCircleIcon,
 } from "@heroicons/react/24/outline";
 import { type KeyboardEvent, type PointerEvent, useMemo, useRef, useState } from "react";
 import type { FileChange } from "@main/git/contracts";
@@ -208,7 +208,7 @@ function TreeFileRow({
 				aria-label={`${focused ? "Return from focused file" : "Focus"} ${node.file.path}`}
 				onClick={() => onToggleFocus(node.file.path)}
 			>
-				<ArrowsPointingOutIcon className="size-4" />
+				<ViewfinderCircleIcon className="size-4" />
 			</button>
 		</div>
 	);

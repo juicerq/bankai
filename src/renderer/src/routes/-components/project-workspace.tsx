@@ -1,4 +1,4 @@
-import { ViewColumnsIcon } from "@heroicons/react/24/outline";
+import { ArrowsPointingInIcon, ArrowsPointingOutIcon, ViewColumnsIcon } from "@heroicons/react/24/outline";
 import { useCallback, useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
@@ -28,12 +28,16 @@ export function ProjectWorkspace({
 	project,
 	active,
 	shellFocusRequest,
+	fullscreen,
 	fullscreenAnimating,
+	onToggleFullscreen,
 }: {
 	project: Project;
 	active: boolean;
 	shellFocusRequest: number;
+	fullscreen: boolean;
 	fullscreenAnimating: boolean;
+	onToggleFullscreen: () => void;
 }) {
 	const [tabs, setTabs] = useState<ShellTab[]>(() => [newShellTab(1)]);
 	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
@@ -140,6 +144,18 @@ export function ProjectWorkspace({
 					onMove={handleMoveShell}
 					onNew={handleNewShell}
 				/>
+				<button
+					type="button"
+					className={`flex h-full w-header shrink-0 items-center justify-center border-outline border-l hover:bg-surface-hover hover:text-primary ${
+						fullscreen ? "bg-surface-active text-primary" : "text-secondary"
+					}`}
+					aria-pressed={fullscreen}
+					aria-label="Toggle focus mode"
+					title="Toggle focus mode (Ctrl+X F)"
+					onClick={onToggleFullscreen}
+				>
+					{fullscreen ? <ArrowsPointingInIcon className="size-4" /> : <ArrowsPointingOutIcon className="size-4" />}
+				</button>
 				<button
 					type="button"
 					className={`flex h-full w-header shrink-0 items-center justify-center border-outline border-x hover:bg-surface-hover hover:text-primary ${

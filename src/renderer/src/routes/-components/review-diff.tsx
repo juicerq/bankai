@@ -1,4 +1,4 @@
-import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, ChevronRightIcon, ViewfinderCircleIcon } from "@heroicons/react/24/outline";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useImperativeHandle, useMemo, useRef, type Ref } from "react";
 import type { DiffLine, FileChange, ReviewContent } from "@main/git/contracts";
@@ -249,7 +249,7 @@ function ReviewFileHeader({
 					aria-label={`Focus ${row.file.path}`}
 					onClick={() => onFocusFile(row.file.path)}
 				>
-					<ArrowsPointingOutIcon className="size-4" />
+					<ViewfinderCircleIcon className="size-4" />
 				</button>
 			</span>
 		</header>

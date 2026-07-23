@@ -107,7 +107,9 @@ function Bankai() {
 						project={project}
 						active={project.id === activeProjectId}
 						shellFocusRequest={shellFocusRequest}
+						fullscreen={projectRail.fullscreen}
 						fullscreenAnimating={projectRail.animating}
+						onToggleFullscreen={projectRail.toggleFullscreen}
 					/>
 				))}
 			</section>

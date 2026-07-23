@@ -167,7 +167,7 @@ export function ReviewPanel({
 					<div className="flex h-full min-w-0 overflow-hidden">
 						<button
 							type="button"
-							className={`flex size-header shrink-0 items-center justify-center border-outline border-r hover:bg-surface-hover hover:text-primary ${
+							className={`flex h-full w-header shrink-0 items-center justify-center border-outline border-r hover:bg-surface-hover hover:text-primary ${
 								treeOpen ? "bg-surface-active text-primary" : "text-secondary"
 							}`}
 							aria-expanded={treeOpen}

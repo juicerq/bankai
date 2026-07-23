@@ -100,7 +100,7 @@ export function ProjectWorkspace({
 				/>
 				<button
 					type="button"
-					className={`flex size-header shrink-0 items-center justify-center border-outline border-x hover:bg-surface-hover hover:text-primary ${
+					className={`flex h-full w-header shrink-0 items-center justify-center border-outline border-x hover:bg-surface-hover hover:text-primary ${
 						reviewOpen ? "bg-surface-active text-primary" : "text-secondary"
 					}`}
 					aria-expanded={reviewOpen}
@@ -191,17 +191,15 @@ function ProjectWorkspaceShellTabs({
 	);
 
 	return (
-		<div className="flex min-w-0 flex-1 items-center overflow-hidden" aria-label="Shells">
-			{tabs.map((tab, index) => {
+		<div className="flex h-full min-w-0 flex-1 items-center overflow-hidden" aria-label="Shells">
+			{tabs.map((tab) => {
 				const selected = tab.id === activeTabId;
 				const dropEdge = drag.dropEdge(tab.id);
 
 				return (
 					<div
-						className={`relative flex h-header shrink-0 items-center border-outline border-b ${
-							selected
-								? `${index === 0 ? "border-r" : "border-x"} bg-surface-active`
-								: "hover:bg-surface-hover"
+						className={`relative flex h-full shrink-0 items-center border-outline border-r ${
+							selected ? "bg-surface-active" : "hover:bg-surface-hover"
 						}`}
 						key={tab.id}
 						{...drag.itemProps(tab.id)}
@@ -235,7 +233,7 @@ function ProjectWorkspaceShellTabs({
 			})}
 			<button
 				type="button"
-				className="flex size-header shrink-0 items-center justify-center border-outline border-r text-secondary text-subtitle hover:bg-surface-hover hover:text-primary"
+				className="flex h-full w-header shrink-0 items-center justify-center border-outline border-r text-secondary text-subtitle hover:bg-surface-hover hover:text-primary"
 				onClick={onNew}
 				aria-label="New shell"
 			>

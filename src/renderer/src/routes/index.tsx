@@ -4,76 +4,30 @@ import { useCallback, useState } from "react";
 import { orpc } from "@renderer/lib/api";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ProjectRail } from "@renderer/routes/-components/project-rail";
+import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
 import { WindowControls } from "@renderer/routes/-components/window-controls";
+import { useBankaiShortcuts } from "@renderer/routes/-utils/use-bankai-shortcuts";
+import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
 import { useWorkspaceActivation } from "@renderer/routes/-utils/use-workspace-activation";
-
-const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
 
 export const Route = createFileRoute("/")({ component: Bankai });
 
 function Bankai() {
 	const queryClient = useQueryClient();
 	const projects = useQuery(orpc.projects.list.queryOptions());
-	const [fullscreen, setFullscreen] = useState(false);
+	const [shellFocusRequest, setShellFocusRequest] = useState(0);
+	const requestShellFocus = useCallback(() => setShellFocusRequest((current) => current + 1), []);
+	const projectRail = useFullscreenProjectRail(requestShellFocus);
 	const availableProjects = projects.data || [];
 	const { activeProjectId, residentProjectIds, activateProject, dropWorkspace } = useWorkspaceActivation(
 		availableProjects.map((project) => project.id),
 	);
-
-	const registerShortcuts = useCallback(() => {
-		let leaderArmed = false;
-
-		const shortcutAction = (event: KeyboardEvent) => {
-			if (leaderArmed) {
-				leaderArmed = false;
-				if (event.code !== "KeyF") {
-					return;
-				}
-
-				return () => setFullscreen((current) => !current);
-			}
-
-			if (!event.ctrlKey || event.altKey || event.metaKey) {
-				return;
-			}
-
-			if (event.code === "KeyX") {
-				return () => {
-					leaderArmed = true;
-				};
-			}
-
-			if (!event.code.startsWith("Digit")) {
-				return;
-			}
-
-			const project = availableProjects[Number(event.code.slice(5)) - 1];
-			return () => {
-				if (project) {
-					activateProject(project.id);
-				}
-			};
-		};
-
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (MODIFIER_KEYS.has(event.key)) {
-				return;
-			}
-
-			const action = shortcutAction(event);
-			if (!action) {
-				return;
-			}
-
-			event.preventDefault();
-			event.stopPropagation();
-			action();
-		};
-
-		window.addEventListener("keydown", handleKeyDown, true);
-		return () => window.removeEventListener("keydown", handleKeyDown, true);
-	}, [availableProjects, activateProject]);
+	const registerShortcuts = useBankaiShortcuts({
+		projects: availableProjects,
+		onActivateProject: activateProject,
+		onToggleFullscreen: projectRail.toggleFullscreen,
+	});
 
 	const addProject = useMutation(
 		orpc.projects.chooseDirectory.mutationOptions({
@@ -102,24 +56,32 @@ function Bankai() {
 			},
 		}),
 	);
+	const handleAddProject = () => {
+		projectRail.setPickerActive(true);
+		addProject.mutate({}, {
+			onSettled: () => projectRail.setPickerActive(false),
+		});
+	};
 
 	return (
 		<main ref={registerShortcuts} className="relative flex h-full bg-surface">
 			<WindowControls />
-			{!fullscreen && (
+			<ProjectRailFrame projectRail={projectRail}>
 				<ProjectRail
 					projects={availableProjects}
 					loading={projects.isPending}
 					selectedId={activeProjectId}
 					onSelect={activateProject}
-					onAdd={() => addProject.mutate({})}
+					onAdd={handleAddProject}
 					onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
 					onRemove={(projectId) => removeProject.mutate({ projectId })}
 					onMove={moveProject.mutate}
 					adding={addProject.isPending}
 					addFailed={addProject.isError}
+					onMenuOpenChange={projectRail.setMenuOpen}
+					onDragActiveChange={projectRail.setDragging}
 				/>
-			)}
+			</ProjectRailFrame>
 			<section className="flex min-h-0 min-w-0 flex-1 flex-col">
 				{projects.isError && (
 					<EmptyState
@@ -136,11 +98,16 @@ function Bankai() {
 						title="Choose a working directory"
 						description="Bankai keeps project shells together in one focused workspace."
 						actionLabel="Add first project"
-						onAction={() => addProject.mutate({})}
+						onAction={handleAddProject}
 					/>
 				)}
 				{!projects.isError && availableProjects.filter((project) => residentProjectIds.includes(project.id)).map((project) => (
-					<ProjectWorkspace key={project.id} project={project} active={project.id === activeProjectId} />
+					<ProjectWorkspace
+						key={project.id}
+						project={project}
+						active={project.id === activeProjectId}
+						shellFocusRequest={shellFocusRequest}
+					/>
 				))}
 			</section>
 		</main>

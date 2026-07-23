@@ -16,6 +16,14 @@ _Avoid_: Selected project, focused project
 The region of the window that belongs to one project: its shells and its review.
 _Avoid_: Tab, view, pane
 
+**Project rail**:
+The left edge region that lists mounted projects and lets the user manage or activate one.
+_Avoid_: Sidebar
+
+**Fullscreen mode**:
+The internal layout state that removes the Project rail from its fixed position and gives the Workspace the full window width.
+_Avoid_: Native fullscreen, system fullscreen
+
 **Shell**:
 One live terminal session running inside a project.
 _Avoid_: Terminal, tab, session, PTY

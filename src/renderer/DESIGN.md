@@ -90,6 +90,10 @@ spacing:
   rail: 244px
   header: 40px
   tree: 200px
+motion:
+  layout:
+    duration: 100ms
+    easing: ease-out
 components:
   terminal:
     backgroundColor: "{colors.surface-sunken}"
@@ -227,16 +231,17 @@ outside this set silently renders as something else.
 
 ## Layout
 
-The composition is a three-column chassis: a 244px rail, a fluid center, and a
-review panel that slides in from the right at 600px by default. Vertically, there
+The composition is a three-column chassis: a 244px rail, a fluid center, and an
+810px review diff that opens from the right. Vertically, there
 is one 40px course running across the entire top edge — rail brand and shell tabs
 sit in it — so the top of the application reads as a single machined line the
 full width of the window.
 
 The diff's width is the one adjustable dimension. The 1px divider between the
 terminal and the panel is a drag handle: pulling it trades width between the two,
-between a 280px diff and a 360px terminal. Nothing else in the chassis reflows —
-this is a desktop window, not a responsive page.
+between a 280px diff and a 360px terminal. Direct manipulation follows the
+pointer without transition; opening and closing regions are the deliberate
+exceptions that reflow the chassis.
 
 The tree is a fourth column, 200px by default, bolted to the panel's left edge
 and spanning the row from the top course to the bottom edge. Its right divider
@@ -258,6 +263,20 @@ than occupy space.
 
 The terminal owns everything under the top course. No status bar, no footer, no
 chrome below the output — the pane runs to the bottom edge of the window.
+
+## Motion
+
+Layout motion is mechanical and brief: 100ms with `ease-out`. Entering or
+leaving fullscreen moves the Project rail and the complete Workspace as one
+aligned assembly. Opening or closing Review moves the whole panel — tree, diff,
+Focused file, and divider — while the terminal takes or returns the same space.
+The moving boundary is always shared, so adjacent regions never overlap or
+leave a gap.
+
+Temporary Project rail reveal is an overlay and never changes Workspace width.
+Panel resize follows the pointer directly and never inherits the open/close
+transition. When the operating system requests reduced motion, structural
+changes happen immediately.
 
 ## Elevation & Depth
 
@@ -345,6 +364,8 @@ than floating in a card.
   bracket in a class name means the design system was missing something; fix the
   token instead.
 - Do let borders and tone separate regions together. Neither alone is enough.
+- Do use the shared 100ms layout motion for structural open and close actions.
+- Don't animate direct resize; the divider must track the pointer exactly.
 - Don't add a shadow to persistent regions, or use blur or gradients. A compact
   shadow is reserved for temporary overlays such as context menus.
 - Do keep type at 10px and above, in weights 400/500/600/700 only.

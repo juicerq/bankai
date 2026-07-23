@@ -30,7 +30,7 @@ type ActiveWebgl = {
 	contextLoss: IDisposable;
 };
 
-export function useTerminalSession(projectId: string) {
+export function useTerminalSession(projectId: string, focusRequest: number) {
 	const sessionRef = useRef<RendererTerminalSession | null>(null);
 	const activeRef = useRef(false);
 	const activationRef = useRef<symbol | null>(null);
@@ -72,8 +72,13 @@ export function useTerminalSession(projectId: string) {
 			sessionRef.current?.setActive(false);
 		};
 	}, []);
+	const registerFocusRequest = useCallback(() => {
+		if (focusRequest > 0) {
+			sessionRef.current?.focus();
+		}
+	}, [focusRequest]);
 
-	return { registerContainer, registerActivation };
+	return { registerContainer, registerActivation, registerFocusRequest };
 }
 
 class RendererTerminalSession {
@@ -140,6 +145,10 @@ class RendererTerminalSession {
 		if (this.sessionId) {
 			this.loadWebgl();
 		}
+	}
+
+	focus() {
+		this.terminal.focus();
 	}
 
 	dispose() {

@@ -16,7 +16,6 @@ const MODES: { mode: ReviewMode; label: string }[] = [
 export function ReviewPanel({
 	project,
 	active,
-	animateOpen,
 	diffWidth,
 	minDiffWidth,
 	treeOpen,
@@ -30,7 +29,6 @@ export function ReviewPanel({
 }: {
 	project: Project;
 	active: boolean;
-	animateOpen: boolean;
 	diffWidth: number;
 	minDiffWidth: number;
 	treeOpen: boolean;
@@ -143,10 +141,7 @@ export function ReviewPanel({
 	};
 
 	return (
-		<aside
-			className={`flex bg-surface-raised ${animateOpen ? "animate-panel-in motion-reduce:animate-none" : ""}`}
-			aria-label="Review"
-		>
+		<aside className="flex bg-surface-raised" aria-label="Review">
 			{treeOpen && (
 				<ReviewTree
 					key={mode}

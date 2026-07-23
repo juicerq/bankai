@@ -1,3 +1,3 @@
 import "./register-dom";
 
-export { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+export { act, cleanup, fireEvent, render, renderHook, waitFor } from "@testing-library/react";

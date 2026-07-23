@@ -1,0 +1,1 @@
+export const LAYOUT_MOTION_DURATION_MS = 100;

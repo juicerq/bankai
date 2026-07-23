@@ -1,12 +1,17 @@
 import { type DragEvent, useState } from "react";
 
-export function useDragReorder(ids: string[], onMove: (data: { id: string; toIndex: number }) => void) {
+export function useDragReorder(
+	ids: string[],
+	onMove: (data: { id: string; toIndex: number }) => void,
+	onDragActiveChange?: (active: boolean) => void,
+) {
 	const [draggingId, setDraggingId] = useState<string>();
 	const [overId, setOverId] = useState<string>();
 
 	const clear = () => {
 		setDraggingId(undefined);
 		setOverId(undefined);
+		onDragActiveChange?.(false);
 	};
 
 	return {
@@ -22,6 +27,7 @@ export function useDragReorder(ids: string[], onMove: (data: { id: string; toInd
 			onDragStart: (event: DragEvent) => {
 				event.dataTransfer.effectAllowed = "move";
 				setDraggingId(id);
+				onDragActiveChange?.(true);
 			},
 			onDragOver: (event: DragEvent) => {
 				if (!draggingId || draggingId === id) {

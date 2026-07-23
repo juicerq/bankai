@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ReviewPanel } from "@renderer/routes/-components/review-panel";
+import { ReviewPanelFrame } from "@renderer/routes/-components/review-panel-frame";
 import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
 import { useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
 import { usePanelResize } from "@renderer/routes/-utils/use-panel-resize";
@@ -12,6 +13,7 @@ const DEFAULT_TREE_WIDTH = 200;
 const MIN_DIFF_WIDTH = 280;
 const MIN_TERMINAL_WIDTH = 360;
 const MIN_TREE_WIDTH = 120;
+const REVIEW_SEPARATOR_WIDTH = 1;
 
 type ShellTab = {
 	id: string;
@@ -21,14 +23,16 @@ type ShellTab = {
 export function ProjectWorkspace({
 	project,
 	active,
+	shellFocusRequest,
 }: {
 	project: Project;
 	active: boolean;
+	shellFocusRequest: number;
 }) {
 	const [tabs, setTabs] = useState<ShellTab[]>(() => [newShellTab(1)]);
 	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
 	const [reviewOpen, setReviewOpen] = useState(true);
-	const [animateReviewOpen, setAnimateReviewOpen] = useState(false);
+	const [reviewAnimating, setReviewAnimating] = useState(false);
 	const [treeOpen, setTreeOpen] = useState(false);
 	const [treeWidth, setTreeWidth] = useState(DEFAULT_TREE_WIDTH);
 	const nextShellNumber = useRef(2);
@@ -65,16 +69,18 @@ export function ProjectWorkspace({
 		setTabs((current) => [...current, tab]);
 		setActiveTabId(tab.id);
 	};
+	const startReviewMotion = () => {
+		setReviewAnimating(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+	};
 
 	const handleToggleReview = () => {
-		const open = !reviewOpen;
-		setReviewOpen(open);
-		setAnimateReviewOpen(open);
+		startReviewMotion();
+		setReviewOpen((open) => !open);
 	};
 
 	const handleCloseReview = () => {
+		startReviewMotion();
 		setReviewOpen(false);
-		setAnimateReviewOpen(false);
 	};
 
 	const handleMoveShell = (data: { tabId: string; toIndex: number }) => {
@@ -94,6 +100,11 @@ export function ProjectWorkspace({
 			setActiveTabId(remaining[Math.max(0, tabIndex - 1)]?.id);
 		}
 	};
+	const maxTreeWidth = rowWidth === undefined
+		? undefined
+		: Math.max(MIN_TREE_WIDTH, rowWidth - diffWidth - MIN_TERMINAL_WIDTH);
+	const renderedTreeWidth = treeOpen ? Math.min(treeWidth, maxTreeWidth ?? treeWidth) : 0;
+	const reviewWidth = REVIEW_SEPARATOR_WIDTH + diffWidth + renderedTreeWidth;
 
 	return (
 		<section
@@ -140,44 +151,37 @@ export function ProjectWorkspace({
 					)}
 					{tabs.map((tab) => (
 						<div className={tab.id === activeTabId ? "min-h-0 flex-1" : "hidden"} key={tab.id}>
-							<TerminalPane projectId={project.id} active={active && tab.id === activeTabId} />
+							<TerminalPane
+								projectId={project.id}
+								active={active && tab.id === activeTabId}
+								focusRequest={shellFocusRequest}
+							/>
 						</div>
 					))}
 				</div>
-				{reviewOpen && (
-					<>
-						<div
-							role="separator"
-							aria-orientation="vertical"
-							aria-label="Resize review panel"
-							className={`group relative w-px shrink-0 cursor-col-resize touch-none ${
-								resizing ? "bg-primary" : "bg-outline group-hover:bg-outline-strong"
-							}`}
-							{...separatorProps}
-						>
-							<span className="absolute inset-y-0 -right-1 -left-1" />
-						</div>
-						<ReviewPanel
-							project={project}
-							active={active}
-							animateOpen={animateReviewOpen}
-							diffWidth={diffWidth}
-							minDiffWidth={MIN_DIFF_WIDTH}
-							treeOpen={treeOpen}
-							defaultTreeWidth={DEFAULT_TREE_WIDTH}
-							treeWidth={treeWidth}
-							minTreeWidth={MIN_TREE_WIDTH}
-							maxTreeWidth={
-								rowWidth === undefined
-									? undefined
-									: Math.max(MIN_TREE_WIDTH, rowWidth - diffWidth - MIN_TERMINAL_WIDTH)
-							}
-							onTreeOpenChange={setTreeOpen}
-							onTreeWidthChange={setTreeWidth}
-							onClose={handleCloseReview}
-						/>
-					</>
-				)}
+				<ReviewPanelFrame
+					open={reviewOpen}
+					animate={reviewAnimating}
+					width={reviewWidth}
+					resizing={resizing}
+					separatorProps={separatorProps}
+					onMotionEnd={() => setReviewAnimating(false)}
+				>
+					<ReviewPanel
+						project={project}
+						active={active && reviewOpen}
+						diffWidth={diffWidth}
+						minDiffWidth={MIN_DIFF_WIDTH}
+						treeOpen={treeOpen}
+						defaultTreeWidth={DEFAULT_TREE_WIDTH}
+						treeWidth={treeWidth}
+						minTreeWidth={MIN_TREE_WIDTH}
+						maxTreeWidth={maxTreeWidth}
+						onTreeOpenChange={setTreeOpen}
+						onTreeWidthChange={setTreeWidth}
+						onClose={handleCloseReview}
+					/>
+				</ReviewPanelFrame>
 			</div>
 		</section>
 	);

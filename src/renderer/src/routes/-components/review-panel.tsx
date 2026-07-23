@@ -18,8 +18,6 @@ const MODES: { mode: ReviewMode; label: string }[] = [
 export function ReviewPanel({
 	project,
 	active,
-	warm,
-	preload,
 	diffWidth,
 	minDiffWidth,
 	treeOpen,
@@ -33,8 +31,6 @@ export function ReviewPanel({
 }: {
 	project: Project;
 	active: boolean;
-	warm: boolean;
-	preload: boolean;
 	diffWidth: number;
 	minDiffWidth: number;
 	treeOpen: boolean;
@@ -51,12 +47,12 @@ export function ReviewPanel({
 	const [focusedPath, setFocusedPath] = useState<string>();
 	const diff = useRef<ReviewDiffHandle>(null);
 	const anchor = useRef<ReviewAnchor | null>(null);
-	const watch = useReviewChanges(project.id, warm);
+	const watch = useReviewChanges(project.id, active);
 	const watchReady = watch.status === "ready";
 	const { data: snapshot, error, isError } = useQuery(
 		orpc.review.snapshot.queryOptions({
 			input: { projectId: project.id, mode },
-			enabled: (active || preload) && watchReady,
+			enabled: active && watchReady,
 			placeholderData: keepPreviousData,
 		}),
 	);
@@ -248,7 +244,7 @@ export function ReviewPanel({
 						ref={diff}
 						projectId={project.id}
 						mode={mode}
-						prepare={(active || preload) && watchReady}
+						prepare={active && watchReady}
 						snapshot={currentSnapshot}
 						error={watchError ?? queryError}
 						covered={!!focusedFile}

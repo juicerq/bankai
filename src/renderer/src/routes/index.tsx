@@ -1,12 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useState } from "react";
 import { orpc } from "@renderer/lib/api";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ProjectRail } from "@renderer/routes/-components/project-rail";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
 import { WindowControls } from "@renderer/routes/-components/window-controls";
-import { ProjectWarmPool } from "@renderer/routes/-utils/project-warm-pool";
 
 const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
 
@@ -16,34 +15,21 @@ function Bankai() {
 	const queryClient = useQueryClient();
 	const projects = useQuery(orpc.projects.list.queryOptions());
 	const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-	const [openedProjectIds, setOpenedProjectIds] = useState<string[]>([]);
+	const [mountedProjectIds, setMountedProjectIds] = useState<string[]>([]);
 	const [fullscreen, setFullscreen] = useState(false);
-	const [warmPool] = useState(() => new ProjectWarmPool());
-	const inactiveWarmProjectIds = useSyncExternalStore(warmPool.subscribe, warmPool.getSnapshot, warmPool.getSnapshot);
 	const availableProjects = projects.data || [];
 	const selectedId = activeProjectId || availableProjects[0]?.id;
-	const renderedProjectIds = new Set([...openedProjectIds, ...inactiveWarmProjectIds]);
-	if (selectedId) {
-		renderedProjectIds.add(selectedId);
-	}
+	const mountedIds = selectedId && !mountedProjectIds.includes(selectedId)
+		? [...mountedProjectIds, selectedId]
+		: mountedProjectIds;
 
 	const selectProject = useCallback((projectId: string) => {
-		warmPool.activate(projectId);
-		if (selectedId && selectedId !== projectId) {
-			warmPool.deactivate(selectedId);
-		}
-		setOpenedProjectIds((current) => {
+		setMountedProjectIds((current) => {
 			const withOutgoing = selectedId && !current.includes(selectedId) ? [...current, selectedId] : current;
 			return withOutgoing.includes(projectId) ? withOutgoing : [...withOutgoing, projectId];
 		});
 		setActiveProjectId(projectId);
-	}, [selectedId, warmPool]);
-
-	const prepareProject = useCallback((projectId: string) => {
-		if (projectId !== selectedId) {
-			warmPool.prepare(projectId);
-		}
-	}, [selectedId, warmPool]);
+	}, [selectedId]);
 
 	const registerShortcuts = useCallback(() => {
 		let leaderArmed = false;
@@ -121,8 +107,7 @@ function Bankai() {
 	const removeProject = useMutation(
 		orpc.projects.remove.mutationOptions({
 			onSuccess: async (_, input) => {
-				warmPool.remove(input.projectId);
-				setOpenedProjectIds((current) => current.filter((id) => id !== input.projectId));
+				setMountedProjectIds((current) => current.filter((id) => id !== input.projectId));
 				setActiveProjectId((current) => current === input.projectId ? null : current);
 				await queryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
 			},
@@ -138,7 +123,6 @@ function Bankai() {
 					loading={projects.isPending}
 					selectedId={selectedId}
 					onSelect={selectProject}
-					onPrepare={prepareProject}
 					onAdd={() => addProject.mutate({})}
 					onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
 					onRemove={(projectId) => removeProject.mutate({ projectId })}
@@ -166,20 +150,9 @@ function Bankai() {
 						onAction={() => addProject.mutate({})}
 					/>
 				)}
-				{!projects.isError && availableProjects.filter((project) => renderedProjectIds.has(project.id)).map((project) => {
-					const active = project.id === selectedId;
-					const opened = active || openedProjectIds.includes(project.id);
-					return (
-						<ProjectWorkspace
-							key={project.id}
-							project={project}
-							active={active}
-							warm={active || inactiveWarmProjectIds.includes(project.id)}
-							opened={opened}
-							preloadReview={!opened}
-						/>
-					);
-				})}
+				{!projects.isError && availableProjects.filter((project) => mountedIds.includes(project.id)).map((project) => (
+					<ProjectWorkspace key={project.id} project={project} active={project.id === selectedId} />
+				))}
 			</section>
 		</main>
 	);

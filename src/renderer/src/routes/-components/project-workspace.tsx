@@ -21,15 +21,9 @@ type ShellTab = {
 export function ProjectWorkspace({
 	project,
 	active,
-	warm,
-	opened,
-	preloadReview,
 }: {
 	project: Project;
 	active: boolean;
-	warm: boolean;
-	opened: boolean;
-	preloadReview: boolean;
 }) {
 	const [tabs, setTabs] = useState<ShellTab[]>(() => [newShellTab(1)]);
 	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
@@ -132,14 +126,11 @@ export function ProjectWorkspace({
 							onAction={handleNewShell}
 						/>
 					)}
-					{opened && tabs.map((tab) => {
-						const selected = tab.id === activeTabId;
-						return (
-							<div className={selected ? "min-h-0 flex-1" : "hidden"} key={tab.id}>
-								<TerminalPane projectId={project.id} active={active && selected} warm={warm && selected} />
-							</div>
-						);
-					})}
+					{tabs.map((tab) => (
+						<div className={tab.id === activeTabId ? "min-h-0 flex-1" : "hidden"} key={tab.id}>
+							<TerminalPane projectId={project.id} active={active && tab.id === activeTabId} />
+						</div>
+					))}
 				</div>
 				{reviewOpen && (
 					<>
@@ -157,8 +148,6 @@ export function ProjectWorkspace({
 						<ReviewPanel
 							project={project}
 							active={active}
-							warm={warm}
-							preload={preloadReview}
 							diffWidth={diffWidth}
 							minDiffWidth={MIN_DIFF_WIDTH}
 							treeOpen={treeOpen}

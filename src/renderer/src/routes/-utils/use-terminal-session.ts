@@ -32,45 +32,23 @@ type ActiveWebgl = {
 
 export function useTerminalSession(projectId: string) {
 	const sessionRef = useRef<RendererTerminalSession | null>(null);
-	const warmRef = useRef(false);
 	const activeRef = useRef(false);
-	const warmthRef = useRef<symbol | null>(null);
 	const activationRef = useRef<symbol | null>(null);
 	const registerContainer = useCallback((container: HTMLDivElement | null) => {
 		if (!container) {
 			return;
 		}
 
-		let session: RendererTerminalSession | undefined;
-		const frame = window.requestAnimationFrame(() => {
-			session = new RendererTerminalSession(container, projectId);
-			sessionRef.current = session;
-			session.setWarm(warmRef.current);
-			session.setActive(activeRef.current);
-		});
+		const session = new RendererTerminalSession(container, projectId);
+		sessionRef.current = session;
+		session.setActive(activeRef.current);
 		return () => {
-			window.cancelAnimationFrame(frame);
 			if (sessionRef.current === session) {
 				sessionRef.current = null;
 			}
-			session?.dispose();
+			session.dispose();
 		};
 	}, [projectId]);
-	const registerWarmth = useCallback(() => {
-		const warmth = Symbol("terminal-warmth");
-		warmthRef.current = warmth;
-		warmRef.current = true;
-		sessionRef.current?.setWarm(true);
-		return () => {
-			if (warmthRef.current !== warmth) {
-				return;
-			}
-
-			warmthRef.current = null;
-			warmRef.current = false;
-			sessionRef.current?.setWarm(false);
-		};
-	}, []);
 	const registerActivation = useCallback(() => {
 		const activation = Symbol("terminal-activation");
 		activationRef.current = activation;
@@ -87,7 +65,7 @@ export function useTerminalSession(projectId: string) {
 		};
 	}, []);
 
-	return { registerContainer, registerWarmth, registerActivation };
+	return { registerContainer, registerActivation };
 }
 
 class RendererTerminalSession {
@@ -103,7 +81,6 @@ class RendererTerminalSession {
 	private lastCols: number | undefined;
 	private lastRows: number | undefined;
 	private webgl: ActiveWebgl | undefined;
-	private warm = false;
 	private active = false;
 	private disposed = false;
 	private lifecycle = 0;
@@ -140,19 +117,6 @@ class RendererTerminalSession {
 		this.open(projectId).catch((err) => this.fail("Failed to open shell", err));
 	}
 
-	setWarm(warm: boolean) {
-		if (warm === this.warm) {
-			return;
-		}
-
-		this.warm = warm;
-		if (warm) {
-			this.ensureWebgl();
-		} else if (!this.active) {
-			this.disposeWebgl();
-		}
-	}
-
 	setActive(active: boolean) {
 		if (active === this.active) {
 			return;
@@ -160,14 +124,12 @@ class RendererTerminalSession {
 
 		this.active = active;
 		if (!active) {
-			if (!this.warm) {
-				this.disposeWebgl();
-			}
+			this.disposeWebgl();
 			return;
 		}
 
-		this.ensureWebgl();
 		this.terminal.focus();
+		this.loadWebgl();
 	}
 
 	dispose() {
@@ -197,9 +159,7 @@ class RendererTerminalSession {
 			return;
 		}
 
-		if (this.container.clientWidth > 0 && this.container.clientHeight > 0) {
-			this.fit.fit();
-		}
+		this.fit.fit();
 		this.lastCols = this.terminal.cols;
 		this.lastRows = this.terminal.rows;
 		const sessionId = await window.bankaiTerminal.open(projectId, this.terminal.cols, this.terminal.rows);
@@ -227,11 +187,8 @@ class RendererTerminalSession {
 		}
 	}
 
-	private ensureWebgl() {
-		if (this.webgl) {
-			return;
-		}
-
+	private loadWebgl() {
+		this.disposeWebgl();
 		try {
 			const addon = new WebglAddon();
 			const contextLoss = addon.onContextLoss(() => this.disposeWebgl(addon));

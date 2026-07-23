@@ -8,7 +8,6 @@ export function ProjectRail({
 	loading,
 	selectedId,
 	onSelect,
-	onPrepare,
 	onAdd,
 	onOpenDirectory,
 	onRemove,
@@ -20,7 +19,6 @@ export function ProjectRail({
 	loading: boolean;
 	selectedId: string | undefined;
 	onSelect: (projectId: string) => void;
-	onPrepare: (projectId: string) => void;
 	onAdd: () => void;
 	onOpenDirectory: (projectId: string) => void;
 	onRemove: (projectId: string) => void;
@@ -75,7 +73,6 @@ export function ProjectRail({
 						selected={selectedId === project.id}
 						drag={drag}
 						onSelect={onSelect}
-						onPrepare={onPrepare}
 						onOpenDirectory={onOpenDirectory}
 						onRemove={onRemove}
 					/>
@@ -90,7 +87,6 @@ function ProjectRailItem({
 	selected,
 	drag,
 	onSelect,
-	onPrepare,
 	onOpenDirectory,
 	onRemove,
 }: {
@@ -98,7 +94,6 @@ function ProjectRailItem({
 	selected: boolean;
 	drag: DragReorder;
 	onSelect: (projectId: string) => void;
-	onPrepare: (projectId: string) => void;
 	onOpenDirectory: (projectId: string) => void;
 	onRemove: (projectId: string) => void;
 }) {
@@ -132,8 +127,6 @@ function ProjectRailItem({
 					selected ? "bg-surface-active" : "hover:bg-surface-hover"
 				}`}
 				{...drag.itemProps(project.id)}
-				onPointerEnter={() => onPrepare(project.id)}
-				onFocus={() => onPrepare(project.id)}
 				onClick={() => onSelect(project.id)}
 				onContextMenu={(event) => {
 					event.preventDefault();

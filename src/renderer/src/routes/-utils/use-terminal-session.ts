@@ -88,7 +88,7 @@ export function useTerminalSession(projectId: string, focusRequest: number, resi
 	return { registerContainer, registerActivation, registerFocusRequest, registerResizeDeferral };
 }
 
-class RendererTerminalSession {
+export class RendererTerminalSession {
 	private readonly terminal = new Terminal({ ...TERMINAL_OPTIONS, ...readTerminalStyle() });
 	private readonly fit = new FitAddon();
 	private readonly resizeProcess;
@@ -146,7 +146,6 @@ class RendererTerminalSession {
 
 		this.active = active;
 		if (!active) {
-			this.disposeWebgl();
 			return;
 		}
 
@@ -248,7 +247,10 @@ class RendererTerminalSession {
 	}
 
 	private loadWebgl() {
-		this.disposeWebgl();
+		if (this.webgl) {
+			return;
+		}
+
 		try {
 			const addon = new WebglAddon();
 			const contextLoss = addon.onContextLoss(() => this.disposeWebgl(addon));

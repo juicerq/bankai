@@ -138,7 +138,7 @@ function Bankai() {
 					onDragActiveChange={projectRail.setDragging}
 				/>
 			</ProjectRailFrame>
-			<section className="flex min-h-0 min-w-0 flex-1 flex-col">
+			<section className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-1">
 				{projects.isError && (
 					<EmptyState
 						mark="!"

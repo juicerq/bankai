@@ -71,6 +71,19 @@ globalThis.ResizeObserver = class {
 	disconnect() {}
 };
 
+const idleTimers = new Map<number, ReturnType<typeof setTimeout>>();
+let nextIdleId = 1;
+globalThis.requestIdleCallback = (callback: IdleRequestCallback) => {
+	const id = nextIdleId++;
+	idleTimers.set(id, setTimeout(() => callback({ didTimeout: false, timeRemaining: () => 50 }), 0));
+
+	return id;
+};
+globalThis.cancelIdleCallback = (id: number) => {
+	clearTimeout(idleTimers.get(id));
+	idleTimers.delete(id);
+};
+
 const { RendererTerminalSession } = await import("@renderer/routes/-utils/use-terminal-session");
 
 async function startSession() {
@@ -97,10 +110,10 @@ afterEach(() => {
 	document.body.replaceChildren();
 });
 
-test("first activation loads webgl once", async () => {
+test("webgl loads once at idle after open", async () => {
 	const session = await startSession();
 
-	expect(webglInstances).toHaveLength(0);
+	expect(webglInstances).toHaveLength(1);
 
 	session.setActive(true);
 

@@ -1,5 +1,5 @@
 import { ArrowsPointingInIcon, ArrowsPointingOutIcon, ViewColumnsIcon } from "@heroicons/react/24/outline";
-import { useCallback, useRef, useState } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
 import type { LayoutSettings } from "@main/store/settings";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
@@ -28,7 +28,7 @@ interface ShellTab {
 	label: string;
 }
 
-export function ProjectWorkspace({
+export const ProjectWorkspace = memo(function ProjectWorkspace({
 	project,
 	active,
 	shellFocusRequest,
@@ -202,7 +202,7 @@ export function ProjectWorkspace({
 	return (
 		<section
 			ref={registerWorkspaceShortcuts}
-			className={active ? "flex h-full min-w-0 flex-col" : "hidden"}
+			className={`col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col ${active ? "" : "invisible"}`}
 			aria-label={`${project.name} workspace`}
 		>
 			<header className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised pr-[120px]">
@@ -246,7 +246,7 @@ export function ProjectWorkspace({
 			>
 				<div
 					style={{ minWidth: MIN_TERMINAL_WIDTH, contain: "paint" }}
-					className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-sunken"
+					className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-1 overflow-hidden bg-surface-sunken"
 				>
 					{tabs.length === 0 && (
 						<EmptyState
@@ -259,7 +259,7 @@ export function ProjectWorkspace({
 					)}
 					{tabs.map((tab) => (
 						<div
-							className={tab.id === activeTabId ? "min-h-0 min-w-0 flex-1 overflow-hidden" : "hidden"}
+							className={`col-start-1 row-start-1 min-h-0 min-w-0 overflow-hidden ${tab.id === activeTabId ? "" : "invisible"}`}
 							key={tab.id}
 						>
 							<TerminalPane
@@ -281,7 +281,6 @@ export function ProjectWorkspace({
 				>
 					<ReviewPanel
 						project={project}
-						active={active && reviewOpen}
 						minDiffWidth={MIN_DIFF_WIDTH}
 						treeOpen={treeOpen}
 						treeDivider={treeDivider}
@@ -292,7 +291,7 @@ export function ProjectWorkspace({
 			</div>
 		</section>
 	);
-}
+});
 
 function ProjectWorkspaceShellTabs({
 	tabs,

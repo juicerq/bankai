@@ -101,6 +101,7 @@ export class RendererTerminalSession {
 	private lastCols: number | undefined;
 	private lastRows: number | undefined;
 	private webgl: ActiveWebgl | undefined;
+	private webglIdle: number | undefined;
 	private active = false;
 	private disposed = false;
 	private lifecycle = 0;
@@ -150,7 +151,7 @@ export class RendererTerminalSession {
 		}
 
 		this.terminal.focus();
-		if (this.sessionId) {
+		if (this.sessionId && !this.webgl) {
 			this.loadWebgl();
 		}
 	}
@@ -184,6 +185,9 @@ export class RendererTerminalSession {
 
 		this.disposed = true;
 		this.lifecycle += 1;
+		if (this.webglIdle !== undefined) {
+			cancelIdleCallback(this.webglIdle);
+		}
 		this.resizeObserver.disconnect();
 		this.resizeProcess.cancel();
 		this.input.dispose();
@@ -205,6 +209,11 @@ export class RendererTerminalSession {
 		}
 
 		this.fit.fit();
+		this.webglIdle = requestIdleCallback(() => {
+			if (!this.webgl) {
+				this.loadWebgl();
+			}
+		}, { timeout: 1500 });
 		this.lastCols = this.terminal.cols;
 		this.lastRows = this.terminal.rows;
 		const sessionId = await window.bankaiTerminal.open(projectId, this.terminal.cols, this.terminal.rows);
@@ -216,7 +225,6 @@ export class RendererTerminalSession {
 		this.sessionId = sessionId;
 		if (this.active) {
 			this.terminal.focus();
-			this.loadWebgl();
 		}
 	}
 

@@ -17,7 +17,6 @@ const MODES: { mode: ReviewMode; label: string }[] = [
 
 export function ReviewPanel({
 	project,
-	active,
 	minDiffWidth,
 	treeOpen,
 	treeDivider,
@@ -25,7 +24,6 @@ export function ReviewPanel({
 	onClose,
 }: {
 	project: Project;
-	active: boolean;
 	minDiffWidth: number;
 	treeOpen: boolean;
 	treeDivider: ReturnType<typeof useDivider>;
@@ -41,7 +39,6 @@ export function ReviewPanel({
 	const { generation, fullFile, error } = useReviewReading({
 		projectId: project.id,
 		mode,
-		active,
 		isFileOpen,
 		focusedPath,
 	});

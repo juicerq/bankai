@@ -3,13 +3,9 @@ import { useMemo, useRef, useSyncExternalStore } from "react";
 import type { FileChange, FullFile, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/contracts";
 import { orpc } from "@renderer/lib/api";
 
-const DO_NOT_SUBSCRIBE = () => () => {};
-const INACTIVE = { status: "inactive" } as const;
 const PENDING = { status: "pending" } as const;
-const GET_INACTIVE = () => INACTIVE;
 
 type ReviewWatchState =
-	| typeof INACTIVE
 	| typeof PENDING
 	| { status: "ready" }
 	| { status: "error"; error: string };
@@ -29,24 +25,22 @@ export interface ReviewReading {
 export function useReviewReading({
 	projectId,
 	mode,
-	active,
 	isFileOpen,
 	focusedPath,
 }: {
 	projectId: string;
 	mode: ReviewMode;
-	active: boolean;
 	isFileOpen: (path: string) => boolean;
 	focusedPath?: string;
 }): ReviewReading {
-	const watch = useReviewWatch(projectId, active);
+	const watch = useReviewWatch(projectId);
 	const watchReady = watch.status === "ready";
 	const watchError = watch.status === "error" ? watch.error : undefined;
 
 	const snapshotQuery = useQuery(
 		orpc.review.snapshot.queryOptions({
 			input: { projectId, mode },
-			enabled: active && watchReady,
+			enabled: watchReady,
 			placeholderData: keepPreviousData,
 		}),
 	);
@@ -57,7 +51,7 @@ export function useReviewReading({
 	const layout = useLayoutGeneration(projectId, mode, files, isFileOpen);
 	const initialPathSet = useMemo(() => new Set(layout.initialPaths), [layout.initialPaths]);
 
-	const prepare = active && watchReady && !snapshotQuery.isPlaceholderData;
+	const prepare = watchReady && !snapshotQuery.isPlaceholderData;
 
 	const initialContentQuery = useQuery(
 		orpc.review.files.queryOptions({
@@ -111,7 +105,7 @@ export function useReviewReading({
 	const fullFileQuery = useQuery(
 		orpc.review.fullFile.queryOptions({
 			input: { projectId, path: focusedPath ?? "", mode },
-			enabled: active && watchReady && !!focusedPath,
+			enabled: watchReady && !!focusedPath,
 		}),
 	);
 
@@ -160,18 +154,14 @@ function useLayoutGeneration(
 	return previous;
 }
 
-function useReviewWatch(projectId: string, active: boolean) {
+function useReviewWatch(projectId: string) {
 	const queryClient = useQueryClient();
 	const observer = useMemo(
 		() => new ReviewQueryObserver(projectId, queryClient),
 		[projectId, queryClient],
 	);
 
-	return useSyncExternalStore(
-		active ? observer.subscribe : DO_NOT_SUBSCRIBE,
-		active ? observer.getSnapshot : GET_INACTIVE,
-		GET_INACTIVE,
-	);
+	return useSyncExternalStore(observer.subscribe, observer.getSnapshot);
 }
 
 class ReviewQueryObserver {
@@ -196,16 +186,20 @@ class ReviewQueryObserver {
 		});
 
 		window.bankaiReview.watch(this.projectId)
-			.then(() => {
+			.then(async () => {
 				watching = true;
 				if (generation !== this.generation) {
 					window.bankaiReview.unwatch(this.projectId);
 					return;
 				}
 
+				await this.refresh();
+				if (generation !== this.generation) {
+					return;
+				}
+
 				this.state = { status: "ready" };
 				notify();
-				this.revalidate().catch((err) => console.error("Failed to revalidate review", err));
 			})
 			.catch((err) => {
 				if (generation !== this.generation) {
@@ -226,21 +220,13 @@ class ReviewQueryObserver {
 		};
 	};
 
-	private filters() {
-		return [
+	private async refresh() {
+		const filters = [
 			{ queryKey: orpc.review.snapshot.key({ type: "query", input: { projectId: this.projectId } }) },
 			{ queryKey: orpc.review.files.key({ type: "query", input: { projectId: this.projectId } }) },
 			{ queryKey: orpc.review.file.key({ type: "query", input: { projectId: this.projectId } }) },
 			{ queryKey: orpc.review.fullFile.key({ type: "query", input: { projectId: this.projectId } }) },
 		];
-	}
-
-	private async revalidate() {
-		await Promise.all(this.filters().map((filter) => this.queryClient.invalidateQueries(filter)));
-	}
-
-	private async refresh() {
-		const filters = this.filters();
 		await Promise.all(filters.map((filter) => this.queryClient.cancelQueries(filter)));
 		await Promise.all(filters.map((filter) => this.queryClient.invalidateQueries(filter)));
 	}

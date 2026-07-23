@@ -4,11 +4,13 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@renderer/lib/api";
 import { installLoggerBridge } from "@renderer/lib/logger-bridge";
+import { installReviewPrewarm } from "@renderer/lib/prewarm-reviews";
 import { queryClient } from "@renderer/lib/query-client";
 import { router } from "@renderer/lib/router";
 import "@renderer/styles.css";
 
 installLoggerBridge();
+installReviewPrewarm(queryClient);
 
 const rootElement = document.querySelector("#root");
 

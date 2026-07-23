@@ -112,6 +112,41 @@ test("cached data stays visible after the hook goes inactive without new IPC", a
 	expect(view.ipc.watchCalls.length).toBe(watchesBefore);
 });
 
+test("switching back renders cached content while the watch re-establishes", async () => {
+	const view = renderReviewReading(base({}));
+	await settle(view, ["a", "b"], { a: "a1", b: "b1" });
+
+	view.rerender(base({ active: false }));
+	view.rerender(base({ active: true }));
+
+	expect(view.ipc.pendingWatchCount).toBe(1);
+	expect(view.result.current.generation?.contentByPath?.size).toBe(2);
+	expect(contentText(view.result.current.generation?.contentByPath?.get("a"))).toBe("a1");
+	expect(view.transport.callsFor("snapshot").length).toBe(1);
+});
+
+test("switching back revalidates once in the background without hiding cached content", async () => {
+	const view = renderReviewReading(base({}));
+	await settle(view, ["a", "b"], { a: "a1", b: "b1" });
+
+	view.rerender(base({ active: false }));
+	view.rerender(base({ active: true }));
+	view.ipc.resolveWatch();
+
+	await waitFor(() => expect(view.transport.callsFor("snapshot").length).toBe(2));
+	expect(view.result.current.generation?.contentByPath?.size).toBe(2);
+	expect(contentText(view.result.current.generation?.contentByPath?.get("a"))).toBe("a1");
+
+	view.transport.resolve("snapshot", snapshotOf(["a", "b"]));
+	await waitFor(() => expect(view.transport.pendingCount("files")).toBeGreaterThan(0));
+	while (view.transport.pendingCount("files") > 0) {
+		view.transport.resolve("files", filesResponse({ a: "a2", b: "b2" }));
+	}
+
+	await waitFor(() => expect(contentText(view.result.current.generation?.contentByPath?.get("a"))).toBe("a2"));
+	expect(view.transport.callsFor("snapshot").length).toBe(2);
+});
+
 test("deactivation unwatches exactly once", async () => {
 	const view = renderReviewReading(base({}));
 	await reachReady(view);

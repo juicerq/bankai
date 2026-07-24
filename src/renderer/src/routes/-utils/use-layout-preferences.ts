@@ -15,6 +15,8 @@ export interface LayoutPreferences {
 	diffWidth: number;
 	treeWidth: number;
 	fullscreen: boolean;
+	reviewOpen: boolean;
+	treeOpen: boolean;
 }
 
 export function clampLayout(stored: LayoutSettings | null): LayoutPreferences {
@@ -23,6 +25,8 @@ export function clampLayout(stored: LayoutSettings | null): LayoutPreferences {
 		diffWidth: Math.max(MIN_DIFF_WIDTH, stored?.diffWidth ?? DEFAULT_DIFF_WIDTH),
 		treeWidth: Math.max(MIN_TREE_WIDTH, stored?.treeWidth ?? DEFAULT_TREE_WIDTH),
 		fullscreen: stored?.fullscreen ?? false,
+		reviewOpen: stored?.reviewOpen ?? true,
+		treeOpen: stored?.treeOpen ?? true,
 	};
 }
 

@@ -35,6 +35,22 @@ function Bankai() {
 		(fullscreen: boolean) => layout.persist({ fullscreen }),
 		[layout.persist],
 	);
+	const [reviewOpen, setReviewOpen] = useState(layout.initial.reviewOpen);
+	const handleReviewOpenChange = useCallback(
+		(open: boolean) => {
+			setReviewOpen(open);
+			layout.persist({ reviewOpen: open });
+		},
+		[layout.persist],
+	);
+	const [treeOpen, setTreeOpen] = useState(layout.initial.treeOpen);
+	const handleTreeOpenChange = useCallback(
+		(open: boolean) => {
+			setTreeOpen(open);
+			layout.persist({ treeOpen: open });
+		},
+		[layout.persist],
+	);
 	const projectRail = useFullscreenProjectRail(requestShellFocus, {
 		initialFullscreen: layout.initial.fullscreen,
 		onFullscreenChange: persistFullscreen,
@@ -169,6 +185,10 @@ function Bankai() {
 						initialDiffWidth={layout.initial.diffWidth}
 						initialTreeWidth={layout.initial.treeWidth}
 						onPersistLayout={layout.persist}
+						reviewOpen={reviewOpen}
+						onReviewOpenChange={handleReviewOpenChange}
+						treeOpen={treeOpen}
+						onTreeOpenChange={handleTreeOpenChange}
 					/>
 				))}
 			</section>

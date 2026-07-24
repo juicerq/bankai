@@ -38,6 +38,10 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	initialDiffWidth,
 	initialTreeWidth,
 	onPersistLayout,
+	reviewOpen,
+	onReviewOpenChange,
+	treeOpen,
+	onTreeOpenChange,
 }: {
 	project: Project;
 	active: boolean;
@@ -48,12 +52,14 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	initialDiffWidth: number;
 	initialTreeWidth: number;
 	onPersistLayout: (patch: LayoutSettings) => void;
+	reviewOpen: boolean;
+	onReviewOpenChange: (open: boolean) => void;
+	treeOpen: boolean;
+	onTreeOpenChange: (open: boolean) => void;
 }) {
 	const [tabs, setTabs] = useState<ShellTab[]>(() => [newShellTab(1)]);
 	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
-	const [reviewOpen, setReviewOpen] = useState(true);
 	const [reviewAnimating, setReviewAnimating] = useState(false);
-	const [treeOpen, setTreeOpen] = useState(true);
 	const [diffWidth, setDiffWidth] = useState(initialDiffWidth);
 	const [treeWidth, setTreeWidth] = useState(initialTreeWidth);
 	const [rowWidth, setRowWidth] = useState<number>();
@@ -165,12 +171,12 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 
 	const handleToggleReview = useCallback(() => {
 		startReviewMotion();
-		setReviewOpen((open) => !open);
-	}, [startReviewMotion]);
+		onReviewOpenChange(!reviewOpen);
+	}, [startReviewMotion, onReviewOpenChange, reviewOpen]);
 
 	const handleCloseReview = () => {
 		startReviewMotion();
-		setReviewOpen(false);
+		onReviewOpenChange(false);
 	};
 	const registerWorkspaceShortcuts = useProjectWorkspaceShortcuts({
 		active,
@@ -284,7 +290,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 						minDiffWidth={MIN_DIFF_WIDTH}
 						treeOpen={treeOpen}
 						treeDivider={treeDivider}
-						onTreeOpenChange={setTreeOpen}
+						onTreeOpenChange={onTreeOpenChange}
 						onClose={handleCloseReview}
 					/>
 				</ReviewPanelFrame>

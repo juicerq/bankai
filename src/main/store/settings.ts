@@ -14,6 +14,8 @@ export const layoutSchema = type({
 	"diffWidth?": "number",
 	"treeWidth?": "number",
 	"fullscreen?": "boolean",
+	"reviewOpen?": "boolean",
+	"treeOpen?": "boolean",
 });
 export type LayoutSettings = typeof layoutSchema.infer;
 

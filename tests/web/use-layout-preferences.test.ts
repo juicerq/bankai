@@ -16,6 +16,8 @@ describe("clampLayout", () => {
 			diffWidth: DEFAULT_DIFF_WIDTH,
 			treeWidth: DEFAULT_TREE_WIDTH,
 			fullscreen: false,
+			reviewOpen: true,
+			treeOpen: true,
 		});
 	});
 
@@ -32,11 +34,22 @@ describe("clampLayout", () => {
 	});
 
 	test("passes valid stored values through and restores fullscreen", () => {
-		expect(clampLayout({ railWidth: 300, diffWidth: 700, treeWidth: 240, fullscreen: true })).toEqual({
+		expect(
+			clampLayout({
+				railWidth: 300,
+				diffWidth: 700,
+				treeWidth: 240,
+				fullscreen: true,
+				reviewOpen: false,
+				treeOpen: false,
+			}),
+		).toEqual({
 			railWidth: 300,
 			diffWidth: 700,
 			treeWidth: 240,
 			fullscreen: true,
+			reviewOpen: false,
+			treeOpen: false,
 		});
 	});
 });

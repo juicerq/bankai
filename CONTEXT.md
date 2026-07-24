@@ -29,7 +29,7 @@ The draggable hairline between two adjacent regions that trades width between th
 _Avoid_: Resize handle, separator, splitter, gutter
 
 **Layout preferences**:
-The user's chosen region widths and fullscreen state, remembered across app launches. Global to the app, not per project.
+The user's chosen region widths, fullscreen state, and panel visibility (Review panel and Tree open or closed), remembered across app launches. Global to the app, not per project.
 _Avoid_: Panel sizes, UI state
 
 **Shell**:

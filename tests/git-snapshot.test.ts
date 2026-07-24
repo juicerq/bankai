@@ -2,8 +2,10 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { type ReviewContent } from "@main/git/contracts";
-import { FULL_FILE_MAX_LINES, GIT_OUTPUT_MAX_BYTES, Git } from "@main/git/Git";
+import { type DiffLine, type ReviewContent } from "@main/git/contracts";
+import { FULL_FILE_MAX_LINES, Git } from "@main/git/Git";
+import { captureTurnBaseline, turnBaselines } from "@main/git/TurnBaseline";
+import { GIT_OUTPUT_MAX_BYTES } from "@main/git/run";
 import { assertDefined } from "./utils/assertions";
 
 function git(cwd: string, ...args: string[]): void {
@@ -39,16 +41,20 @@ describe("Git.snapshot", () => {
 		const plain = join(process.env.DATA_DIR, "plain");
 		mkdirSync(plain);
 
-		const snapshot = await Git.snapshot(plain, "uncommitted");
+		const snapshot = await Git.snapshot({ path: plain, mode: "uncommitted" });
 
-		expect(snapshot).toEqual({ isRepo: false, files: [], totals: { additions: 0, deletions: 0, files: 0 } });
+		expect(snapshot).toEqual({
+			state: "not-a-repo",
+			files: [],
+			totals: { additions: 0, deletions: 0, files: 0 },
+		});
 	});
 
 	it("returns only metadata while loading an untracked file on demand", async () => {
 		const path = repo("lazy-untracked");
 		writeFileSync(join(path, "fresh.txt"), "hello\n");
 
-		const snapshot = await Git.snapshot(path, "uncommitted");
+		const snapshot = await Git.snapshot({ path, mode: "uncommitted" });
 		const fresh = snapshot.files.find((file) => file.path === "fresh.txt");
 		assertDefined(fresh);
 		expect(fresh).toEqual({ path: "fresh.txt", status: "untracked", additions: 1, deletions: 0 });
@@ -68,7 +74,7 @@ describe("Git.snapshot", () => {
 		writeFileSync(join(path, "b.txt"), "brand new\n");
 		writeFileSync(join(path, "c.txt"), "first\nsecond");
 
-		const snapshot = await Git.snapshot(path, "uncommitted");
+		const snapshot = await Git.snapshot({ path, mode: "uncommitted" });
 
 		expect(snapshot.files.find((file) => file.path === "a.txt")).toEqual({
 			path: "a.txt",
@@ -152,7 +158,7 @@ describe("Git.snapshot", () => {
 		writeFileSync(join(path, "untracked.txt"), "untracked\n");
 
 		for (const mode of ["uncommitted", "branch"] as const) {
-			const snapshot = await Git.snapshot(path, mode);
+			const snapshot = await Git.snapshot({ path, mode });
 			expect(snapshot.files.find((file) => file.path === "indexed.txt")).toEqual({
 				path: "indexed.txt",
 				status: "added",
@@ -180,7 +186,7 @@ describe("Git.snapshot", () => {
 		writeFileSync(join(path, "new.bin"), Buffer.from([0, 5, 6]));
 		writeFileSync(join(path, "empty.txt"), "");
 
-		const snapshot = await Git.snapshot(path, "uncommitted");
+		const snapshot = await Git.snapshot({ path, mode: "uncommitted" });
 
 		expect(snapshot.files.find((file) => file.path === "new.bin")?.additions).toBe(0);
 		expect(await Git.file({ path, file: "tracked.bin", mode: "uncommitted" })).toEqual({ status: "binary" });
@@ -193,7 +199,7 @@ describe("Git.snapshot", () => {
 		writeFileSync(join(path, "many-lines.txt"), numberedLines(FULL_FILE_MAX_LINES + 1));
 		writeFileSync(join(path, "wide.txt"), "x".repeat(GIT_OUTPUT_MAX_BYTES + 1));
 
-		const snapshot = await Git.snapshot(path, "uncommitted");
+		const snapshot = await Git.snapshot({ path, mode: "uncommitted" });
 		expect(snapshot.files.find((file) => file.path === "many-lines.txt")?.additions).toBe(FULL_FILE_MAX_LINES + 1);
 		expect(snapshot.files.find((file) => file.path === "wide.txt")?.additions).toBe(1);
 		expect(await Git.file({ path, file: "many-lines.txt", mode: "uncommitted" })).toEqual({
@@ -212,7 +218,7 @@ describe("Git.snapshot", () => {
 		chmodSync(join(path, "unreadable.txt"), 0);
 
 		try {
-			const snapshot = await Git.snapshot(path, "uncommitted");
+			const snapshot = await Git.snapshot({ path, mode: "uncommitted" });
 			expect(snapshot.files.some((file) => file.path === "ignored.txt")).toBe(false);
 			expect(snapshot.files.find((file) => file.path === "ready.txt")?.additions).toBe(1);
 			expect(snapshot.files.find((file) => file.path === "unreadable.txt")?.additions).toBe(0);
@@ -232,7 +238,7 @@ describe("Git.snapshot", () => {
 		git(path, "mv", "before.txt", "after.txt");
 		writeFileSync(join(path, "after.txt"), "one\ntwo\nthree\n");
 
-		const snapshot = await Git.snapshot(path, "uncommitted");
+		const snapshot = await Git.snapshot({ path, mode: "uncommitted" });
 
 		expect(snapshot.files).toEqual([
 			{ path: "after.txt", status: "renamed", additions: 1, deletions: 0 },
@@ -250,13 +256,171 @@ describe("Git.snapshot", () => {
 		git(path, "commit", "-m", "feature work");
 		writeFileSync(join(path, "d.txt"), "wip\n");
 
-		const branch = await Git.snapshot(path, "branch");
+		const branch = await Git.snapshot({ path, mode: "branch" });
 		expect(branch.files.find((file) => file.path === "c.txt")?.status).toBe("added");
 		expect(branch.files.find((file) => file.path === "d.txt")?.status).toBe("untracked");
 
-		const uncommitted = await Git.snapshot(path, "uncommitted");
+		const uncommitted = await Git.snapshot({ path, mode: "uncommitted" });
 		expect(uncommitted.files.some((file) => file.path === "c.txt")).toBe(false);
 		expect(uncommitted.files.find((file) => file.path === "d.txt")?.status).toBe("untracked");
+	});
+});
+
+describe("Git.snapshot in the last turn scope", () => {
+	it("reports no turn before an agent has started one", async () => {
+		const path = repo("last-turn-unseen");
+		const shellId = "shell-unseen";
+		writeFileSync(join(path, "a.txt"), "mine\n");
+
+		expect(await Git.snapshot({ path, mode: "last-turn", shellId })).toEqual({
+			state: "no-turn",
+			files: [],
+			totals: { additions: 0, deletions: 0, files: 0 },
+		});
+	});
+
+	it("reads the working tree against the turn baseline instead of HEAD", async () => {
+		const path = repo("last-turn-working-tree");
+		const shellId = "shell-working-tree";
+		writeFileSync(join(path, "kept.txt"), "one\n");
+		writeFileSync(join(path, "touched.txt"), "one\n");
+		writeFileSync(join(path, "reverted.txt"), "one\n");
+		git(path, "add", "kept.txt", "touched.txt", "reverted.txt");
+		git(path, "commit", "-m", "init");
+
+		writeFileSync(join(path, "kept.txt"), "one\nmine\n");
+		writeFileSync(join(path, "touched.txt"), "one\nmine\n");
+		writeFileSync(join(path, "reverted.txt"), "one\nmine\n");
+		writeFileSync(join(path, "notes.txt"), "mine\n");
+		writeFileSync(join(path, "wip.txt"), "mine\n");
+
+		await captureTurnBaseline({ path, shellId });
+
+		writeFileSync(join(path, "touched.txt"), "one\nmine\nagent\n");
+		writeFileSync(join(path, "reverted.txt"), "one\n");
+		writeFileSync(join(path, "notes.txt"), "mine\nagent\n");
+		writeFileSync(join(path, "fresh.txt"), "agent\n");
+		unlinkSync(join(path, "wip.txt"));
+
+		const snapshot = await Git.snapshot({ path, mode: "last-turn", shellId });
+
+		expect(snapshot.files).toEqual([
+			{ path: "fresh.txt", status: "untracked", additions: 1, deletions: 0 },
+			{ path: "notes.txt", status: "untracked", additions: 1, deletions: 0 },
+			{ path: "reverted.txt", status: "modified", additions: 0, deletions: 1 },
+			{ path: "touched.txt", status: "modified", additions: 1, deletions: 0 },
+			{ path: "wip.txt", status: "deleted", additions: 0, deletions: 1 },
+		]);
+		expect(snapshot.totals).toEqual({ additions: 3, deletions: 2, files: 5 });
+	});
+
+	it("keeps work the agent committed during the turn in scope", async () => {
+		const path = repo("last-turn-commit");
+		const shellId = "shell-commit";
+		writeFileSync(join(path, "clean.txt"), "one\n");
+		writeFileSync(join(path, "dirty.txt"), "one\n");
+		git(path, "add", "clean.txt", "dirty.txt");
+		git(path, "commit", "-m", "init");
+		writeFileSync(join(path, "dirty.txt"), "one\nmine\n");
+
+		await captureTurnBaseline({ path, shellId });
+
+		writeFileSync(join(path, "clean.txt"), "one\nagent\n");
+		writeFileSync(join(path, "dirty.txt"), "one\nmine\nagent\n");
+		git(path, "add", "clean.txt", "dirty.txt");
+		git(path, "commit", "-m", "agent work");
+
+		const snapshot = await Git.snapshot({ path, mode: "last-turn", shellId });
+
+		expect(snapshot.files).toEqual([
+			{ path: "clean.txt", status: "modified", additions: 1, deletions: 0 },
+			{ path: "dirty.txt", status: "modified", additions: 1, deletions: 0 },
+		]);
+		expect((await Git.snapshot({ path, mode: "uncommitted" })).files).toEqual([]);
+	});
+
+	it("reads baseline-relative content in single and batch reads", async () => {
+		const path = repo("last-turn-content");
+		const shellId = "shell-content";
+		writeFileSync(join(path, "tracked.txt"), "one\n");
+		git(path, "add", "tracked.txt");
+		git(path, "commit", "-m", "init");
+		writeFileSync(join(path, "tracked.txt"), "one\nmine\n");
+
+		await captureTurnBaseline({ path, shellId });
+
+		writeFileSync(join(path, "tracked.txt"), "one\nmine\nagent\n");
+
+		const expected: DiffLine[] = [
+			{ kind: "context", number: 1, oldNumber: 1, hunk: 1, content: "one" },
+			{ kind: "context", number: 2, oldNumber: 2, hunk: 1, content: "mine" },
+			{ kind: "add", number: 3, hunk: 1, content: "agent" },
+		];
+		expect(readyLines(await Git.file({ path, file: "tracked.txt", mode: "last-turn", shellId }))).toEqual(expected);
+
+		const batch = await Git.files({ path, files: ["tracked.txt"], mode: "last-turn", shellId });
+		expect(readyLines(batch.files[0]?.content ?? { status: "unavailable" })).toEqual(expected);
+	});
+
+	it("reads a file the turn deleted as its baseline content", async () => {
+		const path = repo("last-turn-deleted");
+		const shellId = "shell-deleted";
+		writeFileSync(join(path, "gone.txt"), "one\ntwo\n");
+		git(path, "add", "gone.txt");
+		git(path, "commit", "-m", "init");
+		writeFileSync(join(path, "gone.txt"), "one\ntwo\nmine\n");
+
+		await captureTurnBaseline({ path, shellId });
+
+		unlinkSync(join(path, "gone.txt"));
+
+		expect(readyLines(await Git.file({ path, file: "gone.txt", mode: "last-turn", shellId }))).toEqual([
+			{ kind: "remove", oldNumber: 1, hunk: 1, content: "one" },
+			{ kind: "remove", oldNumber: 2, hunk: 1, content: "two" },
+			{ kind: "remove", oldNumber: 3, hunk: 1, content: "mine" },
+		]);
+	});
+
+	it("keeps each shell reading against its own turn", async () => {
+		const path = repo("last-turn-per-shell");
+		writeFileSync(join(path, "a.txt"), "one\n");
+		git(path, "add", "a.txt");
+		git(path, "commit", "-m", "init");
+
+		await captureTurnBaseline({ path, shellId: "tab-1" });
+		writeFileSync(join(path, "a.txt"), "one\nfrom tab 1\n");
+
+		await captureTurnBaseline({ path, shellId: "tab-2" });
+		writeFileSync(join(path, "a.txt"), "one\nfrom tab 1\nfrom tab 2\n");
+
+		expect((await Git.snapshot({ path, mode: "last-turn", shellId: "tab-1" })).files).toEqual([
+			{ path: "a.txt", status: "modified", additions: 2, deletions: 0 },
+		]);
+		expect((await Git.snapshot({ path, mode: "last-turn", shellId: "tab-2" })).files).toEqual([
+			{ path: "a.txt", status: "modified", additions: 1, deletions: 0 },
+		]);
+	});
+
+	it("forgets a closed shell's turn without touching the others", async () => {
+		const path = repo("last-turn-forget");
+		writeFileSync(join(path, "a.txt"), "one\n");
+		git(path, "add", "a.txt");
+		git(path, "commit", "-m", "init");
+
+		await captureTurnBaseline({ path, shellId: "tab-open" });
+		await captureTurnBaseline({ path, shellId: "tab-closed" });
+		writeFileSync(join(path, "a.txt"), "one\nagent\n");
+
+		turnBaselines.delete("tab-closed");
+
+		expect(await Git.snapshot({ path, mode: "last-turn", shellId: "tab-closed" })).toEqual({
+			state: "no-turn",
+			files: [],
+			totals: { additions: 0, deletions: 0, files: 0 },
+		});
+		expect((await Git.snapshot({ path, mode: "last-turn", shellId: "tab-open" })).files).toEqual([
+			{ path: "a.txt", status: "modified", additions: 1, deletions: 0 },
+		]);
 	});
 });
 

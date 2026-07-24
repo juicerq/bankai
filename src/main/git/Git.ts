@@ -1,8 +1,6 @@
-import { execFile } from "node:child_process";
 import { createReadStream } from "node:fs";
-import { lstat, readlink, realpath } from "node:fs/promises";
+import { lstat, readFile, readlink, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import { promisify } from "node:util";
 import type {
 	FileChange,
 	FullFile,
@@ -11,42 +9,46 @@ import type {
 	ReviewMode,
 	ReviewSnapshot,
 } from "@main/git/contracts";
+import {
+	gitText,
+	isGitOutputOverflow,
+	isNoIndexDifference,
+	isNoIndexPatch,
+	NULL_FILE,
+	nulSeparatedPaths,
+} from "@main/git/run";
+import { turnBaselines, withBaselineFile, type TurnBaseline, type TurnBaselineFile } from "@main/git/TurnBaseline";
 
-const run = promisify(execFile);
-
-export const GIT_OUTPUT_MAX_BYTES = 10 * 1024 * 1024;
-const GIT_TIMEOUT_MS = 5000;
 export const FULL_FILE_MAX_LINES = 3000;
 const NEW_FILE_COUNT_CONCURRENCY = 16;
-const NULL_FILE = process.platform === "win32" ? "NUL" : "/dev/null";
+
+export interface ReviewScope {
+	path: string;
+	mode: ReviewMode;
+	shellId?: string;
+}
 
 export const Git = {
-	snapshot: async (path: string, mode: ReviewMode): Promise<ReviewSnapshot> => {
-		const inside = await isRepo(path);
+	snapshot: async (scope: ReviewScope): Promise<ReviewSnapshot> => {
+		const inside = await isRepo(scope.path);
 		if (!inside) {
-			return { isRepo: false, files: [], totals: { additions: 0, deletions: 0, files: 0 } };
+			return { state: "not-a-repo", files: [], totals: { additions: 0, deletions: 0, files: 0 } };
+		}
+		if (scope.mode === "last-turn") {
+			return await turnSnapshot(scope.path, turnBaseline(scope));
 		}
 
-		const base = await resolveBase(path, mode);
-		const tracked = base ? await diffFiles(path, base) : await indexedFiles(path);
-		const untracked = await untrackedFiles(path);
-		const files = [...tracked, ...untracked];
+		const base = await resolveBase(scope);
+		const tracked = base ? await diffFiles(scope.path, base) : await indexedFiles(scope.path);
+		const untracked = await untrackedFiles(scope.path);
 
-		return {
-			isRepo: true,
-			files,
-			totals: {
-				additions: files.reduce((sum, file) => sum + file.additions, 0),
-				deletions: files.reduce((sum, file) => sum + file.deletions, 0),
-				files: files.length,
-			},
-		};
+		return readySnapshot([...tracked, ...untracked]);
 	},
 
-	files: async (input: { path: string; files: string[]; mode: ReviewMode }): Promise<ReviewFiles> => {
+	files: async (input: ReviewScope & { files: string[] }): Promise<ReviewFiles> => {
 		await Promise.all(input.files.map((file) => assertFileWithinRepo(input.path, file)));
 
-		const base = await resolveBase(input.path, input.mode);
+		const base = await resolveBase(input);
 		const raw: unknown = base
 			? await gitText(input.path, ["diff", base, "-M", "--no-color", "--no-ext-diff"]).catch((err) => err)
 			: "";
@@ -54,7 +56,12 @@ export const Git = {
 			return await readFilesIndividually(input);
 		}
 
-		const parsedByPath = new Map(parseDiff(raw).map((file) => [file.path, compactContent(file)]));
+		const baseline = turnBaseline(input);
+		const parsedByPath = new Map(
+			parseDiff(raw)
+				.filter((file) => !baseline?.files.has(file.path))
+				.map((file) => [file.path, compactContent(file)]),
+		);
 		const files: ReviewFiles["files"] = [];
 		const missing: { path: string; index: number }[] = [];
 		for (const path of input.files) {
@@ -67,9 +74,7 @@ export const Git = {
 
 		for (let offset = 0; offset < missing.length; offset += NEW_FILE_COUNT_CONCURRENCY) {
 			const batch = missing.slice(offset, offset + NEW_FILE_COUNT_CONCURRENCY);
-			const contents = await Promise.all(
-				batch.map(({ path: file }) => readFileDiff({ path: input.path, file, mode: input.mode }, false)),
-			);
+			const contents = await Promise.all(batch.map(({ path: file }) => readFileDiff(input, file, false)));
 			for (const [index, item] of batch.entries()) {
 				const result = files[item.index];
 				if (result) {
@@ -81,23 +86,33 @@ export const Git = {
 		return { files };
 	},
 
-	file: async (input: { path: string; file: string; mode: ReviewMode }): Promise<ReviewContent> => {
-		return await readFileDiff(input, false);
+	file: async (input: ReviewScope & { file: string }): Promise<ReviewContent> => {
+		return await readFileDiff(input, input.file, false);
 	},
 
-	fullFile: async (input: { path: string; file: string; mode: ReviewMode }): Promise<FullFile> => {
-		return await readFileDiff(input, true);
+	fullFile: async (input: ReviewScope & { file: string }): Promise<FullFile> => {
+		return await readFileDiff(input, input.file, true);
 	},
 };
 
-async function gitText(cwd: string, args: string[]): Promise<string> {
-	const { stdout } = await run("git", args, {
-		cwd,
-		maxBuffer: GIT_OUTPUT_MAX_BYTES,
-		timeout: GIT_TIMEOUT_MS,
-		windowsHide: true,
-	});
-	return stdout;
+function turnBaseline(scope: ReviewScope): TurnBaseline | undefined {
+	if (scope.mode !== "last-turn" || scope.shellId === undefined) {
+		return undefined;
+	}
+
+	return turnBaselines.get(scope.shellId);
+}
+
+function readySnapshot(files: FileChange[]): ReviewSnapshot {
+	return {
+		state: "ready",
+		files,
+		totals: {
+			additions: files.reduce((sum, file) => sum + file.additions, 0),
+			deletions: files.reduce((sum, file) => sum + file.deletions, 0),
+			files: files.length,
+		},
+	};
 }
 
 async function isRepo(path: string): Promise<boolean> {
@@ -106,18 +121,22 @@ async function isRepo(path: string): Promise<boolean> {
 		.catch(() => false);
 }
 
-async function resolveBase(path: string, mode: ReviewMode): Promise<string | null> {
-	const hasHead = await gitText(path, ["rev-parse", "--verify", "--quiet", "HEAD"])
+async function resolveBase(scope: ReviewScope): Promise<string | null> {
+	if (scope.mode === "last-turn") {
+		return turnBaseline(scope)?.head ?? null;
+	}
+
+	const hasHead = await gitText(scope.path, ["rev-parse", "--verify", "--quiet", "HEAD"])
 		.then(() => true)
 		.catch(() => false);
 	if (!hasHead) {
 		return null;
 	}
-	if (mode === "uncommitted") {
+	if (scope.mode === "uncommitted") {
 		return "HEAD";
 	}
 
-	return await branchBase(path);
+	return await branchBase(scope.path);
 }
 
 async function branchBase(path: string): Promise<string> {
@@ -138,6 +157,132 @@ async function branchBase(path: string): Promise<string> {
 	}
 
 	return "HEAD";
+}
+
+async function turnSnapshot(path: string, baseline: TurnBaseline | undefined): Promise<ReviewSnapshot> {
+	if (!baseline) {
+		return { state: "no-turn", files: [], totals: { additions: 0, deletions: 0, files: 0 } };
+	}
+
+	const tracked = baseline.head ? await diffFiles(path, baseline.head) : await indexedFiles(path);
+	const untracked = await untrackedFiles(path);
+	const untrackedNow = new Set(untracked.map((file) => file.path));
+	const started = [...tracked, ...untracked].filter((file) => !baseline.files.has(file.path));
+	const files = [...started, ...(await turnChanges(path, baseline, untrackedNow))];
+
+	return readySnapshot(files.sort((left, right) => left.path.localeCompare(right.path)));
+}
+
+async function turnChanges(
+	path: string,
+	baseline: TurnBaseline,
+	untrackedNow: ReadonlySet<string>,
+): Promise<FileChange[]> {
+	const entries = [...baseline.files];
+	const changes: FileChange[] = [];
+
+	for (let offset = 0; offset < entries.length; offset += NEW_FILE_COUNT_CONCURRENCY) {
+		const batch = entries.slice(offset, offset + NEW_FILE_COUNT_CONCURRENCY);
+		const captured = await Promise.all(
+			batch.map(([file, before]) => turnChange({ root: path, file, before, untrackedNow })),
+		);
+		changes.push(...captured.filter((change) => !!change));
+	}
+
+	return changes;
+}
+
+async function turnChange(input: {
+	root: string;
+	file: string;
+	before: TurnBaselineFile;
+	untrackedNow: ReadonlySet<string>;
+}): Promise<FileChange | undefined> {
+	const target = resolve(input.root, input.file);
+
+	if (input.before.kind === "oversized") {
+		const stats = await lstat(target).catch(() => null);
+		if (stats?.size === input.before.size && stats.mtimeMs === input.before.mtimeMs) {
+			return undefined;
+		}
+
+		return { path: input.file, status: turnStatus(input, !!stats, true), additions: 0, deletions: 0 };
+	}
+
+	const current = await readFile(target).catch(() => null);
+	if (input.before.kind === "absent") {
+		if (!current) {
+			return undefined;
+		}
+
+		return {
+			path: input.file,
+			status: turnStatus(input, true, false),
+			additions: await countAddedLines(target),
+			deletions: 0,
+		};
+	}
+	if (current?.equals(input.before.content)) {
+		return undefined;
+	}
+
+	return {
+		path: input.file,
+		status: turnStatus(input, !!current, true),
+		...(await turnCounts({
+			root: input.root,
+			file: input.file,
+			before: input.before.content,
+			present: !!current,
+		})),
+	};
+}
+
+function turnStatus(
+	input: { file: string; untrackedNow: ReadonlySet<string> },
+	present: boolean,
+	existed: boolean,
+): FileChange["status"] {
+	if (!present) {
+		return "deleted";
+	}
+	if (input.untrackedNow.has(input.file)) {
+		return "untracked";
+	}
+	if (!existed) {
+		return "added";
+	}
+
+	return "modified";
+}
+
+async function turnCounts(input: {
+	root: string;
+	file: string;
+	before: Buffer;
+	present: boolean;
+}): Promise<{ additions: number; deletions: number }> {
+	const raw = await withBaselineFile(input.before, (base) =>
+		gitText(input.root, [
+			"diff",
+			"--no-index",
+			"--numstat",
+			"--no-color",
+			"--no-ext-diff",
+			"--",
+			base,
+			input.present ? input.file : NULL_FILE,
+		]).catch((err) => {
+			if (isNoIndexDifference(err)) {
+				return err.stdout;
+			}
+
+			throw err;
+		}),
+	);
+	const [additions, deletions] = raw.split("\t");
+
+	return { additions: Number(additions) || 0, deletions: Number(deletions) || 0 };
 }
 
 async function diffFiles(path: string, base: string): Promise<FileChange[]> {
@@ -215,30 +360,24 @@ async function countAddedLines(path: string): Promise<number> {
 	return lines + (bytes > 0 && lastByte !== 10 ? 1 : 0);
 }
 
-async function readFilesIndividually(input: {
-	path: string;
-	files: string[];
-	mode: ReviewMode;
-}): Promise<ReviewFiles> {
+async function readFilesIndividually(input: ReviewScope & { files: string[] }): Promise<ReviewFiles> {
 	const files: ReviewFiles["files"] = [];
 	for (let offset = 0; offset < input.files.length; offset += NEW_FILE_COUNT_CONCURRENCY) {
 		const batch = input.files.slice(offset, offset + NEW_FILE_COUNT_CONCURRENCY);
-		const contents = await Promise.all(
-			batch.map((file) => readFileDiff({ path: input.path, file, mode: input.mode }, false)),
-		);
+		const contents = await Promise.all(batch.map((file) => readFileDiff(input, file, false)));
 		files.push(...batch.map((path, index) => ({ path, content: contents[index] ?? { status: "unavailable" } })));
 	}
 
 	return { files };
 }
 
-async function readFileDiff(
-	input: { path: string; file: string; mode: ReviewMode },
-	full: boolean,
-): Promise<ReviewContent> {
-	await assertFileWithinRepo(input.path, input.file);
+async function readFileDiff(scope: ReviewScope, file: string, full: boolean): Promise<ReviewContent> {
+	await assertFileWithinRepo(scope.path, file);
+	if (turnBaseline(scope)?.files.get(file)?.kind === "oversized") {
+		return { status: "too-large" };
+	}
 
-	const raw: unknown = await fileDiff(input, full).catch((err) => err);
+	const raw: unknown = await fileDiff(scope, file, full).catch((err) => err);
 	if (isGitOutputOverflow(raw)) {
 		return { status: "too-large" };
 	}
@@ -246,28 +385,33 @@ async function readFileDiff(
 		return { status: "unavailable" };
 	}
 
-	const file = parseDiff(raw)[0];
-	if (!file || (file.status === "added" && file.content.status === "ready" && file.content.lines.length === 0)) {
+	const parsed = parseDiff(raw)[0];
+	if (!parsed || (parsed.status === "added" && parsed.content.status === "ready" && parsed.content.lines.length === 0)) {
 		return { status: "empty" };
 	}
 	if (
-		file.content.status === "ready" &&
-		(full || file.status === "added") &&
-		file.content.lines.length > FULL_FILE_MAX_LINES
+		parsed.content.status === "ready" &&
+		(full || parsed.status === "added") &&
+		parsed.content.lines.length > FULL_FILE_MAX_LINES
 	) {
-		return { status: "too-large", lineCount: file.content.lines.length };
+		return { status: "too-large", lineCount: parsed.content.lines.length };
 	}
 
-	return file.content;
+	return parsed.content;
 }
 
-async function fileDiff(
-	input: { path: string; file: string; mode: ReviewMode },
-	full: boolean,
-): Promise<string> {
-	const base = await resolveBase(input.path, input.mode);
+async function fileDiff(scope: ReviewScope, file: string, full: boolean): Promise<string> {
+	const before = turnBaseline(scope)?.files.get(file);
+	if (before?.kind === "content") {
+		return await turnPatch({ root: scope.path, file, before: before.content }, full);
+	}
+	if (before?.kind === "absent") {
+		return await newFilePatch(scope.path, file);
+	}
+
+	const base = await resolveBase(scope);
 	if (base) {
-		const tracked = await gitText(input.path, [
+		const tracked = await gitText(scope.path, [
 			"diff",
 			base,
 			"-M",
@@ -275,20 +419,51 @@ async function fileDiff(
 			"--no-ext-diff",
 			...(full ? ["-U100000"] : []),
 			"--",
-			`:(literal)${input.file}`,
+			`:(literal)${file}`,
 		]);
 		if (tracked) {
 			return tracked;
 		}
 	}
 
-	return await gitText(input.path, ["diff", "--no-index", "--no-color", "--no-ext-diff", "--", NULL_FILE, input.file])
+	return await newFilePatch(scope.path, file);
+}
+
+async function newFilePatch(root: string, file: string): Promise<string> {
+	return await gitText(root, ["diff", "--no-index", "--no-color", "--no-ext-diff", "--", NULL_FILE, file])
 		.catch((err) => {
 			if (isNoIndexPatch(err)) {
 				return err.stdout;
 			}
+
 			throw err;
 		});
+}
+
+async function turnPatch(
+	input: { root: string; file: string; before: Buffer },
+	full: boolean,
+): Promise<string> {
+	const present = await lstat(resolve(input.root, input.file)).then((stats) => stats.isFile()).catch(() => false);
+
+	return await withBaselineFile(input.before, (base) =>
+		gitText(input.root, [
+			"diff",
+			"--no-index",
+			"--no-color",
+			"--no-ext-diff",
+			...(full ? ["-U100000"] : []),
+			"--",
+			base,
+			present ? input.file : NULL_FILE,
+		]).catch((err) => {
+			if (isNoIndexPatch(err)) {
+				return err.stdout;
+			}
+
+			throw err;
+		}),
+	);
 }
 
 async function assertFileWithinRepo(root: string, file: string): Promise<void> {
@@ -315,39 +490,6 @@ async function assertFileWithinRepo(root: string, file: string): Promise<void> {
 	if (fromResolvedRoot === ".." || fromResolvedRoot.startsWith(`..${sep}`) || isAbsolute(fromResolvedRoot)) {
 		throw new Error("File path must stay within the repository root");
 	}
-}
-
-function isNoIndexDifference(err: unknown): err is Error & { stdout: string } {
-	if (!(err instanceof Error)) {
-		return false;
-	}
-	if (!("code" in err) || err.code !== 1) {
-		return false;
-	}
-	if (!("killed" in err) || err.killed !== false) {
-		return false;
-	}
-	if (!("signal" in err) || err.signal !== null) {
-		return false;
-	}
-
-	return "stdout" in err && typeof err.stdout === "string";
-}
-
-function isNoIndexPatch(err: unknown): err is Error & { stdout: string } {
-	return isNoIndexDifference(err) && err.stdout.includes("diff --git ");
-}
-
-function isGitOutputOverflow(err: unknown): boolean {
-	if (!(err instanceof Error) || !("code" in err)) {
-		return false;
-	}
-
-	return err.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER";
-}
-
-function nulSeparatedPaths(raw: string): string[] {
-	return raw.split("\0").filter(Boolean);
 }
 
 function trackedStatus(statusCode: string | undefined, renamed: boolean): FileChange["status"] {

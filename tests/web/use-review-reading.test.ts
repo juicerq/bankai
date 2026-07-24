@@ -32,7 +32,7 @@ function closing(closed: string[]) {
 
 function snapshotOf(paths: string[]): ReviewSnapshot {
 	return {
-		isRepo: true,
+		state: "ready",
 		files: paths.map((path) => ({ path, status: "modified", additions: 1, deletions: 0 })),
 		totals: { additions: paths.length, deletions: 0, files: paths.length },
 	};

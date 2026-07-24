@@ -1,5 +1,6 @@
 import { Git } from "@main/git/Git";
 import { gitRequestSchema, type GitResponse } from "@main/git/protocol";
+import { captureTurnBaseline, turnBaselines } from "@main/git/TurnBaseline";
 
 let queue = Promise.resolve();
 
@@ -25,13 +26,19 @@ process.parentPort.on("message", (event) => {
 async function execute(request: typeof gitRequestSchema.infer) {
 	switch (request.operation) {
 		case "snapshot":
-			return await Git.snapshot(request.path, request.mode);
+			return await Git.snapshot(request);
 		case "files":
-			return await Git.files({ path: request.path, files: request.files, mode: request.mode });
+			return await Git.files(request);
 		case "file":
-			return await Git.file({ path: request.path, file: request.file, mode: request.mode });
+			return await Git.file(request);
 		case "fullFile":
-			return await Git.fullFile({ path: request.path, file: request.file, mode: request.mode });
+			return await Git.fullFile(request);
+		case "startTurn":
+			await captureTurnBaseline(request);
+			return null;
+		case "forgetTurn":
+			turnBaselines.delete(request.shellId);
+			return null;
 	}
 }
 

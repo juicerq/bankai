@@ -352,6 +352,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 				>
 					<ReviewPanel
 						project={project}
+						shellId={activeTabId}
 						minDiffWidth={MIN_DIFF_WIDTH}
 						treeOpen={treeOpen}
 						treeDivider={treeDivider}

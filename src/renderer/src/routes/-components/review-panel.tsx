@@ -6,17 +6,14 @@ import { ReviewDiff, type ReviewDiffHandle } from "@renderer/routes/-components/
 import { ReviewFocusedFile } from "@renderer/routes/-components/review-focused-file";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
 import { REVIEW_DIFF_WIDTH_VALUE } from "@renderer/routes/-utils/review-layout";
+import { REVIEW_SCOPES } from "@renderer/routes/-utils/review-scope";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
 import type { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useReviewReading } from "@renderer/routes/-utils/use-review-reading";
 
-const MODES: { mode: ReviewMode; label: string }[] = [
-	{ mode: "uncommitted", label: "Uncommitted" },
-	{ mode: "branch", label: "Branch" },
-];
-
 export function ReviewPanel({
 	project,
+	shellId,
 	minDiffWidth,
 	treeOpen,
 	treeDivider,
@@ -24,6 +21,7 @@ export function ReviewPanel({
 	onClose,
 }: {
 	project: Project;
+	shellId?: string;
 	minDiffWidth: number;
 	treeOpen: boolean;
 	treeDivider: ReturnType<typeof useDivider>;
@@ -38,6 +36,7 @@ export function ReviewPanel({
 	const { generation, fullFile, error, refreshing } = useReviewReading({
 		projectId: project.id,
 		mode,
+		shellId,
 		isFileOpen,
 		focusedPath,
 	});
@@ -142,7 +141,7 @@ export function ReviewPanel({
 							<FolderIcon className="size-4" />
 						</button>
 						<div className="flex h-full" role="group" aria-label="Diff scope">
-							{MODES.map((option) => (
+							{REVIEW_SCOPES.map((option) => (
 								<button
 									type="button"
 									key={option.mode}
@@ -168,7 +167,7 @@ export function ReviewPanel({
 								className="review-refreshing size-[6px] shrink-0 rounded-full bg-secondary"
 							/>
 						)}
-						{currentSnapshot?.isRepo && (
+						{currentSnapshot?.state === "ready" && (
 							<div
 								className="flex gap-2 text-data"
 								aria-label={`${currentSnapshot.totals.additions} additions, ${currentSnapshot.totals.deletions} removals`}
@@ -177,7 +176,7 @@ export function ReviewPanel({
 								<span className="text-removed">−{currentSnapshot.totals.deletions}</span>
 							</div>
 						)}
-						{currentSnapshot?.isRepo && (
+						{currentSnapshot?.state === "ready" && (
 							<div className="flex items-center" role="group" aria-label="Collapse or expand all files">
 								<button
 									type="button"
@@ -214,6 +213,7 @@ export function ReviewPanel({
 					<ReviewDiff
 						key={mode}
 						ref={diff}
+						mode={mode}
 						generation={generation}
 						error={error}
 						covered={!!focusedFile}

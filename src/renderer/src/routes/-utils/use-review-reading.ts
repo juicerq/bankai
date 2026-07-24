@@ -10,6 +10,12 @@ type ReviewWatchState =
 	| { status: "ready" }
 	| { status: "error"; error: string };
 
+interface ReviewScopeInput {
+	projectId: string;
+	mode: ReviewMode;
+	shellId?: string;
+}
+
 interface ReviewReadingGeneration {
 	layoutGeneration: number;
 	snapshot: ReviewSnapshot;
@@ -26,11 +32,13 @@ export interface ReviewReading {
 export function useReviewReading({
 	projectId,
 	mode,
+	shellId,
 	isFileOpen,
 	focusedPath,
 }: {
 	projectId: string;
 	mode: ReviewMode;
+	shellId?: string;
 	isFileOpen: (path: string) => boolean;
 	focusedPath?: string;
 }): ReviewReading {
@@ -38,9 +46,15 @@ export function useReviewReading({
 	const watchReady = watch.status === "ready";
 	const watchError = watch.status === "error" ? watch.error : undefined;
 
+	const turnShellId = mode === "last-turn" ? shellId : undefined;
+	const scope = useMemo(
+		() => ({ projectId, mode, ...(turnShellId ? { shellId: turnShellId } : {}) }),
+		[projectId, mode, turnShellId],
+	);
+
 	const snapshotQuery = useQuery(
 		orpc.review.snapshot.queryOptions({
-			input: { projectId, mode },
+			input: scope,
 			enabled: watchReady,
 			placeholderData: keepPreviousData,
 		}),
@@ -49,21 +63,21 @@ export function useReviewReading({
 	const queryError = snapshotQuery.isError ? String(snapshotQuery.error) : undefined;
 	const files = currentSnapshot?.files ?? [];
 
-	const layout = useLayoutGeneration(projectId, mode, files, isFileOpen);
+	const layout = useLayoutGeneration(scope, files, isFileOpen);
 	const initialPathSet = useMemo(() => new Set(layout.initialPaths), [layout.initialPaths]);
 
 	const prepare = watchReady && !snapshotQuery.isPlaceholderData;
 
 	const initialContentQuery = useQuery(
 		orpc.review.files.queryOptions({
-			input: { projectId, files: layout.initialPaths, mode },
+			input: { ...scope, files: layout.initialPaths },
 			enabled: prepare && layout.initialPaths.length > 0,
 		}),
 	);
 	const fileQueries = useQueries({
 		queries: files.map((file) =>
 			orpc.review.file.queryOptions({
-				input: { projectId, path: file.path, mode },
+				input: { ...scope, path: file.path },
 				enabled: prepare && isFileOpen(file.path) && !initialPathSet.has(file.path),
 			}),
 		),
@@ -105,7 +119,7 @@ export function useReviewReading({
 
 	const fullFileQuery = useQuery(
 		orpc.review.fullFile.queryOptions({
-			input: { projectId, path: focusedPath ?? "", mode },
+			input: { ...scope, path: focusedPath ?? "" },
 			enabled: watchReady && !!focusedPath,
 		}),
 	);
@@ -117,7 +131,7 @@ export function useReviewReading({
 			...(!snapshotQuery.isPlaceholderData && contentReady ? { contentByPath } : {}),
 		}
 		: undefined;
-	const published = useRetainedReading({ projectId, mode, reading });
+	const published = useRetainedReading(scope, reading);
 
 	if (watchError) {
 		return { error: watchError, refreshing: false };
@@ -137,25 +151,17 @@ export function useReviewReading({
 	return result;
 }
 
-function useRetainedReading({
-	projectId,
-	mode,
-	reading,
-}: {
-	projectId: string;
-	mode: ReviewMode;
-	reading?: ReviewReadingGeneration;
-}) {
-	const ref = useRef<{ projectId: string; mode: ReviewMode; reading: ReviewReadingGeneration }>(null);
+function useRetainedReading(scope: ReviewScopeInput, reading?: ReviewReadingGeneration) {
+	const ref = useRef<{ scope: ReviewScopeInput; reading: ReviewReadingGeneration }>(null);
 
 	if (reading?.contentByPath) {
-		ref.current = { projectId, mode, reading };
+		ref.current = { scope, reading };
 		return reading;
 	}
 
 	const retained = ref.current;
 	const replaces = retained?.reading.layoutGeneration !== reading?.layoutGeneration;
-	if (retained && replaces && retained.projectId === projectId && retained.mode === mode) {
+	if (retained && replaces && retained.scope === scope) {
 		return retained.reading;
 	}
 
@@ -163,13 +169,12 @@ function useRetainedReading({
 }
 
 function useLayoutGeneration(
-	projectId: string,
-	mode: ReviewMode,
+	scope: ReviewScopeInput,
 	files: FileChange[],
 	isFileOpen: (path: string) => boolean,
 ) {
 	const ref = useRef<{ key: string; generation: number; initialPaths: string[] }>(null);
-	const key = `${projectId}\u0000${mode}\u0000${files.map((file) => file.path).join("\n")}`;
+	const key = `${scope.projectId}\u0000${scope.mode}\u0000${scope.shellId ?? ""}\u0000${files.map((file) => file.path).join("\n")}`;
 	const previous = ref.current;
 
 	if (!previous || previous.key !== key) {

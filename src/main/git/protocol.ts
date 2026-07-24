@@ -6,6 +6,7 @@ export const gitRequestSchema = type({
 	operation: "'snapshot'",
 	path: "string",
 	mode: reviewModeSchema,
+	"shellId?": "string",
 })
 	.or({
 		id: "string",
@@ -13,6 +14,7 @@ export const gitRequestSchema = type({
 		path: "string",
 		files: "string[]",
 		mode: reviewModeSchema,
+		"shellId?": "string",
 	})
 	.or({
 		id: "string",
@@ -20,6 +22,7 @@ export const gitRequestSchema = type({
 		path: "string",
 		file: "string",
 		mode: reviewModeSchema,
+		"shellId?": "string",
 	})
 	.or({
 		id: "string",
@@ -27,6 +30,18 @@ export const gitRequestSchema = type({
 		path: "string",
 		file: "string",
 		mode: reviewModeSchema,
+		"shellId?": "string",
+	})
+	.or({
+		id: "string",
+		operation: "'startTurn'",
+		path: "string",
+		shellId: "string",
+	})
+	.or({
+		id: "string",
+		operation: "'forgetTurn'",
+		shellId: "string",
 	});
 export type GitRequest = typeof gitRequestSchema.infer;
 

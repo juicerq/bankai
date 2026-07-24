@@ -4,8 +4,11 @@ import { bindShells, childrenByParent } from "@main/activity/SessionBinder";
 import { discoverAgents } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
 import { reconcileSessionRefs, type SessionRef } from "@main/activity/SessionRefs";
+import { GitProcess } from "@main/git/GitProcess";
+import { ReviewChanges } from "@main/git/ReviewChanges";
 import { Logger } from "@main/logger";
 import { Continuity } from "@main/store/continuity";
+import { Projects } from "@main/store/projects";
 import { TerminalSessions } from "@main/terminal/TerminalSessions";
 import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
 
@@ -55,6 +58,36 @@ export function nextShellActivity(
 	}
 
 	return next;
+}
+
+function turnOpen(state: AgentActivityState | undefined): boolean {
+	return state === "working" || state === "needs-attention";
+}
+
+export function turnStartShells(
+	before: ReadonlyMap<string, AgentActivityState>,
+	after: ReadonlyMap<string, AgentActivityState>,
+): string[] {
+	const started: string[] = [];
+
+	for (const [sessionId, state] of after) {
+		if (turnOpen(state) && !turnOpen(before.get(sessionId))) {
+			started.push(sessionId);
+		}
+	}
+
+	return started;
+}
+
+interface ShellOwner {
+	projectId: string;
+	shellId: string;
+}
+
+function shellOwners(shells: { sessionId: string; projectId: string; shellId: string }[]): Map<string, ShellOwner> {
+	return new Map(
+		shells.map((shell) => [shell.sessionId, { projectId: shell.projectId, shellId: shell.shellId }]),
+	);
 }
 
 export function aggregateProjectActivity(
@@ -158,7 +191,7 @@ class AgentActivityTracker {
 
 		const cleared = new Map(this.shellStates);
 		cleared.delete(sessionId);
-		this.commit(cleared, this.shellProjects());
+		this.commit(cleared, shellOwners(TerminalSessions.list()));
 	}
 
 	private runTick(): void {
@@ -176,13 +209,13 @@ class AgentActivityTracker {
 
 	private async tick(): Promise<void> {
 		const shells = TerminalSessions.list();
-		const shellProjects = new Map(shells.map((shell) => [shell.sessionId, shell.projectId]));
+		const owners = shellOwners(shells);
 		if (shells.length === 0) {
 			this.boundSessions = new Set();
 			this.sessionRefs = new Map();
 			this.attention.clear();
 			this.attentionTail.clear();
-			this.commit(new Map(), shellProjects);
+			this.commit(new Map(), owners);
 			return;
 		}
 
@@ -207,7 +240,7 @@ class AgentActivityTracker {
 		const children = needsWalk ? await childrenByParent() : new Map<number, number[]>();
 		const bindings = bindShells(foregrounds, livePids, children);
 		this.boundSessions = new Set(bindings.keys());
-		this.pruneAttention(shellProjects);
+		this.pruneAttention(owners);
 
 		const nextStates = new Map<string, AgentActivityState>();
 		for (const shell of shells) {
@@ -228,7 +261,7 @@ class AgentActivityTracker {
 		}
 
 		this.captureSessionRefs(shells, bindings, liveByPid);
-		this.commit(nextStates, shellProjects);
+		this.commit(nextStates, owners);
 	}
 
 	private captureSessionRefs(
@@ -260,11 +293,7 @@ class AgentActivityTracker {
 		}
 	}
 
-	private shellProjects(): Map<string, string> {
-		return new Map(TerminalSessions.list().map((shell) => [shell.sessionId, shell.projectId]));
-	}
-
-	private pruneAttention(present: Map<string, string>): void {
+	private pruneAttention(present: Map<string, ShellOwner>): void {
 		for (const sessionId of this.attention) {
 			if (!present.has(sessionId)) {
 				this.attention.delete(sessionId);
@@ -279,19 +308,20 @@ class AgentActivityTracker {
 
 	private commit(
 		shellStates: Map<string, AgentActivityState>,
-		shellProjects: Map<string, string>,
+		owners: Map<string, ShellOwner>,
 	): void {
+		const previousStates = this.shellStates;
 		this.shellStates = shellStates;
 
 		const shellsByProject = new Map<string, Record<string, AgentActivityState>>();
 		for (const [sessionId, state] of shellStates) {
-			const projectId = shellProjects.get(sessionId);
-			if (projectId === undefined) {
+			const owner = owners.get(sessionId);
+			if (owner === undefined) {
 				continue;
 			}
-			const grouped = shellsByProject.get(projectId) ?? {};
+			const grouped = shellsByProject.get(owner.projectId) ?? {};
 			grouped[sessionId] = state;
-			shellsByProject.set(projectId, grouped);
+			shellsByProject.set(owner.projectId, grouped);
 		}
 
 		const nextSnapshots = new Map<string, ProjectActivitySnapshot>();
@@ -305,6 +335,16 @@ class AgentActivityTracker {
 		const previous = this.projectSnapshots;
 		this.projectSnapshots = nextSnapshots;
 
+		for (const sessionId of turnStartShells(previousStates, shellStates)) {
+			const owner = owners.get(sessionId);
+			if (owner === undefined) {
+				continue;
+			}
+			this.captureTurnBaseline(owner).catch((err) =>
+				Logger.error("activity:turn-baseline-failed", { ...owner, err: String(err) }),
+			);
+		}
+
 		for (const projectId of new Set([...previous.keys(), ...nextSnapshots.keys()])) {
 			const before = previous.get(projectId);
 			const after = nextSnapshots.get(projectId) ?? emptySnapshot();
@@ -312,6 +352,12 @@ class AgentActivityTracker {
 				this.notify(projectId, after);
 			}
 		}
+	}
+
+	private async captureTurnBaseline(owner: ShellOwner): Promise<void> {
+		const project = await Projects.find(owner.projectId);
+		await GitProcess.startTurn({ path: project.path, shellId: owner.shellId });
+		ReviewChanges.touch(project.path);
 	}
 
 	private notify(projectId: string, snapshot: ProjectActivitySnapshot): void {

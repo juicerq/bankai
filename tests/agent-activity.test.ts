@@ -2,10 +2,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
-import { aggregateProjectActivity, nextShellActivity } from "@main/activity/AgentActivity";
+import { aggregateProjectActivity, nextShellActivity, turnStartShells } from "@main/activity/AgentActivity";
 import { matchesAttentionPrompt } from "@main/activity/attention";
 import { ClaudeHarness, parseSessionRecord } from "@main/activity/claude";
 import { bindShells } from "@main/activity/SessionBinder";
+import type { AgentActivityState } from "@shared/activity";
 
 const BUSY_RECORD =
 	'{"pid":141653,"sessionId":"67af1e51-358c-475f-b33a-7de1e199d0a5","cwd":"/home/jui/projects/bankai-2","startedAt":1784894292497,"procStart":"215800","version":"2.1.218","kind":"interactive","status":"busy","updatedAt":1784901075701}';
@@ -77,6 +78,39 @@ describe("project aggregation", () => {
 
 	test("no shells means no project signal", () => {
 		expect(aggregateProjectActivity([])).toBeNull();
+	});
+});
+
+describe("shell turns", () => {
+	function shells(states: Record<string, AgentActivityState>) {
+		return new Map<string, AgentActivityState>(Object.entries(states));
+	}
+
+	test("a shell that starts working opens its own turn", () => {
+		expect(turnStartShells(shells({}), shells({ a: "working" }))).toEqual(["a"]);
+	});
+
+	test("a shell staying in its turn does not open another", () => {
+		expect(turnStartShells(shells({ a: "working" }), shells({ a: "working" }))).toEqual([]);
+	});
+
+	test("a shell blocked on the user keeps the turn it is already in open", () => {
+		expect(turnStartShells(shells({ a: "working" }), shells({ a: "needs-attention" }))).toEqual([]);
+	});
+
+	test("working again after the shell went quiet opens a new turn", () => {
+		expect(turnStartShells(shells({ a: "done-unseen" }), shells({ a: "working" }))).toEqual(["a"]);
+	});
+
+	test("finished work waiting to be seen never opens a turn", () => {
+		expect(turnStartShells(shells({}), shells({ a: "done-unseen" }))).toEqual([]);
+	});
+
+	test("a sibling shell opens its turn without touching the one already working", () => {
+		const before = shells({ a: "working" });
+		const after = shells({ a: "working", b: "working", c: "needs-attention" });
+
+		expect(turnStartShells(before, after)).toEqual(["b", "c"]);
 	});
 });
 

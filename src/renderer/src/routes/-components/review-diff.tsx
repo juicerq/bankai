@@ -1,8 +1,9 @@
 import { ChevronDownIcon, ChevronRightIcon, ViewfinderCircleIcon } from "@heroicons/react/24/outline";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject, type UIEvent } from "react";
-import type { DiffLine, FileChange, ReviewContent } from "@main/git/contracts";
+import type { DiffLine, FileChange, ReviewContent, ReviewMode } from "@main/git/contracts";
 import { ReviewDiffLine, ReviewNotice, reviewContentNotice } from "@renderer/routes/-components/review-line";
+import { REVIEW_SCOPE_EMPTY } from "@renderer/routes/-utils/review-scope";
 import type { ReviewReading } from "@renderer/routes/-utils/use-review-reading";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 
@@ -29,6 +30,7 @@ export interface ReviewDiffHandle {
 
 export function ReviewDiff({
 	ref,
+	mode,
 	generation,
 	error,
 	covered,
@@ -37,6 +39,7 @@ export function ReviewDiff({
 	onFocusFile,
 }: {
 	ref?: Ref<ReviewDiffHandle>;
+	mode: ReviewMode;
 	generation?: NonNullable<ReviewReading["generation"]>;
 	error?: string;
 	covered: boolean;
@@ -52,11 +55,14 @@ export function ReviewDiff({
 	if (!snapshot) {
 		return <ReviewNotice>{error ?? "Reading changes\u2026"}</ReviewNotice>;
 	}
-	if (!snapshot.isRepo) {
-		return <ReviewNotice>Not a git repository.</ReviewNotice>;
+	if (snapshot.state === "not-a-repo") {
+		return <ReviewNotice reason="not-a-repo">Not a git repository.</ReviewNotice>;
+	}
+	if (snapshot.state === "no-turn") {
+		return <ReviewNotice reason="no-turn">No agent turn seen in this shell yet.</ReviewNotice>;
 	}
 	if (files.length === 0) {
-		return <ReviewNotice>No changes in the working tree.</ReviewNotice>;
+		return <ReviewNotice reason="empty">{REVIEW_SCOPE_EMPTY[mode]}</ReviewNotice>;
 	}
 	if (!contentByPath) {
 		return <ReviewNotice>Reading changes…</ReviewNotice>;

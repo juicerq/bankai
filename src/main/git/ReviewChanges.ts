@@ -36,6 +36,15 @@ class ReviewChangeObserver {
 		};
 	}
 
+	touch(path: string): void {
+		const project = this.projects.get(path);
+		if (!project) {
+			return;
+		}
+
+		this.notify(project);
+	}
+
 	private observe(path: string): ObservedProject {
 		const project: ObservedProject = {
 			listeners: new Set(),

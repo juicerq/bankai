@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 import { join } from "node:path";
-import { utilityProcess, type UtilityProcess } from "electron";
+import type * as ElectronModule from "electron";
 import {
 	reviewContentSchema,
 	reviewFilesSchema,
@@ -14,11 +15,21 @@ import {
 import { gitResponseSchema, type GitRequest } from "@main/git/protocol";
 import { Logger } from "@main/logger";
 
+const require = createRequire(import.meta.url);
+
+interface ReviewScope {
+	path: string;
+	mode: ReviewMode;
+	shellId?: string;
+}
+
 type GitRequestInput =
-	| { operation: "snapshot"; path: string; mode: ReviewMode }
-	| { operation: "files"; path: string; files: string[]; mode: ReviewMode }
-	| { operation: "file"; path: string; file: string; mode: ReviewMode }
-	| { operation: "fullFile"; path: string; file: string; mode: ReviewMode };
+	| ({ operation: "snapshot" } & ReviewScope)
+	| ({ operation: "files"; files: string[] } & ReviewScope)
+	| ({ operation: "file"; file: string } & ReviewScope)
+	| ({ operation: "fullFile"; file: string } & ReviewScope)
+	| { operation: "startTurn"; path: string; shellId: string }
+	| { operation: "forgetTurn"; shellId: string };
 
 interface PendingRequest {
 	resolve: (value: unknown) => void;
@@ -26,7 +37,7 @@ interface PendingRequest {
 }
 
 interface ChildState {
-	process: UtilityProcess;
+	process: ElectronModule.UtilityProcess;
 	ready: Promise<void>;
 	rejectReady: (err: Error) => void;
 }
@@ -36,19 +47,27 @@ class GitUtilityProcess {
 	private readonly pending = new Map<string, PendingRequest>();
 	private closed = false;
 
-	async snapshot(path: string, mode: ReviewMode): Promise<ReviewSnapshot> {
-		return reviewSnapshotSchema.assert(await this.request({ operation: "snapshot", path, mode }));
+	async startTurn(input: { path: string; shellId: string }): Promise<void> {
+		await this.request({ operation: "startTurn", ...input });
 	}
 
-	async files(input: { path: string; files: string[]; mode: ReviewMode }): Promise<ReviewFiles> {
+	async forgetTurn(shellId: string): Promise<void> {
+		await this.request({ operation: "forgetTurn", shellId });
+	}
+
+	async snapshot(scope: ReviewScope): Promise<ReviewSnapshot> {
+		return reviewSnapshotSchema.assert(await this.request({ operation: "snapshot", ...scope }));
+	}
+
+	async files(input: ReviewScope & { files: string[] }): Promise<ReviewFiles> {
 		return reviewFilesSchema.assert(await this.request({ operation: "files", ...input }));
 	}
 
-	async file(input: { path: string; file: string; mode: ReviewMode }): Promise<ReviewContent> {
+	async file(input: ReviewScope & { file: string }): Promise<ReviewContent> {
 		return reviewContentSchema.assert(await this.request({ operation: "file", ...input }));
 	}
 
-	async fullFile(input: { path: string; file: string; mode: ReviewMode }): Promise<FullFile> {
+	async fullFile(input: ReviewScope & { file: string }): Promise<FullFile> {
 		return reviewContentSchema.assert(await this.request({ operation: "fullFile", ...input }));
 	}
 
@@ -93,6 +112,7 @@ class GitUtilityProcess {
 	}
 
 	private spawn(): ChildState {
+		const { utilityProcess }: typeof ElectronModule = require("electron");
 		const child = utilityProcess.fork(join(import.meta.dirname, "git-worker.js"), [], {
 			serviceName: "Bankai Git",
 			stdio: ["ignore", "ignore", "pipe"],

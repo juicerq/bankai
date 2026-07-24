@@ -1,6 +1,6 @@
 import { type } from "arktype";
 
-export const reviewModeSchema = type("'uncommitted' | 'branch'");
+export const reviewModeSchema = type("'uncommitted' | 'branch' | 'last-turn'");
 export type ReviewMode = typeof reviewModeSchema.infer;
 
 const diffLineSchema = type({
@@ -34,7 +34,7 @@ const fileChangeSchema = type({
 export type FileChange = typeof fileChangeSchema.infer;
 
 export const reviewSnapshotSchema = type({
-	isRepo: "boolean",
+	state: "'ready' | 'not-a-repo' | 'no-turn'",
 	files: fileChangeSchema.array(),
 	totals: {
 		additions: "number",

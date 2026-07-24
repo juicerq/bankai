@@ -49,8 +49,16 @@ The region that presents the review: the scope selector, the totals, and the dif
 _Avoid_: Sidebar, drawer
 
 **Scope**:
-Which set of changes the review reads. Two exist: Uncommitted, the working tree against `HEAD`; and Branch, the whole branch against its merge-base with the default branch.
+Which set of changes the review reads. Three exist: Uncommitted, the working tree against `HEAD`; Branch, the whole branch against its merge-base with the default branch; and Last turn, the working tree against the Turn baseline of the active Shell.
 _Avoid_: Mode, filter, range
+
+**Shell turn**:
+The stretch during which one Shell has its Agent working. It opens when that shell starts Working or Needs attention after being quiet, and closes when the agent stops. Each shell turns on its own — two tabs in the same project never share one.
+_Avoid_: Session, run, cycle
+
+**Turn baseline**:
+What the project's files looked like when a Shell's current turn opened: the commit `HEAD` pointed at, plus the content of every file that already differed from it. Held per shell while Bankai runs, replaced by that shell's next turn and dropped when its tab closes, never persisted; without one the Last turn scope has nothing to read against.
+_Avoid_: Snapshot, checkpoint, stash
 
 **Changed file**:
 One file the current scope reports as differing, including a file git does not track yet. The unit the review is organized by.

@@ -1,39 +1,37 @@
 import { type } from "arktype";
-import { reviewModeSchema } from "@main/git/contracts";
+import { reviewModeSchema, type ReviewMode } from "@main/git/contracts";
 import { GitProcess } from "@main/git/GitProcess";
 import { base } from "@main/router/_base";
 import { Projects } from "@main/store/projects";
 
+const scopeInput = type({ projectId: "string", mode: reviewModeSchema, "shellId?": "string" });
+
+async function reviewScope(input: { projectId: string; mode: ReviewMode; shellId?: string }) {
+	const project = await Projects.find(input.projectId);
+
+	return { path: project.path, mode: input.mode, ...(input.shellId ? { shellId: input.shellId } : {}) };
+}
+
 export const reviewRouter = {
 	snapshot: base
-		.input(type({ projectId: "string", mode: reviewModeSchema }))
-		.handler(async ({ input }) => {
-			const project = await Projects.find(input.projectId);
-			return await GitProcess.snapshot(project.path, input.mode);
-		}),
+		.input(scopeInput)
+		.handler(async ({ input }) => await GitProcess.snapshot(await reviewScope(input))),
 
 	files: base
-		.input(type({ projectId: "string", files: "string[]", mode: reviewModeSchema }))
+		.input(scopeInput.and({ files: "string[]" }))
 		.handler(async ({ input }) => {
 			if (new Set(input.files).size !== input.files.length) {
 				throw new Error("Review file paths must be unique");
 			}
 
-			const project = await Projects.find(input.projectId);
-			return await GitProcess.files({ path: project.path, files: input.files, mode: input.mode });
+			return await GitProcess.files({ ...(await reviewScope(input)), files: input.files });
 		}),
 
 	file: base
-		.input(type({ projectId: "string", path: "string", mode: reviewModeSchema }))
-		.handler(async ({ input }) => {
-			const project = await Projects.find(input.projectId);
-			return await GitProcess.file({ path: project.path, file: input.path, mode: input.mode });
-		}),
+		.input(scopeInput.and({ path: "string" }))
+		.handler(async ({ input }) => await GitProcess.file({ ...(await reviewScope(input)), file: input.path })),
 
 	fullFile: base
-		.input(type({ projectId: "string", path: "string", mode: reviewModeSchema }))
-		.handler(async ({ input }) => {
-			const project = await Projects.find(input.projectId);
-			return await GitProcess.fullFile({ path: project.path, file: input.path, mode: input.mode });
-		}),
+		.input(scopeInput.and({ path: "string" }))
+		.handler(async ({ input }) => await GitProcess.fullFile({ ...(await reviewScope(input)), file: input.path })),
 };

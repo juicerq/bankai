@@ -58,8 +58,16 @@ export function ReviewDiffLine({
 	);
 }
 
-export function ReviewNotice({ children }: { children: string }) {
-	return <div className="flex h-10 min-w-full items-center px-3 text-data text-secondary">{children}</div>;
+export function ReviewNotice({ reason, children }: { reason?: string; children: string }) {
+	return (
+		<div
+			data-component="review-notice"
+			data-reason={reason}
+			className="flex h-10 min-w-full items-center px-3 text-data text-secondary"
+		>
+			{children}
+		</div>
+	);
 }
 
 export function reviewContentNotice(content: Exclude<ReviewContent, { status: "ready" }>, full: boolean): string {

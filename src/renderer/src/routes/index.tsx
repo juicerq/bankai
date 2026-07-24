@@ -7,6 +7,7 @@ import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ProjectRail } from "@renderer/routes/-components/project-rail";
 import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
+import { UpdateNotification } from "@renderer/routes/-components/update-notification";
 import { WindowControls } from "@renderer/routes/-components/window-controls";
 import {
 	MAX_RAIL_WIDTH,
@@ -140,6 +141,7 @@ function Bankai() {
 	return (
 		<main ref={registerShortcuts} className="relative flex h-full bg-surface">
 			<WindowControls />
+			<UpdateNotification />
 			<ProjectRailFrame projectRail={projectRail} divider={railDivider} frameRef={railFrameRef} railWidth={railWidth}>
 				<ProjectRail
 					projects={availableProjects}

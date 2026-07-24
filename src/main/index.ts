@@ -6,6 +6,7 @@ import { startOrpcServer } from "@main/ipc";
 import { Logger } from "@main/logger";
 import { type SettingsValue, Settings } from "@main/store/settings";
 import { setupTerminalIpc } from "@main/terminal/ipc";
+import { setupUpdateIpc } from "@main/update/ipc";
 import { setupWindowIpc } from "@main/window/ipc";
 import { app, BrowserWindow, screen } from "electron";
 
@@ -111,6 +112,7 @@ async function start() {
 		setupActivityIpc();
 		setupTerminalIpc();
 		setupWindowIpc();
+		setupUpdateIpc();
 		await createWindow();
 	} catch (err) {
 		Logger.error("startup:failed", { err: String(err) });

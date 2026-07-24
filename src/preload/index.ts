@@ -7,6 +7,7 @@ import type {
 } from "@shared/terminal";
 import { ACTIVITY_IPC, type ActivityChangedEvent, type BankaiActivityApi } from "@shared/activity";
 import { REVIEW_IPC, type BankaiReviewApi, type ReviewChangedEvent } from "@shared/review";
+import { UPDATE_IPC, type BankaiUpdateApi, type UpdateDownloadedEvent } from "@shared/update";
 import type { BankaiWindowApi } from "@shared/window";
 
 window.addEventListener("message", (event) => {
@@ -87,6 +88,20 @@ const activityApi: BankaiActivityApi = {
 };
 
 contextBridge.exposeInMainWorld("bankaiActivity", activityApi);
+
+const updateApi: BankaiUpdateApi = {
+	getPending: () => ipcRenderer.invoke(UPDATE_IPC.getPending),
+	install: () => ipcRenderer.send(UPDATE_IPC.install),
+	onDownloaded: (listener) => {
+		const handler = (_event: Electron.IpcRendererEvent, payload: UpdateDownloadedEvent) => {
+			listener(payload);
+		};
+		ipcRenderer.on(UPDATE_IPC.downloaded, handler);
+		return () => ipcRenderer.removeListener(UPDATE_IPC.downloaded, handler);
+	},
+};
+
+contextBridge.exposeInMainWorld("bankaiUpdate", updateApi);
 
 const windowApi: BankaiWindowApi = {
 	minimize: () => ipcRenderer.send("window:minimize"),

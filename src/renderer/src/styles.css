@@ -144,6 +144,21 @@
 	background-color: var(--color-terminal-background);
 }
 
+@keyframes update-toast-enter {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.update-toast-enter {
+	animation: update-toast-enter 300ms ease-out;
+}
+
 .diff-line-add {
 	background: color-mix(in srgb, var(--color-added) 20%, transparent);
 }

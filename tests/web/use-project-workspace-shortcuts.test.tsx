@@ -8,12 +8,17 @@ afterEach(cleanup);
 
 function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 	const [reviewOpen, setReviewOpen] = useState(true);
-	const [activeTabId, setActiveTabId] = useState("shell-1");
-	const tabs = [{ id: "shell-1" }, { id: "shell-2" }];
+	const [tabs, setTabs] = useState([{ id: "shell-1" }, { id: "shell-2" }]);
+	const [activeTabId, setActiveTabId] = useState<string | undefined>("shell-1");
 	const registerShortcuts = useProjectWorkspaceShortcuts({
 		active,
 		tabs,
+		activeTabId,
 		onActivateTab: setActiveTabId,
+		onCloseTab: (tabId) => {
+			setTabs((current) => current.filter((tab) => tab.id !== tabId));
+			setActiveTabId((current) => (current === tabId ? undefined : current));
+		},
 		onToggleReview: () => setReviewOpen((open) => !open),
 	});
 
@@ -23,6 +28,7 @@ function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 			data-component="workspace-shortcut-state"
 			data-review-open={reviewOpen}
 			data-active-tab-id={activeTabId}
+			data-tab-ids={tabs.map((tab) => tab.id).join(",")}
 		/>
 	);
 }
@@ -44,6 +50,26 @@ test("review and tab shortcuts toggle the active workspace without reaching the 
 	const tabPassedThrough = fireEvent.keyDown(window, { key: "2", code: "Digit2", altKey: true });
 	expect(tabPassedThrough).toBe(false);
 	expect(get("workspace-shortcut-state").dataset.activeTabId).toBe("shell-2");
+});
+
+test("the leader followed by x closes the shell the user is on", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	const closePassedThrough = fireEvent.keyDown(window, { key: "x", code: "KeyX" });
+
+	expect(closePassedThrough).toBe(false);
+	expect(get("workspace-shortcut-state").dataset.tabIds).toBe("shell-2");
+	expect(get("workspace-shortcut-state").dataset.activeTabId).toBeUndefined();
+});
+
+test("x on its own reaches the Shell instead of closing it", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	const typedPassedThrough = fireEvent.keyDown(window, { key: "x", code: "KeyX" });
+
+	expect(typedPassedThrough).toBe(true);
+	expect(get("workspace-shortcut-state").dataset.tabIds).toBe("shell-1,shell-2");
 });
 
 test("window blur disarms a pending review shortcut", () => {

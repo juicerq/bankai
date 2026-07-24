@@ -5,12 +5,16 @@ const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
 export function useProjectWorkspaceShortcuts({
 	active,
 	tabs,
+	activeTabId,
 	onActivateTab,
+	onCloseTab,
 	onToggleReview,
 }: {
 	active: boolean;
 	tabs: { id: string }[];
+	activeTabId?: string;
 	onActivateTab: (tabId: string) => void;
+	onCloseTab: (tabId: string) => void;
 	onToggleReview: () => void;
 }) {
 	return useCallback(() => {
@@ -23,11 +27,14 @@ export function useProjectWorkspaceShortcuts({
 
 			if (leaderArmed) {
 				leaderArmed = false;
-				if (event.code !== "KeyR") {
-					return;
+				if (event.code === "KeyR") {
+					return onToggleReview;
+				}
+				if (event.code === "KeyX" && activeTabId) {
+					return () => onCloseTab(activeTabId);
 				}
 
-				return onToggleReview;
+				return;
 			}
 
 			if (event.ctrlKey && !event.altKey && !event.metaKey && event.code === "KeyX") {
@@ -72,5 +79,5 @@ export function useProjectWorkspaceShortcuts({
 			window.removeEventListener("keydown", handleKeyDown, true);
 			window.removeEventListener("blur", handleWindowBlur);
 		};
-	}, [active, tabs, onActivateTab, onToggleReview]);
+	}, [active, tabs, activeTabId, onActivateTab, onCloseTab, onToggleReview]);
 }

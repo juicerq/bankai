@@ -223,13 +223,6 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		startReviewMotion();
 		onReviewOpenChange(false);
 	};
-	const registerWorkspaceShortcuts = useProjectWorkspaceShortcuts({
-		active,
-		tabs,
-		onActivateTab: selectTab,
-		onToggleReview: handleToggleReview,
-	});
-
 	const handleMoveShell = (data: { tabId: string; toIndex: number }) => {
 		setTabs((current) => {
 			const others = current.filter((tab) => tab.id !== data.tabId);
@@ -240,19 +233,31 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		onShellMove(project.id, data.tabId, data.toIndex);
 	};
 
-	const handleCloseShell = (tabId: string) => {
-		const tabIndex = tabs.findIndex((tab) => tab.id === tabId);
-		const remaining = tabs.filter((tab) => tab.id !== tabId);
-		setTabs(remaining);
-		setSessionIds((current) => {
-			const { [tabId]: _removed, ...rest } = current;
-			return rest;
-		});
-		if (activeTabId === tabId) {
-			setActiveTabId(remaining[Math.max(0, tabIndex - 1)]?.id);
-		}
-		onShellClose(project.id, tabId);
-	};
+	const handleCloseShell = useCallback(
+		(tabId: string) => {
+			const tabIndex = tabs.findIndex((tab) => tab.id === tabId);
+			const remaining = tabs.filter((tab) => tab.id !== tabId);
+			setTabs(remaining);
+			setSessionIds((current) => {
+				const { [tabId]: _removed, ...rest } = current;
+				return rest;
+			});
+			if (activeTabId === tabId) {
+				setActiveTabId(remaining[Math.max(0, tabIndex - 1)]?.id);
+			}
+			onShellClose(project.id, tabId);
+		},
+		[tabs, activeTabId, onShellClose, project.id],
+	);
+
+	const registerWorkspaceShortcuts = useProjectWorkspaceShortcuts({
+		active,
+		tabs,
+		activeTabId,
+		onActivateTab: selectTab,
+		onCloseTab: handleCloseShell,
+		onToggleReview: handleToggleReview,
+	});
 	const reviewWidth = REVIEW_SEPARATOR_WIDTH + renderedDiffWidth + renderedTreeWidth;
 	const liveReviewWidth = `calc(${REVIEW_DIFF_WIDTH_VALUE} + ${REVIEW_TREE_WIDTH_VALUE} + ${REVIEW_SEPARATOR_WIDTH}px)`;
 
@@ -427,6 +432,7 @@ export function ProjectWorkspaceShellTabs({
 							className="h-full px-3 text-body text-outline-strong hover:text-primary"
 							onClick={() => onClose(tab.id)}
 							aria-label={`Close ${tab.label}`}
+							title={selected ? `Close ${tab.label} (Ctrl+X X)` : undefined}
 						>
 							×
 						</button>

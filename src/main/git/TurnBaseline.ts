@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { lstat, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { GIT_OUTPUT_MAX_BYTES, gitText, nulSeparatedPaths } from "@main/git/run";
+import { GIT_OUTPUT_MAX_BYTES, gitText, isRepo, nulSeparatedPaths } from "@main/git/run";
 
 const BASELINE_READ_CONCURRENCY = 16;
 
@@ -20,6 +20,10 @@ export const turnBaselines = new Map<string, TurnBaseline>();
 let workspace: Promise<string> | undefined;
 
 export async function captureTurnBaseline({ path, shellId }: { path: string; shellId: string }): Promise<void> {
+	if (!await isRepo(path)) {
+		return;
+	}
+
 	const head = await gitText(path, ["rev-parse", "--verify", "--quiet", "HEAD"])
 		.then((out) => out.trim())
 		.catch(() => null);

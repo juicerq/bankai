@@ -18,6 +18,12 @@ export async function gitText(cwd: string, args: string[]): Promise<string> {
 	return stdout;
 }
 
+export async function isRepo(path: string): Promise<boolean> {
+	return await gitText(path, ["rev-parse", "--is-inside-work-tree"])
+		.then((out) => out.trim() === "true")
+		.catch(() => false);
+}
+
 export function nulSeparatedPaths(raw: string): string[] {
 	return raw.split("\0").filter(Boolean);
 }

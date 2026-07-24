@@ -422,6 +422,17 @@ describe("Git.snapshot in the last turn scope", () => {
 			{ path: "a.txt", status: "modified", additions: 1, deletions: 0 },
 		]);
 	});
+
+	it("starts no turn in a directory git does not track", async () => {
+		assertDefined(process.env.DATA_DIR);
+		const path = join(process.env.DATA_DIR, "last-turn-outside-git");
+		mkdirSync(path);
+		const shellId = "shell-outside-git";
+
+		await captureTurnBaseline({ path, shellId });
+
+		expect(turnBaselines.has(shellId)).toBe(false);
+	});
 });
 
 describe("Git.fullFile", () => {

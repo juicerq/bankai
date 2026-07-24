@@ -14,6 +14,7 @@ import {
 	isGitOutputOverflow,
 	isNoIndexDifference,
 	isNoIndexPatch,
+	isRepo,
 	NULL_FILE,
 	nulSeparatedPaths,
 } from "@main/git/run";
@@ -113,12 +114,6 @@ function readySnapshot(files: FileChange[]): ReviewSnapshot {
 			files: files.length,
 		},
 	};
-}
-
-async function isRepo(path: string): Promise<boolean> {
-	return await gitText(path, ["rev-parse", "--is-inside-work-tree"])
-		.then((out) => out.trim() === "true")
-		.catch(() => false);
 }
 
 async function resolveBase(scope: ReviewScope): Promise<string | null> {

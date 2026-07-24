@@ -1,12 +1,12 @@
 import { ChevronDownIcon, ChevronRightIcon, ViewfinderCircleIcon } from "@heroicons/react/24/outline";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useImperativeHandle, useMemo, useRef, type Ref } from "react";
+import { useCallback, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject, type UIEvent } from "react";
 import type { DiffLine, FileChange, ReviewContent } from "@main/git/contracts";
 import { ReviewDiffLine, ReviewNotice, reviewContentNotice } from "@renderer/routes/-components/review-line";
 import type { ReviewReading } from "@renderer/routes/-utils/use-review-reading";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 
-const ROW_HEIGHT = { file: 32, line: 20, notice: 40 } as const;
+export const REVIEW_ROW_HEIGHT = { file: 32, line: 20, notice: 40 } as const;
 const REVIEW_ROW_OVERSCAN = 96;
 
 type ReviewRow =
@@ -14,12 +14,17 @@ type ReviewRow =
 	| { kind: "line"; key: string; path: string; line: DiffLine; lines: DiffLine[]; lineIndex: number }
 	| { kind: "notice"; key: string; path: string; message: string };
 
-export interface ReviewAnchor { rowKey: string; path: string; scrollLeft: number }
+interface ReadingPosition {
+	rowKey: string;
+	path: string;
+	fileIndex: number;
+	rowOffset: number;
+	scrollLeft: number;
+}
 
 export interface ReviewDiffHandle {
 	revealFile: (path: string) => void;
-	captureAnchor: () => ReviewAnchor | null;
-	restoreAnchor: (anchor: ReviewAnchor) => void;
+	restoreReadingPosition: () => void;
 }
 
 export function ReviewDiff({
@@ -39,6 +44,7 @@ export function ReviewDiff({
 	onToggleOpen: (path: string) => void;
 	onFocusFile: (path: string) => void;
 }) {
+	const position = useRef<ReadingPosition | null>(null);
 	const snapshot = generation?.snapshot;
 	const contentByPath = generation?.contentByPath;
 	const files = snapshot?.files ?? [];
@@ -60,6 +66,7 @@ export function ReviewDiff({
 		<ReviewDiffView
 			key={generation.layoutGeneration}
 			ref={ref}
+			position={position}
 			files={files}
 			contentByPath={contentByPath}
 			covered={covered}
@@ -72,6 +79,7 @@ export function ReviewDiff({
 
 function ReviewDiffView({
 	ref,
+	position,
 	files,
 	contentByPath,
 	covered,
@@ -80,6 +88,7 @@ function ReviewDiffView({
 	onFocusFile,
 }: {
 	ref?: Ref<ReviewDiffHandle>;
+	position: RefObject<ReadingPosition | null>;
 	files: FileChange[];
 	contentByPath: ReadonlyMap<string, ReviewContent>;
 	covered: boolean;
@@ -96,51 +105,74 @@ function ReviewDiffView({
 		() => new Map(rows.flatMap((row, index) => (row.kind === "file" ? [[row.file.path, index] as const] : []))),
 		[rows],
 	);
+	const [initialOffset] = useState(() => readingOffset(position.current, rows, fileRowByPath, files));
 	const virtualizer = useVirtualizer({
 		count: rows.length,
 		getScrollElement: () => scroll.current,
 		getItemKey: (index) => rows[index]?.key ?? index,
-		estimateSize: (index) => ROW_HEIGHT[rows[index]?.kind ?? "notice"],
+		estimateSize: (index) => REVIEW_ROW_HEIGHT[rows[index]?.kind ?? "notice"],
 		overscan: REVIEW_ROW_OVERSCAN,
+		initialOffset,
 	});
-	useImperativeHandle(
-		ref,
-		() => ({
-			revealFile(path) {
-				const row = fileRowByPath.get(path);
-				if (row !== undefined) {
-					virtualizer.scrollToIndex(row, { align: "start" });
-				}
-			},
-			captureAnchor() {
-				const startIndex = virtualizer.range?.startIndex ?? 0;
-				const row = rows[startIndex];
-				const path = anchorPath(rows, startIndex);
-				if (!path) {
-					return null;
-				}
-
-				return { rowKey: row?.key ?? `file:${path}`, path, scrollLeft: scroll.current?.scrollLeft ?? 0 };
-			},
-			restoreAnchor(anchor) {
-				const exact = rows.findIndex((row) => row.key === anchor.rowKey);
-				const index = exact >= 0 ? exact : fileRowByPath.get(anchor.path);
-				if (index !== undefined) {
-					virtualizer.scrollToIndex(index, { align: "start" });
-				}
-				if (scroll.current) {
-					scroll.current.scrollLeft = anchor.scrollLeft;
-				}
-			},
-		}),
-		[fileRowByPath, rows, virtualizer],
+	const attachScroll = useCallback(
+		(node: HTMLDivElement | null) => {
+			scroll.current = node;
+			if (node && position.current) {
+				node.scrollTop = initialOffset;
+				node.scrollLeft = position.current.scrollLeft;
+			}
+		},
+		[initialOffset, position],
 	);
+
+	const trackReadingPosition = (event: UIEvent<HTMLDivElement>) => {
+		const node = event.currentTarget;
+		const item = virtualizer.getVirtualItemForOffset(node.scrollTop);
+		const path = item ? anchorPath(rows, item.index) : undefined;
+		if (!item || !path) {
+			position.current = null;
+			return;
+		}
+
+		position.current = {
+			rowKey: rows[item.index]?.key ?? `file:${path}`,
+			path,
+			fileIndex: files.findIndex((file) => file.path === path),
+			rowOffset: node.scrollTop - item.start,
+			scrollLeft: node.scrollLeft,
+		};
+	};
+
+	useImperativeHandle(ref, () => ({
+		revealFile(path) {
+			const row = fileRowByPath.get(path);
+			if (row !== undefined) {
+				virtualizer.scrollToIndex(row, { align: "start" });
+			}
+		},
+		restoreReadingPosition() {
+			if (!position.current) {
+				return;
+			}
+
+			virtualizer.scrollToOffset(readingOffset(position.current, rows, fileRowByPath, files));
+			if (scroll.current) {
+				scroll.current.scrollLeft = position.current.scrollLeft;
+			}
+		},
+	}));
 
 	const virtualRows = virtualizer.getVirtualItems();
 	const activeFileRow = activeFile(rows, virtualizer.range?.startIndex ?? 0);
 
 	return (
-		<div ref={scroll} className="min-h-0 flex-1 overflow-auto" inert={covered} aria-hidden={covered || undefined}>
+		<div
+			ref={attachScroll}
+			onScroll={trackReadingPosition}
+			className="min-h-0 flex-1 overflow-auto"
+			inert={covered}
+			aria-hidden={covered || undefined}
+		>
 			{activeFileRow && (
 				<div className="sticky top-0 left-0 z-20 h-0 w-full">
 					<ReviewFileHeader
@@ -298,6 +330,50 @@ function reviewRows(
 
 function lineKey(path: string, line: DiffLine): string {
 	return `line:${path}:${line.hunk}:${line.oldNumber ?? ""}:${line.number ?? ""}:${line.kind}`;
+}
+
+function readingOffset(
+	position: ReadingPosition | null,
+	rows: ReviewRow[],
+	fileRowByPath: ReadonlyMap<string, number>,
+	files: FileChange[],
+): number {
+	if (!position) {
+		return 0;
+	}
+
+	const index = readingIndex(position, rows, fileRowByPath, files);
+	if (index === undefined) {
+		return 0;
+	}
+
+	const rowOffset = rows[index]?.key === position.rowKey ? position.rowOffset : 0;
+
+	return rows.slice(0, index).reduce((offset, row) => offset + REVIEW_ROW_HEIGHT[row.kind], rowOffset);
+}
+
+function readingIndex(
+	position: ReadingPosition,
+	rows: ReviewRow[],
+	fileRowByPath: ReadonlyMap<string, number>,
+	files: FileChange[],
+): number | undefined {
+	const sameRow = rows.findIndex((row) => row.key === position.rowKey);
+	if (sameRow >= 0) {
+		return sameRow;
+	}
+
+	const sameFile = fileRowByPath.get(position.path);
+	if (sameFile !== undefined) {
+		return sameFile;
+	}
+
+	const neighbour = files[Math.min(position.fileIndex, files.length - 1)];
+	if (!neighbour) {
+		return undefined;
+	}
+
+	return fileRowByPath.get(neighbour.path);
 }
 
 function anchorPath(rows: ReviewRow[], startIndex: number): string | undefined {

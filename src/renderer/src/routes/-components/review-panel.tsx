@@ -2,7 +2,7 @@ import { ChevronDownIcon, ChevronUpIcon, FolderIcon, XMarkIcon } from "@heroicon
 import { useCallback, useRef, useState } from "react";
 import type { ReviewMode } from "@main/git/contracts";
 import type { Project } from "@main/store/projects";
-import { ReviewDiff, type ReviewAnchor, type ReviewDiffHandle } from "@renderer/routes/-components/review-diff";
+import { ReviewDiff, type ReviewDiffHandle } from "@renderer/routes/-components/review-diff";
 import { ReviewFocusedFile } from "@renderer/routes/-components/review-focused-file";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
 import { REVIEW_DIFF_WIDTH_VALUE } from "@renderer/routes/-utils/review-layout";
@@ -34,9 +34,8 @@ export function ReviewPanel({
 	const [closedFiles, setClosedFiles] = useState<ReadonlySet<string>>(new Set());
 	const [focusedPath, setFocusedPath] = useState<string>();
 	const diff = useRef<ReviewDiffHandle>(null);
-	const anchor = useRef<ReviewAnchor | null>(null);
 	const isFileOpen = useCallback((path: string) => !closedFiles.has(path), [closedFiles]);
-	const { generation, fullFile, error } = useReviewReading({
+	const { generation, fullFile, error, refreshing } = useReviewReading({
 		projectId: project.id,
 		mode,
 		isFileOpen,
@@ -46,7 +45,6 @@ export function ReviewPanel({
 	const selectMode = useCallback((next: ReviewMode) => {
 		setMode(next);
 		setFocusedPath(undefined);
-		anchor.current = null;
 	}, []);
 
 	const revealFile = useCallback((path: string) => {
@@ -62,24 +60,10 @@ export function ReviewPanel({
 		setClosedFiles((current) => toggledSet(current, path));
 	}, []);
 
-	const focusFile = useCallback(
-		(path: string) => {
-			if (!focusedPath && diff.current) {
-				anchor.current = diff.current.captureAnchor();
-			}
-			setFocusedPath(path);
-		},
-		[focusedPath],
-	);
-
 	const closeFocus = useCallback(() => {
 		setFocusedPath(undefined);
-		const saved = anchor.current;
-		anchor.current = null;
-		if (saved) {
-			// Imperative scroll: restore the underlying reading position after the overlay uncovers it.
-			requestAnimationFrame(() => diff.current?.restoreAnchor(saved));
-		}
+		// Imperative scroll: the overlay uncovers the diff, so put the reading position back where it was.
+		requestAnimationFrame(() => diff.current?.restoreReadingPosition());
 	}, []);
 
 	const toggleFocus = useCallback(
@@ -88,20 +72,20 @@ export function ReviewPanel({
 				closeFocus();
 				return;
 			}
-			focusFile(path);
+			setFocusedPath(path);
 		},
-		[focusedPath, closeFocus, focusFile],
+		[focusedPath, closeFocus],
 	);
 
 	const openFromTree = useCallback(
 		(path: string) => {
 			if (focusedPath) {
-				focusFile(path);
+				setFocusedPath(path);
 				return;
 			}
 			revealFile(path);
 		},
-		[focusedPath, focusFile, revealFile],
+		[focusedPath, revealFile],
 	);
 
 	const currentSnapshot = generation?.snapshot;
@@ -176,6 +160,14 @@ export function ReviewPanel({
 						</div>
 					</div>
 					<div className="flex shrink-0 items-center gap-2 px-3">
+						{refreshing && (
+							<span
+								role="status"
+								aria-label="Reading new changes"
+								title="Reading new changes"
+								className="review-refreshing size-[6px] shrink-0 rounded-full bg-secondary"
+							/>
+						)}
 						{currentSnapshot?.isRepo && (
 							<div
 								className="flex gap-2 text-data"
@@ -220,13 +212,14 @@ export function ReviewPanel({
 
 				<div className="relative flex min-h-0 flex-1 flex-col">
 					<ReviewDiff
+						key={mode}
 						ref={diff}
 						generation={generation}
 						error={error}
 						covered={!!focusedFile}
 						closedFiles={closedFiles}
 						onToggleOpen={toggleOpen}
-						onFocusFile={focusFile}
+						onFocusFile={setFocusedPath}
 					/>
 					{focusedFile && (
 						<ReviewFocusedFile

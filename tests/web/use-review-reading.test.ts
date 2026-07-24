@@ -8,8 +8,17 @@ afterEach(cleanup);
 
 const modeInput = type({ mode: "string" });
 const pathInput = type({ path: "string" });
+const filesInput = type({ files: "string[]" });
 
 const openAll = () => true;
+
+function reading(paths: string[]) {
+	return (input: unknown) => {
+		const requested = filesInput.assert(input).files;
+
+		return requested.length === paths.length && paths.every((path, index) => requested[index] === path);
+	};
+}
 
 function wait(ms: number) {
 	return new Promise<void>((resolve) => {
@@ -63,8 +72,12 @@ async function settle(view: View, paths: string[], texts?: Record<string, string
 
 	const open = paths.filter((path) => (texts ? path in texts : true));
 	if (open.length > 0) {
-		await waitFor(() => expect(view.transport.pendingCount("files")).toBe(1));
-		view.transport.resolve("files", filesResponse(texts ?? Object.fromEntries(paths.map((path) => [path, path]))));
+		await waitFor(() => expect(view.transport.callsFor("files").some(reading(open))).toBe(true));
+		view.transport.resolve(
+			"files",
+			filesResponse(texts ?? Object.fromEntries(paths.map((path) => [path, path]))),
+			reading(open),
+		);
 	}
 	await waitFor(() => expect(view.result.current.generation?.contentByPath?.size).toBe(open.length));
 }
@@ -411,13 +424,15 @@ test("the layout generation advances only on path-list or mode changes", async (
 	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBe(1));
 	view.transport.resolve("snapshot", snapshotOf(["a", "b"]));
 	await waitFor(() => expect(view.transport.pendingCount("files")).toBe(1));
-	view.transport.resolve("files", filesResponse({ a: "a2", b: "b2" }));
+	view.transport.resolve("files", filesResponse({ a: "a2", b: "b2" }), reading(["a", "b"]));
 	await waitFor(() => expect(contentText(view.result.current.generation?.contentByPath?.get("a"))).toBe("a2"));
 	expect(view.result.current.generation?.layoutGeneration).toBe(first);
 
 	view.ipc.emitChange("p1");
 	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBe(1));
 	view.transport.resolve("snapshot", snapshotOf(["a", "b", "c"]));
+	await waitFor(() => expect(view.transport.callsFor("files").some(reading(["a", "b", "c"]))).toBe(true));
+	view.transport.resolve("files", filesResponse({ a: "a3", b: "b3", c: "c3" }), reading(["a", "b", "c"]));
 	await waitFor(() => expect(view.result.current.generation?.snapshot.files.length).toBe(3));
 	expect(view.result.current.generation?.layoutGeneration).toBe((first ?? 0) + 1);
 
@@ -429,4 +444,73 @@ test("the layout generation advances only on path-list or mode changes", async (
 	);
 	view.transport.resolve("snapshot", snapshotOf(["a", "b", "c"]), (input) => modeInput.assert(input).mode === "branch");
 	await waitFor(() => expect(view.result.current.generation?.layoutGeneration).toBe((first ?? 0) + 2));
+});
+
+test("a refresh that adds a file keeps the previous reading until the replacement completes", async () => {
+	const view = renderReviewReading(base({}));
+	await settle(view, ["a", "b"], { a: "a1", b: "b1" });
+	const complete = view.renders.length;
+
+	view.ipc.emitChange("p1");
+	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBe(1));
+	view.transport.resolve("snapshot", snapshotOf(["new", "a", "b"]));
+	await waitFor(() => expect(view.transport.callsFor("files").some(reading(["new", "a", "b"]))).toBe(true));
+
+	expect(view.result.current.generation?.snapshot.files.map((file) => file.path)).toEqual(["a", "b"]);
+	expect(contentText(view.result.current.generation?.contentByPath?.get("a"))).toBe("a1");
+	expect(view.result.current.refreshing).toBe(true);
+
+	view.transport.resolve("files", filesResponse({ new: "n1", a: "a2", b: "b2" }), reading(["new", "a", "b"]));
+	await waitFor(() => expect(view.result.current.generation?.contentByPath?.size).toBe(3));
+
+	expect(view.result.current.generation?.snapshot.files.map((file) => file.path)).toEqual(["new", "a", "b"]);
+	expect(view.result.current.refreshing).toBe(false);
+	for (const reading of view.renders.slice(complete)) {
+		expect(reading.generation?.contentByPath).toBeDefined();
+	}
+});
+
+test("a cold reading reports no pending replacement", async () => {
+	const view = renderReviewReading(base({}));
+	await reachReady(view);
+	view.transport.resolve("snapshot", snapshotOf(["a"]));
+	await waitFor(() => expect(view.transport.pendingCount("files")).toBe(1));
+
+	expect(view.result.current.generation?.contentByPath).toBeUndefined();
+
+	view.transport.resolve("files", filesResponse({ a: "a1" }));
+	await waitFor(() => expect(view.result.current.generation?.contentByPath?.size).toBe(1));
+
+	expect(view.renders.some((reading) => reading.refreshing)).toBe(false);
+});
+
+test("switching scope reads again instead of publishing the retained scope", async () => {
+	const view = renderReviewReading(base({}));
+	await settle(view, ["a", "b"], { a: "a1", b: "b1" });
+
+	view.rerender(base({ mode: "branch" }));
+	await waitFor(() =>
+		expect(view.transport.callsFor("snapshot").some((input) => modeInput.assert(input).mode === "branch")).toBe(
+			true,
+		),
+	);
+
+	expect(view.result.current.generation?.contentByPath).toBeUndefined();
+	expect(view.result.current.refreshing).toBe(false);
+});
+
+test("a failed replacement read completes the reading instead of retaining the previous one", async () => {
+	const view = renderReviewReading(base({}));
+	await settle(view, ["a", "b"], { a: "a1", b: "b1" });
+
+	view.ipc.emitChange("p1");
+	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBe(1));
+	view.transport.resolve("snapshot", snapshotOf(["a", "b", "c"]));
+	await waitFor(() => expect(view.transport.callsFor("files").some(reading(["a", "b", "c"]))).toBe(true));
+	view.transport.reject("files", new Error("batch broke"), reading(["a", "b", "c"]));
+
+	await waitFor(() => expect(view.result.current.generation?.snapshot.files.length).toBe(3));
+
+	expect(contentText(view.result.current.generation?.contentByPath?.get("c"))).toBe("unavailable");
+	expect(view.result.current.refreshing).toBe(false);
 });

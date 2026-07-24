@@ -108,6 +108,10 @@ _Avoid_: Unread, completed, finished, new
 The compact element left of the shell tabs, present during Fullscreen mode, that keeps every mounted project's Agent activity visible while the Project rail is hidden. Passive: activating a project stays with the rail and shortcuts.
 _Avoid_: Mini rail, project dots, status bar
 
+**Reading position**:
+Where the user is inside the Review, held as the changed line at the top of the diff area rather than a pixel offset. It survives any update the user did not ask for, and starts fresh when the user changes Scope or Project.
+_Avoid_: Scroll position, offset, scroll top
+
 **Focused file**:
 The one changed file occupying the Review's content area in full, with unchanged lines as context and changed lines still marked. The underlying Review remains present and current.
 _Avoid_: Full-file view, preview, expand, open file, source view, modal

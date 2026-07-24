@@ -20,6 +20,7 @@ export interface ReviewReading {
 	generation?: ReviewReadingGeneration;
 	fullFile?: FullFile;
 	error?: string;
+	refreshing: boolean;
 }
 
 export function useReviewReading({
@@ -109,17 +110,22 @@ export function useReviewReading({
 		}),
 	);
 
-	if (watchError) {
-		return { error: watchError };
-	}
-
-	const result: ReviewReading = {};
-	if (currentSnapshot) {
-		result.generation = {
+	const reading: ReviewReadingGeneration | undefined = currentSnapshot
+		? {
 			layoutGeneration: layout.generation,
 			snapshot: currentSnapshot,
 			...(!snapshotQuery.isPlaceholderData && contentReady ? { contentByPath } : {}),
-		};
+		}
+		: undefined;
+	const published = useRetainedReading({ projectId, mode, reading });
+
+	if (watchError) {
+		return { error: watchError, refreshing: false };
+	}
+
+	const result: ReviewReading = { refreshing: !!published && published !== reading };
+	if (published) {
+		result.generation = published;
 	}
 	if (fullFileQuery.data) {
 		result.fullFile = fullFileQuery.data;
@@ -129,6 +135,31 @@ export function useReviewReading({
 	}
 
 	return result;
+}
+
+function useRetainedReading({
+	projectId,
+	mode,
+	reading,
+}: {
+	projectId: string;
+	mode: ReviewMode;
+	reading?: ReviewReadingGeneration;
+}) {
+	const ref = useRef<{ projectId: string; mode: ReviewMode; reading: ReviewReadingGeneration }>(null);
+
+	if (reading?.contentByPath) {
+		ref.current = { projectId, mode, reading };
+		return reading;
+	}
+
+	const retained = ref.current;
+	const replaces = retained?.reading.layoutGeneration !== reading?.layoutGeneration;
+	if (retained && replaces && retained.projectId === projectId && retained.mode === mode) {
+		return retained.reading;
+	}
+
+	return reading;
 }
 
 function useLayoutGeneration(

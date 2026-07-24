@@ -159,6 +159,31 @@
 	animation: update-toast-enter 300ms ease-out;
 }
 
+@keyframes review-refreshing-enter {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 0.9;
+	}
+}
+
+@keyframes review-refreshing-pulse {
+	0%,
+	100% {
+		opacity: 0.9;
+	}
+	50% {
+		opacity: 0.25;
+	}
+}
+
+.review-refreshing {
+	animation:
+		review-refreshing-enter 200ms ease-out 1s both,
+		review-refreshing-pulse 1.6s ease-in-out 1.2s infinite;
+}
+
 .diff-line-add {
 	background: color-mix(in srgb, var(--color-added) 20%, transparent);
 }

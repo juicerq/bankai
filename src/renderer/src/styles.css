@@ -172,6 +172,34 @@
 	animation: update-button-enter 300ms ease-out;
 }
 
+@keyframes picker-backdrop {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+.picker-backdrop {
+	animation: picker-backdrop 120ms ease-out;
+}
+
+@keyframes picker-enter {
+	from {
+		opacity: 0;
+		transform: translateY(-6px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.picker-enter {
+	animation: picker-enter 160ms ease-out;
+}
+
 @keyframes review-refreshing-enter {
 	from {
 		opacity: 0;

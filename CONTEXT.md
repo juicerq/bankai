@@ -20,6 +20,10 @@ _Avoid_: Tab, view, pane
 The left edge region that lists mounted projects and lets the user manage or activate one.
 _Avoid_: Sidebar
 
+**Project picker**:
+The overlay that mounts a Project, built around one editable path: typing narrows the directory it names, Enter opens the highlighted directory, and Ctrl+Enter mounts whatever the path currently reads. The system dialog stays behind it as an escape hatch.
+_Avoid_: File picker, directory dialog, file browser, modal
+
 **Fullscreen mode**:
 The internal layout state that removes the Project rail from its fixed position and gives the Workspace the full window width. Entered by the explicit toggle or by dragging the rail's divider below the rail's minimum width. Exited by the toggle or by resizing the revealed rail, which docks it at the chosen width.
 _Avoid_: Native fullscreen, system fullscreen, collapsed rail

@@ -1,6 +1,7 @@
 import "./register-dom";
 import { os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/message-port";
+import { type } from "arktype";
 
 export type ReviewProcedure = "snapshot" | "files" | "file" | "fullFile";
 
@@ -69,12 +70,31 @@ function requireTransport() {
 	return currentTransport;
 }
 
+type BrowseDirectories = (path: string) => { path: string; directories: string[] };
+
+let currentBrowse: BrowseDirectories | undefined;
+
+export function setBrowseDirectories(browse: BrowseDirectories) {
+	currentBrowse = browse;
+}
+
+function requireBrowse() {
+	if (!currentBrowse) {
+		throw new Error("No browse transport is installed");
+	}
+
+	return currentBrowse;
+}
+
 const router = {
 	review: {
 		snapshot: os.handler(({ input }) => requireTransport().request("snapshot", input)),
 		files: os.handler(({ input }) => requireTransport().request("files", input)),
 		file: os.handler(({ input }) => requireTransport().request("file", input)),
 		fullFile: os.handler(({ input }) => requireTransport().request("fullFile", input)),
+	},
+	projects: {
+		browse: os.input(type({ path: "string" })).handler(({ input }) => requireBrowse()(input.path)),
 	},
 };
 

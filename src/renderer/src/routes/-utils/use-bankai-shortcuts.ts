@@ -47,7 +47,7 @@ export function useBankaiShortcuts({
 		};
 
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (MODIFIER_KEYS.has(event.key)) {
+			if (MODIFIER_KEYS.has(event.key) || event.target instanceof HTMLInputElement) {
 				return;
 			}
 

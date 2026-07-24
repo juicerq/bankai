@@ -16,8 +16,6 @@ export function ProjectRail({
 	onOpenDirectory,
 	onRemove,
 	onMove,
-	adding,
-	addFailed,
 	onMenuOpenChange,
 	onDragActiveChange,
 }: {
@@ -30,8 +28,6 @@ export function ProjectRail({
 	onOpenDirectory: (projectId: string) => void;
 	onRemove: (projectId: string) => void;
 	onMove: (data: { projectId: string; toIndex: number }) => void;
-	adding: boolean;
-	addFailed: boolean;
 	onMenuOpenChange?: (open: boolean, dismiss?: () => void) => void;
 	onDragActiveChange?: (active: boolean) => void;
 }) {
@@ -88,22 +84,13 @@ export function ProjectRail({
 					<button
 						type="button"
 						data-slot="add-project"
-						className="text-secondary hover:text-primary disabled:opacity-50"
-						disabled={adding}
+						className="text-secondary hover:text-primary"
 						onClick={onAdd}
-						aria-label={adding ? "Opening project picker" : "Add project"}
+						aria-label="Add project"
 					>
 						<PlusIcon className="size-4" aria-hidden="true" />
 					</button>
 				</div>
-				{addFailed && (
-					<div className="px-3 py-2 text-data text-removed">
-						Picker failed.{" "}
-						<button type="button" className="text-primary underline" onClick={onAdd}>
-							Retry
-						</button>
-					</div>
-				)}
 				<nav className="min-h-0 flex-1 overflow-auto" aria-label="Projects">
 					{loading && <div className="p-3 text-data text-secondary">Loading workspace...</div>}
 					{projects.map((project) => (

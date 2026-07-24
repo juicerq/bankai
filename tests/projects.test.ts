@@ -5,7 +5,7 @@ import { Projects } from "@main/store/projects";
 import { assertDefined } from "./utils/assertions";
 
 describe("projects", () => {
-	it("starts empty so the directory picker is the only creation path", async () => {
+	it("starts empty so the project picker is the only creation path", async () => {
 		expect(await Projects.list()).toEqual([]);
 	});
 

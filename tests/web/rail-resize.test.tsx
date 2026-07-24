@@ -71,8 +71,6 @@ function RailResizeHarness() {
 					onOpenDirectory={() => {}}
 					onRemove={() => {}}
 					onMove={() => {}}
-					adding={false}
-					addFailed={false}
 					onMenuOpenChange={projectRail.setMenuOpen}
 					onDragActiveChange={projectRail.setDragging}
 				/>

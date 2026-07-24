@@ -5,6 +5,7 @@ import { orpc } from "@renderer/lib/api";
 import { queryClient } from "@renderer/lib/query-client";
 import { ContinuityFailedNotice } from "@renderer/routes/-components/continuity-failed-notice";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
+import { ProjectPicker } from "@renderer/routes/-components/project-picker";
 import { ProjectRail } from "@renderer/routes/-components/project-rail";
 import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
@@ -115,16 +116,32 @@ function Bankai() {
 		onToggleFullscreen: projectRail.toggleFullscreen,
 	});
 
-	const addProject = useMutation(
-		orpc.projects.chooseDirectory.mutationOptions({
-			onSuccess: async (project) => {
-				if (!project) {
-					return;
-				}
-				activateProject(project.id);
-				await reactQueryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
-			},
-		}),
+	const [pickerOpen, setPickerOpen] = useState(false);
+	const openPicker = useCallback(() => {
+		setPickerOpen(true);
+		projectRail.setPickerActive(true);
+	}, [projectRail.setPickerActive]);
+	const closePicker = useCallback(() => {
+		setPickerOpen(false);
+		projectRail.setPickerActive(false);
+	}, [projectRail.setPickerActive]);
+	const mountProject = useCallback(
+		async (project: { id: string } | null) => {
+			if (!project) {
+				return;
+			}
+
+			closePicker();
+			activateProject(project.id);
+			await reactQueryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
+		},
+		[activateProject, closePicker, reactQueryClient],
+	);
+	const { mutate: addProject, isPending: addingProject, error: addProjectError } = useMutation(
+		orpc.projects.add.mutationOptions({ onSuccess: mountProject }),
+	);
+	const { mutate: chooseDirectory } = useMutation(
+		orpc.projects.chooseDirectory.mutationOptions({ onSuccess: mountProject }),
 	);
 	const openDirectory = useMutation(orpc.projects.openDirectory.mutationOptions());
 	const moveProject = useMutation(
@@ -142,13 +159,6 @@ function Bankai() {
 			},
 		}),
 	);
-	const handleAddProject = () => {
-		projectRail.setPickerActive(true);
-		addProject.mutate({}, {
-			onSettled: () => projectRail.setPickerActive(false),
-		});
-	};
-
 	return (
 		<main ref={registerShortcuts} className="relative flex h-full bg-surface">
 			<WindowControls />
@@ -160,12 +170,10 @@ function Bankai() {
 					loading={projects.isPending}
 					selectedId={activeProjectId}
 					onSelect={activateProject}
-					onAdd={handleAddProject}
+					onAdd={openPicker}
 					onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
 					onRemove={(projectId) => removeProject.mutate({ projectId })}
 					onMove={moveProject.mutate}
-					adding={addProject.isPending}
-					addFailed={addProject.isError}
 					onMenuOpenChange={projectRail.setMenuOpen}
 					onDragActiveChange={projectRail.setDragging}
 				/>
@@ -186,7 +194,7 @@ function Bankai() {
 						title="Choose a working directory"
 						description="Bankai keeps project shells together in one focused workspace."
 						actionLabel="Add first project"
-						onAction={handleAddProject}
+						onAction={openPicker}
 					/>
 				)}
 				{!projects.isError && availableProjects.filter((project) => residentProjectIds.includes(project.id)).map((project) => {
@@ -220,6 +228,15 @@ function Bankai() {
 					);
 				})}
 			</section>
+			{pickerOpen && (
+				<ProjectPicker
+					adding={addingProject}
+					addError={addProjectError?.message}
+					onAdd={(path) => addProject({ path })}
+					onOpenSystemPicker={() => chooseDirectory({})}
+					onClose={closePicker}
+				/>
+			)}
 		</main>
 	);
 }

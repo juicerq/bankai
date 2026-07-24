@@ -5,7 +5,7 @@ import { act, cleanup, renderHook } from "./testing-library";
 afterEach(cleanup);
 
 function renderActivation(ids: string[]) {
-	return renderHook(({ available }: { available: string[] }) => useWorkspaceActivation(available), {
+	return renderHook(({ available }: { available: string[] }) => useWorkspaceActivation(available, {}), {
 		initialProps: { available: ids },
 	});
 }
@@ -124,4 +124,40 @@ test("dropping the last project empties activation once the list updates", () =>
 
 	expect(result.current.activeProjectId).toBeUndefined();
 	expect(result.current.residentProjectIds).toEqual([]);
+});
+
+test("initializes the explicit active and residents from restored continuity", () => {
+	const { result } = renderHook(() =>
+		useWorkspaceActivation(["a", "b", "c"], {
+			initialActiveProjectId: "b",
+			initialResidentProjectIds: ["a", "b"],
+		}),
+	);
+
+	expect(result.current.activeProjectId).toBe("b");
+	expect(result.current.residentProjectIds).toEqual(["a", "b"]);
+});
+
+test("restored residents intersect the currently available projects", () => {
+	const { result } = renderHook(() =>
+		useWorkspaceActivation(["a"], {
+			initialActiveProjectId: "b",
+			initialResidentProjectIds: ["a", "b"],
+		}),
+	);
+
+	expect(result.current.activeProjectId).toBe("b");
+	expect(result.current.residentProjectIds).toEqual(["a"]);
+});
+
+test("reports every explicit activation through onActivate", () => {
+	const activated: string[] = [];
+	const { result } = renderHook(() =>
+		useWorkspaceActivation(["a", "b"], { onActivate: (id) => activated.push(id) }),
+	);
+
+	act(() => result.current.activateProject("b"));
+	act(() => result.current.activateProject("a"));
+
+	expect(activated).toEqual(["b", "a"]);
 });

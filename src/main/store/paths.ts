@@ -1,8 +1,29 @@
 import { createRequire } from "node:module";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import type * as ElectronModule from "electron";
 
 const require = createRequire(import.meta.url);
+
+export interface InstanceIdentity {
+	userDataDir: string;
+	singleInstanceLock: boolean;
+}
+
+export function resolveInstanceIdentity(input: {
+	packaged: boolean;
+	prodUserDataDir: string;
+}): InstanceIdentity {
+	if (input.packaged) {
+		return { userDataDir: input.prodUserDataDir, singleInstanceLock: true };
+	}
+
+	const devDir = join(
+		dirname(input.prodUserDataDir),
+		`${basename(input.prodUserDataDir)}-dev`,
+	);
+
+	return { userDataDir: devDir, singleInstanceLock: false };
+}
 
 export function resolveDataDir(): string {
 	const fromEnv = process.env.DATA_DIR;

@@ -4,6 +4,7 @@ import { GitProcess } from "@main/git/GitProcess";
 import { setupReviewIpc } from "@main/git/ipc";
 import { startOrpcServer } from "@main/ipc";
 import { Logger } from "@main/logger";
+import { resolveInstanceIdentity } from "@main/store/paths";
 import { type SettingsValue, Settings } from "@main/store/settings";
 import { setupTerminalIpc } from "@main/terminal/ipc";
 import { setupUpdateIpc } from "@main/update/ipc";
@@ -11,6 +12,8 @@ import { setupWindowIpc } from "@main/window/ipc";
 import { app, BrowserWindow, screen } from "electron";
 
 const here = import.meta.dirname;
+
+let mainWindow: BrowserWindow | undefined;
 
 process.on("uncaughtExceptionMonitor", (err) => {
 	Logger.error("uncaughtException", { err: String(err), stack: err.stack });
@@ -77,6 +80,8 @@ async function createWindow() {
 		},
 	});
 
+	mainWindow = win;
+
 	if (saved?.maximized) {
 		win.maximize();
 	}
@@ -120,8 +125,30 @@ async function start() {
 	}
 }
 
-app.on("ready", start);
+function focusMainWindow() {
+	if (!mainWindow) {
+		return;
+	}
 
-app.on("before-quit", () => GitProcess.close());
+	if (mainWindow.isMinimized()) {
+		mainWindow.restore();
+	}
 
-app.on("window-all-closed", () => app.quit());
+	mainWindow.focus();
+}
+
+const identity = resolveInstanceIdentity({
+	packaged: app.isPackaged,
+	prodUserDataDir: app.getPath("userData"),
+});
+
+app.setPath("userData", identity.userDataDir);
+
+if (identity.singleInstanceLock && !app.requestSingleInstanceLock()) {
+	app.quit();
+} else {
+	app.on("second-instance", focusMainWindow);
+	app.on("ready", start);
+	app.on("before-quit", () => GitProcess.close());
+	app.on("window-all-closed", () => app.quit());
+}

@@ -1,34 +1,104 @@
+import { ArrowPathIcon } from "@heroicons/react/24/outline";
+import { useCallback, useState } from "react";
+import {
+	initialResumeState,
+	nextResumeState,
+	type ResumeOutcome,
+	type ResumeState,
+	resumeNoticeVariant,
+} from "@renderer/routes/-utils/resume-state";
 import { useTerminalSession } from "@renderer/routes/-utils/use-terminal-session";
 
 export function TerminalPane({
 	projectId,
+	shellId,
 	active,
 	focusRequest,
 	resizeDeferred,
+	resumeOnMount,
 	onSessionId,
 }: {
 	projectId: string;
+	shellId: string;
 	active: boolean;
 	focusRequest: number;
 	resizeDeferred: boolean;
+	resumeOnMount: boolean;
 	onSessionId: (sessionId: string) => void;
 }) {
-	const { registerContainer, registerActivation, registerFocusRequest, registerResizeDeferral } = useTerminalSession(
-		projectId,
-		focusRequest,
-		resizeDeferred,
-		onSessionId,
-	);
+	const [resumeState, setResumeState] = useState<ResumeState>(() => initialResumeState(resumeOnMount));
+	const handleResumeOutcome = useCallback((outcome: ResumeOutcome) => {
+		setResumeState((state) => nextResumeState(state, outcome));
+	}, []);
+	const { registerContainer, registerActivation, registerFocusRequest, registerResizeDeferral, retryResume } =
+		useTerminalSession({
+			projectId,
+			shellId,
+			focusRequest,
+			resizeDeferred,
+			resumeOnMount,
+			onSessionId,
+			onResumeOutcome: handleResumeOutcome,
+		});
+	const handleRetry = useCallback(() => {
+		setResumeState((state) => nextResumeState(state, { kind: "retry" }));
+		retryResume();
+	}, [retryResume]);
+
+	const noticeVariant = resumeNoticeVariant(resumeState);
 
 	return (
-		<div className="size-full overflow-hidden bg-terminal-background pt-3 pr-0 pl-4">
-			<div ref={registerContainer} className="size-full" />
+		<div className="relative flex size-full flex-col overflow-hidden bg-terminal-background pt-3 pr-0 pl-4">
+			{noticeVariant && <ResumeNotice variant={noticeVariant} reason={resumeState.reason} onRetry={handleRetry} />}
+			<div ref={registerContainer} className="min-h-0 flex-1" />
 			<span ref={registerResizeDeferral} hidden />
 			{active && (
 				<>
 					<span ref={registerActivation} hidden />
 					<span ref={registerFocusRequest} hidden />
 				</>
+			)}
+		</div>
+	);
+}
+
+function ResumeNotice({
+	variant,
+	reason,
+	onRetry,
+}: {
+	variant: "failed-retryable" | "failed-final";
+	reason?: string;
+	onRetry: () => void;
+}) {
+	return (
+		<div
+			data-component="resume-notice"
+			data-variant={variant}
+			className="mr-4 mb-2 flex items-center gap-3 border border-outline bg-surface-raised py-2 pr-2 pl-3"
+		>
+			<span className="size-[6px] shrink-0 rounded-full bg-tertiary" />
+			<div className="flex min-w-0 flex-col leading-tight">
+				<span className="text-label text-tertiary">RESUME FAILED</span>
+				<span className="text-secondary text-support">
+					{variant === "failed-retryable" ? "Opened a plain shell instead" : "Retry failed — plain shell kept"}
+				</span>
+				{reason && (
+					<span data-slot="reason" className="mt-0.5 truncate text-secondary text-support">
+						{reason}
+					</span>
+				)}
+			</div>
+			{variant === "failed-retryable" && (
+				<button
+					type="button"
+					data-slot="retry"
+					className="ml-auto flex items-center gap-1.5 bg-primary px-2.5 py-1.5 text-label text-surface hover:bg-secondary"
+					onClick={onRetry}
+				>
+					<ArrowPathIcon className="size-3" />
+					RETRY
+				</button>
 			)}
 		</div>
 	);

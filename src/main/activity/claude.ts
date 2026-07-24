@@ -2,9 +2,11 @@ import { readFile, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { type } from "arktype";
-import type { AgentPresence, Harness } from "@main/activity/Harness";
+import type { AgentPresence, Harness, ResumeCommand } from "@main/activity/Harness";
 
 const CLAUDE_HARNESS_ID = "claude";
+
+const CLAUDE_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function presenceStatus(status: string | undefined): AgentPresence["status"] {
 	if (status === "busy") {
@@ -55,6 +57,13 @@ function sessionsDirectory(): string {
 
 export const ClaudeHarness: Harness = {
 	id: CLAUDE_HARNESS_ID,
+	resume(ref): ResumeCommand | null {
+		if (!CLAUDE_SESSION_ID.test(ref.sessionId)) {
+			return null;
+		}
+
+		return { file: "claude", args: ["--resume", ref.sessionId] };
+	},
 	async discover() {
 		const directory = sessionsDirectory();
 		const files = await readdir(directory).catch((): string[] => []);

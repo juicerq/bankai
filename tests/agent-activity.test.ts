@@ -99,6 +99,15 @@ describe("shell to agent binding", () => {
 		expect(bindings.get("shell-a")).toBe(300);
 	});
 
+	test("binds a directly spawned agent that leads its own tty session", () => {
+		const bindings = bindShells(
+			[{ sessionId: "shell-a", pid: 100, foreground: 100 }],
+			new Set([100]),
+			new Map(),
+		);
+		expect(bindings.get("shell-a")).toBe(100);
+	});
+
 	test("does not bind a shell sitting at its own prompt or with a dead agent", () => {
 		const bindings = bindShells(
 			[

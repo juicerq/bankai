@@ -6,7 +6,8 @@ import { TerminalSessions } from "@main/terminal/TerminalSessions";
 import type { TerminalCommandErrorEvent } from "@shared/terminal";
 
 const TerminalSchemas = {
-	open: type({ projectId: "string", cols: terminalColumnsSchema, rows: terminalRowsSchema }),
+	open: type({ projectId: "string", shellId: "string", cols: terminalColumnsSchema, rows: terminalRowsSchema }),
+	resume: type({ projectId: "string", shellId: "string", cols: terminalColumnsSchema, rows: terminalRowsSchema }),
 	write: type({ sessionId: "string", data: "string" }),
 	resize: type({ sessionId: "string", cols: terminalColumnsSchema, rows: terminalRowsSchema }),
 	close: type({ sessionId: "string" }),
@@ -18,7 +19,12 @@ export function setupTerminalIpc() {
 	ipcMain.handle("terminal:open", async (event, raw: unknown) => {
 		const input = TerminalSchemas.open.assert(raw);
 		registerOwner(event.sender);
-		return await TerminalSessions.open(event.sender, input.projectId, input.cols, input.rows);
+		return await TerminalSessions.open(event.sender, input);
+	});
+	ipcMain.handle("terminal:resume", async (event, raw: unknown) => {
+		const input = TerminalSchemas.resume.assert(raw);
+		registerOwner(event.sender);
+		return await TerminalSessions.resume(event.sender, input);
 	});
 	ipcMain.on("terminal:write", (event, raw: unknown) => {
 		const input = readTerminalCommand(event.sender, "write", raw, (value) => {

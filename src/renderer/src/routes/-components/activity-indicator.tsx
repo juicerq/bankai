@@ -30,7 +30,7 @@ export function ActivityIndicator({
 	return (
 		<div
 			data-component="activity-indicator"
-			className="flex h-full shrink-0 items-center overflow-hidden pl-3"
+			className="flex h-full shrink-0 items-center overflow-hidden border-outline border-r pl-3"
 			aria-hidden="true"
 		>
 			{items.map(({ project, digit }) => {

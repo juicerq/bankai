@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useRef, useState } from "react";
 import { orpc } from "@renderer/lib/api";
 import { queryClient } from "@renderer/lib/query-client";
+import { ContinuityFailedNotice } from "@renderer/routes/-components/continuity-failed-notice";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ProjectRail } from "@renderer/routes/-components/project-rail";
 import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
@@ -17,6 +18,7 @@ import {
 } from "@renderer/routes/-utils/rail-layout";
 import { useAgentActivities } from "@renderer/routes/-utils/use-agent-activity";
 import { useBankaiShortcuts } from "@renderer/routes/-utils/use-bankai-shortcuts";
+import { useContinuity } from "@renderer/routes/-utils/use-continuity";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
 import { useLayoutPreferences } from "@renderer/routes/-utils/use-layout-preferences";
@@ -24,13 +26,18 @@ import { useWorkspaceActivation } from "@renderer/routes/-utils/use-workspace-ac
 
 export const Route = createFileRoute("/")({
 	component: Bankai,
-	loader: () => queryClient.ensureQueryData(orpc.settings.getLayout.queryOptions()).catch(() => null),
+	loader: () =>
+		Promise.all([
+			queryClient.ensureQueryData(orpc.settings.getLayout.queryOptions()).catch(() => null),
+			queryClient.ensureQueryData(orpc.continuity.get.queryOptions()).catch(() => null),
+		]),
 });
 
 function Bankai() {
 	const reactQueryClient = useQueryClient();
 	const projects = useQuery(orpc.projects.list.queryOptions());
 	const layout = useLayoutPreferences();
+	const continuity = useContinuity();
 	const [shellFocusRequest, setShellFocusRequest] = useState(0);
 	const requestShellFocus = useCallback(() => setShellFocusRequest((current) => current + 1), []);
 	const persistFullscreen = useCallback(
@@ -97,6 +104,11 @@ function Bankai() {
 	const activity = useAgentActivities(availableProjects.map((project) => project.id));
 	const { activeProjectId, residentProjectIds, activateProject, dropWorkspace } = useWorkspaceActivation(
 		availableProjects.map((project) => project.id),
+		{
+			initialActiveProjectId: continuity.restored.activeProjectId,
+			initialResidentProjectIds: continuity.restored.workspaces.map((workspace) => workspace.projectId),
+			onActivate: continuity.activateProject,
+		},
 	);
 	const registerShortcuts = useBankaiShortcuts({
 		projects: availableProjects,
@@ -142,6 +154,7 @@ function Bankai() {
 		<main ref={registerShortcuts} className="relative flex h-full bg-surface">
 			<WindowControls />
 			<UpdateNotification />
+			{continuity.failed && <ContinuityFailedNotice />}
 			<ProjectRailFrame projectRail={projectRail} divider={railDivider} frameRef={railFrameRef} railWidth={railWidth}>
 				<ProjectRail
 					projects={availableProjects}
@@ -178,26 +191,36 @@ function Bankai() {
 						onAction={handleAddProject}
 					/>
 				)}
-				{!projects.isError && availableProjects.filter((project) => residentProjectIds.includes(project.id)).map((project) => (
-					<ProjectWorkspace
-						key={project.id}
-						project={project}
-						projects={availableProjects}
-						shellActivity={activity.shells}
-						active={project.id === activeProjectId}
-						shellFocusRequest={shellFocusRequest}
-						fullscreen={projectRail.fullscreen}
-						fullscreenAnimating={projectRail.animating}
-						onToggleFullscreen={projectRail.toggleFullscreen}
-						initialDiffWidth={layout.initial.diffWidth}
-						initialTreeWidth={layout.initial.treeWidth}
-						onPersistLayout={layout.persist}
-						reviewOpen={reviewOpen}
-						onReviewOpenChange={handleReviewOpenChange}
-						treeOpen={treeOpen}
-						onTreeOpenChange={handleTreeOpenChange}
-					/>
-				))}
+				{!projects.isError && availableProjects.filter((project) => residentProjectIds.includes(project.id)).map((project) => {
+					const workspace = continuity.restored.workspaces.find((entry) => entry.projectId === project.id);
+
+					return (
+						<ProjectWorkspace
+							key={project.id}
+							project={project}
+							projects={availableProjects}
+							shellActivity={activity.shells}
+							active={project.id === activeProjectId}
+							shellFocusRequest={shellFocusRequest}
+							fullscreen={projectRail.fullscreen}
+							fullscreenAnimating={projectRail.animating}
+							onToggleFullscreen={projectRail.toggleFullscreen}
+							initialDiffWidth={layout.initial.diffWidth}
+							initialTreeWidth={layout.initial.treeWidth}
+							onPersistLayout={layout.persist}
+							reviewOpen={reviewOpen}
+							onReviewOpenChange={handleReviewOpenChange}
+							treeOpen={treeOpen}
+							onTreeOpenChange={handleTreeOpenChange}
+							restoredShells={workspace?.shells}
+							restoredActiveShellId={workspace?.activeShellId}
+							onShellOpen={continuity.openShell}
+							onShellClose={continuity.closeShell}
+							onShellMove={continuity.moveShell}
+							onShellSelect={continuity.selectShell}
+						/>
+					);
+				})}
 			</section>
 		</main>
 	);

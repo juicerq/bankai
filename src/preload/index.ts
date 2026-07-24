@@ -22,8 +22,10 @@ window.addEventListener("message", (event) => {
 });
 
 const terminalApi: BankaiTerminalApi = {
-	open: (projectId, cols, rows) =>
-		ipcRenderer.invoke("terminal:open", { projectId, cols, rows }),
+	open: (projectId, shellId, cols, rows) =>
+		ipcRenderer.invoke("terminal:open", { projectId, shellId, cols, rows }),
+	resume: (projectId, shellId, cols, rows) =>
+		ipcRenderer.invoke("terminal:resume", { projectId, shellId, cols, rows }),
 	write: (sessionId, data) => ipcRenderer.send("terminal:write", { sessionId, data }),
 	resize: (sessionId, cols, rows) => ipcRenderer.send("terminal:resize", { sessionId, cols, rows }),
 	close: (sessionId) => ipcRenderer.send("terminal:close", { sessionId }),

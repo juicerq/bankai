@@ -72,6 +72,22 @@ _Avoid_: Assistant, bot, AI, process
 The per-CLI integration that recognizes that agent's live sessions inside Shells and reads their activity. One harness per supported agent CLI.
 _Avoid_: Adapter, plugin, integration, driver
 
+**Agent session**:
+A durable conversation owned by a Harness. It may outlive its Agent process and can be resumed when the Harness supports it.
+_Avoid_: Shell, process, PTY
+
+**Live agent session**:
+An Agent session whose Agent process is still running inside a Shell, whether it is Working, Needs attention, or idle inside the Agent. Leaving the Agent and returning to the shell prompt ends the live session.
+_Avoid_: Working session, active Shell
+
+**Session ref**:
+The durable address of an Agent session: its Harness plus the native identifier assigned by that Harness.
+_Avoid_: Agent ID, Shell ID, native session ID alone
+
+**Continuity**:
+The promise that reopening Bankai returns Projects and their Shells to their last meaningful arrangement and resumes the Agent sessions that were still live. It covers the Active project, Shell order and selection, and each live Session ref, but not terminal scrollback or unsent input.
+_Avoid_: Workspace, Layout preferences, snapshot
+
 **Agent activity**:
 The observed state of the Agent inside a Shell: Working, Needs attention, or Done unseen. A shell with no recognized agent, or whose finished work was already seen, carries no activity. A project's activity is the most urgent among its shells' — Needs attention over Done unseen over Working.
 _Avoid_: Status, presence, agent state

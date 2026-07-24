@@ -22,14 +22,10 @@ import { ACTIVITY_DOT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
 import { useProjectWorkspaceShortcuts } from "@renderer/routes/-utils/use-project-workspace-shortcuts";
+import { initialShellTopology, newShellTab, type RestoredShell, type ShellTab } from "@renderer/routes/-utils/shell-topology";
 
 const MIN_TERMINAL_WIDTH = 360;
 const REVIEW_SEPARATOR_WIDTH = 1;
-
-interface ShellTab {
-	id: string;
-	label: string;
-}
 
 export const ProjectWorkspace = memo(function ProjectWorkspace({
 	project,
@@ -47,6 +43,12 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	onReviewOpenChange,
 	treeOpen,
 	onTreeOpenChange,
+	restoredShells,
+	restoredActiveShellId,
+	onShellOpen,
+	onShellClose,
+	onShellMove,
+	onShellSelect,
 }: {
 	project: Project;
 	projects: Project[];
@@ -63,9 +65,16 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	onReviewOpenChange: (open: boolean) => void;
 	treeOpen: boolean;
 	onTreeOpenChange: (open: boolean) => void;
+	restoredShells: RestoredShell[] | undefined;
+	restoredActiveShellId: string | undefined;
+	onShellOpen: (projectId: string, shell: ShellTab) => void;
+	onShellClose: (projectId: string, shellId: string) => void;
+	onShellMove: (projectId: string, shellId: string, toIndex: number) => void;
+	onShellSelect: (projectId: string, shellId: string) => void;
 }) {
-	const [tabs, setTabs] = useState<ShellTab[]>(() => [newShellTab(1)]);
-	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
+	const [topology] = useState(() => initialShellTopology(restoredShells, restoredActiveShellId));
+	const [tabs, setTabs] = useState<ShellTab[]>(topology.tabs);
+	const [activeTabId, setActiveTabId] = useState<string | undefined>(topology.activeTabId);
 	const [sessionIds, setSessionIds] = useState<Record<string, string>>({});
 	const handleSessionId = useCallback((tabId: string, sessionId: string) => {
 		setSessionIds((current) => ({ ...current, [tabId]: sessionId }));
@@ -75,7 +84,31 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	const [treeWidth, setTreeWidth] = useState(initialTreeWidth);
 	const [rowWidth, setRowWidth] = useState<number>();
 	const rowElement = useRef<HTMLDivElement | null>(null);
-	const nextShellNumber = useRef(2);
+	const nextShellNumber = useRef(topology.nextShellNumber);
+	const pendingDefaultShell = useRef<ShellTab | undefined>(topology.defaultShell);
+	const registerDefaultShell = useCallback(
+		(node: HTMLSpanElement | null) => {
+			if (!node) {
+				return;
+			}
+
+			const shell = pendingDefaultShell.current;
+			if (!shell) {
+				return;
+			}
+
+			pendingDefaultShell.current = undefined;
+			onShellOpen(project.id, shell);
+		},
+		[onShellOpen, project.id],
+	);
+	const selectTab = useCallback(
+		(tabId: string) => {
+			setActiveTabId(tabId);
+			onShellSelect(project.id, tabId);
+		},
+		[onShellSelect, project.id],
+	);
 
 	const treeReserve = treeOpen ? treeWidth : 0;
 	const maxDiffWidth = rowWidth === undefined
@@ -175,6 +208,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		nextShellNumber.current += 1;
 		setTabs((current) => [...current, tab]);
 		setActiveTabId(tab.id);
+		onShellOpen(project.id, tab);
 	};
 	const startReviewMotion = useCallback(() => {
 		setReviewAnimating(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -192,7 +226,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	const registerWorkspaceShortcuts = useProjectWorkspaceShortcuts({
 		active,
 		tabs,
-		onActivateTab: setActiveTabId,
+		onActivateTab: selectTab,
 		onToggleReview: handleToggleReview,
 	});
 
@@ -203,6 +237,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 
 			return [...others.slice(0, data.toIndex), ...moved, ...others.slice(data.toIndex)];
 		});
+		onShellMove(project.id, data.tabId, data.toIndex);
 	};
 
 	const handleCloseShell = (tabId: string) => {
@@ -216,6 +251,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		if (activeTabId === tabId) {
 			setActiveTabId(remaining[Math.max(0, tabIndex - 1)]?.id);
 		}
+		onShellClose(project.id, tabId);
 	};
 	const reviewWidth = REVIEW_SEPARATOR_WIDTH + renderedDiffWidth + renderedTreeWidth;
 	const liveReviewWidth = `calc(${REVIEW_DIFF_WIDTH_VALUE} + ${REVIEW_TREE_WIDTH_VALUE} + ${REVIEW_SEPARATOR_WIDTH}px)`;
@@ -226,6 +262,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 			className={`col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col ${active ? "" : "invisible"}`}
 			aria-label={`${project.name} workspace`}
 		>
+			<span ref={registerDefaultShell} hidden />
 			<header className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised pr-[120px]">
 				{active && fullscreen && <ActivityIndicator projects={projects} activeProjectId={project.id} />}
 				<ProjectWorkspaceShellTabs
@@ -233,7 +270,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					activeTabId={activeTabId}
 					shellActivity={shellActivity}
 					sessionIds={sessionIds}
-					onSelect={setActiveTabId}
+					onSelect={selectTab}
 					onClose={handleCloseShell}
 					onMove={handleMoveShell}
 					onNew={handleNewShell}
@@ -288,9 +325,11 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 						>
 							<TerminalPane
 								projectId={project.id}
+								shellId={tab.id}
 								active={active && tab.id === activeTabId}
 								focusRequest={shellFocusRequest}
 								resizeDeferred={fullscreenAnimating || reviewAnimating || resizing}
+								resumeOnMount={topology.resumableShellIds.has(tab.id)}
 								onSessionId={(sessionId) => handleSessionId(tab.id, sessionId)}
 							/>
 						</div>
@@ -406,6 +445,3 @@ export function ProjectWorkspaceShellTabs({
 	);
 }
 
-function newShellTab(index: number): ShellTab {
-	return { id: crypto.randomUUID(), label: `Shell ${index}` };
-}

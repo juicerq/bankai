@@ -2,6 +2,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { type IDisposable, type ITerminalOptions, Terminal } from "@xterm/xterm";
 import { useCallback, useRef } from "react";
+import type { ResumeOutcome } from "@renderer/routes/-utils/resume-state";
 import { readTerminalStyle } from "@renderer/routes/-utils/terminal-style";
 import type { TerminalCommandErrorEvent } from "@shared/terminal";
 import { throttle } from "@shared/throttle";
@@ -30,19 +31,27 @@ interface ActiveWebgl {
 	contextLoss: IDisposable;
 }
 
-export function useTerminalSession(
-	projectId: string,
-	focusRequest: number,
-	resizeDeferred: boolean,
-	onSessionId: (sessionId: string) => void,
-) {
+export function useTerminalSession(options: {
+	projectId: string;
+	shellId: string;
+	focusRequest: number;
+	resizeDeferred: boolean;
+	resumeOnMount: boolean;
+	onSessionId: (sessionId: string) => void;
+	onResumeOutcome: (outcome: ResumeOutcome) => void;
+}) {
+	const { projectId, shellId, focusRequest, resizeDeferred, resumeOnMount } = options;
 	const sessionRef = useRef<RendererTerminalSession | null>(null);
 	const activeRef = useRef(false);
 	const activationRef = useRef<symbol | null>(null);
 	const resizeDeferredRef = useRef(resizeDeferred);
 	resizeDeferredRef.current = resizeDeferred;
-	const onSessionIdRef = useRef(onSessionId);
-	onSessionIdRef.current = onSessionId;
+	const resumeOnMountRef = useRef(resumeOnMount);
+	resumeOnMountRef.current = resumeOnMount;
+	const onSessionIdRef = useRef(options.onSessionId);
+	onSessionIdRef.current = options.onSessionId;
+	const onResumeOutcomeRef = useRef(options.onResumeOutcome);
+	onResumeOutcomeRef.current = options.onResumeOutcome;
 	const registerContainer = useCallback((container: HTMLDivElement | null) => {
 		if (!container) {
 			return;
@@ -50,12 +59,14 @@ export function useTerminalSession(
 
 		let session: RendererTerminalSession | undefined;
 		const cancelStart = scheduleAfterPaint(() => {
-			session = new RendererTerminalSession(
-				container,
+			session = new RendererTerminalSession(container, {
 				projectId,
-				resizeDeferredRef.current,
-				(sessionId) => onSessionIdRef.current(sessionId),
-			);
+				shellId,
+				resume: resumeOnMountRef.current,
+				resizeDeferred: resizeDeferredRef.current,
+				onSessionId: (sessionId) => onSessionIdRef.current(sessionId),
+				onResumeOutcome: (outcome) => onResumeOutcomeRef.current(outcome),
+			});
 			sessionRef.current = session;
 			session.setActive(activeRef.current);
 		});
@@ -70,7 +81,8 @@ export function useTerminalSession(
 			}
 			session.dispose();
 		};
-	}, [projectId]);
+	}, [projectId, shellId]);
+	const retryResume = useCallback(() => sessionRef.current?.retryResume(), []);
 	const registerActivation = useCallback(() => {
 		const activation = Symbol("terminal-activation");
 		activationRef.current = activation;
@@ -97,7 +109,16 @@ export function useTerminalSession(
 		}
 	}, [resizeDeferred]);
 
-	return { registerContainer, registerActivation, registerFocusRequest, registerResizeDeferral };
+	return { registerContainer, registerActivation, registerFocusRequest, registerResizeDeferral, retryResume };
+}
+
+interface RendererTerminalOptions {
+	projectId: string;
+	shellId: string;
+	resume: boolean;
+	resizeDeferred: boolean;
+	onSessionId: (sessionId: string) => void;
+	onResumeOutcome: (outcome: ResumeOutcome) => void;
 }
 
 export class RendererTerminalSession {
@@ -118,13 +139,15 @@ export class RendererTerminalSession {
 	private disposed = false;
 	private lifecycle = 0;
 	private resizePending = false;
+	private resizeDeferred: boolean;
+	private resumeAttempt: boolean;
 
 	constructor(
 		private readonly container: HTMLDivElement,
-		projectId: string,
-		private resizeDeferred: boolean,
-		private readonly onSessionId: (sessionId: string) => void,
+		private readonly options: RendererTerminalOptions,
 	) {
+		this.resizeDeferred = options.resizeDeferred;
+		this.resumeAttempt = options.resume;
 		this.terminal.loadAddon(this.fit);
 		this.terminal.open(container);
 		this.removeDataListener = window.bankaiTerminal.onData((event) => {
@@ -150,7 +173,21 @@ export class RendererTerminalSession {
 		this.resizeProcess = throttle(() => this.syncProcessDimensions(), TERMINAL_RESIZE_THROTTLE_MS);
 		this.resizeObserver = new ResizeObserver(() => this.handleContainerResize());
 		this.resizeObserver.observe(container);
-		this.open(projectId).catch((err) => this.fail("Failed to open shell", err));
+		this.start().catch((err) => this.fail("Failed to open shell", err));
+	}
+
+	retryResume() {
+		if (this.disposed) {
+			return;
+		}
+
+		this.lifecycle += 1;
+		if (this.sessionId) {
+			window.bankaiTerminal.close(this.sessionId);
+			this.sessionId = undefined;
+		}
+		this.resumeAttempt = true;
+		this.start().catch((err) => this.fail("Failed to resume shell", err));
 	}
 
 	setActive(active: boolean) {
@@ -215,7 +252,7 @@ export class RendererTerminalSession {
 		this.terminal.dispose();
 	}
 
-	private async open(projectId: string) {
+	private async start() {
 		const openingLifecycle = this.lifecycle;
 		await document.fonts.ready;
 		if (this.lifecycle !== openingLifecycle) {
@@ -223,25 +260,48 @@ export class RendererTerminalSession {
 		}
 
 		this.fit.fit();
-		this.webglIdle = requestIdleCallback(() => {
-			if (!this.webgl) {
-				this.loadWebgl();
-			}
-		}, { timeout: 1500 });
+		if (this.webglIdle === undefined) {
+			this.webglIdle = requestIdleCallback(() => {
+				if (!this.webgl) {
+					this.loadWebgl();
+				}
+			}, { timeout: 1500 });
+		}
 		this.lastCols = this.terminal.cols;
 		this.lastRows = this.terminal.rows;
-		const sessionId = await window.bankaiTerminal.open(projectId, this.terminal.cols, this.terminal.rows);
+		const sessionId = await this.spawn();
 		if (this.lifecycle !== openingLifecycle) {
 			window.bankaiTerminal.close(sessionId);
 			return;
 		}
 
 		this.sessionId = sessionId;
-		this.onSessionId(sessionId);
+		this.options.onSessionId(sessionId);
 		if (this.active) {
 			this.terminal.focus();
 			this.reportViewed();
 		}
+	}
+
+	private async spawn(): Promise<string> {
+		const { projectId, shellId } = this.options;
+		if (this.resumeAttempt) {
+			this.resumeAttempt = false;
+			try {
+				const sessionId = await window.bankaiTerminal.resume(
+					projectId,
+					shellId,
+					this.terminal.cols,
+					this.terminal.rows,
+				);
+				this.options.onResumeOutcome({ kind: "resumed" });
+				return sessionId;
+			} catch (err) {
+				this.options.onResumeOutcome({ kind: "failed", reason: err instanceof Error ? err.message : String(err) });
+			}
+		}
+
+		return window.bankaiTerminal.open(projectId, shellId, this.terminal.cols, this.terminal.rows);
 	}
 
 	private reportViewed() {

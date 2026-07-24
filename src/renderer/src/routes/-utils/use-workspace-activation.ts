@@ -5,6 +5,12 @@ interface ActivationState {
 	residentProjectIds: string[];
 }
 
+interface WorkspaceActivationOptions {
+	initialActiveProjectId?: string;
+	initialResidentProjectIds?: readonly string[];
+	onActivate?: (projectId: string) => void;
+}
+
 function appendUnique(ids: string[], id: string | undefined) {
 	if (!id || ids.includes(id)) {
 		return ids;
@@ -13,12 +19,18 @@ function appendUnique(ids: string[], id: string | undefined) {
 	return [...ids, id];
 }
 
-export function useWorkspaceActivation(availableProjectIds: readonly string[]) {
-	const [state, setState] = useState<ActivationState>({ explicitProjectId: null, residentProjectIds: [] });
+export function useWorkspaceActivation(availableProjectIds: readonly string[], options: WorkspaceActivationOptions) {
+	const [state, setState] = useState<ActivationState>(() => ({
+		explicitProjectId: options.initialActiveProjectId ?? null,
+		residentProjectIds: [...(options.initialResidentProjectIds ?? [])],
+	}));
 	const availableRef = useRef(availableProjectIds);
 	availableRef.current = availableProjectIds;
+	const onActivateRef = useRef(options.onActivate);
+	onActivateRef.current = options.onActivate;
 
 	const activateProject = useCallback((projectId: string) => {
+		onActivateRef.current?.(projectId);
 		setState((current) => ({
 			explicitProjectId: projectId,
 			residentProjectIds: appendUnique(

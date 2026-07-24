@@ -3,7 +3,9 @@ import type { AgentPresence } from "@main/activity/Harness";
 import { bindShells, childrenByParent } from "@main/activity/SessionBinder";
 import { discoverAgents } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
+import { reconcileSessionRefs, type SessionRef } from "@main/activity/SessionRefs";
 import { Logger } from "@main/logger";
+import { Continuity } from "@main/store/continuity";
 import { TerminalSessions } from "@main/terminal/TerminalSessions";
 import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
 
@@ -98,6 +100,7 @@ class AgentActivityTracker {
 	private readonly attention = new Set<string>();
 	private readonly attentionTail = new Map<string, string>();
 	private boundSessions = new Set<string>();
+	private sessionRefs = new Map<string, SessionRef>();
 	private viewed: string | undefined;
 	private timer: ReturnType<typeof setInterval> | undefined;
 	private ticking = false;
@@ -176,6 +179,7 @@ class AgentActivityTracker {
 		const shellProjects = new Map(shells.map((shell) => [shell.sessionId, shell.projectId]));
 		if (shells.length === 0) {
 			this.boundSessions = new Set();
+			this.sessionRefs = new Map();
 			this.attention.clear();
 			this.attentionTail.clear();
 			this.commit(new Map(), shellProjects);
@@ -223,7 +227,37 @@ class AgentActivityTracker {
 			}
 		}
 
+		this.captureSessionRefs(shells, bindings, liveByPid);
 		this.commit(nextStates, shellProjects);
+	}
+
+	private captureSessionRefs(
+		shells: { sessionId: string; shellId: string; projectId: string }[],
+		bindings: Map<string, number>,
+		liveByPid: Map<number, AgentPresence>,
+	): void {
+		const observations = shells.map((shell) => {
+			const boundPid = bindings.get(shell.sessionId);
+			const presence = boundPid === undefined ? undefined : liveByPid.get(boundPid);
+
+			return {
+				shellId: shell.shellId,
+				projectId: shell.projectId,
+				session: presence
+					? { harness: presence.harness, sessionId: presence.sessionId, cwd: presence.cwd }
+					: undefined,
+			};
+		});
+
+		const { changes, next } = reconcileSessionRefs(this.sessionRefs, observations);
+		this.sessionRefs = next;
+
+		for (const change of changes) {
+			const persist = change.kind === "upsert"
+				? Continuity.setShellSession({ projectId: change.projectId, shellId: change.shellId, session: change.session })
+				: Continuity.clearShellSession({ projectId: change.projectId, shellId: change.shellId });
+			persist.catch((err) => Logger.error("activity:session-ref-persist-failed", { err: String(err) }));
+		}
 	}
 
 	private shellProjects(): Map<string, string> {

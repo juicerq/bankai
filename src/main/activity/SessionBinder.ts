@@ -40,7 +40,11 @@ export function bindShells(
 ): Map<string, number> {
 	const bindings = new Map<string, number>();
 	for (const shell of shells) {
-		if (shell.foreground === null || shell.foreground === shell.pid) {
+		if (shell.foreground === null) {
+			continue;
+		}
+
+		if (shell.foreground === shell.pid && !livePids.has(shell.pid)) {
 			continue;
 		}
 

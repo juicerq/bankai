@@ -1,6 +1,7 @@
 import { type } from "arktype";
 import { dialog, shell } from "electron";
 import { base } from "@main/router/_base";
+import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 
 export const projectsRouter = {
@@ -15,6 +16,7 @@ export const projectsRouter = {
 	remove: base.input(type({ projectId: "string" })).handler(async ({ input }) => {
 		await Projects.find(input.projectId);
 		await Projects.remove(input.projectId);
+		await Continuity.purgeProject(input.projectId);
 	}),
 	move: base.input(type({ projectId: "string", toIndex: "number" })).handler(async ({ input }) => {
 		await Projects.find(input.projectId);

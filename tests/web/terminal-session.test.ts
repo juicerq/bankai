@@ -55,6 +55,7 @@ void mock.module("@renderer/routes/-utils/terminal-style", () => ({ readTerminal
 
 window.bankaiTerminal = {
 	open: async () => "session-1",
+	resume: async () => "session-1",
 	write() {},
 	resize() {},
 	close() {},
@@ -96,7 +97,14 @@ const { RendererTerminalSession } = await import("@renderer/routes/-utils/use-te
 async function startSession() {
 	const container = document.createElement("div");
 	document.body.appendChild(container);
-	const session = new RendererTerminalSession(container, "project-1", false, () => {});
+	const session = new RendererTerminalSession(container, {
+		projectId: "project-1",
+		shellId: "shell-1",
+		resume: false,
+		resizeDeferred: false,
+		onSessionId: () => {},
+		onResumeOutcome: () => {},
+	});
 	await new Promise((resolve) => setTimeout(resolve, 0));
 	await new Promise((resolve) => setTimeout(resolve, 0));
 

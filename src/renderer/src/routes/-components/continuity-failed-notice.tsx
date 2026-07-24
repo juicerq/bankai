@@ -11,7 +11,7 @@ export function ContinuityFailedNotice() {
 	return (
 		<div
 			data-component="continuity-failed-notice"
-			className="update-toast-enter fixed bottom-4 left-4 z-50 flex items-center gap-3 border border-outline bg-surface-raised py-2 pr-2 pl-3"
+			className="notice-enter fixed bottom-4 left-4 z-50 flex items-center gap-3 border border-outline bg-surface-raised py-2 pr-2 pl-3"
 		>
 			<span className="size-[6px] shrink-0 rounded-full bg-tertiary" />
 			<div className="flex flex-col leading-tight">

@@ -115,3 +115,7 @@ _Avoid_: Scroll position, offset, scroll top
 **Focused file**:
 The one changed file occupying the Review's content area in full, with unchanged lines as context and changed lines still marked. The underlying Review remains present and current.
 _Avoid_: Full-file view, preview, expand, open file, source view, modal
+
+**Update button**:
+The Workspace header control, left of the Fullscreen mode toggle, that appears only once a new version is downloaded and waiting. Clicking it restarts Bankai into that version; ignoring it changes nothing, since the version also applies whenever the app is closed.
+_Avoid_: Update notification, toast, restart banner, upgrade prompt

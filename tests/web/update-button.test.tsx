@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import type { BankaiUpdateApi, UpdateDownloadedEvent } from "@shared/update";
-import { UpdateNotification } from "@renderer/routes/-components/update-notification";
-import { get, query, slot } from "./dom";
+import { UpdateButton } from "@renderer/routes/-components/update-button";
+import { get, query } from "./dom";
 import { act, cleanup, fireEvent, render } from "./testing-library";
 
 let pending: UpdateDownloadedEvent | null;
@@ -33,44 +33,43 @@ afterEach(() => {
 	cleanup();
 });
 
-describe("Update notification", () => {
+describe("Update button", () => {
 	test("stays hidden until an update is downloaded", () => {
-		render(<UpdateNotification />);
+		render(<UpdateButton />);
 
-		expect(query("update-notification")).toBeNull();
+		expect(query("update-button")).toBeNull();
 	});
 
 	test("appears with the downloaded version", () => {
-		render(<UpdateNotification />);
+		render(<UpdateButton />);
 
 		emit("0.3.0");
 
-		expect(get("update-notification").dataset.version).toBe("0.3.0");
+		expect(get("update-button").dataset.version).toBe("0.3.0");
+	});
+
+	test("names the version it will install", () => {
+		render(<UpdateButton />);
+
+		emit("0.3.0");
+
+		expect(get("update-button").getAttribute("aria-label")).toBe("Update to v0.3.0");
 	});
 
 	test("shows an already-downloaded update on mount", async () => {
 		pending = { version: "0.3.1" };
-		render(<UpdateNotification />);
+		render(<UpdateButton />);
 		await act(async () => {});
 
-		expect(get("update-notification").dataset.version).toBe("0.3.1");
+		expect(get("update-button").dataset.version).toBe("0.3.1");
 	});
 
-	test("restart triggers the install bridge", () => {
-		render(<UpdateNotification />);
+	test("a click triggers the install bridge", () => {
+		render(<UpdateButton />);
 		emit("0.3.0");
 
-		fireEvent.click(slot(get("update-notification"), "restart"));
+		fireEvent.click(get("update-button"));
 
 		expect(install).toHaveBeenCalledTimes(1);
-	});
-
-	test("dismiss hides the notification for the session", () => {
-		render(<UpdateNotification />);
-		emit("0.3.0");
-
-		fireEvent.click(slot(get("update-notification"), "dismiss"));
-
-		expect(query("update-notification")).toBeNull();
 	});
 });

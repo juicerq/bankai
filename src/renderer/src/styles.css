@@ -144,7 +144,7 @@
 	background-color: var(--color-terminal-background);
 }
 
-@keyframes update-toast-enter {
+@keyframes notice-enter {
 	from {
 		opacity: 0;
 		transform: translateY(8px);
@@ -155,8 +155,21 @@
 	}
 }
 
-.update-toast-enter {
-	animation: update-toast-enter 300ms ease-out;
+.notice-enter {
+	animation: notice-enter 300ms ease-out;
+}
+
+@keyframes update-button-enter {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+.update-button-enter {
+	animation: update-button-enter 300ms ease-out;
 }
 
 @keyframes review-refreshing-enter {

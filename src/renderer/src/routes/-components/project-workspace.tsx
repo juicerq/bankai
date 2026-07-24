@@ -8,6 +8,7 @@ import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ReviewPanel } from "@renderer/routes/-components/review-panel";
 import { ReviewPanelFrame } from "@renderer/routes/-components/review-panel-frame";
 import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
+import { UpdateButton } from "@renderer/routes/-components/update-button";
 import {
 	MIN_DIFF_WIDTH,
 	MIN_TREE_WIDTH,
@@ -280,6 +281,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					onMove={handleMoveShell}
 					onNew={handleNewShell}
 				/>
+				{active && <UpdateButton />}
 				<button
 					type="button"
 					className={`flex h-full w-header shrink-0 items-center justify-center border-outline border-l hover:bg-surface-hover hover:text-primary ${

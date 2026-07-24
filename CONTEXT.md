@@ -64,6 +64,34 @@ _Avoid_: Explorer, file browser, sidebar
 Preparing a mounted project's review in the background before its first activation, so the first visit paints from already-known state.
 _Avoid_: Preload, eager load, warmup
 
+**Agent**:
+A CLI coding agent the user runs inside a Shell — Claude Code, Codex, or pi.
+_Avoid_: Assistant, bot, AI, process
+
+**Harness**:
+The per-CLI integration that recognizes that agent's live sessions inside Shells and reads their activity. One harness per supported agent CLI.
+_Avoid_: Adapter, plugin, integration, driver
+
+**Agent activity**:
+The observed state of the Agent inside a Shell: Working, Needs attention, or Done unseen. A shell with no recognized agent, or whose finished work was already seen, carries no activity. A project's activity is the most urgent among its shells' — Needs attention over Done unseen over Working.
+_Avoid_: Status, presence, agent state
+
+**Working**:
+The agent is executing an open turn — thinking, running tools, or editing. No user action is required.
+_Avoid_: Busy, running, active
+
+**Needs attention**:
+The agent stopped mid-turn waiting on the user — a permission request or a question. The most urgent activity: work is blocked until the user responds.
+_Avoid_: Blocked, waiting, paused, pending
+
+**Done unseen**:
+The agent finished its turn and the user has not looked at that Shell since. Clears only when the shell is viewed — its tab active in the Active project.
+_Avoid_: Unread, completed, finished, new
+
+**Activity indicator**:
+The compact element left of the shell tabs, present during Fullscreen mode, that keeps every mounted project's Agent activity visible while the Project rail is hidden. Passive: activating a project stays with the rail and shortcuts.
+_Avoid_: Mini rail, project dots, status bar
+
 **Focused file**:
 The one changed file occupying the Review's content area in full, with unchanged lines as context and changed lines still marked. The underlying Review remains present and current.
 _Avoid_: Full-file view, preview, expand, open file, source view, modal

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { type WebContents } from "electron";
 import { type IPty, spawn } from "node-pty";
+import { AgentActivity } from "@main/activity/AgentActivity";
 import { Logger } from "@main/logger";
 import { Projects } from "@main/store/projects";
 import { TerminalDataBuffer } from "@main/terminal/TerminalDataBuffer";
@@ -12,8 +13,15 @@ const SHELL = process.platform === "win32"
 
 interface Session {
 	ownerId: number;
+	projectId: string;
 	pty: IPty;
 	output: TerminalDataBuffer;
+}
+
+export interface TerminalSessionInfo {
+	sessionId: string;
+	projectId: string;
+	pid: number;
 }
 
 const sessions = new Map<string, Session>();
@@ -42,9 +50,12 @@ export const TerminalSessions = {
 		const output = new TerminalDataBuffer((data) => {
 			sendTerminalEvent(owner, "terminal:data", { sessionId, data });
 		});
-		sessions.set(sessionId, { ownerId: owner.id, pty: terminal, output });
+		sessions.set(sessionId, { ownerId: owner.id, projectId, pty: terminal, output });
 
-		terminal.onData((data) => output.append(data));
+		terminal.onData((data) => {
+			AgentActivity.noteData(sessionId, data);
+			output.append(data);
+		});
 		terminal.onExit(({ exitCode }) => {
 			output.dispose();
 			sessions.delete(sessionId);
@@ -66,6 +77,13 @@ export const TerminalSessions = {
 		session.output.flush();
 		sessions.delete(sessionId);
 		session.pty.kill();
+	},
+	list: (): TerminalSessionInfo[] => {
+		const infos: TerminalSessionInfo[] = [];
+		for (const [sessionId, session] of sessions) {
+			infos.push({ sessionId, projectId: session.projectId, pid: session.pty.pid });
+		}
+		return infos;
 	},
 	closeOwner: (ownerId: number) => {
 		ownerGenerations.set(ownerId, (ownerGenerations.get(ownerId) || 0) + 1);

@@ -76,6 +76,7 @@ function ProjectRailHarness() {
 			>
 				<ProjectRail
 					projects={projects}
+					activity={new Map()}
 					loading={false}
 					selectedId={selectedId}
 					onSelect={setSelectedId}

@@ -5,6 +5,7 @@ import type {
 	TerminalEvent,
 	TerminalExitEvent,
 } from "@shared/terminal";
+import { ACTIVITY_IPC, type ActivityChangedEvent, type BankaiActivityApi } from "@shared/activity";
 import { REVIEW_IPC, type BankaiReviewApi, type ReviewChangedEvent } from "@shared/review";
 import type { BankaiWindowApi } from "@shared/window";
 
@@ -71,6 +72,21 @@ const reviewApi: BankaiReviewApi = {
 };
 
 contextBridge.exposeInMainWorld("bankaiReview", reviewApi);
+
+const activityApi: BankaiActivityApi = {
+	watch: (projectId) => ipcRenderer.invoke(ACTIVITY_IPC.watch, { projectId }),
+	unwatch: (projectId) => ipcRenderer.send(ACTIVITY_IPC.unwatch, { projectId }),
+	markViewed: (sessionId) => ipcRenderer.send(ACTIVITY_IPC.viewed, { sessionId }),
+	onChanged: (listener) => {
+		const handler = (_event: Electron.IpcRendererEvent, payload: ActivityChangedEvent) => {
+			listener(payload);
+		};
+		ipcRenderer.on(ACTIVITY_IPC.changed, handler);
+		return () => ipcRenderer.removeListener(ACTIVITY_IPC.changed, handler);
+	},
+};
+
+contextBridge.exposeInMainWorld("bankaiActivity", activityApi);
 
 const windowApi: BankaiWindowApi = {
 	minimize: () => ipcRenderer.send("window:minimize"),

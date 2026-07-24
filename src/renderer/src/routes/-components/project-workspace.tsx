@@ -2,6 +2,8 @@ import { ArrowsPointingInIcon, ArrowsPointingOutIcon, ViewColumnsIcon } from "@h
 import { memo, useCallback, useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
 import type { LayoutSettings } from "@main/store/settings";
+import type { AgentActivityState } from "@shared/activity";
+import { ActivityIndicator } from "@renderer/routes/-components/activity-indicator";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ReviewPanel } from "@renderer/routes/-components/review-panel";
 import { ReviewPanelFrame } from "@renderer/routes/-components/review-panel-frame";
@@ -16,6 +18,7 @@ import {
 	redistributeReviewTree,
 	squeezeReviewDiff,
 } from "@renderer/routes/-utils/review-layout";
+import { ACTIVITY_DOT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
 import { useProjectWorkspaceShortcuts } from "@renderer/routes/-utils/use-project-workspace-shortcuts";
@@ -30,6 +33,8 @@ interface ShellTab {
 
 export const ProjectWorkspace = memo(function ProjectWorkspace({
 	project,
+	projects,
+	shellActivity,
 	active,
 	shellFocusRequest,
 	fullscreen,
@@ -44,6 +49,8 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	onTreeOpenChange,
 }: {
 	project: Project;
+	projects: Project[];
+	shellActivity: ReadonlyMap<string, AgentActivityState>;
 	active: boolean;
 	shellFocusRequest: number;
 	fullscreen: boolean;
@@ -59,6 +66,10 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 }) {
 	const [tabs, setTabs] = useState<ShellTab[]>(() => [newShellTab(1)]);
 	const [activeTabId, setActiveTabId] = useState<string | undefined>(() => tabs[0]?.id);
+	const [sessionIds, setSessionIds] = useState<Record<string, string>>({});
+	const handleSessionId = useCallback((tabId: string, sessionId: string) => {
+		setSessionIds((current) => ({ ...current, [tabId]: sessionId }));
+	}, []);
 	const [reviewAnimating, setReviewAnimating] = useState(false);
 	const [diffWidth, setDiffWidth] = useState(initialDiffWidth);
 	const [treeWidth, setTreeWidth] = useState(initialTreeWidth);
@@ -198,6 +209,10 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		const tabIndex = tabs.findIndex((tab) => tab.id === tabId);
 		const remaining = tabs.filter((tab) => tab.id !== tabId);
 		setTabs(remaining);
+		setSessionIds((current) => {
+			const { [tabId]: _removed, ...rest } = current;
+			return rest;
+		});
 		if (activeTabId === tabId) {
 			setActiveTabId(remaining[Math.max(0, tabIndex - 1)]?.id);
 		}
@@ -212,9 +227,12 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 			aria-label={`${project.name} workspace`}
 		>
 			<header className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised pr-[120px]">
+				{active && fullscreen && <ActivityIndicator projects={projects} activeProjectId={project.id} />}
 				<ProjectWorkspaceShellTabs
 					tabs={tabs}
 					activeTabId={activeTabId}
+					shellActivity={shellActivity}
+					sessionIds={sessionIds}
 					onSelect={setActiveTabId}
 					onClose={handleCloseShell}
 					onMove={handleMoveShell}
@@ -273,6 +291,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 								active={active && tab.id === activeTabId}
 								focusRequest={shellFocusRequest}
 								resizeDeferred={fullscreenAnimating || reviewAnimating || resizing}
+								onSessionId={(sessionId) => handleSessionId(tab.id, sessionId)}
 							/>
 						</div>
 					))}
@@ -299,9 +318,11 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	);
 });
 
-function ProjectWorkspaceShellTabs({
+export function ProjectWorkspaceShellTabs({
 	tabs,
 	activeTabId,
+	shellActivity,
+	sessionIds,
 	onSelect,
 	onClose,
 	onMove,
@@ -309,6 +330,8 @@ function ProjectWorkspaceShellTabs({
 }: {
 	tabs: ShellTab[];
 	activeTabId: string | undefined;
+	shellActivity: ReadonlyMap<string, AgentActivityState>;
+	sessionIds: Record<string, string>;
 	onSelect: (tabId: string) => void;
 	onClose: (tabId: string) => void;
 	onMove: (data: { tabId: string; toIndex: number }) => void;
@@ -324,9 +347,15 @@ function ProjectWorkspaceShellTabs({
 			{tabs.map((tab) => {
 				const selected = tab.id === activeTabId;
 				const dropEdge = drag.dropEdge(tab.id);
+				const sessionId = sessionIds[tab.id];
+				const activity = sessionId === undefined ? undefined : shellActivity.get(sessionId);
 
 				return (
 					<div
+						data-component="shell-tab"
+						data-tab-id={tab.id}
+						data-active={selected}
+						data-activity={activity}
 						className={`relative flex h-full shrink-0 items-center border-outline border-r ${
 							selected ? "bg-surface-active" : "hover:bg-surface-hover"
 						}`}
@@ -348,6 +377,12 @@ function ProjectWorkspaceShellTabs({
 						>
 							{tab.label}
 						</button>
+						{activity && (
+							<span
+								className={`size-1.5 shrink-0 rounded-full ${ACTIVITY_DOT_CLASS[activity]}`}
+								aria-hidden="true"
+							/>
+						)}
 						<button
 							type="button"
 							className="h-full px-3 text-body text-outline-strong hover:text-primary"

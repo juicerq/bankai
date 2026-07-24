@@ -63,6 +63,7 @@ function RailResizeHarness() {
 			<ProjectRailFrame projectRail={projectRail} divider={railDivider} frameRef={railFrameRef} railWidth={railWidth}>
 				<ProjectRail
 					projects={projects}
+					activity={new Map()}
 					loading={false}
 					selectedId="bankai"
 					onSelect={() => {}}

@@ -14,6 +14,7 @@ import {
 	RAIL_WIDTH_PROPERTY,
 	resolveRailWidth,
 } from "@renderer/routes/-utils/rail-layout";
+import { useAgentActivities } from "@renderer/routes/-utils/use-agent-activity";
 import { useBankaiShortcuts } from "@renderer/routes/-utils/use-bankai-shortcuts";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
@@ -92,6 +93,7 @@ function Bankai() {
 		},
 	});
 	const availableProjects = projects.data || [];
+	const activity = useAgentActivities(availableProjects.map((project) => project.id));
 	const { activeProjectId, residentProjectIds, activateProject, dropWorkspace } = useWorkspaceActivation(
 		availableProjects.map((project) => project.id),
 	);
@@ -141,6 +143,7 @@ function Bankai() {
 			<ProjectRailFrame projectRail={projectRail} divider={railDivider} frameRef={railFrameRef} railWidth={railWidth}>
 				<ProjectRail
 					projects={availableProjects}
+					activity={activity.projects}
 					loading={projects.isPending}
 					selectedId={activeProjectId}
 					onSelect={activateProject}
@@ -177,6 +180,8 @@ function Bankai() {
 					<ProjectWorkspace
 						key={project.id}
 						project={project}
+						projects={availableProjects}
+						shellActivity={activity.shells}
 						active={project.id === activeProjectId}
 						shellFocusRequest={shellFocusRequest}
 						fullscreen={projectRail.fullscreen}

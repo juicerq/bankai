@@ -30,12 +30,19 @@ interface ActiveWebgl {
 	contextLoss: IDisposable;
 }
 
-export function useTerminalSession(projectId: string, focusRequest: number, resizeDeferred: boolean) {
+export function useTerminalSession(
+	projectId: string,
+	focusRequest: number,
+	resizeDeferred: boolean,
+	onSessionId: (sessionId: string) => void,
+) {
 	const sessionRef = useRef<RendererTerminalSession | null>(null);
 	const activeRef = useRef(false);
 	const activationRef = useRef<symbol | null>(null);
 	const resizeDeferredRef = useRef(resizeDeferred);
 	resizeDeferredRef.current = resizeDeferred;
+	const onSessionIdRef = useRef(onSessionId);
+	onSessionIdRef.current = onSessionId;
 	const registerContainer = useCallback((container: HTMLDivElement | null) => {
 		if (!container) {
 			return;
@@ -43,7 +50,12 @@ export function useTerminalSession(projectId: string, focusRequest: number, resi
 
 		let session: RendererTerminalSession | undefined;
 		const cancelStart = scheduleAfterPaint(() => {
-			session = new RendererTerminalSession(container, projectId, resizeDeferredRef.current);
+			session = new RendererTerminalSession(
+				container,
+				projectId,
+				resizeDeferredRef.current,
+				(sessionId) => onSessionIdRef.current(sessionId),
+			);
 			sessionRef.current = session;
 			session.setActive(activeRef.current);
 		});
@@ -111,6 +123,7 @@ export class RendererTerminalSession {
 		private readonly container: HTMLDivElement,
 		projectId: string,
 		private resizeDeferred: boolean,
+		private readonly onSessionId: (sessionId: string) => void,
 	) {
 		this.terminal.loadAddon(this.fit);
 		this.terminal.open(container);
@@ -151,6 +164,7 @@ export class RendererTerminalSession {
 		}
 
 		this.terminal.focus();
+		this.reportViewed();
 		if (this.sessionId && !this.webgl) {
 			this.loadWebgl();
 		}
@@ -223,8 +237,16 @@ export class RendererTerminalSession {
 		}
 
 		this.sessionId = sessionId;
+		this.onSessionId(sessionId);
 		if (this.active) {
 			this.terminal.focus();
+			this.reportViewed();
+		}
+	}
+
+	private reportViewed() {
+		if (this.active && this.sessionId) {
+			window.bankaiActivity.markViewed(this.sessionId);
 		}
 	}
 

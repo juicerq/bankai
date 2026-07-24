@@ -2,10 +2,13 @@ import { PlusIcon } from "@heroicons/react/24/outline";
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Project } from "@main/store/projects";
+import type { AgentActivityState } from "@shared/activity";
+import { ACTIVITY_DOT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import { type DragReorder, useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
 
 export function ProjectRail({
 	projects,
+	activity,
 	loading,
 	selectedId,
 	onSelect,
@@ -19,6 +22,7 @@ export function ProjectRail({
 	onDragActiveChange,
 }: {
 	projects: Project[];
+	activity: ReadonlyMap<string, AgentActivityState>;
 	loading: boolean;
 	selectedId: string | undefined;
 	onSelect: (projectId: string) => void;
@@ -106,6 +110,7 @@ export function ProjectRail({
 						<ProjectRailItem
 							key={project.id}
 							project={project}
+							activity={activity.get(project.id)}
 							selected={selectedId === project.id}
 							drag={drag}
 							onSelect={onSelect}
@@ -156,12 +161,14 @@ export function ProjectRail({
 
 function ProjectRailItem({
 	project,
+	activity,
 	selected,
 	drag,
 	onSelect,
 	onOpenMenu,
 }: {
 	project: Project;
+	activity: AgentActivityState | undefined;
 	selected: boolean;
 	drag: DragReorder;
 	onSelect: (projectId: string) => void;
@@ -196,6 +203,15 @@ function ProjectRailItem({
 				<span className="block truncate text-body text-primary">{project.name}</span>
 				<span className="block truncate text-data text-secondary">{project.path}</span>
 			</span>
+			{activity && (
+				<span
+					data-slot="activity-signal"
+					data-activity={activity}
+					title={activity}
+					className={`ml-auto size-1.5 shrink-0 rounded-full ${ACTIVITY_DOT_CLASS[activity]}`}
+					aria-hidden="true"
+				/>
+			)}
 		</button>
 	);
 }

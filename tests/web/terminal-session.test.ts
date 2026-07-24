@@ -63,6 +63,13 @@ window.bankaiTerminal = {
 	onCommandError: () => () => {},
 };
 
+window.bankaiActivity = {
+	watch: async () => ({ state: null, shells: {} }),
+	unwatch() {},
+	onChanged: () => () => {},
+	markViewed() {},
+};
+
 Object.defineProperty(document, "fonts", { value: { ready: Promise.resolve() }, configurable: true });
 
 globalThis.ResizeObserver = class {
@@ -89,7 +96,7 @@ const { RendererTerminalSession } = await import("@renderer/routes/-utils/use-te
 async function startSession() {
 	const container = document.createElement("div");
 	document.body.appendChild(container);
-	const session = new RendererTerminalSession(container, "project-1", false);
+	const session = new RendererTerminalSession(container, "project-1", false, () => {});
 	await new Promise((resolve) => setTimeout(resolve, 0));
 	await new Promise((resolve) => setTimeout(resolve, 0));
 

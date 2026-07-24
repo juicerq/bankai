@@ -5,16 +5,19 @@ export function TerminalPane({
 	active,
 	focusRequest,
 	resizeDeferred,
+	onSessionId,
 }: {
 	projectId: string;
 	active: boolean;
 	focusRequest: number;
 	resizeDeferred: boolean;
+	onSessionId: (sessionId: string) => void;
 }) {
 	const { registerContainer, registerActivation, registerFocusRequest, registerResizeDeferral } = useTerminalSession(
 		projectId,
 		focusRequest,
 		resizeDeferred,
+		onSessionId,
 	);
 
 	return (

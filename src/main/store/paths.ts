@@ -4,9 +4,12 @@ import type * as ElectronModule from "electron";
 
 const require = createRequire(import.meta.url);
 
+export const DEV_DESKTOP_NAME = "bankai-dev.desktop";
+
 export interface InstanceIdentity {
 	userDataDir: string;
 	singleInstanceLock: boolean;
+	desktopName?: string;
 }
 
 export function resolveInstanceIdentity(input: {
@@ -22,7 +25,7 @@ export function resolveInstanceIdentity(input: {
 		`${basename(input.prodUserDataDir)}-dev`,
 	);
 
-	return { userDataDir: devDir, singleInstanceLock: false };
+	return { userDataDir: devDir, singleInstanceLock: false, desktopName: DEV_DESKTOP_NAME };
 }
 
 export function resolveDataDir(): string {

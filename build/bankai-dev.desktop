@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Bankai Dev
+Comment=Development instance of Bankai
+Exec=/usr/bin/false
+Icon=bankai-dev
+Terminal=false
+NoDisplay=true
+Categories=Development;
+StartupWMClass=bankai-dev

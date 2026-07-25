@@ -33,6 +33,13 @@ bun run dev
 bun run build
 ```
 
+The development window announces itself as `bankai-dev.desktop`, so it carries an amber blade instead of the production white one and the two are tellable apart in a taskbar. On Linux, install that entry once per machine:
+
+```sh
+rsvg-convert -w 512 -h 512 build/icon-dev.svg -o ~/.local/share/icons/hicolor/512x512/apps/bankai-dev.png
+cp build/bankai-dev.desktop ~/.local/share/applications/
+```
+
 `node-pty` is a native dependency. Electron Builder rebuilds it for the target Electron ABI and unpacks its native files from ASAR. Linux source builds may require Python, `make`, and a C++ compiler; Windows source builds may require Visual Studio Build Tools.
 
 ## Security boundaries

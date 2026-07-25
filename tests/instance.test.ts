@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { resolveDataDir, resolveInstanceIdentity } from "@main/store/paths";
+import { DEV_DESKTOP_NAME, resolveDataDir, resolveInstanceIdentity } from "@main/store/paths";
 import { assertDefined } from "./utils/assertions";
 
 describe("instance identity", () => {
@@ -23,6 +23,15 @@ describe("instance identity", () => {
 		expect(identity.singleInstanceLock).toBe(false);
 		expect(identity.userDataDir).not.toBe(prodUserDataDir);
 		expect(identity.userDataDir).toBe("/home/op/.config/Bankai-dev");
+	});
+
+	it("gives development its own desktop name so the taskbar resolves a separate icon", () => {
+		const identity = resolveInstanceIdentity({
+			packaged: false,
+			prodUserDataDir: "/home/op/.config/Bankai",
+		});
+
+		expect(identity.desktopName).toBe(DEV_DESKTOP_NAME);
 	});
 });
 

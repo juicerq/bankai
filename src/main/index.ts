@@ -144,6 +144,10 @@ const identity = resolveInstanceIdentity({
 
 app.setPath("userData", identity.userDataDir);
 
+if (identity.desktopName) {
+	app.setDesktopName(identity.desktopName);
+}
+
 if (identity.singleInstanceLock && !app.requestSingleInstanceLock()) {
 	app.quit();
 } else {

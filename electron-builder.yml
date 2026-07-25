@@ -33,3 +33,4 @@ publish:
   provider: github
   owner: juicerq
   repo: bankai-2
+  releaseType: release

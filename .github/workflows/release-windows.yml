@@ -1,19 +1,23 @@
-name: release
+name: release windows
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Released tag to attach the Windows installer to
+        required: true
 
 jobs:
   release:
     permissions:
       contents: write
 
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - uses: oven-sh/setup-bun@v2
 
@@ -28,6 +32,6 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build and publish
-        run: bun run build && bunx electron-builder --linux --publish always
+        run: bun run build && bunx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

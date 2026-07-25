@@ -160,6 +160,55 @@ function shellOwners(shells: { sessionId: string; projectId: string; shellId: st
 	);
 }
 
+export function snapshotsByProject({
+	shellStates,
+	owners,
+	worktrees,
+}: {
+	shellStates: Map<string, AgentActivityState>;
+	owners: Map<string, ShellOwner>;
+	worktrees: Map<string, string>;
+}): Map<string, ProjectActivitySnapshot> {
+	const projectIds = new Set<string>();
+	const shellsByProject = new Map<string, Record<string, AgentActivityState>>();
+	for (const [sessionId, state] of shellStates) {
+		const owner = owners.get(sessionId);
+		if (owner === undefined) {
+			continue;
+		}
+
+		const grouped = shellsByProject.get(owner.projectId) ?? {};
+		grouped[sessionId] = state;
+		shellsByProject.set(owner.projectId, grouped);
+		projectIds.add(owner.projectId);
+	}
+
+	const worktreesByProject = new Map<string, Record<string, string>>();
+	for (const owner of owners.values()) {
+		const worktree = worktrees.get(owner.shellId);
+		if (worktree === undefined) {
+			continue;
+		}
+
+		const grouped = worktreesByProject.get(owner.projectId) ?? {};
+		grouped[owner.shellId] = worktree;
+		worktreesByProject.set(owner.projectId, grouped);
+		projectIds.add(owner.projectId);
+	}
+
+	const snapshots = new Map<string, ProjectActivitySnapshot>();
+	for (const projectId of projectIds) {
+		const shells = shellsByProject.get(projectId) ?? {};
+		snapshots.set(projectId, {
+			state: aggregateActivity(Object.values(shells)),
+			shells,
+			worktreeByShellId: worktreesByProject.get(projectId) ?? {},
+		});
+	}
+
+	return snapshots;
+}
+
 function sameRecord(before: Record<string, string>, after: Record<string, string>): boolean {
 	const keys = Object.keys(before);
 	if (keys.length !== Object.keys(after).length) {
@@ -423,45 +472,10 @@ class AgentActivityTracker {
 	): void {
 		const previousStates = this.shellStates;
 		const previousWorktrees = this.shellWorktrees;
+		const previous = this.projectSnapshots;
+		const nextSnapshots = snapshotsByProject({ shellStates, owners, worktrees });
 		this.shellStates = shellStates;
 		this.shellWorktrees = worktrees;
-
-		const projectIds = new Set<string>();
-		const shellsByProject = new Map<string, Record<string, AgentActivityState>>();
-		for (const [sessionId, state] of shellStates) {
-			const owner = owners.get(sessionId);
-			if (owner === undefined) {
-				continue;
-			}
-			const grouped = shellsByProject.get(owner.projectId) ?? {};
-			grouped[sessionId] = state;
-			shellsByProject.set(owner.projectId, grouped);
-			projectIds.add(owner.projectId);
-		}
-
-		const worktreesByProject = new Map<string, Record<string, string>>();
-		for (const owner of owners.values()) {
-			const worktree = worktrees.get(owner.shellId);
-			if (worktree === undefined) {
-				continue;
-			}
-			const grouped = worktreesByProject.get(owner.projectId) ?? {};
-			grouped[owner.shellId] = worktree;
-			worktreesByProject.set(owner.projectId, grouped);
-			projectIds.add(owner.projectId);
-		}
-
-		const nextSnapshots = new Map<string, ProjectActivitySnapshot>();
-		for (const projectId of projectIds) {
-			const shells = shellsByProject.get(projectId) ?? {};
-			nextSnapshots.set(projectId, {
-				state: aggregateActivity(Object.values(shells)),
-				shells,
-				worktreeByShellId: worktreesByProject.get(projectId) ?? {},
-			});
-		}
-
-		const previous = this.projectSnapshots;
 		this.projectSnapshots = nextSnapshots;
 
 		const baselines = turnBaselineShells({

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
 	nextShellActivity,
 	nextShellWorktrees,
+	snapshotsByProject,
 	turnBaselineShells,
 	turnStartShells,
 } from "@main/activity/AgentActivity";
@@ -214,6 +215,90 @@ describe("shell worktrees", () => {
 		});
 
 		expect(baselines).toEqual([]);
+	});
+});
+
+describe("project snapshots", () => {
+	const owners = new Map([
+		["session-a", { projectId: "p1", shellId: "shell-a" }],
+		["session-b", { projectId: "p1", shellId: "shell-b" }],
+		["session-c", { projectId: "p2", shellId: "shell-c" }],
+	]);
+
+	function states(entries: Record<string, AgentActivityState>) {
+		return new Map<string, AgentActivityState>(Object.entries(entries));
+	}
+
+	test("gathers a project's shells under it and aggregates their states", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: states({ "session-a": "working", "session-b": "needs-attention" }),
+			owners,
+			worktrees: new Map(),
+		});
+
+		expect(snapshots.get("p1")).toEqual({
+			state: "needs-attention",
+			shells: { "session-a": "working", "session-b": "needs-attention" },
+			worktreeByShellId: {},
+		});
+	});
+
+	test("keeps each project's shells to itself", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: states({ "session-a": "working", "session-c": "done-unseen" }),
+			owners,
+			worktrees: new Map(),
+		});
+
+		expect([...snapshots.keys()].sort()).toEqual(["p1", "p2"]);
+		expect(snapshots.get("p2")).toEqual({
+			state: "done-unseen",
+			shells: { "session-c": "done-unseen" },
+			worktreeByShellId: {},
+		});
+	});
+
+	test("ignores an agent no shell owns", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: states({ "session-a": "working", "session-loose": "working" }),
+			owners,
+			worktrees: new Map(),
+		});
+
+		expect(snapshots.size).toBe(1);
+		expect(snapshots.get("p1")?.shells).toEqual({ "session-a": "working" });
+	});
+
+	test("indexes worktrees by shell while states stay keyed by session", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: states({ "session-a": "working" }),
+			owners,
+			worktrees: new Map([["shell-a", "/tmp/repo-slug"]]),
+		});
+
+		expect(snapshots.get("p1")).toEqual({
+			state: "working",
+			shells: { "session-a": "working" },
+			worktreeByShellId: { "shell-a": "/tmp/repo-slug" },
+		});
+	});
+
+	test("a project whose only news is a worktree still gets a snapshot", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: new Map(),
+			owners,
+			worktrees: new Map([["shell-c", "/tmp/repo-slug"]]),
+		});
+
+		expect(snapshots.get("p2")).toEqual({
+			state: null,
+			shells: {},
+			worktreeByShellId: { "shell-c": "/tmp/repo-slug" },
+		});
+	});
+
+	test("no bound shells means no snapshots at all", () => {
+		expect(snapshotsByProject({ shellStates: new Map(), owners, worktrees: new Map() }).size).toBe(0);
 	});
 });
 

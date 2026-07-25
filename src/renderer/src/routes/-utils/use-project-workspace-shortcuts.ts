@@ -8,6 +8,7 @@ export function useProjectWorkspaceShortcuts({
 	activeTabId,
 	onActivateTab,
 	onCloseTab,
+	onNewTab,
 	onToggleReview,
 }: {
 	active: boolean;
@@ -15,6 +16,7 @@ export function useProjectWorkspaceShortcuts({
 	activeTabId?: string;
 	onActivateTab: (tabId: string) => void;
 	onCloseTab: (tabId: string) => void;
+	onNewTab: () => void;
 	onToggleReview: () => void;
 }) {
 	return useCallback(() => {
@@ -29,6 +31,9 @@ export function useProjectWorkspaceShortcuts({
 				leaderArmed = false;
 				if (event.code === "KeyR") {
 					return onToggleReview;
+				}
+				if (event.code === "KeyT") {
+					return onNewTab;
 				}
 				if (event.code === "KeyX" && activeTabId) {
 					return () => onCloseTab(activeTabId);
@@ -79,5 +84,5 @@ export function useProjectWorkspaceShortcuts({
 			window.removeEventListener("keydown", handleKeyDown, true);
 			window.removeEventListener("blur", handleWindowBlur);
 		};
-	}, [active, tabs, activeTabId, onActivateTab, onCloseTab, onToggleReview]);
+	}, [active, tabs, activeTabId, onActivateTab, onCloseTab, onNewTab, onToggleReview]);
 }

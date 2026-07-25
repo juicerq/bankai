@@ -19,6 +19,11 @@ function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 			setTabs((current) => current.filter((tab) => tab.id !== tabId));
 			setActiveTabId((current) => (current === tabId ? undefined : current));
 		},
+		onNewTab: () => {
+			const opened = { id: `shell-${tabs.length + 1}` };
+			setTabs([...tabs, opened]);
+			setActiveTabId(opened.id);
+		},
 		onToggleReview: () => setReviewOpen((open) => !open),
 	});
 
@@ -61,6 +66,26 @@ test("the leader followed by x closes the shell the user is on", () => {
 	expect(closePassedThrough).toBe(false);
 	expect(get("workspace-shortcut-state").dataset.tabIds).toBe("shell-2");
 	expect(get("workspace-shortcut-state").dataset.activeTabId).toBeUndefined();
+});
+
+test("the leader followed by t opens a shell and moves the user onto it", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	const newPassedThrough = fireEvent.keyDown(window, { key: "t", code: "KeyT" });
+
+	expect(newPassedThrough).toBe(false);
+	expect(get("workspace-shortcut-state").dataset.tabIds).toBe("shell-1,shell-2,shell-3");
+	expect(get("workspace-shortcut-state").dataset.activeTabId).toBe("shell-3");
+});
+
+test("t on its own reaches the Shell instead of opening one", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	const typedPassedThrough = fireEvent.keyDown(window, { key: "t", code: "KeyT" });
+
+	expect(typedPassedThrough).toBe(true);
+	expect(get("workspace-shortcut-state").dataset.tabIds).toBe("shell-1,shell-2");
 });
 
 test("x on its own reaches the Shell instead of closing it", () => {

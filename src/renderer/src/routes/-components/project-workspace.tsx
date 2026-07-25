@@ -206,13 +206,13 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	});
 	const resizing = diffDivider.resizing;
 
-	const handleNewShell = () => {
+	const handleNewShell = useCallback(() => {
 		const tab = newShellTab(nextShellNumber.current);
 		nextShellNumber.current += 1;
 		setTabs((current) => [...current, tab]);
 		setActiveTabId(tab.id);
 		onShellOpen(project.id, tab);
-	};
+	}, [onShellOpen, project.id]);
 	const startReviewMotion = useCallback(() => {
 		setReviewAnimating(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 	}, []);
@@ -259,6 +259,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		activeTabId,
 		onActivateTab: selectTab,
 		onCloseTab: handleCloseShell,
+		onNewTab: handleNewShell,
 		onToggleReview: handleToggleReview,
 	});
 	const reviewWidth = REVIEW_SEPARATOR_WIDTH + renderedDiffWidth + renderedTreeWidth;
@@ -450,6 +451,7 @@ export function ProjectWorkspaceShellTabs({
 				className="flex h-full w-header shrink-0 items-center justify-center border-outline border-r text-secondary text-subtitle hover:bg-surface-hover hover:text-primary"
 				onClick={onNew}
 				aria-label="New shell"
+				title="New shell (Ctrl+X T)"
 			>
 				+
 			</button>

@@ -23,6 +23,7 @@ export function ProjectRailFrame({
 			projectRail.finishMotion();
 		}
 	};
+	const collapsing = !projectRail.fullscreen && divider.intent === "focus";
 	const registerFrame = useCallback(
 		(node: HTMLDivElement | null) => {
 			frameRef.current = node;
@@ -58,6 +59,7 @@ export function ProjectRailFrame({
 				data-component="project-rail-frame"
 				data-fullscreen={projectRail.fullscreen}
 				data-revealed={projectRail.fullscreen ? projectRail.revealed : true}
+				data-collapsing={collapsing}
 				data-motion-duration={LAYOUT_MOTION_DURATION_MS}
 				inert={projectRail.fullscreen && !projectRail.revealed}
 				style={{ width: RAIL_WIDTH_VALUE, transitionDuration: `${LAYOUT_MOTION_DURATION_MS}ms` }}
@@ -75,7 +77,7 @@ export function ProjectRailFrame({
 				onFocusCapture={projectRail.handleRailFocus}
 				onBlurCapture={projectRail.handleRailBlur}
 			>
-				{children}
+				<div className={`flex min-h-0 w-full ${collapsing ? "opacity-35" : ""}`}>{children}</div>
 				<Divider control={divider} side="right" label="Resize project rail" />
 			</div>
 		</div>

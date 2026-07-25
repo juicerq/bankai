@@ -73,30 +73,30 @@ function Bankai() {
 		sign: 1,
 		target: railFrameRef,
 		resolve: (proposed) => {
-			const { width, snap } = resolveRailWidth(proposed);
+			const { width, intent } = resolveRailWidth(proposed);
 
-			if (projectRail.fullscreen) {
+			if (intent === "focus" && !projectRail.fullscreen) {
 				return {
 					vars: [{ property: RAIL_WIDTH_PROPERTY, value: width }],
+					intent,
 					commit: () => {
-						projectRail.toggleFullscreen({ animate: false });
-						setRailWidth(width);
-						layout.persist({ railWidth: width });
+						railFrameRef.current?.style.setProperty(RAIL_WIDTH_PROPERTY, `${railWidth}px`);
+						projectRail.toggleFullscreen();
 					},
 				};
 			}
 
 			return {
 				vars: [{ property: RAIL_WIDTH_PROPERTY, value: width }],
-				commit: snap
-					? () => {
-						railFrameRef.current?.style.setProperty(RAIL_WIDTH_PROPERTY, `${railWidth}px`);
-						projectRail.toggleFullscreen();
+				intent,
+				commit: () => {
+					if (projectRail.fullscreen) {
+						projectRail.toggleFullscreen({ animate: false });
 					}
-					: () => {
-						setRailWidth(width);
-						layout.persist({ railWidth: width });
-					},
+
+					setRailWidth(width);
+					layout.persist({ railWidth: width });
+				},
 			};
 		},
 	});
@@ -211,6 +211,7 @@ function Bankai() {
 							shellFocusRequest={shellFocusRequest}
 							fullscreen={projectRail.fullscreen}
 							fullscreenAnimating={projectRail.animating}
+							railResizing={railDivider.resizing}
 							onToggleFullscreen={projectRail.toggleFullscreen}
 							initialDiffWidth={layout.initial.diffWidth}
 							initialTreeWidth={layout.initial.treeWidth}

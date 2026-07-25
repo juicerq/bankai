@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import type { LayoutSettings } from "@main/store/settings";
 import { orpc } from "@renderer/lib/api";
-import { DEFAULT_RAIL_WIDTH, resolveRailWidth } from "@renderer/routes/-utils/rail-layout";
+import { DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH } from "@renderer/routes/-utils/rail-layout";
 import {
 	DEFAULT_DIFF_WIDTH,
 	DEFAULT_TREE_WIDTH,
@@ -21,7 +21,7 @@ export interface LayoutPreferences {
 
 export function clampLayout(stored: LayoutSettings | null): LayoutPreferences {
 	return {
-		railWidth: resolveRailWidth(stored?.railWidth ?? DEFAULT_RAIL_WIDTH).width,
+		railWidth: Math.min(Math.max(stored?.railWidth ?? DEFAULT_RAIL_WIDTH, MIN_RAIL_WIDTH), MAX_RAIL_WIDTH),
 		diffWidth: Math.max(MIN_DIFF_WIDTH, stored?.diffWidth ?? DEFAULT_DIFF_WIDTH),
 		treeWidth: Math.max(MIN_TREE_WIDTH, stored?.treeWidth ?? DEFAULT_TREE_WIDTH),
 		fullscreen: stored?.fullscreen ?? false,

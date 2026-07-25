@@ -46,16 +46,16 @@ function RailPersistHarness({ persist }: { persist: (width: number) => void }) {
 		sign: 1,
 		target: frameRef,
 		resolve: (proposed) => {
-			const { width, snap } = resolveRailWidth(proposed);
+			const { width, intent } = resolveRailWidth(proposed);
 
 			return {
 				vars: [{ property: RAIL_WIDTH_PROPERTY, value: width }],
-				commit: snap
-					? () => {}
-					: () => {
+				commit: intent === "dock"
+					? () => {
 						setRailWidth(width);
 						persist(width);
-					},
+					}
+					: () => {},
 			};
 		},
 	});

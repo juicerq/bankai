@@ -11,6 +11,7 @@ const KEYBOARD_STEP = 8;
 interface DividerResolution {
 	vars: { property: string; value: number }[];
 	commit: () => void;
+	intent?: string;
 }
 
 export function useDivider(config: {
@@ -23,6 +24,7 @@ export function useDivider(config: {
 	step?: number;
 }) {
 	const [resizing, setResizing] = useState(false);
+	const [intent, setIntent] = useState<string>();
 	const drag = useRef<{ x: number; value: number } | null>(null);
 	const pending = useRef<DividerResolution | null>(null);
 	const step = config.step ?? KEYBOARD_STEP;
@@ -38,6 +40,7 @@ export function useDivider(config: {
 		resolution.commit();
 		pending.current = null;
 		drag.current = null;
+		setIntent(undefined);
 		setResizing(false);
 	};
 
@@ -52,6 +55,7 @@ export function useDivider(config: {
 
 	return {
 		resizing,
+		intent,
 		valueMin: config.min,
 		valueMax: config.max,
 		valueNow: config.value,
@@ -79,6 +83,7 @@ export function useDivider(config: {
 
 				const resolution = config.resolve(proposed);
 				pending.current = resolution;
+				setIntent(resolution.intent);
 				apply(resolution);
 			},
 			onPointerUp: (event: ReactPointerEvent<HTMLElement>) => {

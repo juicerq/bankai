@@ -7,6 +7,7 @@ import {
 	DEFAULT_RAIL_WIDTH,
 	MAX_RAIL_WIDTH,
 	MIN_RAIL_WIDTH,
+	RAIL_FOCUS_WIDTH,
 	RAIL_WIDTH_PROPERTY,
 	resolveRailWidth,
 } from "@renderer/routes/-utils/rail-layout";
@@ -32,26 +33,29 @@ function RailResizeHarness() {
 		sign: 1,
 		target: railFrameRef,
 		resolve: (proposed) => {
-			const { width, snap } = resolveRailWidth(proposed);
+			const { width, intent } = resolveRailWidth(proposed);
 
-			if (projectRail.fullscreen) {
+			if (intent === "focus" && !projectRail.fullscreen) {
 				return {
 					vars: [{ property: RAIL_WIDTH_PROPERTY, value: width }],
+					intent,
 					commit: () => {
-						projectRail.toggleFullscreen({ animate: false });
-						setRailWidth(width);
+						railFrameRef.current?.style.setProperty(RAIL_WIDTH_PROPERTY, `${railWidth}px`);
+						projectRail.toggleFullscreen();
 					},
 				};
 			}
 
 			return {
 				vars: [{ property: RAIL_WIDTH_PROPERTY, value: width }],
-				commit: snap
-					? () => {
-						railFrameRef.current?.style.setProperty(RAIL_WIDTH_PROPERTY, `${railWidth}px`);
-						projectRail.toggleFullscreen();
+				intent,
+				commit: () => {
+					if (projectRail.fullscreen) {
+						projectRail.toggleFullscreen({ animate: false });
 					}
-					: () => setRailWidth(width),
+
+					setRailWidth(width);
+				},
 			};
 		},
 	});
@@ -89,15 +93,19 @@ function railVar() {
 
 describe("resolveRailWidth", () => {
 	test("passes a width through within bounds", () => {
-		expect(resolveRailWidth(300)).toEqual({ width: 300, snap: false });
+		expect(resolveRailWidth(300)).toEqual({ width: 300, intent: "dock" });
 	});
 
 	test("clamps above the maximum", () => {
-		expect(resolveRailWidth(520)).toEqual({ width: MAX_RAIL_WIDTH, snap: false });
+		expect(resolveRailWidth(520)).toEqual({ width: MAX_RAIL_WIDTH, intent: "dock" });
 	});
 
-	test("snaps below the minimum", () => {
-		expect(resolveRailWidth(120)).toEqual({ width: MIN_RAIL_WIDTH, snap: true });
+	test("holds the minimum below the minimum", () => {
+		expect(resolveRailWidth(MIN_RAIL_WIDTH - 10)).toEqual({ width: MIN_RAIL_WIDTH, intent: "restore" });
+	});
+
+	test("asks for focus mode below half the minimum without shrinking further", () => {
+		expect(resolveRailWidth(RAIL_FOCUS_WIDTH - 1)).toEqual({ width: MIN_RAIL_WIDTH, intent: "focus" });
 	});
 });
 
@@ -136,7 +144,44 @@ describe("rail resize", () => {
 		expect(get("rail-width").dataset.value).toBe(String(DEFAULT_RAIL_WIDTH + 8));
 	});
 
-	test("dragging below the minimum snaps into fullscreen and preserves the last width", () => {
+	test("releasing between half the minimum and the minimum expands back to the minimum", () => {
+		render(<RailResizeHarness />);
+
+		fireEvent.pointerDown(handle(), { clientX: 0, pointerId: 1 });
+		fireEvent.pointerMove(handle(), { clientX: MIN_RAIL_WIDTH - DEFAULT_RAIL_WIDTH - 10, pointerId: 1 });
+		expect(railVar()).toBe(`${MIN_RAIL_WIDTH}px`);
+		expect(get("project-rail-frame").dataset.collapsing).toBe("false");
+
+		fireEvent.pointerUp(handle(), { clientX: MIN_RAIL_WIDTH - DEFAULT_RAIL_WIDTH - 10, pointerId: 1 });
+
+		expect(get("project-workspace-layout").dataset.fullscreen).toBe("false");
+		expect(get("rail-width").dataset.value).toBe(String(MIN_RAIL_WIDTH));
+		expect(railVar()).toBe(`${MIN_RAIL_WIDTH}px`);
+	});
+
+	test("dragging past half the minimum arms focus mode without shrinking the rail", () => {
+		render(<RailResizeHarness />);
+
+		fireEvent.pointerDown(handle(), { clientX: 0, pointerId: 1 });
+		fireEvent.pointerMove(handle(), { clientX: -DEFAULT_RAIL_WIDTH, pointerId: 1 });
+
+		expect(railVar()).toBe(`${MIN_RAIL_WIDTH}px`);
+		expect(get("project-rail-frame").dataset.collapsing).toBe("true");
+		expect(get("project-workspace-layout").dataset.fullscreen).toBe("false");
+	});
+
+	test("releasing the armed drag disarms the divider", () => {
+		render(<RailResizeHarness />);
+
+		fireEvent.pointerDown(handle(), { clientX: 0, pointerId: 1 });
+		fireEvent.pointerMove(handle(), { clientX: -DEFAULT_RAIL_WIDTH, pointerId: 1 });
+		fireEvent.pointerUp(handle(), { clientX: 60, pointerId: 1 });
+
+		expect(get("project-rail-frame").dataset.collapsing).toBe("false");
+		expect(get("rail-width").dataset.value).toBe(String(DEFAULT_RAIL_WIDTH + 60));
+	});
+
+	test("dragging below half the minimum snaps into fullscreen and preserves the last width", () => {
 		render(<RailResizeHarness />);
 
 		fireEvent.pointerDown(handle(), { clientX: 0, pointerId: 1 });

@@ -9,6 +9,7 @@ afterEach(cleanup);
 
 const divider: ReturnType<typeof useDivider> = {
 	resizing: false,
+	intent: undefined,
 	valueMin: 280,
 	valueMax: 1000,
 	valueNow: 648,

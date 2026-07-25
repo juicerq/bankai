@@ -37,6 +37,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	shellFocusRequest,
 	fullscreen,
 	fullscreenAnimating,
+	railResizing,
 	onToggleFullscreen,
 	initialDiffWidth,
 	initialTreeWidth,
@@ -60,6 +61,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	shellFocusRequest: number;
 	fullscreen: boolean;
 	fullscreenAnimating: boolean;
+	railResizing: boolean;
 	onToggleFullscreen: () => void;
 	initialDiffWidth: number;
 	initialTreeWidth: number;
@@ -309,7 +311,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 
 			<div
 				ref={rowRef}
-				className={`flex min-h-0 flex-1 ${resizing ? "cursor-col-resize select-none" : ""}`}
+				className={`flex min-h-0 flex-1 ${resizing || railResizing ? "cursor-col-resize select-none" : ""}`}
 			>
 				<div
 					style={{ minWidth: MIN_TERMINAL_WIDTH, contain: "paint" }}
@@ -334,7 +336,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 								shellId={tab.id}
 								active={active && tab.id === activeTabId}
 								focusRequest={shellFocusRequest}
-								resizeDeferred={fullscreenAnimating || reviewAnimating || resizing}
+								resizeDeferred={fullscreenAnimating || reviewAnimating || resizing || railResizing}
 								resumeOnMount={topology.resumableShellIds.has(tab.id)}
 								onSessionId={(sessionId) => handleSessionId(tab.id, sessionId)}
 							/>

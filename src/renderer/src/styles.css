@@ -77,6 +77,7 @@
 
 	--spacing: 4px;
 	--spacing-header: 40px;
+	--spacing-scrollbar: 8px;
 
 	--radius-full: 9999px;
 
@@ -105,8 +106,8 @@
 	}
 
 	*::-webkit-scrollbar {
-		width: 8px;
-		height: 8px;
+		width: var(--spacing-scrollbar);
+		height: var(--spacing-scrollbar);
 	}
 
 	*::-webkit-scrollbar-track {

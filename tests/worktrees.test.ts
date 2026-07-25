@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseWorktrees, worktreeContaining } from "@main/git/Worktrees";
+import { parseWorktrees, worktreeContaining, worktreeFailure } from "@main/git/Worktrees";
 
 const PORCELAIN = `worktree /home/jui/projects/bankai-2
 HEAD 4b04c676ca56b7f470e6b66efbf9502393160b2e
@@ -41,6 +41,28 @@ describe("worktree listing", () => {
 
 	test("an empty listing yields no worktrees", () => {
 		expect(parseWorktrees("")).toEqual([]);
+	});
+});
+
+describe("reporting a refused removal", () => {
+	test("git's own reason reaches the caller without its fatal prefix", () => {
+		const err = Object.assign(new Error("Command failed: git worktree remove /tmp/bankai-2-solo"), {
+			stderr: "fatal: '/tmp/bankai-2-solo' contains modified or untracked files, use --force to delete it\n",
+		});
+
+		expect(worktreeFailure(err)).toBe(
+			"'/tmp/bankai-2-solo' contains modified or untracked files, use --force to delete it",
+		);
+	});
+
+	test("only the first line of a multi-line failure is reported", () => {
+		const err = Object.assign(new Error("Command failed"), { stderr: "fatal: not a working tree\nhint: run prune\n" });
+
+		expect(worktreeFailure(err)).toBe("not a working tree");
+	});
+
+	test("a failure git said nothing about falls back to the error itself", () => {
+		expect(worktreeFailure(Object.assign(new Error("spawn git ENOENT"), { stderr: "  " }))).toBe("spawn git ENOENT");
 	});
 });
 

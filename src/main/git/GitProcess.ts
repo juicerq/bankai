@@ -31,6 +31,7 @@ type GitRequestInput =
 	| ({ operation: "file"; file: string } & ReviewScope)
 	| ({ operation: "fullFile"; file: string } & ReviewScope)
 	| { operation: "worktrees"; path: string }
+	| { operation: "removeWorktree"; path: string; worktree: string }
 	| { operation: "startTurn"; path: string; shellId: string }
 	| { operation: "forgetTurn"; shellId: string };
 
@@ -60,6 +61,10 @@ class GitUtilityProcess {
 
 	async worktrees(input: { path: string }): Promise<Worktree[]> {
 		return worktreesSchema.assert(await this.request({ operation: "worktrees", ...input }));
+	}
+
+	async removeWorktree(input: { path: string; worktree: string }): Promise<void> {
+		await this.request({ operation: "removeWorktree", ...input });
 	}
 
 	async snapshot(scope: ReviewScope): Promise<ReviewSnapshot> {

@@ -1,10 +1,13 @@
-import { type ReactNode, useCallback, useState } from "react";
+import { CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMenuDismissal } from "@renderer/routes/-utils/use-menu-dismissal";
 
-const MENU_WIDTH = 280;
+const MENU_MIN_WIDTH = 280;
 const MENU_MAX_HEIGHT = 320;
 const MENU_MARGIN = 4;
+const MENU_BORDER = 1;
+const REMOVE_CONFIRM_MS = 1000;
 
 export function HeaderMenu({
 	component,
@@ -12,28 +15,26 @@ export function HeaderMenu({
 	label,
 	ariaLabel,
 	title,
-	align = "start",
 	truncate = false,
+	pinned,
 	children,
 }: {
 	component: string;
 	icon: ReactNode;
-	label?: string;
+	label: string;
 	ariaLabel: string;
 	title?: string;
-	align?: "start" | "end";
 	truncate?: boolean;
+	pinned?: ReactNode;
 	children: ReactNode;
 }) {
-	const [menu, setMenu] = useState<{ x: number; y: number }>();
+	const [menu, setMenu] = useState<{ x: number; y: number; width: number }>();
 	const closeMenu = useCallback(() => setMenu(undefined), []);
 	const registerMenuDismissal = useMenuDismissal(closeMenu);
 
-	const trigger = label === undefined
-		? `-m-1 shrink-0 p-1 ${menu ? "text-primary" : "text-secondary hover:text-primary"}`
-		: `flex h-full items-center gap-2 border-outline border-r px-3 text-body ${
-			truncate ? "min-w-0 shrink" : "shrink-0"
-		} ${menu ? "bg-surface-active text-primary" : "text-secondary hover:bg-surface-hover hover:text-primary"}`;
+	const trigger = `flex h-full items-center gap-2 border-outline border-r px-3 text-body ${
+		truncate ? "min-w-0 shrink" : "shrink-0"
+	} ${menu ? "bg-surface-active text-primary" : "text-secondary hover:bg-surface-hover hover:text-primary"}`;
 
 	return (
 		<>
@@ -45,7 +46,11 @@ export function HeaderMenu({
 				aria-expanded={!!menu}
 				aria-label={ariaLabel}
 				title={title ?? ariaLabel}
-				onPointerDown={(event) => event.stopPropagation()}
+				onPointerDown={(event) => {
+					if (menu) {
+						event.stopPropagation();
+					}
+				}}
 				onClick={(event) => {
 					if (menu) {
 						closeMenu();
@@ -53,11 +58,15 @@ export function HeaderMenu({
 					}
 
 					const rect = event.currentTarget.getBoundingClientRect();
-					setMenu({ x: align === "end" ? rect.right - MENU_WIDTH : rect.left, y: rect.bottom });
+					setMenu({
+						x: rect.left - MENU_BORDER,
+						y: rect.bottom,
+						width: Math.max(MENU_MIN_WIDTH, Math.round(rect.width) + MENU_BORDER * 2),
+					});
 				}}
 			>
 				{icon}
-				{label !== undefined && <span className="truncate">{label}</span>}
+				<span className="truncate">{label}</span>
 			</button>
 			{menu && createPortal(
 				<div
@@ -65,17 +74,24 @@ export function HeaderMenu({
 					data-component={`${component}-menu`}
 					role="menu"
 					aria-label={ariaLabel}
-					className="fixed z-50 overflow-auto border border-outline-strong bg-surface-raised text-body shadow-lg"
+					className="fixed z-50 flex flex-col border border-outline-strong bg-surface-raised text-body shadow-lg"
 					style={{
-						left: Math.max(MENU_MARGIN, Math.min(menu.x, window.innerWidth - MENU_WIDTH - MENU_MARGIN)),
+						left: Math.max(MENU_MARGIN, Math.min(menu.x, window.innerWidth - menu.width - MENU_MARGIN)),
 						top: Math.min(menu.y, window.innerHeight - MENU_MAX_HEIGHT),
-						width: MENU_WIDTH,
+						width: menu.width,
 						maxHeight: MENU_MAX_HEIGHT,
 					}}
 					onPointerDown={(event) => event.stopPropagation()}
 					onClick={closeMenu}
 				>
-					{children}
+					{pinned && (
+						<div role="presentation" data-slot="pinned" className="shrink-0">
+							{pinned}
+						</div>
+					)}
+					<div role="presentation" className="min-h-0 overflow-auto">
+						{children}
+					</div>
 				</div>,
 				document.body,
 			)}
@@ -86,50 +102,95 @@ export function HeaderMenu({
 export function HeaderMenuItem({
 	label,
 	detail,
+	detailTone,
 	selected,
 	live,
+	badge,
+	remove,
 	onClick,
 }: {
 	label: string;
 	detail?: string;
+	detailTone?: "danger";
 	selected?: boolean;
 	live?: { title: string };
+	badge?: { label: string; title: string };
+	remove?: { label: string; onConfirm: () => void };
 	onClick: () => void;
 }) {
 	return (
-		<button
-			type="button"
-			role={selected === undefined ? "menuitem" : "menuitemradio"}
-			aria-checked={selected}
-			className={`flex w-full items-center gap-2 px-3 py-2 text-left ${
-				selected ? "bg-surface-active" : "hover:bg-surface-hover"
-			}`}
-			onClick={onClick}
-		>
-			<span className="min-w-0 flex-1">
-				<span className="block truncate text-body text-primary">{label}</span>
-				{detail !== undefined && <span className="block truncate text-data text-secondary">{detail}</span>}
-			</span>
-			{live && (
+		<div className={`group flex items-center ${selected ? "bg-surface-active" : "hover:bg-surface-hover"}`}>
+			<button
+				type="button"
+				role={selected === undefined ? "menuitem" : "menuitemradio"}
+				aria-checked={selected}
+				className="flex min-w-0 flex-1 items-center gap-2 py-2 pl-3 text-left"
+				onClick={onClick}
+			>
+				<span className="min-w-0 flex-1">
+					<span className="block truncate text-body text-primary">{label}</span>
+					{detail !== undefined && (
+						<span
+							title={detail}
+							className={`block truncate text-data ${detailTone === "danger" ? "text-removed" : "text-secondary"}`}
+						>
+							{detail}
+						</span>
+					)}
+				</span>
+				{live && (
+					<span
+						data-slot="live"
+						title={live.title}
+						className="size-1.5 shrink-0 rounded-full bg-tertiary"
+						aria-hidden="true"
+					/>
+				)}
+			</button>
+			{remove && <HeaderMenuRemove label={remove.label} onConfirm={remove.onConfirm} />}
+			{badge && (
 				<span
-					data-slot="live"
-					title={live.title}
-					className="size-1.5 shrink-0 rounded-full bg-tertiary"
-					aria-hidden="true"
-				/>
+					data-slot="badge"
+					title={badge.title}
+					className="mr-2 shrink-0 border border-outline-strong px-1.5 py-px text-label text-secondary"
+				>
+					{badge.label}
+				</span>
 			)}
-		</button>
+			{!remove && !badge && <span className="w-3" />}
+		</div>
 	);
 }
 
-export function HeaderMenuGroup({ label, children }: { label: string; children: ReactNode }) {
+function HeaderMenuRemove({ label, onConfirm }: { label: string; onConfirm: () => void }) {
+	const [armed, setArmed] = useState(false);
+	const disarm = useRef<{ timer?: ReturnType<typeof setTimeout> }>({});
+	const action = armed ? `Confirm: ${label}` : label;
+
 	return (
-		<div role="group" aria-label={label}>
-			<span aria-hidden="true" className="block px-3 pt-2.5 pb-1 text-label text-secondary uppercase">
-				{label}
-			</span>
-			{children}
-		</div>
+		<button
+			type="button"
+			data-slot="remove"
+			aria-label={action}
+			title={action}
+			className={`shrink-0 px-2 py-2 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 ${
+				armed ? "text-removed opacity-100" : "text-secondary hover:text-primary"
+			}`}
+			onClick={(event) => {
+				event.stopPropagation();
+				clearTimeout(disarm.current.timer);
+				if (armed) {
+					setArmed(false);
+					onConfirm();
+					return;
+				}
+
+				setArmed(true);
+				disarm.current.timer = setTimeout(() => setArmed(false), REMOVE_CONFIRM_MS);
+			}}
+		>
+			{armed ? <CheckIcon className="size-4" /> : <XMarkIcon className="size-4" />}
+		</button>
 	);
 }
 

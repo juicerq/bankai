@@ -11,6 +11,27 @@ export async function readWorktrees(path: string): Promise<Worktree[]> {
 	return parseWorktrees(raw);
 }
 
+export async function removeWorktree(repo: string, worktree: string): Promise<void> {
+	await gitText(repo, ["worktree", "remove", worktree]).catch((err: unknown) => {
+		throw new Error(worktreeFailure(err));
+	});
+}
+
+export function worktreeFailure(err: unknown): string {
+	if (typeof err === "object" && err !== null && "stderr" in err && typeof err.stderr === "string") {
+		const stderr = err.stderr.trim();
+		if (stderr) {
+			return stderr.replace(/^fatal: /, "").split("\n")[0] ?? stderr;
+		}
+	}
+
+	if (err instanceof Error) {
+		return err.message;
+	}
+
+	return String(err);
+}
+
 export function parseWorktrees(raw: string): Worktree[] {
 	const worktrees: Worktree[] = [];
 	let path: string | undefined;

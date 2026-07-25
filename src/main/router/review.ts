@@ -27,6 +27,21 @@ export const reviewRouter = {
 			return await projectWorktrees(project.path).catch(() => []);
 		}),
 
+	removeWorktree: base
+		.input(type({ projectId: "string", worktree: "string" }))
+		.handler(async ({ input }) => {
+			const project = await Projects.find(input.projectId);
+			const worktree = await resolveProjectWorktree(input);
+			if (worktree === project.path) {
+				throw new Error("A project's main worktree cannot be removed");
+			}
+
+			await GitProcess.removeWorktree({ path: project.path, worktree });
+			await projectWorktrees(project.path, { fresh: true });
+
+			return null;
+		}),
+
 	snapshot: base
 		.input(scopeInput)
 		.handler(async ({ input }) => await GitProcess.snapshot(await reviewScope(input))),

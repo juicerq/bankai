@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import type { ReviewMode } from "@main/git/contracts";
 import type { Project } from "@main/store/projects";
@@ -22,7 +22,6 @@ export function ReviewPanel({
 	treeOpen,
 	treeDivider,
 	onTreeOpenChange,
-	onClose,
 }: {
 	project: Project;
 	shellId?: string;
@@ -31,7 +30,6 @@ export function ReviewPanel({
 	treeOpen: boolean;
 	treeDivider: ReturnType<typeof useDivider>;
 	onTreeOpenChange: (open: boolean) => void;
-	onClose: () => void;
 }) {
 	const [mode, setMode] = useState<ReviewMode>("last-turn");
 	const [closedFiles, setClosedFiles] = useState<ReadonlySet<string>>(new Set());
@@ -40,7 +38,15 @@ export function ReviewPanel({
 	const diff = useRef<ReviewDiffHandle>(null);
 	const isFileOpen = useCallback((path: string) => !closedFiles.has(path), [closedFiles]);
 
+	const queryClient = useQueryClient();
 	const worktreesQuery = useQuery(orpc.review.worktrees.queryOptions({ input: { projectId: project.id } }));
+	const removeWorktree = useMutation(
+		orpc.review.removeWorktree.mutationOptions({
+			onSuccess: async () => {
+				await queryClient.invalidateQueries({ queryKey: orpc.review.worktrees.key() });
+			},
+		}),
+	);
 	const worktrees = worktreesQuery.data ?? [];
 	if (pinnedWorktree && worktrees.length > 0 && !worktrees.some((worktree) => worktree.path === pinnedWorktree)) {
 		setPinnedWorktree(undefined);
@@ -132,13 +138,21 @@ export function ReviewPanel({
 		});
 	};
 
+	const filesClosed = files.length > 0 && files.every((file) => closedFiles.has(file.path));
+
 	const readingKey = `${mode} ${worktree}`;
 	const worktreeSelection: ReviewWorktreeSelection = {
 		worktrees,
 		activePath: worktree,
+		mainPath: project.path,
 		pinnedPath: pinnedWorktree,
 		shellPath: shellWorktree,
+		removeFailure:
+			removeWorktree.error && removeWorktree.variables
+				? { path: removeWorktree.variables.worktree, message: removeWorktree.error.message }
+				: undefined,
 		onSelect: selectWorktree,
+		onRemove: (path) => removeWorktree.mutate({ projectId: project.id, worktree: path }),
 	};
 
 	return (
@@ -158,14 +172,13 @@ export function ReviewPanel({
 				<ReviewHeader
 					mode={mode}
 					worktrees={worktreeSelection}
-					totals={currentSnapshot?.state === "ready" ? currentSnapshot.totals : undefined}
+					totals={files.length > 0 ? currentSnapshot?.totals : undefined}
 					refreshing={refreshing}
 					treeOpen={treeOpen}
 					onSelectMode={selectMode}
 					onTreeOpenChange={onTreeOpenChange}
-					onCollapseAll={() => setScopeClosed(true)}
-					onExpandAll={() => setScopeClosed(false)}
-					onClose={onClose}
+					filesClosed={filesClosed}
+					onToggleAllFiles={() => setScopeClosed(!filesClosed)}
 				/>
 
 				<div className="relative flex min-h-0 flex-1 flex-col">

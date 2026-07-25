@@ -222,10 +222,6 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		onReviewOpenChange(!reviewOpen);
 	}, [startReviewMotion, onReviewOpenChange, reviewOpen]);
 
-	const handleCloseReview = () => {
-		startReviewMotion();
-		onReviewOpenChange(false);
-	};
 	const handleMoveShell = (data: { tabId: string; toIndex: number }) => {
 		setTabs((current) => {
 			const others = current.filter((tab) => tab.id !== data.tabId);
@@ -361,7 +357,6 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 						treeOpen={treeOpen}
 						treeDivider={treeDivider}
 						onTreeOpenChange={onTreeOpenChange}
-						onClose={handleCloseReview}
 					/>
 				</ReviewPanelFrame>
 			</div>

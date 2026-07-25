@@ -4,7 +4,7 @@ import type { Worktree } from "@main/git/contracts";
 import { ReviewWorktree } from "@renderer/routes/-components/review-worktree";
 import { resolveReviewWorktree } from "@renderer/routes/-utils/review-worktree";
 import { get, query } from "./dom";
-import { cleanup, fireEvent, render } from "./testing-library";
+import { cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 afterEach(cleanup);
 
@@ -16,7 +16,17 @@ const WORKTREES: Worktree[] = [
 	{ path: SOLO, branch: "feat/worktrees" },
 ];
 
-function ReviewWorktreeHarness({ shellPath, worktrees = WORKTREES }: { shellPath?: string; worktrees?: Worktree[] }) {
+function ReviewWorktreeHarness({
+	shellPath,
+	worktrees = WORKTREES,
+	removeFailure,
+	onRemove = () => {},
+}: {
+	shellPath?: string;
+	worktrees?: Worktree[];
+	removeFailure?: { path: string; message: string };
+	onRemove?: (path: string) => void;
+}) {
 	const [pinned, setPinned] = useState<string>();
 	const activePath = resolveReviewWorktree({ pinned, shellWorktree: shellPath, worktrees }) ?? PROJECT;
 
@@ -25,12 +35,21 @@ function ReviewWorktreeHarness({ shellPath, worktrees = WORKTREES }: { shellPath
 			<ReviewWorktree
 				worktrees={worktrees}
 				activePath={activePath}
+				mainPath={PROJECT}
 				pinnedPath={pinned}
 				shellPath={shellPath}
+				removeFailure={removeFailure}
 				onSelect={setPinned}
+				onRemove={onRemove}
 			/>
 		</div>
 	);
+}
+
+function removeButton(label: string) {
+	const button = menuItem(label).parentElement?.querySelector<HTMLElement>('[data-slot="remove"]');
+
+	return button ?? undefined;
 }
 
 function menuItem(label: string) {
@@ -91,6 +110,74 @@ test("the menu marks where the shell's agent works", () => {
 
 	expect(menuItem("feat/worktrees").querySelector('[data-slot="live"]')).not.toBeNull();
 	expect(menuItem("main").querySelector('[data-slot="live"]')).toBeNull();
+});
+
+test("the first click on the remove icon only arms the confirmation", () => {
+	let removed: string[] = [];
+	render(<ReviewWorktreeHarness onRemove={(path) => removed.push(path)} />);
+
+	fireEvent.click(get("review-worktree"));
+	fireEvent.click(removeButton("feat/worktrees")!);
+
+	expect(removed).toEqual([]);
+	expect(removeButton("feat/worktrees")?.getAttribute("aria-label")).toBe(
+		"Confirm: Remove worktree feat/worktrees",
+	);
+});
+
+test("clicking the armed confirmation removes the worktree", () => {
+	let removed: string[] = [];
+	render(<ReviewWorktreeHarness onRemove={(path) => removed.push(path)} />);
+
+	fireEvent.click(get("review-worktree"));
+	fireEvent.click(removeButton("feat/worktrees")!);
+	fireEvent.click(removeButton("feat/worktrees")!);
+
+	expect(removed).toEqual([SOLO]);
+	expect(query("review-worktree-menu")).not.toBeNull();
+});
+
+test("the confirmation disarms itself when it is left alone", async () => {
+	render(<ReviewWorktreeHarness />);
+
+	fireEvent.click(get("review-worktree"));
+	fireEvent.click(removeButton("feat/worktrees")!);
+
+	await waitFor(
+		() => expect(removeButton("feat/worktrees")?.getAttribute("aria-label")).toBe("Remove worktree feat/worktrees"),
+		{ timeout: 3000 },
+	);
+});
+
+test("following the shell stays out of the scrolling list", () => {
+	render(<ReviewWorktreeHarness />);
+
+	fireEvent.click(get("review-worktree"));
+
+	const pinned = get("review-worktree-menu").querySelector('[data-slot="pinned"]');
+	expect(pinned?.textContent).toContain("Follow shell");
+	expect(pinned?.contains(menuItem("main"))).toBe(false);
+});
+
+test("the main worktree of the project offers no removal", () => {
+	render(<ReviewWorktreeHarness />);
+
+	fireEvent.click(get("review-worktree"));
+
+	expect(removeButton("main")).toBeUndefined();
+});
+
+test("a refused removal is reported on the worktree it failed for", () => {
+	render(
+		<ReviewWorktreeHarness
+			removeFailure={{ path: SOLO, message: "contains modified or untracked files" }}
+		/>,
+	);
+
+	fireEvent.click(get("review-worktree"));
+
+	expect(menuItem("feat/worktrees").textContent).toContain("contains modified or untracked files");
+	expect(menuItem("main").textContent).toContain(PROJECT);
 });
 
 test("a pin surviving a removed worktree falls back to the shell", () => {

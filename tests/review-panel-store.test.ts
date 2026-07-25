@@ -1,5 +1,11 @@
 import { expect, test } from "bun:test";
 import { createReviewPanelStore } from "@renderer/routes/-utils/review-panel-store";
+import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-utils/review-scope";
+
+test("opens on the working tree against HEAD", () => {
+	expect(createReviewPanelStore().state.mode).toBe(DEFAULT_REVIEW_MODE);
+	expect(DEFAULT_REVIEW_MODE).toBe("uncommitted");
+});
 
 test("abandons the focused file when the scope changes", () => {
 	const panel = createReviewPanelStore();

@@ -2,9 +2,7 @@ import type { ReviewMode } from "@main/git/contracts";
 import { orpc } from "@renderer/lib/api";
 import { matchQuery, type QueryClient } from "@tanstack/react-query";
 
-const PREWARM_REVIEW_MODE = "uncommitted" satisfies ReviewMode;
-
-export function installReviewPrewarm(queryClient: QueryClient) {
+export function installReviewPrewarm({ queryClient, mode }: { queryClient: QueryClient; mode: ReviewMode }) {
 	const prewarmed = new Set<string>();
 	const listOptions = orpc.projects.list.queryOptions();
 
@@ -19,7 +17,7 @@ export function installReviewPrewarm(queryClient: QueryClient) {
 			queryClient
 				.prefetchQuery(
 					orpc.review.snapshot.queryOptions({
-						input: { projectId: project.id, mode: PREWARM_REVIEW_MODE },
+						input: { projectId: project.id, mode },
 					}),
 				)
 				.catch((error) =>

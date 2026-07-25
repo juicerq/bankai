@@ -3,6 +3,7 @@ import { afterEach, expect, test } from "bun:test";
 import type { Project } from "@main/store/projects";
 import { orpc } from "@renderer/lib/api";
 import { installReviewPrewarm } from "@renderer/lib/prewarm-reviews";
+import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-utils/review-scope";
 import { QueryClient } from "@tanstack/react-query";
 import { type } from "arktype";
 import { waitFor } from "./testing-library";
@@ -43,7 +44,7 @@ function setup(initial?: Project[]) {
 		setListData(queryClient, initial);
 	}
 
-	disposers.push(installReviewPrewarm(queryClient));
+	disposers.push(installReviewPrewarm({ queryClient, mode: DEFAULT_REVIEW_MODE }));
 
 	return { transport, queryClient };
 }
@@ -62,7 +63,7 @@ test("launch prewarms a snapshot for every mounted project in the default mode",
 
 	expect(prewarmedProjectIds(transport).sort()).toEqual(["a", "b", "c"]);
 	for (const input of transport.callsFor("snapshot")) {
-		expect(snapshotInput.assert(input).mode).toBe("uncommitted");
+		expect(snapshotInput.assert(input).mode).toBe(DEFAULT_REVIEW_MODE);
 	}
 });
 

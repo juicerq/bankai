@@ -1,5 +1,6 @@
 import { createStore } from "@tanstack/react-store";
 import type { ReviewMode } from "@main/git/contracts";
+import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-utils/review-scope";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
 
 export interface ReviewPanelState {
@@ -10,7 +11,7 @@ export interface ReviewPanelState {
 }
 
 export function createReviewPanelStore() {
-	const initial: ReviewPanelState = { mode: "last-turn", closedFiles: new Set<string>() };
+	const initial: ReviewPanelState = { mode: DEFAULT_REVIEW_MODE, closedFiles: new Set<string>() };
 
 	return createStore(initial, ({ setState, get }) => {
 		const patch = (values: Partial<ReviewPanelState>) => setState((state) => ({ ...state, ...values }));

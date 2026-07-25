@@ -1,7 +1,7 @@
 import "./register-dom";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { ActivityChangedEvent, AgentActivityState, BankaiActivityApi } from "@shared/activity";
-import { ProjectWorkspaceShellTabs } from "@renderer/routes/-components/project-workspace";
+import { ProjectWorkspaceShellTabs } from "@renderer/routes/-components/project-workspace-shell-tabs";
 import { useAgentActivities } from "@renderer/routes/-utils/use-agent-activity";
 import { get } from "./dom";
 import { act, cleanup, render, renderHook } from "./testing-library";

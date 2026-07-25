@@ -1,33 +1,17 @@
-import { ArrowsPointingInIcon, ArrowsPointingOutIcon, ViewColumnsIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import type { Project } from "@main/store/projects";
 import type { LayoutSettings } from "@main/store/settings";
 import type { AgentActivityState } from "@shared/activity";
-import { ActivityIndicator } from "@renderer/routes/-components/activity-indicator";
-import { EmptyState } from "@renderer/routes/-components/empty-state";
+import { ProjectWorkspaceHeader } from "@renderer/routes/-components/project-workspace-header";
+import { ProjectWorkspaceShells } from "@renderer/routes/-components/project-workspace-shells";
 import { ReviewPanel } from "@renderer/routes/-components/review-panel";
 import { ReviewPanelFrame } from "@renderer/routes/-components/review-panel-frame";
-import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
-import { UpdateButton } from "@renderer/routes/-components/update-button";
-import {
-	MIN_DIFF_WIDTH,
-	MIN_TREE_WIDTH,
-	REVIEW_DIFF_WIDTH_PROPERTY,
-	REVIEW_DIFF_WIDTH_VALUE,
-	REVIEW_TREE_WIDTH_PROPERTY,
-	REVIEW_TREE_WIDTH_VALUE,
-	redistributeReviewTree,
-	squeezeReviewDiff,
-} from "@renderer/routes/-utils/review-layout";
-import { ACTIVITY_DOT_CLASS } from "@renderer/routes/-utils/agent-activity";
-import { useDivider } from "@renderer/routes/-utils/use-divider";
-import { useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
+import { MIN_DIFF_WIDTH } from "@renderer/routes/-utils/review-layout";
 import { useProjectWorkspaceShortcuts } from "@renderer/routes/-utils/use-project-workspace-shortcuts";
+import { useReviewGeometry } from "@renderer/routes/-utils/use-review-geometry";
+import { useShellTabs } from "@renderer/routes/-utils/use-shell-tabs";
 import { worktreeActivity } from "@renderer/routes/-utils/worktree-activity";
-import { initialShellTopology, newShellTab, type RestoredShell, type ShellTab } from "@renderer/routes/-utils/shell-topology";
-
-const MIN_TERMINAL_WIDTH = 360;
-const REVIEW_SEPARATOR_WIDTH = 1;
+import type { RestoredShell, ShellTab } from "@renderer/routes/-utils/shell-topology";
 
 export const ProjectWorkspace = memo(function ProjectWorkspace({
 	project,
@@ -78,191 +62,32 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	onShellMove: (projectId: string, shellId: string, toIndex: number) => void;
 	onShellSelect: (projectId: string, shellId: string) => void;
 }) {
-	const [topology] = useState(() => initialShellTopology(restoredShells, restoredActiveShellId));
-	const [tabs, setTabs] = useState<ShellTab[]>(topology.tabs);
-	const [activeTabId, setActiveTabId] = useState<string | undefined>(topology.activeTabId);
-	const [sessionIds, setSessionIds] = useState<Record<string, string>>({});
-	const handleSessionId = useCallback((tabId: string, sessionId: string) => {
-		setSessionIds((current) => ({ ...current, [tabId]: sessionId }));
-	}, []);
+	const shells = useShellTabs({
+		projectId: project.id,
+		restoredShells,
+		restoredActiveShellId,
+		onShellOpen,
+		onShellClose,
+		onShellMove,
+		onShellSelect,
+	});
+	const geometry = useReviewGeometry({ initialDiffWidth, initialTreeWidth, treeOpen, onPersistLayout });
 	const [reviewAnimating, setReviewAnimating] = useState(false);
-	const [diffWidth, setDiffWidth] = useState(initialDiffWidth);
-	const [treeWidth, setTreeWidth] = useState(initialTreeWidth);
-	const [rowWidth, setRowWidth] = useState<number>();
-	const rowElement = useRef<HTMLDivElement | null>(null);
-	const nextShellNumber = useRef(topology.nextShellNumber);
-	const pendingDefaultShell = useRef<ShellTab | undefined>(topology.defaultShell);
-	const registerDefaultShell = useCallback(
-		(node: HTMLSpanElement | null) => {
-			if (!node) {
-				return;
-			}
-
-			const shell = pendingDefaultShell.current;
-			if (!shell) {
-				return;
-			}
-
-			pendingDefaultShell.current = undefined;
-			onShellOpen(project.id, shell);
-		},
-		[onShellOpen, project.id],
-	);
-	const selectTab = useCallback(
-		(tabId: string) => {
-			setActiveTabId(tabId);
-			onShellSelect(project.id, tabId);
-		},
-		[onShellSelect, project.id],
-	);
-
-	const treeReserve = treeOpen ? treeWidth : 0;
-	const maxDiffWidth = rowWidth === undefined
-		? Number.POSITIVE_INFINITY
-		: Math.max(MIN_DIFF_WIDTH, rowWidth - MIN_TERMINAL_WIDTH - treeReserve);
-	const renderedDiffWidth = Math.min(Math.max(diffWidth, MIN_DIFF_WIDTH), maxDiffWidth);
-	const treeCeiling = rowWidth === undefined
-		? treeWidth
-		: Math.min(treeWidth, Math.max(MIN_TREE_WIDTH, rowWidth - renderedDiffWidth - MIN_TERMINAL_WIDTH));
-	const renderedTreeWidth = treeOpen ? treeCeiling : 0;
-	const maxTreeWidth = rowWidth === undefined
-		? Number.POSITIVE_INFINITY
-		: Math.max(MIN_TREE_WIDTH, rowWidth - renderedDiffWidth - MIN_TERMINAL_WIDTH);
-
-	const rowRef = useCallback(
-		(element: HTMLDivElement | null) => {
-			rowElement.current = element;
-			if (!element) {
-				return;
-			}
-
-			element.style.setProperty(REVIEW_DIFF_WIDTH_PROPERTY, `${renderedDiffWidth}px`);
-			element.style.setProperty(REVIEW_TREE_WIDTH_PROPERTY, `${renderedTreeWidth}px`);
-			setRowWidth(element.clientWidth);
-			const observer = new ResizeObserver(() => setRowWidth(element.clientWidth));
-			observer.observe(element);
-
-			return () => observer.disconnect();
-		},
-		[renderedDiffWidth, renderedTreeWidth],
-	);
-
-	const diffDivider = useDivider({
-		value: renderedDiffWidth,
-		min: MIN_DIFF_WIDTH,
-		max: maxDiffWidth,
-		sign: -1,
-		target: rowElement,
-		resolve: (proposed) => {
-			const { diff, tree } = squeezeReviewDiff({
-				proposed,
-				minDiff: MIN_DIFF_WIDTH,
-				maxDiff: maxDiffWidth,
-				treeOpen,
-				minTree: MIN_TREE_WIDTH,
-				treeWidth: renderedTreeWidth,
-			});
-
-			return {
-				vars: [
-					{ property: REVIEW_DIFF_WIDTH_PROPERTY, value: diff },
-					{ property: REVIEW_TREE_WIDTH_PROPERTY, value: tree },
-				],
-				commit: () => {
-					setDiffWidth(diff);
-					if (treeOpen && tree !== renderedTreeWidth) {
-						setTreeWidth(tree);
-						onPersistLayout({ diffWidth: diff, treeWidth: tree });
-						return;
-					}
-					onPersistLayout({ diffWidth: diff });
-				},
-			};
-		},
-	});
-	const treeDivider = useDivider({
-		value: renderedTreeWidth,
-		min: MIN_TREE_WIDTH,
-		max: Math.min(maxTreeWidth, renderedTreeWidth + renderedDiffWidth - MIN_DIFF_WIDTH),
-		sign: 1,
-		target: rowElement,
-		resolve: (proposed) => {
-			const { tree, diff } = redistributeReviewTree({
-				proposed,
-				total: renderedTreeWidth + renderedDiffWidth,
-				minTree: MIN_TREE_WIDTH,
-				minDiff: MIN_DIFF_WIDTH,
-			});
-
-			return {
-				vars: [
-					{ property: REVIEW_TREE_WIDTH_PROPERTY, value: tree },
-					{ property: REVIEW_DIFF_WIDTH_PROPERTY, value: diff },
-				],
-				commit: () => {
-					setTreeWidth(tree);
-					setDiffWidth(diff);
-					onPersistLayout({ diffWidth: diff, treeWidth: tree });
-				},
-			};
-		},
-	});
-	const resizing = diffDivider.resizing;
-
-	const handleNewShell = useCallback(() => {
-		const tab = newShellTab(nextShellNumber.current);
-		nextShellNumber.current += 1;
-		setTabs((current) => [...current, tab]);
-		setActiveTabId(tab.id);
-		onShellOpen(project.id, tab);
-	}, [onShellOpen, project.id]);
-	const startReviewMotion = useCallback(() => {
-		setReviewAnimating(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-	}, []);
 
 	const handleToggleReview = useCallback(() => {
-		startReviewMotion();
+		setReviewAnimating(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 		onReviewOpenChange(!reviewOpen);
-	}, [startReviewMotion, onReviewOpenChange, reviewOpen]);
-
-	const handleMoveShell = (data: { tabId: string; toIndex: number }) => {
-		setTabs((current) => {
-			const others = current.filter((tab) => tab.id !== data.tabId);
-			const moved = current.filter((tab) => tab.id === data.tabId);
-
-			return [...others.slice(0, data.toIndex), ...moved, ...others.slice(data.toIndex)];
-		});
-		onShellMove(project.id, data.tabId, data.toIndex);
-	};
-
-	const handleCloseShell = useCallback(
-		(tabId: string) => {
-			const tabIndex = tabs.findIndex((tab) => tab.id === tabId);
-			const remaining = tabs.filter((tab) => tab.id !== tabId);
-			setTabs(remaining);
-			setSessionIds((current) => {
-				const { [tabId]: _removed, ...rest } = current;
-				return rest;
-			});
-			if (activeTabId === tabId) {
-				setActiveTabId(remaining[Math.max(0, tabIndex - 1)]?.id);
-			}
-			onShellClose(project.id, tabId);
-		},
-		[tabs, activeTabId, onShellClose, project.id],
-	);
+	}, [onReviewOpenChange, reviewOpen]);
 
 	const registerWorkspaceShortcuts = useProjectWorkspaceShortcuts({
 		active,
-		tabs,
-		activeTabId,
-		onActivateTab: selectTab,
-		onCloseTab: handleCloseShell,
-		onNewTab: handleNewShell,
+		tabs: shells.tabs,
+		activeTabId: shells.activeTabId,
+		onActivateTab: shells.selectTab,
+		onCloseTab: shells.closeTab,
+		onNewTab: shells.openTab,
 		onToggleReview: handleToggleReview,
 	});
-	const reviewWidth = REVIEW_SEPARATOR_WIDTH + renderedDiffWidth + renderedTreeWidth;
-	const liveReviewWidth = `calc(${REVIEW_DIFF_WIDTH_VALUE} + ${REVIEW_TREE_WIDTH_VALUE} + ${REVIEW_SEPARATOR_WIDTH}px)`;
 
 	return (
 		<section
@@ -270,96 +95,46 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 			className={`col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col ${active ? "" : "invisible"}`}
 			aria-label={`${project.name} workspace`}
 		>
-			<span ref={registerDefaultShell} hidden />
-			<header className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised pr-[120px]">
-				{active && fullscreen && <ActivityIndicator projects={projects} activeProjectId={project.id} />}
-				<ProjectWorkspaceShellTabs
-					tabs={tabs}
-					activeTabId={activeTabId}
-					shellActivity={shellActivity}
-					sessionIds={sessionIds}
-					onSelect={selectTab}
-					onClose={handleCloseShell}
-					onMove={handleMoveShell}
-					onNew={handleNewShell}
-				/>
-				{active && <UpdateButton />}
-				<button
-					type="button"
-					className={`flex h-full w-header shrink-0 items-center justify-center border-outline border-l hover:bg-surface-hover hover:text-primary ${
-						fullscreen ? "bg-surface-active text-primary" : "text-secondary"
-					}`}
-					aria-pressed={fullscreen}
-					aria-label="Toggle focus mode"
-					title="Toggle focus mode (Ctrl+X F)"
-					onClick={onToggleFullscreen}
-				>
-					{fullscreen ? <ArrowsPointingInIcon className="size-4" /> : <ArrowsPointingOutIcon className="size-4" />}
-				</button>
-				<button
-					type="button"
-					className={`flex h-full w-header shrink-0 items-center justify-center border-outline border-x hover:bg-surface-hover hover:text-primary ${
-						reviewOpen ? "bg-surface-active text-primary" : "text-secondary"
-					}`}
-					aria-expanded={reviewOpen}
-					aria-label="Toggle review panel"
-					title="Toggle review panel (Ctrl+X R)"
-					onClick={handleToggleReview}
-				>
-					<ViewColumnsIcon className="size-4" />
-				</button>
-			</header>
+			<span ref={shells.registerDefaultShell} hidden />
+			<ProjectWorkspaceHeader
+				project={project}
+				projects={projects}
+				shells={shells}
+				shellActivity={shellActivity}
+				active={active}
+				fullscreen={fullscreen}
+				reviewOpen={reviewOpen}
+				onToggleFullscreen={onToggleFullscreen}
+				onToggleReview={handleToggleReview}
+			/>
 
 			<div
-				ref={rowRef}
-				className={`flex min-h-0 flex-1 ${resizing || railResizing ? "cursor-col-resize select-none" : ""}`}
+				ref={geometry.rowRef}
+				className={`flex min-h-0 flex-1 ${geometry.resizing || railResizing ? "cursor-col-resize select-none" : ""}`}
 			>
-				<div
-					style={{ minWidth: MIN_TERMINAL_WIDTH, contain: "paint" }}
-					className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-1 overflow-hidden bg-surface-sunken"
-				>
-					{tabs.length === 0 && (
-						<EmptyState
-							mark="›_"
-							title="No open shells"
-							description={`Start a shell in ${project.name} to continue.`}
-							actionLabel="New shell"
-							onAction={handleNewShell}
-						/>
-					)}
-					{tabs.map((tab) => (
-						<div
-							className={`col-start-1 row-start-1 min-h-0 min-w-0 overflow-hidden ${tab.id === activeTabId ? "" : "invisible"}`}
-							key={tab.id}
-						>
-							<TerminalPane
-								projectId={project.id}
-								shellId={tab.id}
-								active={active && tab.id === activeTabId}
-								focusRequest={shellFocusRequest}
-								resizeDeferred={fullscreenAnimating || reviewAnimating || resizing || railResizing}
-								resumeOnMount={topology.resumableShellIds.has(tab.id)}
-								onSessionId={(sessionId) => handleSessionId(tab.id, sessionId)}
-							/>
-						</div>
-					))}
-				</div>
+				<ProjectWorkspaceShells
+					project={project}
+					shells={shells}
+					active={active}
+					focusRequest={shellFocusRequest}
+					resizeDeferred={fullscreenAnimating || reviewAnimating || geometry.resizing || railResizing}
+				/>
 				<ReviewPanelFrame
 					open={reviewOpen}
 					animate={reviewAnimating}
-					width={reviewWidth}
-					liveWidth={liveReviewWidth}
-					divider={diffDivider}
+					width={geometry.reviewWidth}
+					liveWidth={geometry.liveReviewWidth}
+					divider={geometry.diffDivider}
 					onMotionEnd={() => setReviewAnimating(false)}
 				>
 					<ReviewPanel
 						project={project}
-						shellId={activeTabId}
-						shellWorktree={activeTabId === undefined ? undefined : shellWorktrees.get(activeTabId)}
-						worktreeActivity={worktreeActivity({ sessionIds, shellWorktrees, shellActivity })}
+						shellId={shells.activeTabId}
+						shellWorktree={shells.activeTabId === undefined ? undefined : shellWorktrees.get(shells.activeTabId)}
+						worktreeActivity={worktreeActivity({ sessionIds: shells.sessionIds, shellWorktrees, shellActivity })}
 						minDiffWidth={MIN_DIFF_WIDTH}
 						treeOpen={treeOpen}
-						treeDivider={treeDivider}
+						treeDivider={geometry.treeDivider}
 						onTreeOpenChange={onTreeOpenChange}
 					/>
 				</ReviewPanelFrame>
@@ -367,96 +142,3 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		</section>
 	);
 });
-
-export function ProjectWorkspaceShellTabs({
-	tabs,
-	activeTabId,
-	shellActivity,
-	sessionIds,
-	onSelect,
-	onClose,
-	onMove,
-	onNew,
-}: {
-	tabs: ShellTab[];
-	activeTabId: string | undefined;
-	shellActivity: ReadonlyMap<string, AgentActivityState>;
-	sessionIds: Record<string, string>;
-	onSelect: (tabId: string) => void;
-	onClose: (tabId: string) => void;
-	onMove: (data: { tabId: string; toIndex: number }) => void;
-	onNew: () => void;
-}) {
-	const drag = useDragReorder(
-		tabs.map((tab) => tab.id),
-		(data) => onMove({ tabId: data.id, toIndex: data.toIndex }),
-	);
-
-	return (
-		<div className="flex h-full min-w-0 flex-1 items-center overflow-hidden" aria-label="Shells">
-			{tabs.map((tab) => {
-				const selected = tab.id === activeTabId;
-				const dropEdge = drag.dropEdge(tab.id);
-				const sessionId = sessionIds[tab.id];
-				const activity = sessionId === undefined ? undefined : shellActivity.get(sessionId);
-
-				return (
-					<div
-						data-component="shell-tab"
-						data-tab-id={tab.id}
-						data-active={selected}
-						data-activity={activity}
-						className={`group relative flex h-full shrink-0 items-center border-outline border-r ${
-							selected ? "bg-surface-active" : "hover:bg-surface-hover"
-						}`}
-						key={tab.id}
-						{...drag.itemProps(tab.id)}
-					>
-						{dropEdge && (
-							<span
-								className={`absolute inset-y-0 w-0.5 bg-tertiary ${dropEdge === "before" ? "left-0" : "right-0"}`}
-							/>
-						)}
-						<button
-							type="button"
-							className={`flex h-full items-center gap-2 pr-1 pl-3 text-body ${
-								selected ? "text-primary" : "text-secondary"
-							}`}
-							aria-pressed={selected}
-							onClick={() => onSelect(tab.id)}
-						>
-							<span
-								data-slot="activity-signal"
-								className={`size-1.5 shrink-0 rounded-full ${
-									activity ? ACTIVITY_DOT_CLASS[activity] : "invisible"
-								}`}
-								aria-hidden="true"
-							/>
-							{tab.label}
-						</button>
-						<button
-							type="button"
-							data-slot="close"
-							className="flex h-full items-center px-2 text-outline-strong opacity-0 hover:text-primary focus-visible:opacity-100 group-hover:opacity-100"
-							onClick={() => onClose(tab.id)}
-							aria-label={`Close ${tab.label}`}
-							title={selected ? `Close ${tab.label} (Ctrl+X X)` : undefined}
-						>
-							<XMarkIcon className="size-3.5" aria-hidden="true" />
-						</button>
-					</div>
-				);
-			})}
-			<button
-				type="button"
-				className="flex h-full w-header shrink-0 items-center justify-center border-outline border-r text-secondary text-subtitle hover:bg-surface-hover hover:text-primary"
-				onClick={onNew}
-				aria-label="New shell"
-				title="New shell (Ctrl+X T)"
-			>
-				+
-			</button>
-		</div>
-	);
-}
-

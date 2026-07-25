@@ -2,6 +2,8 @@ export const DEFAULT_DIFF_WIDTH = 648;
 export const DEFAULT_TREE_WIDTH = 200;
 export const MIN_DIFF_WIDTH = 294;
 export const MIN_TREE_WIDTH = 120;
+export const MIN_TERMINAL_WIDTH = 360;
+export const REVIEW_SEPARATOR_WIDTH = 1;
 
 export const REVIEW_DIFF_WIDTH_PROPERTY = "--review-diff-width";
 export const REVIEW_TREE_WIDTH_PROPERTY = "--review-tree-width";

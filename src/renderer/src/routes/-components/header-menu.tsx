@@ -1,4 +1,4 @@
-import { CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { CheckIcon, ChevronDownIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { type ReactNode, useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMenuDismissal } from "@renderer/routes/-utils/use-menu-dismissal";
@@ -66,7 +66,14 @@ export function HeaderMenu({
 				}}
 			>
 				{icon}
-				<span className="truncate">{label}</span>
+				<span className="min-w-0 truncate">{label}</span>
+				<ChevronDownIcon
+					data-slot="chevron"
+					aria-hidden="true"
+					className={`size-3 shrink-0 transition-transform duration-150 ease-out motion-reduce:transition-none ${
+						menu ? "-rotate-180" : ""
+					}`}
+				/>
 			</button>
 			{menu && createPortal(
 				<div

@@ -1,6 +1,8 @@
 import { Square3Stack3DIcon } from "@heroicons/react/24/outline";
 import type { Worktree } from "@main/git/contracts";
+import type { AgentActivityState } from "@shared/activity";
 import { HeaderMenu, HeaderMenuItem, HeaderMenuSeparator } from "@renderer/routes/-components/header-menu";
+import { ACTIVITY_DOT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import { worktreeLabel } from "@renderer/routes/-utils/review-worktree";
 
 export interface ReviewWorktreeSelection {
@@ -9,6 +11,7 @@ export interface ReviewWorktreeSelection {
 	mainPath: string;
 	pinnedPath: string | undefined;
 	shellPath: string | undefined;
+	activity: ReadonlyMap<string, AgentActivityState>;
 	removeFailure: { path: string; message: string } | undefined;
 	onSelect: (path?: string) => void;
 	onRemove: (path: string) => void;
@@ -20,6 +23,7 @@ export function ReviewWorktree({
 	mainPath,
 	pinnedPath,
 	shellPath,
+	activity,
 	removeFailure,
 	onSelect,
 	onRemove,
@@ -53,20 +57,19 @@ export function ReviewWorktree({
 		>
 			{worktrees.map((worktree) => {
 				const failure = removeFailure?.path === worktree.path ? removeFailure.message : undefined;
+				const root = worktree.path === mainPath;
+				const state = activity.get(worktree.path);
 
 				return (
 					<HeaderMenuItem
 						key={worktree.path}
 						label={worktreeLabel(worktree)}
-						detail={failure ?? worktree.path}
+						detail={failure ?? (root ? `root · ${worktree.path}` : worktree.path)}
 						detailTone={failure ? "danger" : undefined}
 						selected={!following && worktree.path === activePath}
-						live={worktree.path === shellPath ? { title: "The active shell's agent works here" } : undefined}
-						badge={
-							worktree.path === mainPath ? { label: "root", title: "The project's own checkout" } : undefined
-						}
+						signal={state === undefined ? undefined : { title: state, className: ACTIVITY_DOT_CLASS[state] }}
 						remove={
-							worktree.path === mainPath
+							root
 								? undefined
 								: {
 										label: `Remove worktree ${worktreeLabel(worktree)}`,

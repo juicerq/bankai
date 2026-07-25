@@ -1,4 +1,4 @@
-import { ArrowsPointingInIcon, ArrowsPointingOutIcon, ViewColumnsIcon } from "@heroicons/react/24/outline";
+import { ArrowsPointingInIcon, ArrowsPointingOutIcon, ViewColumnsIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { memo, useCallback, useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
 import type { LayoutSettings } from "@main/store/settings";
@@ -23,6 +23,7 @@ import { ACTIVITY_DOT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
 import { useProjectWorkspaceShortcuts } from "@renderer/routes/-utils/use-project-workspace-shortcuts";
+import { worktreeActivity } from "@renderer/routes/-utils/worktree-activity";
 import { initialShellTopology, newShellTab, type RestoredShell, type ShellTab } from "@renderer/routes/-utils/shell-topology";
 
 const MIN_TERMINAL_WIDTH = 360;
@@ -355,6 +356,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 						project={project}
 						shellId={activeTabId}
 						shellWorktree={activeTabId === undefined ? undefined : shellWorktrees.get(activeTabId)}
+						worktreeActivity={worktreeActivity({ sessionIds, shellWorktrees, shellActivity })}
 						minDiffWidth={MIN_DIFF_WIDTH}
 						treeOpen={treeOpen}
 						treeDivider={treeDivider}
@@ -404,7 +406,7 @@ export function ProjectWorkspaceShellTabs({
 						data-tab-id={tab.id}
 						data-active={selected}
 						data-activity={activity}
-						className={`relative flex h-full shrink-0 items-center border-outline border-r ${
+						className={`group relative flex h-full shrink-0 items-center border-outline border-r ${
 							selected ? "bg-surface-active" : "hover:bg-surface-hover"
 						}`}
 						key={tab.id}
@@ -417,28 +419,30 @@ export function ProjectWorkspaceShellTabs({
 						)}
 						<button
 							type="button"
-							className={`flex h-full items-center pr-1 pl-3 text-body ${
+							className={`flex h-full items-center gap-2 pr-1 pl-3 text-body ${
 								selected ? "text-primary" : "text-secondary"
 							}`}
 							aria-pressed={selected}
 							onClick={() => onSelect(tab.id)}
 						>
-							{tab.label}
-						</button>
-						{activity && (
 							<span
-								className={`size-1.5 shrink-0 rounded-full ${ACTIVITY_DOT_CLASS[activity]}`}
+								data-slot="activity-signal"
+								className={`size-1.5 shrink-0 rounded-full ${
+									activity ? ACTIVITY_DOT_CLASS[activity] : "invisible"
+								}`}
 								aria-hidden="true"
 							/>
-						)}
+							{tab.label}
+						</button>
 						<button
 							type="button"
-							className="h-full px-3 text-body text-outline-strong hover:text-primary"
+							data-slot="close"
+							className="flex h-full items-center px-2 text-outline-strong opacity-0 hover:text-primary focus-visible:opacity-100 group-hover:opacity-100"
 							onClick={() => onClose(tab.id)}
 							aria-label={`Close ${tab.label}`}
 							title={selected ? `Close ${tab.label} (Ctrl+X X)` : undefined}
 						>
-							×
+							<XMarkIcon className="size-3.5" aria-hidden="true" />
 						</button>
 					</div>
 				);

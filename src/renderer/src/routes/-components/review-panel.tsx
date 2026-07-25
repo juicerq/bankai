@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import type { ReviewMode } from "@main/git/contracts";
 import type { Project } from "@main/store/projects";
+import type { AgentActivityState } from "@shared/activity";
 import { orpc } from "@renderer/lib/api";
 import { ReviewDiff, type ReviewDiffHandle } from "@renderer/routes/-components/review-diff";
 import { ReviewFocusedFile } from "@renderer/routes/-components/review-focused-file";
@@ -18,6 +19,7 @@ export function ReviewPanel({
 	project,
 	shellId,
 	shellWorktree,
+	worktreeActivity,
 	minDiffWidth,
 	treeOpen,
 	treeDivider,
@@ -26,6 +28,7 @@ export function ReviewPanel({
 	project: Project;
 	shellId?: string;
 	shellWorktree?: string;
+	worktreeActivity: ReadonlyMap<string, AgentActivityState>;
 	minDiffWidth: number;
 	treeOpen: boolean;
 	treeDivider: ReturnType<typeof useDivider>;
@@ -147,6 +150,7 @@ export function ReviewPanel({
 		mainPath: project.path,
 		pinnedPath: pinnedWorktree,
 		shellPath: shellWorktree,
+		activity: worktreeActivity,
 		removeFailure:
 			removeWorktree.error && removeWorktree.variables
 				? { path: removeWorktree.variables.worktree, message: removeWorktree.error.message }

@@ -7,6 +7,18 @@ export const ACTIVITY_IPC = {
 
 export type AgentActivityState = "working" | "needs-attention" | "done-unseen";
 
+const AGGREGATE_PRIORITY: AgentActivityState[] = ["needs-attention", "done-unseen", "working"];
+
+export function aggregateActivity(states: AgentActivityState[]): AgentActivityState | null {
+	for (const priority of AGGREGATE_PRIORITY) {
+		if (states.includes(priority)) {
+			return priority;
+		}
+	}
+
+	return null;
+}
+
 export interface ProjectActivitySnapshot {
 	state: AgentActivityState | null;
 	shells: Record<string, AgentActivityState>;

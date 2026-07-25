@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
 import type { Worktree } from "@main/git/contracts";
+import type { AgentActivityState } from "@shared/activity";
 import { ReviewWorktree } from "@renderer/routes/-components/review-worktree";
 import { resolveReviewWorktree } from "@renderer/routes/-utils/review-worktree";
 import { get, query } from "./dom";
@@ -19,11 +20,13 @@ const WORKTREES: Worktree[] = [
 function ReviewWorktreeHarness({
 	shellPath,
 	worktrees = WORKTREES,
+	activity = new Map(),
 	removeFailure,
 	onRemove = () => {},
 }: {
 	shellPath?: string;
 	worktrees?: Worktree[];
+	activity?: ReadonlyMap<string, AgentActivityState>;
 	removeFailure?: { path: string; message: string };
 	onRemove?: (path: string) => void;
 }) {
@@ -38,12 +41,19 @@ function ReviewWorktreeHarness({
 				mainPath={PROJECT}
 				pinnedPath={pinned}
 				shellPath={shellPath}
+				activity={activity}
 				removeFailure={removeFailure}
 				onSelect={setPinned}
 				onRemove={onRemove}
 			/>
 		</div>
 	);
+}
+
+function signal(label: string) {
+	const dot = menuItem(label).parentElement?.querySelector<HTMLElement>('[data-slot="signal"]');
+
+	return dot ?? undefined;
 }
 
 function removeButton(label: string) {
@@ -103,13 +113,30 @@ test("following the shell again releases the pin", () => {
 	expect(get("worktree-harness").dataset.active).toBe(SOLO);
 });
 
-test("the menu marks where the shell's agent works", () => {
-	render(<ReviewWorktreeHarness shellPath={SOLO} />);
+test("the menu signals each worktree with its agent's state", () => {
+	render(<ReviewWorktreeHarness activity={new Map([[SOLO, "working"]])} />);
 
 	fireEvent.click(get("review-worktree"));
 
-	expect(menuItem("feat/worktrees").querySelector('[data-slot="live"]')).not.toBeNull();
-	expect(menuItem("main").querySelector('[data-slot="live"]')).toBeNull();
+	expect(signal("feat/worktrees")?.title).toBe("working");
+	expect(signal("main")).toBeUndefined();
+});
+
+test("a worktree whose agent waits is not signalled as working", () => {
+	render(<ReviewWorktreeHarness activity={new Map([[SOLO, "needs-attention"]])} />);
+
+	fireEvent.click(get("review-worktree"));
+
+	expect(signal("feat/worktrees")?.title).toBe("needs-attention");
+});
+
+test("the project's own checkout is named in its path instead of a badge", () => {
+	render(<ReviewWorktreeHarness />);
+
+	fireEvent.click(get("review-worktree"));
+
+	expect(menuItem("main").textContent).toContain(`root · ${PROJECT}`);
+	expect(menuItem("feat/worktrees").textContent).not.toContain("root");
 });
 
 test("the first click on the remove icon only arms the confirmation", () => {

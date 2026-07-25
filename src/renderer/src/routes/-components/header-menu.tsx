@@ -104,8 +104,7 @@ export function HeaderMenuItem({
 	detail,
 	detailTone,
 	selected,
-	live,
-	badge,
+	signal,
 	remove,
 	onClick,
 }: {
@@ -113,8 +112,7 @@ export function HeaderMenuItem({
 	detail?: string;
 	detailTone?: "danger";
 	selected?: boolean;
-	live?: { title: string };
-	badge?: { label: string; title: string };
+	signal?: { title: string; className: string };
 	remove?: { label: string; onConfirm: () => void };
 	onClick: () => void;
 }) {
@@ -124,7 +122,7 @@ export function HeaderMenuItem({
 				type="button"
 				role={selected === undefined ? "menuitem" : "menuitemradio"}
 				aria-checked={selected}
-				className="flex min-w-0 flex-1 items-center gap-2 py-2 pl-3 text-left"
+				className="flex min-w-0 flex-1 items-center py-2 pl-3 text-left"
 				onClick={onClick}
 			>
 				<span className="min-w-0 flex-1">
@@ -138,26 +136,18 @@ export function HeaderMenuItem({
 						</span>
 					)}
 				</span>
-				{live && (
+			</button>
+			<span className="relative flex w-6 shrink-0 self-stretch items-center justify-center">
+				{signal && (
 					<span
-						data-slot="live"
-						title={live.title}
-						className="size-1.5 shrink-0 rounded-full bg-tertiary"
+						data-slot="signal"
+						title={signal.title}
+						className={`size-1.5 rounded-full ${signal.className} ${remove ? "group-hover:opacity-0" : ""}`}
 						aria-hidden="true"
 					/>
 				)}
-			</button>
-			{remove && <HeaderMenuRemove label={remove.label} onConfirm={remove.onConfirm} />}
-			{badge && (
-				<span
-					data-slot="badge"
-					title={badge.title}
-					className="mr-2 shrink-0 border border-outline-strong px-1.5 py-px text-label text-secondary"
-				>
-					{badge.label}
-				</span>
-			)}
-			{!remove && !badge && <span className="w-3" />}
+				{remove && <HeaderMenuRemove label={remove.label} onConfirm={remove.onConfirm} />}
+			</span>
 		</div>
 	);
 }
@@ -173,7 +163,7 @@ function HeaderMenuRemove({ label, onConfirm }: { label: string; onConfirm: () =
 			data-slot="remove"
 			aria-label={action}
 			title={action}
-			className={`shrink-0 px-2 py-2 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 ${
+			className={`absolute inset-0 flex items-center justify-center opacity-0 focus-visible:opacity-100 group-hover:opacity-100 ${
 				armed ? "text-removed opacity-100" : "text-secondary hover:text-primary"
 			}`}
 			onClick={(event) => {

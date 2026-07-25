@@ -19,6 +19,7 @@ function renderHeader({ filesClosed, onToggleAllFiles = () => {} }: {
 				mainPath: PROJECT,
 				pinnedPath: undefined,
 				shellPath: undefined,
+				activity: new Map(),
 				removeFailure: undefined,
 				onSelect: () => {},
 				onRemove: () => {},

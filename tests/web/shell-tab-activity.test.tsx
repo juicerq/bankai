@@ -60,6 +60,13 @@ describe("shell tab activity dot", () => {
 		expect(get("shell-tab", { tabId: "t2" }).dataset.activity).toBeUndefined();
 	});
 
+	test("holds the dot's place so a starting agent does not resize the tab", () => {
+		renderTabs(new Map([["s1", "working"]]));
+
+		const quiet = get("shell-tab", { tabId: "t2" }).querySelector<HTMLElement>('[data-slot="activity-signal"]');
+		expect(quiet?.className).toContain("invisible");
+	});
+
 	test("clears the tab dot when its shell state drops", () => {
 		const { rerender } = renderTabs(new Map([["s1", "done-unseen"]]));
 		expect(get("shell-tab", { tabId: "t1" }).dataset.activity).toBe("done-unseen");

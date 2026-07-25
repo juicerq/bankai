@@ -13,13 +13,11 @@ import { Logger } from "@main/logger";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { TerminalSessions } from "@main/terminal/TerminalSessions";
-import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
+import { aggregateActivity, type AgentActivityState, type ProjectActivitySnapshot } from "@shared/activity";
 
 const ACTIVITY_POLL_MS = 1500;
 
 const ATTENTION_TAIL = 64;
-
-const AGGREGATE_PRIORITY: AgentActivityState[] = ["needs-attention", "done-unseen", "working"];
 
 type BoundStatus = "working" | "waiting" | "idle";
 
@@ -160,18 +158,6 @@ function shellOwners(shells: { sessionId: string; projectId: string; shellId: st
 	return new Map(
 		shells.map((shell) => [shell.sessionId, { projectId: shell.projectId, shellId: shell.shellId }]),
 	);
-}
-
-export function aggregateProjectActivity(
-	states: AgentActivityState[],
-): AgentActivityState | null {
-	for (const priority of AGGREGATE_PRIORITY) {
-		if (states.includes(priority)) {
-			return priority;
-		}
-	}
-
-	return null;
 }
 
 function sameRecord(before: Record<string, string>, after: Record<string, string>): boolean {
@@ -469,7 +455,7 @@ class AgentActivityTracker {
 		for (const projectId of projectIds) {
 			const shells = shellsByProject.get(projectId) ?? {};
 			nextSnapshots.set(projectId, {
-				state: aggregateProjectActivity(Object.values(shells)),
+				state: aggregateActivity(Object.values(shells)),
 				shells,
 				worktreeByShellId: worktreesByProject.get(projectId) ?? {},
 			});

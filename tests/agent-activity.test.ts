@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import {
-	aggregateProjectActivity,
 	nextShellActivity,
 	nextShellWorktrees,
 	turnBaselineShells,
@@ -12,7 +11,7 @@ import {
 import { matchesAttentionPrompt } from "@main/activity/attention";
 import { ClaudeHarness, parseSessionRecord } from "@main/activity/claude";
 import { bindShells } from "@main/activity/SessionBinder";
-import type { AgentActivityState } from "@shared/activity";
+import { aggregateActivity, type AgentActivityState } from "@shared/activity";
 
 const BUSY_RECORD =
 	'{"pid":141653,"sessionId":"67af1e51-358c-475f-b33a-7de1e199d0a5","cwd":"/home/jui/projects/bankai-2","startedAt":1784894292497,"procStart":"215800","version":"2.1.218","kind":"interactive","status":"busy","updatedAt":1784901075701}';
@@ -77,13 +76,13 @@ describe("needs-attention", () => {
 
 describe("project aggregation", () => {
 	test("picks the most urgent state among shells", () => {
-		expect(aggregateProjectActivity(["working", "done-unseen"])).toBe("done-unseen");
-		expect(aggregateProjectActivity(["done-unseen", "needs-attention", "working"])).toBe("needs-attention");
-		expect(aggregateProjectActivity(["working", "working"])).toBe("working");
+		expect(aggregateActivity(["working", "done-unseen"])).toBe("done-unseen");
+		expect(aggregateActivity(["done-unseen", "needs-attention", "working"])).toBe("needs-attention");
+		expect(aggregateActivity(["working", "working"])).toBe("working");
 	});
 
 	test("no shells means no project signal", () => {
-		expect(aggregateProjectActivity([])).toBeNull();
+		expect(aggregateActivity([])).toBeNull();
 	});
 });
 

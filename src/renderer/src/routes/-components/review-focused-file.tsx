@@ -2,7 +2,8 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useRef, useState } from "react";
 import type { FileChange, FullFile } from "@main/git/contracts";
-import { ReviewDiffLine, ReviewNotice, reviewContentNotice } from "@renderer/routes/-components/review-line";
+import { ReviewDiffLine, ReviewNotice } from "@renderer/routes/-components/review-line";
+import { reviewContentNotice } from "@renderer/routes/-utils/review-notice";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 
 const LINE_HEIGHT = 20;

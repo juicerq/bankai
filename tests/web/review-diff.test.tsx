@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import type { FileChange, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/contracts";
-import { ReviewDiff, REVIEW_ROW_HEIGHT } from "@renderer/routes/-components/review-diff";
+import { ReviewDiff } from "@renderer/routes/-components/review-diff";
+import { REVIEW_ROW_HEIGHT } from "@renderer/routes/-utils/review-rows";
 import { REVIEW_SCOPES } from "@renderer/routes/-utils/review-scope";
 import type { ReviewReading } from "@renderer/routes/-utils/use-review-reading";
 import { get } from "./dom";

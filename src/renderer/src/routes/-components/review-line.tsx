@@ -1,5 +1,5 @@
 import { Suspense, use } from "react";
-import type { DiffLine, ReviewContent } from "@main/git/contracts";
+import type { DiffLine } from "@main/git/contracts";
 import { reviewHighlights } from "@renderer/routes/-utils/review-highlights";
 import type { HighlightedLines, SyntaxSpan, SyntaxTone } from "@renderer/routes/-utils/review-syntax";
 
@@ -68,26 +68,6 @@ export function ReviewNotice({ reason, children }: { reason?: string; children: 
 			{children}
 		</div>
 	);
-}
-
-export function reviewContentNotice(content: Exclude<ReviewContent, { status: "ready" }>, full: boolean): string {
-	switch (content.status) {
-		case "empty":
-			return "Empty file.";
-		case "binary":
-			return "Binary content cannot be shown.";
-		case "too-large":
-			if (content.lineCount) {
-				return `${full ? "Too large to show in full" : "Too large to show"}: ${content.lineCount} lines.`;
-			}
-			if (full) {
-				return "Too large to show in full.";
-			}
-
-			return "Too large to show.";
-		case "unavailable":
-			return "File unavailable. Retrying\u2026";
-	}
 }
 
 function ReviewHighlightedCode({

@@ -277,6 +277,7 @@ export class RendererTerminalSession {
 
 		this.sessionId = sessionId;
 		this.options.onSessionId(sessionId);
+		this.syncProcessDimensions();
 		if (this.active) {
 			this.terminal.focus();
 			this.reportViewed();
@@ -346,6 +347,7 @@ export class RendererTerminalSession {
 			const contextLoss = addon.onContextLoss(() => this.disposeWebgl(addon));
 			this.webgl = { addon, contextLoss };
 			this.terminal.loadAddon(addon);
+			this.handleContainerResize();
 		} catch {
 			this.disposeWebgl();
 		}
@@ -360,6 +362,9 @@ export class RendererTerminalSession {
 		this.webgl = undefined;
 		contextLoss.dispose();
 		activeAddon.dispose();
+		if (!this.disposed) {
+			this.handleContainerResize();
+		}
 	}
 
 	private fail(message: string, err: unknown) {

@@ -33,11 +33,11 @@ export function ReviewFileHeader({
 					aria-label={`${row.open ? "Close" : "Open"} ${row.file.path}`}
 					onClick={() => onToggleOpen(row.file.path)}
 				>
+					<ChevronIcon className="size-4 shrink-0 text-secondary group-hover:text-primary" />
 					<span className="flex min-w-0 flex-1 group-hover:underline" title={row.file.path}>
 						<span dir="rtl" className="truncate opacity-60">{`${directoryPath}\u200E`}</span>
 						<span dir="rtl" className="max-w-full shrink-0 truncate text-primary">{`${fileName}\u200E`}</span>
 					</span>
-					<ChevronIcon className="size-4 shrink-0 text-secondary group-hover:text-primary" />
 				</button>
 			</span>
 			<span className="flex shrink-0 items-center gap-2">

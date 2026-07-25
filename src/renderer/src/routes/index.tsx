@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { orpc } from "@renderer/lib/api";
 import { queryClient } from "@renderer/lib/query-client";
 import { ContinuityFailedNotice } from "@renderer/routes/-components/continuity-failed-notice";
@@ -23,6 +23,7 @@ import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
 import { useLayoutPreferences } from "@renderer/routes/-utils/use-layout-preferences";
 import { useWorkspaceActivation } from "@renderer/routes/-utils/use-workspace-activation";
+import { WorkspaceProvider } from "@renderer/routes/-utils/workspace-context";
 
 export const Route = createFileRoute("/")({
 	component: Bankai,
@@ -109,6 +110,34 @@ function Bankai() {
 			initialResidentProjectIds: continuity.restored.workspaces.map((workspace) => workspace.projectId),
 			onActivate: continuity.activateProject,
 		},
+	);
+	const control = useMemo(
+		() => ({
+			projects: availableProjects,
+			initialDiffWidth: layout.initial.diffWidth,
+			initialTreeWidth: layout.initial.treeWidth,
+			onToggleFullscreen: projectRail.toggleFullscreen,
+			onPersistLayout: layout.persist,
+			onReviewOpenChange: handleReviewOpenChange,
+			onTreeOpenChange: handleTreeOpenChange,
+			onShellOpen: continuity.openShell,
+			onShellClose: continuity.closeShell,
+			onShellMove: continuity.moveShell,
+			onShellSelect: continuity.selectShell,
+		}),
+		[
+			availableProjects,
+			layout.initial.diffWidth,
+			layout.initial.treeWidth,
+			layout.persist,
+			projectRail.toggleFullscreen,
+			handleReviewOpenChange,
+			handleTreeOpenChange,
+			continuity.openShell,
+			continuity.closeShell,
+			continuity.moveShell,
+			continuity.selectShell,
+		],
 	);
 	const registerShortcuts = useBankaiShortcuts({
 		projects: availableProjects,
@@ -197,38 +226,27 @@ function Bankai() {
 						onAction={openPicker}
 					/>
 				)}
-				{!projects.isError && availableProjects.filter((project) => residentProjectIds.includes(project.id)).map((project) => {
-					const workspace = continuity.restored.workspaces.find((entry) => entry.projectId === project.id);
+				<WorkspaceProvider control={control} agents={activity}>
+					{!projects.isError && availableProjects.filter((project) => residentProjectIds.includes(project.id)).map((project) => {
+						const workspace = continuity.restored.workspaces.find((entry) => entry.projectId === project.id);
 
-					return (
-						<ProjectWorkspace
-							key={project.id}
-							project={project}
-							projects={availableProjects}
-							shellActivity={activity.shells}
-							shellWorktrees={activity.worktrees}
-							active={project.id === activeProjectId}
-							shellFocusRequest={shellFocusRequest}
-							fullscreen={projectRail.fullscreen}
-							fullscreenAnimating={projectRail.animating}
-							railResizing={railDivider.resizing}
-							onToggleFullscreen={projectRail.toggleFullscreen}
-							initialDiffWidth={layout.initial.diffWidth}
-							initialTreeWidth={layout.initial.treeWidth}
-							onPersistLayout={layout.persist}
-							reviewOpen={reviewOpen}
-							onReviewOpenChange={handleReviewOpenChange}
-							treeOpen={treeOpen}
-							onTreeOpenChange={handleTreeOpenChange}
-							restoredShells={workspace?.shells}
-							restoredActiveShellId={workspace?.activeShellId}
-							onShellOpen={continuity.openShell}
-							onShellClose={continuity.closeShell}
-							onShellMove={continuity.moveShell}
-							onShellSelect={continuity.selectShell}
-						/>
-					);
-				})}
+						return (
+							<ProjectWorkspace
+								key={project.id}
+								project={project}
+								active={project.id === activeProjectId}
+								shellFocusRequest={shellFocusRequest}
+								fullscreen={projectRail.fullscreen}
+								fullscreenAnimating={projectRail.animating}
+								railResizing={railDivider.resizing}
+								reviewOpen={reviewOpen}
+								treeOpen={treeOpen}
+								restoredShells={workspace?.shells}
+								restoredActiveShellId={workspace?.activeShellId}
+							/>
+						);
+					})}
+				</WorkspaceProvider>
 			</section>
 			{pickerOpen && (
 				<ProjectPicker

@@ -2,38 +2,36 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "@tanstack/react-store";
 import { useCallback, useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
-import type { AgentActivityState } from "@shared/activity";
 import { orpc } from "@renderer/lib/api";
 import { ReviewDiff, type ReviewDiffHandle } from "@renderer/routes/-components/review-diff";
 import { ReviewFocusedFile } from "@renderer/routes/-components/review-focused-file";
 import { ReviewHeader } from "@renderer/routes/-components/review-header";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
 import type { ReviewWorktreeSelection } from "@renderer/routes/-components/review-worktree";
-import { REVIEW_DIFF_WIDTH_VALUE } from "@renderer/routes/-utils/review-layout";
+import { MIN_DIFF_WIDTH, REVIEW_DIFF_WIDTH_VALUE } from "@renderer/routes/-utils/review-layout";
 import { createReviewPanelStore } from "@renderer/routes/-utils/review-panel-store";
 import { resolveReviewWorktree } from "@renderer/routes/-utils/review-worktree";
 import type { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useReviewReading } from "@renderer/routes/-utils/use-review-reading";
+import { worktreeActivity } from "@renderer/routes/-utils/worktree-activity";
+import { useWorkspaceAgents, useWorkspaceControl } from "@renderer/routes/-utils/workspace-context";
 
 export function ReviewPanel({
 	project,
 	shellId,
-	shellWorktree,
-	worktreeActivity,
-	minDiffWidth,
+	sessionIds,
 	treeOpen,
 	treeDivider,
-	onTreeOpenChange,
 }: {
 	project: Project;
 	shellId?: string;
-	shellWorktree?: string;
-	worktreeActivity: ReadonlyMap<string, AgentActivityState>;
-	minDiffWidth: number;
+	sessionIds: Record<string, string>;
 	treeOpen: boolean;
 	treeDivider: ReturnType<typeof useDivider>;
-	onTreeOpenChange: (open: boolean) => void;
 }) {
+	const { onTreeOpenChange } = useWorkspaceControl();
+	const agents = useWorkspaceAgents();
+	const shellWorktree = shellId === undefined ? undefined : agents.worktrees.get(shellId);
 	const [panel] = useState(createReviewPanelStore);
 	const mode = useSelector(panel, (state) => state.mode);
 	const closedFiles = useSelector(panel, (state) => state.closedFiles);
@@ -107,7 +105,7 @@ export function ReviewPanel({
 		mainPath: project.path,
 		pinnedPath: worktree === pinnedWorktree ? pinnedWorktree : undefined,
 		shellPath: shellWorktree,
-		activity: worktreeActivity,
+		activity: worktreeActivity({ sessionIds, shellWorktrees: agents.worktrees, shellActivity: agents.shells }),
 		removeFailure:
 			removeWorktree.error && removeWorktree.variables
 				? { path: removeWorktree.variables.worktree, message: removeWorktree.error.message }
@@ -129,7 +127,7 @@ export function ReviewPanel({
 				/>
 			)}
 
-			<div style={{ width: REVIEW_DIFF_WIDTH_VALUE, minWidth: minDiffWidth }} className="flex flex-col">
+			<div style={{ width: REVIEW_DIFF_WIDTH_VALUE, minWidth: MIN_DIFF_WIDTH }} className="flex flex-col">
 				<ReviewHeader
 					mode={mode}
 					worktrees={worktreeSelection}

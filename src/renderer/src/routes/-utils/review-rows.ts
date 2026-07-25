@@ -18,11 +18,15 @@ export interface ReadingPosition {
 	scrollLeft: number;
 }
 
-export function reviewRows(
-	files: FileChange[],
-	closedFiles: ReadonlySet<string>,
-	contentByPath: ReadonlyMap<string, ReviewContent>,
-): ReviewRow[] {
+export function reviewRows({
+	files,
+	closedFiles,
+	contentByPath,
+}: {
+	files: FileChange[];
+	closedFiles: ReadonlySet<string>;
+	contentByPath: ReadonlyMap<string, ReviewContent>;
+}): ReviewRow[] {
 	const rows: ReviewRow[] = [];
 
 	for (const file of files) {
@@ -38,7 +42,7 @@ export function reviewRows(
 				kind: "notice",
 				key: `notice:${file.path}`,
 				path: file.path,
-				message: content ? reviewContentNotice(content, false) : "File unavailable.",
+				message: content ? reviewContentNotice({ content, full: false }) : "File unavailable.",
 			});
 			continue;
 		}

@@ -18,7 +18,7 @@ export function ReviewFocusedFile({
 	file: FileChange;
 	onClose: () => void;
 }) {
-	const notice = content && content.status !== "ready" ? reviewContentNotice(content, true) : "Reading file\u2026";
+	const notice = content && content.status !== "ready" ? reviewContentNotice({ content, full: true }) : "Reading file\u2026";
 
 	return (
 		<section

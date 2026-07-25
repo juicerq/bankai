@@ -98,7 +98,7 @@ function ReviewDiffView({
 }) {
 	const scroll = useRef<HTMLDivElement>(null);
 	const rows = useMemo(
-		() => reviewRows(files, closedFiles, contentByPath),
+		() => reviewRows({ files, closedFiles, contentByPath }),
 		[closedFiles, contentByPath, files],
 	);
 	const fileRowByPath = useMemo(

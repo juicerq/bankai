@@ -1,6 +1,12 @@
 import type { ReviewContent } from "@main/git/contracts";
 
-export function reviewContentNotice(content: Exclude<ReviewContent, { status: "ready" }>, full: boolean): string {
+export function reviewContentNotice({
+	content,
+	full,
+}: {
+	content: Exclude<ReviewContent, { status: "ready" }>;
+	full: boolean;
+}): string {
 	switch (content.status) {
 		case "empty":
 			return "Empty file.";

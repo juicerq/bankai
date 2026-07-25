@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSelector } from "@tanstack/react-store";
 import { useCallback, useRef, useState } from "react";
-import type { ReviewMode } from "@main/git/contracts";
 import type { Project } from "@main/store/projects";
 import type { AgentActivityState } from "@shared/activity";
 import { orpc } from "@renderer/lib/api";
@@ -10,8 +10,8 @@ import { ReviewHeader } from "@renderer/routes/-components/review-header";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
 import type { ReviewWorktreeSelection } from "@renderer/routes/-components/review-worktree";
 import { REVIEW_DIFF_WIDTH_VALUE } from "@renderer/routes/-utils/review-layout";
+import { createReviewPanelStore } from "@renderer/routes/-utils/review-panel-store";
 import { resolveReviewWorktree } from "@renderer/routes/-utils/review-worktree";
-import { toggledSet } from "@renderer/routes/-utils/toggled-set";
 import type { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useReviewReading } from "@renderer/routes/-utils/use-review-reading";
 
@@ -34,10 +34,11 @@ export function ReviewPanel({
 	treeDivider: ReturnType<typeof useDivider>;
 	onTreeOpenChange: (open: boolean) => void;
 }) {
-	const [mode, setMode] = useState<ReviewMode>("last-turn");
-	const [closedFiles, setClosedFiles] = useState<ReadonlySet<string>>(new Set());
-	const [focusedPath, setFocusedPath] = useState<string>();
-	const [pinnedWorktree, setPinnedWorktree] = useState<string>();
+	const [panel] = useState(createReviewPanelStore);
+	const mode = useSelector(panel, (state) => state.mode);
+	const closedFiles = useSelector(panel, (state) => state.closedFiles);
+	const focusedPath = useSelector(panel, (state) => state.focusedPath);
+	const pinnedWorktree = useSelector(panel, (state) => state.pinnedWorktree);
 	const diff = useRef<ReviewDiffHandle>(null);
 	const isFileOpen = useCallback((path: string) => !closedFiles.has(path), [closedFiles]);
 
@@ -51,9 +52,6 @@ export function ReviewPanel({
 		}),
 	);
 	const worktrees = worktreesQuery.data ?? [];
-	if (pinnedWorktree && worktrees.length > 0 && !worktrees.some((worktree) => worktree.path === pinnedWorktree)) {
-		setPinnedWorktree(undefined);
-	}
 	const worktree = resolveReviewWorktree({ pinned: pinnedWorktree, shellWorktree, worktrees }) ?? project.path;
 
 	const { generation, fullFile, error, refreshing } = useReviewReading({
@@ -65,97 +63,56 @@ export function ReviewPanel({
 		focusedPath,
 	});
 
-	const selectMode = useCallback((next: ReviewMode) => {
-		setMode(next);
-		setFocusedPath(undefined);
-	}, []);
-
-	const selectWorktree = useCallback((next: string | undefined) => {
-		setPinnedWorktree(next);
-		setFocusedPath(undefined);
-	}, []);
-
-	const revealFile = useCallback((path: string) => {
-		setClosedFiles((current) => {
-			const next = new Set(current);
-			next.delete(path);
-			return next;
-		});
-		diff.current?.revealFile(path);
-	}, []);
-
-	const toggleOpen = useCallback((path: string) => {
-		setClosedFiles((current) => toggledSet(current, path));
-	}, []);
+	const revealFile = useCallback(
+		(path: string) => {
+			panel.actions.openFile(path);
+			diff.current?.revealFile(path);
+		},
+		[panel],
+	);
 
 	const closeFocus = useCallback(() => {
-		setFocusedPath(undefined);
+		panel.actions.clearFocus();
 		// Imperative scroll: the overlay uncovers the diff, so put the reading position back where it was.
 		requestAnimationFrame(() => diff.current?.restoreReadingPosition());
-	}, []);
-
-	const toggleFocus = useCallback(
-		(path: string) => {
-			if (focusedPath === path) {
-				closeFocus();
-				return;
-			}
-			setFocusedPath(path);
-		},
-		[focusedPath, closeFocus],
-	);
-
-	const openFromTree = useCallback(
-		(path: string) => {
-			if (focusedPath) {
-				setFocusedPath(path);
-				return;
-			}
-			revealFile(path);
-		},
-		[focusedPath, revealFile],
-	);
+	}, [panel]);
 
 	const currentSnapshot = generation?.snapshot;
 	const files = currentSnapshot?.files ?? [];
 	const focusedFile = focusedPath ? files.find((file) => file.path === focusedPath) : undefined;
-	if (focusedPath && currentSnapshot && !focusedFile) {
-		// A focused path is only valid while the snapshot still contains it; drop it when the file leaves the scope.
-		setFocusedPath(undefined);
-	}
+	const filesClosed = files.length > 0 && files.every((file) => closedFiles.has(file.path));
 
-	const setScopeClosed = (closed: boolean) => {
-		if (files.every((file) => closedFiles.has(file.path) === closed)) {
+	const toggleFocus = (path: string) => {
+		if (focusedFile?.path === path) {
+			closeFocus();
 			return;
 		}
-		setClosedFiles((current) => {
-			const next = new Set(current);
-			for (const file of files) {
-				if (closed) {
-					next.add(file.path);
-				} else {
-					next.delete(file.path);
-				}
-			}
-			return next;
-		});
+
+		panel.actions.focusFile(path);
 	};
 
-	const filesClosed = files.length > 0 && files.every((file) => closedFiles.has(file.path));
+	const openFromTree = (path: string) => {
+		if (focusedFile) {
+			panel.actions.focusFile(path);
+			return;
+		}
+
+		revealFile(path);
+	};
 
 	const readingKey = `${mode} ${worktree}`;
 	const worktreeSelection: ReviewWorktreeSelection = {
 		worktrees,
 		activePath: worktree,
 		mainPath: project.path,
-		pinnedPath: pinnedWorktree,
+		pinnedPath: worktree === pinnedWorktree ? pinnedWorktree : undefined,
 		shellPath: shellWorktree,
 		activity: worktreeActivity,
 		removeFailure:
 			removeWorktree.error && removeWorktree.variables
 				? { path: removeWorktree.variables.worktree, message: removeWorktree.error.message }
 				: undefined,
-		onSelect: selectWorktree,
+		onSelect: panel.actions.pinWorktree,
 		onRemove: (path) => removeWorktree.mutate({ projectId: project.id, worktree: path }),
 	};
 
@@ -165,7 +122,7 @@ export function ReviewPanel({
 				<ReviewTree
 					key={readingKey}
 					files={files}
-					focusedPath={focusedPath}
+					focusedPath={focusedFile?.path}
 					divider={treeDivider}
 					onOpenFile={openFromTree}
 					onToggleFocusFile={toggleFocus}
@@ -179,10 +136,10 @@ export function ReviewPanel({
 					totals={files.length > 0 ? currentSnapshot?.totals : undefined}
 					refreshing={refreshing}
 					treeOpen={treeOpen}
-					onSelectMode={selectMode}
+					onSelectMode={panel.actions.selectMode}
 					onTreeOpenChange={onTreeOpenChange}
 					filesClosed={filesClosed}
-					onToggleAllFiles={() => setScopeClosed(!filesClosed)}
+					onToggleAllFiles={() => panel.actions.closeScope(files.map((file) => file.path), !filesClosed)}
 				/>
 
 				<div className="relative flex min-h-0 flex-1 flex-col">
@@ -194,8 +151,8 @@ export function ReviewPanel({
 						error={error}
 						covered={!!focusedFile}
 						closedFiles={closedFiles}
-						onToggleOpen={toggleOpen}
-						onFocusFile={setFocusedPath}
+						onToggleOpen={panel.actions.toggleFile}
+						onFocusFile={panel.actions.focusFile}
 					/>
 					{focusedFile && (
 						<ReviewFocusedFile

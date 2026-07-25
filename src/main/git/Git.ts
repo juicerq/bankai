@@ -75,7 +75,9 @@ export const Git = {
 
 		for (let offset = 0; offset < missing.length; offset += NEW_FILE_COUNT_CONCURRENCY) {
 			const batch = missing.slice(offset, offset + NEW_FILE_COUNT_CONCURRENCY);
-			const contents = await Promise.all(batch.map(({ path: file }) => readFileDiff(input, file, false)));
+			const contents = await Promise.all(
+				batch.map(({ path: file }) => readFileDiff({ scope: input, file, full: false })),
+			);
 			for (const [index, item] of batch.entries()) {
 				const result = files[item.index];
 				if (result) {
@@ -88,11 +90,11 @@ export const Git = {
 	},
 
 	file: async (input: ReviewScope & { file: string }): Promise<ReviewContent> => {
-		return await readFileDiff(input, input.file, false);
+		return await readFileDiff({ scope: input, file: input.file, full: false });
 	},
 
 	fullFile: async (input: ReviewScope & { file: string }): Promise<FullFile> => {
-		return await readFileDiff(input, input.file, true);
+		return await readFileDiff({ scope: input, file: input.file, full: true });
 	},
 };
 
@@ -364,20 +366,28 @@ async function readFilesIndividually(input: ReviewScope & { files: string[] }): 
 	const files: ReviewFiles["files"] = [];
 	for (let offset = 0; offset < input.files.length; offset += NEW_FILE_COUNT_CONCURRENCY) {
 		const batch = input.files.slice(offset, offset + NEW_FILE_COUNT_CONCURRENCY);
-		const contents = await Promise.all(batch.map((file) => readFileDiff(input, file, false)));
+		const contents = await Promise.all(batch.map((file) => readFileDiff({ scope: input, file, full: false })));
 		files.push(...batch.map((path, index) => ({ path, content: contents[index] ?? { status: "unavailable" } })));
 	}
 
 	return { files };
 }
 
-async function readFileDiff(scope: ReviewScope, file: string, full: boolean): Promise<ReviewContent> {
+async function readFileDiff({
+	scope,
+	file,
+	full,
+}: {
+	scope: ReviewScope;
+	file: string;
+	full: boolean;
+}): Promise<ReviewContent> {
 	await assertFileWithinRepo(scope.path, file);
 	if (turnBaseline(scope)?.files.get(file)?.kind === "oversized") {
 		return { status: "too-large" };
 	}
 
-	const raw: unknown = await fileDiff(scope, file, full).catch((err) => err);
+	const raw: unknown = await fileDiff({ scope, file, full }).catch((err) => err);
 	if (isGitOutputOverflow(raw)) {
 		return { status: "too-large" };
 	}
@@ -400,10 +410,10 @@ async function readFileDiff(scope: ReviewScope, file: string, full: boolean): Pr
 	return parsed.content;
 }
 
-async function fileDiff(scope: ReviewScope, file: string, full: boolean): Promise<string> {
+async function fileDiff({ scope, file, full }: { scope: ReviewScope; file: string; full: boolean }): Promise<string> {
 	const before = turnBaseline(scope)?.files.get(file);
 	if (before?.kind === "content") {
-		return await turnPatch({ root: scope.path, file, before: before.content }, full);
+		return await turnPatch({ root: scope.path, file, before: before.content, full });
 	}
 	if (before?.kind === "absent") {
 		return await newFilePatch(scope.path, file);
@@ -440,10 +450,7 @@ async function newFilePatch(root: string, file: string): Promise<string> {
 		});
 }
 
-async function turnPatch(
-	input: { root: string; file: string; before: Buffer },
-	full: boolean,
-): Promise<string> {
+async function turnPatch(input: { root: string; file: string; before: Buffer; full: boolean }): Promise<string> {
 	const present = await lstat(resolve(input.root, input.file)).then((stats) => stats.isFile()).catch(() => false);
 
 	return await withBaselineFile(input.before, (base) =>
@@ -452,7 +459,7 @@ async function turnPatch(
 			"--no-index",
 			"--no-color",
 			"--no-ext-diff",
-			...(full ? ["-U100000"] : []),
+			...(input.full ? ["-U100000"] : []),
 			"--",
 			base,
 			present ? input.file : NULL_FILE,

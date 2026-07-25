@@ -11,6 +11,8 @@ import type { ReviewWorktreeSelection } from "@renderer/routes/-components/revie
 import { MIN_DIFF_WIDTH, REVIEW_DIFF_WIDTH_VALUE } from "@renderer/routes/-utils/review-layout";
 import { createReviewPanelStore } from "@renderer/routes/-utils/review-panel-store";
 import { resolveReviewWorktree } from "@renderer/routes/-utils/review-worktree";
+import { sharedWorktreeShells } from "@renderer/routes/-utils/shared-worktree";
+import type { ShellTab } from "@renderer/routes/-utils/shell-topology";
 import type { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useReviewReading } from "@renderer/routes/-utils/use-review-reading";
 import { worktreeActivity } from "@renderer/routes/-utils/worktree-activity";
@@ -19,12 +21,14 @@ import { useWorkspaceAgents, useWorkspaceControl } from "@renderer/routes/-utils
 export function ReviewPanel({
 	project,
 	shellId,
+	tabs,
 	sessionIds,
 	treeOpen,
 	treeDivider,
 }: {
 	project: Project;
 	shellId?: string;
+	tabs: ShellTab[];
 	sessionIds: Record<string, string>;
 	treeOpen: boolean;
 	treeDivider: ReturnType<typeof useDivider>;
@@ -99,6 +103,14 @@ export function ReviewPanel({
 	};
 
 	const readingKey = `${mode} ${worktree}`;
+	const sharedWith = sharedWorktreeShells({
+		shellId,
+		worktree,
+		tabs,
+		sessionIds,
+		shellWorktrees: agents.worktrees,
+		shellActivity: agents.shells,
+	});
 	const worktreeSelection: ReviewWorktreeSelection = {
 		worktrees,
 		activePath: worktree,
@@ -130,6 +142,7 @@ export function ReviewPanel({
 			<div style={{ width: REVIEW_DIFF_WIDTH_VALUE, minWidth: MIN_DIFF_WIDTH }} className="flex flex-col">
 				<ReviewHeader
 					mode={mode}
+					sharedWith={sharedWith}
 					worktrees={worktreeSelection}
 					totals={files.length > 0 ? currentSnapshot?.totals : undefined}
 					refreshing={refreshing}

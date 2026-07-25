@@ -1,16 +1,32 @@
 import { ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
 import type { ReviewMode } from "@main/git/contracts";
 import { HeaderMenu, HeaderMenuItem } from "@renderer/routes/-components/header-menu";
-import { REVIEW_SCOPE_ORDER, REVIEW_SCOPES } from "@renderer/routes/-utils/review-scope";
+import { REVIEW_SCOPE_ORDER, REVIEW_SCOPES, sharedWorktreeNotice } from "@renderer/routes/-utils/review-scope";
 
-export function ReviewScope({ mode, onSelect }: { mode: ReviewMode; onSelect: (mode: ReviewMode) => void }) {
+export function ReviewScope({
+	mode,
+	sharedWith,
+	onSelect,
+}: {
+	mode: ReviewMode;
+	sharedWith: string[];
+	onSelect: (mode: ReviewMode) => void;
+}) {
+	const current = REVIEW_SCOPES[mode];
+	const shared = mode === "last-turn" && sharedWith.length > 0 ? sharedWorktreeNotice(sharedWith) : undefined;
+
 	return (
 		<HeaderMenu
 			component="review-scope"
 			icon={<ArrowsRightLeftIcon className="size-4 shrink-0" aria-hidden="true" />}
-			label={REVIEW_SCOPES[mode].label}
-			ariaLabel={`Diff scope: ${REVIEW_SCOPES[mode].label}`}
-			title={REVIEW_SCOPES[mode].detail}
+			label={current.label}
+			badge={shared && (
+				<span data-component="review-scope-shared" title={shared} className="shrink-0 text-label text-tertiary">
+					SHARED
+				</span>
+			)}
+			ariaLabel={`Diff scope: ${current.label}${shared ? `, ${shared}` : ""}`}
+			title={current.detail}
 		>
 			{REVIEW_SCOPE_ORDER.map((scope) => (
 				<HeaderMenuItem

@@ -104,6 +104,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					<ReviewPanel
 						project={project}
 						shellId={shells.activeTabId}
+						tabs={shells.tabs}
 						sessionIds={shells.sessionIds}
 						treeOpen={treeOpen}
 						treeDivider={geometry.treeDivider}

@@ -5,6 +5,7 @@ import { ReviewWorktree, type ReviewWorktreeSelection } from "@renderer/routes/-
 
 export function ReviewHeader({
 	mode,
+	sharedWith,
 	worktrees,
 	totals,
 	refreshing,
@@ -15,6 +16,7 @@ export function ReviewHeader({
 	onToggleAllFiles,
 }: {
 	mode: ReviewMode;
+	sharedWith: string[];
 	worktrees: ReviewWorktreeSelection;
 	totals: { additions: number; deletions: number } | undefined;
 	refreshing: boolean;
@@ -41,7 +43,7 @@ export function ReviewHeader({
 				>
 					<FolderIcon className="size-4" />
 				</button>
-				<ReviewScope mode={mode} onSelect={onSelectMode} />
+				<ReviewScope mode={mode} sharedWith={sharedWith} onSelect={onSelectMode} />
 				<ReviewWorktree {...worktrees} />
 			</div>
 			{(refreshing || totals) && (

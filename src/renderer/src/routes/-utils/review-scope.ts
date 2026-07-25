@@ -19,3 +19,7 @@ export const REVIEW_SCOPES: Record<ReviewMode, { label: string; detail: string; 
 };
 
 export const REVIEW_SCOPE_ORDER: ReviewMode[] = ["last-turn", "uncommitted", "branch"];
+
+export function sharedWorktreeNotice(shells: string[]): string {
+	return `Shared with ${shells.join(", ")} — changes from there show up here too.`;
+}

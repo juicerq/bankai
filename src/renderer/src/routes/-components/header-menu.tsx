@@ -16,6 +16,7 @@ export function HeaderMenu({
 	ariaLabel,
 	title,
 	truncate = false,
+	badge,
 	pinned,
 	children,
 }: {
@@ -25,6 +26,7 @@ export function HeaderMenu({
 	ariaLabel: string;
 	title?: string;
 	truncate?: boolean;
+	badge?: ReactNode;
 	pinned?: ReactNode;
 	children: ReactNode;
 }) {
@@ -67,6 +69,7 @@ export function HeaderMenu({
 			>
 				{icon}
 				<span className="min-w-0 truncate">{label}</span>
+				{badge}
 				<ChevronDownIcon
 					data-slot="chevron"
 					aria-hidden="true"

@@ -13,6 +13,7 @@ function renderHeader({ filesClosed, onToggleAllFiles = () => {} }: {
 	render(
 		<ReviewHeader
 			mode="last-turn"
+			sharedWith={[]}
 			worktrees={{
 				worktrees: [{ path: PROJECT, branch: "main" }],
 				activePath: PROJECT,

@@ -2,18 +2,21 @@ import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
 import type { ReviewMode } from "@main/git/contracts";
 import { ReviewScope } from "@renderer/routes/-components/review-scope";
-import { REVIEW_SCOPES } from "@renderer/routes/-utils/review-scope";
+import { REVIEW_SCOPES, sharedWorktreeNotice } from "@renderer/routes/-utils/review-scope";
 import { get, query } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
 afterEach(cleanup);
 
-function ReviewScopeHarness({ initial = "last-turn" }: { initial?: ReviewMode }) {
+function ReviewScopeHarness({ initial = "last-turn", sharedWith = [] }: {
+	initial?: ReviewMode;
+	sharedWith?: string[];
+}) {
 	const [mode, setMode] = useState<ReviewMode>(initial);
 
 	return (
 		<div data-component="scope-harness" data-mode={mode}>
-			<ReviewScope mode={mode} onSelect={setMode} />
+			<ReviewScope mode={mode} sharedWith={sharedWith} onSelect={setMode} />
 		</div>
 	);
 }
@@ -52,6 +55,24 @@ test("choosing a scope reads it and closes the menu", () => {
 
 	expect(get("scope-harness").dataset.mode).toBe("branch");
 	expect(query("review-scope-menu")).toBeNull();
+});
+
+test("a worktree another agent writes in is marked, naming who else is there", () => {
+	render(<ReviewScopeHarness sharedWith={["Shell 1"]} />);
+
+	expect(get("review-scope-shared").title).toBe(sharedWorktreeNotice(["Shell 1"]));
+});
+
+test("the mark stays quiet while the shell owns its worktree", () => {
+	render(<ReviewScopeHarness />);
+
+	expect(query("review-scope-shared")).toBeNull();
+});
+
+test("scopes that already read the whole worktree carry no mark", () => {
+	render(<ReviewScopeHarness initial="uncommitted" sharedWith={["Shell 1"]} />);
+
+	expect(query("review-scope-shared")).toBeNull();
 });
 
 test("the trigger toggles its own menu", () => {

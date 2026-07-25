@@ -3,9 +3,11 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import { Logger } from "@main/logger";
 import { UPDATE_IPC, type UpdateDownloadedEvent } from "@shared/update";
 
-const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
+const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+const UPDATE_CHECK_TTL_MS = 5 * 60 * 1000;
 
 let pending: UpdateDownloadedEvent | undefined;
+let checkedAt = 0;
 
 export function setupUpdateIpc(): void {
 	const { autoUpdater } = electronUpdater;
@@ -51,8 +53,15 @@ export function setupUpdateIpc(): void {
 
 	checkForUpdates(autoUpdater);
 	setInterval(() => checkForUpdates(autoUpdater), UPDATE_CHECK_INTERVAL_MS);
+	app.on("browser-window-focus", () => checkForUpdates(autoUpdater));
 }
 
 function checkForUpdates(autoUpdater: electronUpdater.AppUpdater): void {
+	const now = Date.now();
+	if (now - checkedAt < UPDATE_CHECK_TTL_MS) {
+		return;
+	}
+
+	checkedAt = now;
 	autoUpdater.checkForUpdates().catch((err) => Logger.error("update:check-failed", { err: String(err) }));
 }

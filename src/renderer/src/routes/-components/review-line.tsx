@@ -1,9 +1,12 @@
 import { Suspense, use } from "react";
 import type { DiffLine } from "@main/git/contracts";
 import { reviewHighlights } from "@renderer/routes/-utils/review-highlights";
+import { DIFF_GUTTER_WIDTH } from "@renderer/routes/-utils/review-rows";
 import type { HighlightedLines, SyntaxSpan, SyntaxTone } from "@renderer/routes/-utils/review-syntax";
 
 const DIFF_MARKERS = { context: " ", add: "+", remove: "−" } as const;
+
+const GUTTER_STYLE = { width: DIFF_GUTTER_WIDTH };
 
 const DIFF_INK = {
 	context: "diff-line-context",
@@ -42,7 +45,10 @@ export function ReviewDiffLine({
 
 	return (
 		<div className={`diff-line flex h-5 min-w-full w-max items-center text-code text-primary ${DIFF_INK[line.kind]}`}>
-			<span className="sticky left-0 flex h-5 w-10 shrink-0 select-none items-center justify-end border-outline border-r bg-surface-sunken pr-2 text-secondary">
+			<span
+				style={GUTTER_STYLE}
+				className="sticky left-0 flex h-5 shrink-0 select-none items-center justify-end border-outline border-r bg-surface-sunken pr-2 text-secondary"
+			>
 				{line.number ?? line.oldNumber}
 			</span>
 			<code className="whitespace-pre">

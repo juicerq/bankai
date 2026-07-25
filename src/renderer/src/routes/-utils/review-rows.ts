@@ -2,6 +2,10 @@ import type { DiffLine, FileChange, ReviewContent } from "@main/git/contracts";
 import { reviewContentNotice } from "@renderer/routes/-utils/review-notice";
 
 export const REVIEW_ROW_HEIGHT = { file: 32, line: 20, notice: 40 } as const;
+export const DIFF_GUTTER_WIDTH = 40;
+export const DIFF_TAB_SIZE = 8;
+
+const DIFF_MARKER_COLUMNS = 2;
 
 export type ReviewRow =
 	| { kind: "file"; key: string; file: FileChange; open: boolean; first: boolean }
@@ -60,6 +64,26 @@ export function reviewRows({
 	}
 
 	return rows;
+}
+
+export function diffContentWidth(lines: readonly Pick<DiffLine, "content">[]): string {
+	let widest = 0;
+
+	for (const line of lines) {
+		widest = Math.max(widest, lineColumns(line.content) + DIFF_MARKER_COLUMNS);
+	}
+
+	return `calc(${DIFF_GUTTER_WIDTH}px + ${widest}ch)`;
+}
+
+function lineColumns(content: string): number {
+	let columns = 0;
+
+	for (const character of content) {
+		columns = character === "\t" ? columns + DIFF_TAB_SIZE - (columns % DIFF_TAB_SIZE) : columns + 1;
+	}
+
+	return columns;
 }
 
 function lineKey(path: string, line: DiffLine): string {

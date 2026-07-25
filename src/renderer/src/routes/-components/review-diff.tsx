@@ -6,8 +6,10 @@ import { ReviewDiffLine, ReviewNotice } from "@renderer/routes/-components/revie
 import {
 	activeFile,
 	anchorPath,
+	diffContentWidth,
 	readingOffset,
 	reviewRows,
+	DIFF_TAB_SIZE,
 	REVIEW_ROW_HEIGHT,
 	type ReadingPosition,
 	type ReviewRow,
@@ -105,6 +107,10 @@ function ReviewDiffView({
 		() => new Map(rows.flatMap((row, index) => (row.kind === "file" ? [[row.file.path, index] as const] : []))),
 		[rows],
 	);
+	const contentWidth = useMemo(
+		() => diffContentWidth(rows.flatMap((row) => (row.kind === "line" ? [row.line] : []))),
+		[rows],
+	);
 	const [initialOffset] = useState(() => readingOffset(position.current, rows, fileRowByPath, files));
 	const virtualizer = useVirtualizer({
 		count: rows.length,
@@ -174,7 +180,7 @@ function ReviewDiffView({
 			aria-hidden={covered || undefined}
 		>
 			{activeFileRow && (
-				<div className="sticky top-0 left-0 z-20 h-0 w-full">
+				<div style={{ width: contentWidth }} className="sticky top-0 left-0 z-20 h-0 min-w-full">
 					<ReviewFileHeader
 						row={activeFileRow}
 						sticky
@@ -183,7 +189,10 @@ function ReviewDiffView({
 					/>
 				</div>
 			)}
-			<div className="relative min-w-full" style={{ height: virtualizer.getTotalSize() }}>
+			<div
+				style={{ width: contentWidth, height: virtualizer.getTotalSize(), tabSize: DIFF_TAB_SIZE }}
+				className="relative min-w-full"
+			>
 				{virtualRows.map((virtualRow) => {
 					const row = rows[virtualRow.index];
 					if (!row) {

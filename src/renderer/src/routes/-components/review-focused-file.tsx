@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import type { FileChange, FullFile } from "@main/git/contracts";
 import { ReviewDiffLine, ReviewNotice } from "@renderer/routes/-components/review-line";
 import { reviewContentNotice } from "@renderer/routes/-utils/review-notice";
+import { diffContentWidth, DIFF_TAB_SIZE } from "@renderer/routes/-utils/review-rows";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 
 const LINE_HEIGHT = 20;
@@ -78,7 +79,14 @@ function ReviewFocusedFileReader({
 	return (
 		<div ref={registerScroll} className="size-full overflow-auto">
 			{virtualRows.length === 0 && <ReviewNotice>Reading file…</ReviewNotice>}
-			<div className="relative min-w-full" style={{ height: virtualizer.getTotalSize() }}>
+			<div
+				style={{
+					width: diffContentWidth(content.lines),
+					height: virtualizer.getTotalSize(),
+					tabSize: DIFF_TAB_SIZE,
+				}}
+				className="relative min-w-full"
+			>
 				{virtualRows.map((virtualRow) => {
 					const line = content.lines[virtualRow.index];
 					if (!line) {

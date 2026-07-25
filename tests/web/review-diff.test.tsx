@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import type { FileChange, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/contracts";
 import { ReviewDiff } from "@renderer/routes/-components/review-diff";
-import { REVIEW_ROW_HEIGHT } from "@renderer/routes/-utils/review-rows";
+import { diffContentWidth, DIFF_TAB_SIZE, REVIEW_ROW_HEIGHT } from "@renderer/routes/-utils/review-rows";
 import { REVIEW_SCOPES } from "@renderer/routes/-utils/review-scope";
 import type { ReviewReading } from "@renderer/routes/-utils/use-review-reading";
 import { get } from "./dom";
@@ -78,6 +78,20 @@ function renderDiff(generation: Generation) {
 		},
 	};
 }
+
+function widthOf(contents: string[]) {
+	return diffContentWidth(contents.map((content) => ({ content })));
+}
+
+test("the widest line decides how far the diff reaches", () => {
+	expect(widthOf(["ab", "abcd", "a"])).toBe(widthOf(["abcd"]));
+	expect(widthOf(["abcd"])).not.toBe(widthOf(["ab"]));
+});
+
+test("a tab reaches its tab stop instead of counting as one column", () => {
+	expect(widthOf(["ab\tc"])).toBe(widthOf([`ab${" ".repeat(DIFF_TAB_SIZE - 2)}c`]));
+	expect(widthOf(["ab\tc"])).not.toBe(widthOf(["ab c"]));
+});
 
 test("a replacement reading paints at the line the reader was on", () => {
 	const view = renderDiff(generationOf(1, ["a", "b"]));

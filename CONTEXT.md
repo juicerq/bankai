@@ -5,7 +5,7 @@ A desktop workspace that runs shell sessions against a local project and reads t
 ## Language
 
 **Project**:
-A local directory the user has mounted into the app. Owns the shells opened against it and the changes the review reads.
+A local directory the user has mounted into the app. Owns the shells opened against it, the worktrees linked to its repository, and the changes the review reads.
 _Avoid_: Repository, folder, workspace
 
 **Active project**:
@@ -45,19 +45,43 @@ The read-only reading of a project's current git changes.
 _Avoid_: Diff view, git panel, changes
 
 **Review panel**:
-The region that presents the review: the scope selector, the totals, and the diff.
+The region that presents the review: its header — the Scope selector, the Worktree selector, the totals, and the file actions — above the diff.
 _Avoid_: Sidebar, drawer
 
+**Header menu**:
+The single shape every Review panel header control opens: a labelled trigger carrying an icon, and a list where each entry states what it is and, under it, what it reads against. Selection entries mark the current one; action entries just act.
+_Avoid_: Dropdown, popover, combobox, select
+
+**Overflow menu**:
+The Header menu that takes in whatever the Review panel header is too narrow to keep inline, in a fixed order: the file actions first, then the Worktree selector. It appears only when it holds something.
+_Avoid_: Kebab menu, three dots, more button, hamburger
+
+**Worktree**:
+One checked-out tree of a project's repository: the project directory itself, plus every linked tree `git worktree add` created from it. The review reads exactly one at a time.
+_Avoid_: Branch, checkout, clone, copy
+
+**Shell worktree**:
+The Worktree an Agent is working in, read from its live session rather than declared by the user. It sticks once seen: leaving the agent keeps it, only closing the Shell drops it.
+_Avoid_: Working directory, cwd, agent path
+
+**Worktree selector**:
+The Header menu that names the Worktree being read and offers the others. It follows the active Shell's Shell worktree until the user pins a tree, and stays absent while the project has a single worktree.
+_Avoid_: Branch picker, dropdown, switcher
+
 **Scope**:
-Which set of changes the review reads. Three exist: Uncommitted, the working tree against `HEAD`; Branch, the whole branch against its merge-base with the default branch; and Last turn, the working tree against the Turn baseline of the active Shell.
+Which set of changes the review reads inside the current Worktree. Three exist: Last turn, the working tree against the Turn baseline of the active Shell, which the review opens on; Uncommitted, the working tree against `HEAD`; and Branch, the whole branch against its merge-base with the default branch.
 _Avoid_: Mode, filter, range
+
+**Scope selector**:
+The Header menu that names the Scope being read and offers the others. Always present, and the last control the header gives up.
+_Avoid_: Tabs, segmented control, filter
 
 **Shell turn**:
 The stretch during which one Shell has its Agent working. It opens when that shell starts Working or Needs attention after being quiet, and closes when the agent stops. Each shell turns on its own — two tabs in the same project never share one.
 _Avoid_: Session, run, cycle
 
 **Turn baseline**:
-What the project's files looked like when a Shell's current turn opened: the commit `HEAD` pointed at, plus the content of every file that already differed from it. Held per shell while Bankai runs, replaced by that shell's next turn and dropped when its tab closes, never persisted; without one the Last turn scope has nothing to read against.
+What one Worktree's files looked like when a Shell's current turn opened: the commit `HEAD` pointed at, plus the content of every file that already differed from it. Bound to the tree it was taken in — a review reading another worktree has no baseline there. Held per shell while Bankai runs, replaced by that shell's next turn and dropped when its tab closes, never persisted; without one the Last turn scope has nothing to read against.
 _Avoid_: Snapshot, checkpoint, stash
 
 **Changed file**:
@@ -121,7 +145,7 @@ The compact element left of the shell tabs, present during Fullscreen mode, that
 _Avoid_: Mini rail, project dots, status bar
 
 **Reading position**:
-Where the user is inside the Review, held as the changed line at the top of the diff area rather than a pixel offset. It survives any update the user did not ask for, and starts fresh when the user changes Scope or Project.
+Where the user is inside the Review, held as the changed line at the top of the diff area rather than a pixel offset. It survives any update the user did not ask for, and starts fresh when the user changes Scope, Worktree, or Project.
 _Avoid_: Scroll position, offset, scroll top
 
 **Focused file**:

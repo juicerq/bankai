@@ -83,14 +83,14 @@ async function settle(view: View, paths: string[], texts?: Record<string, string
 }
 
 function base(overrides: Partial<ReviewReadingProps>): ReviewReadingProps {
-	return { projectId: "p1", mode: "uncommitted", isFileOpen: openAll, ...overrides };
+	return { projectId: "p1", worktree: "/p1", mode: "uncommitted", isFileOpen: openAll, ...overrides };
 }
 
 test("the change listener is installed before watch is invoked", () => {
 	const view = renderReviewReading(base({}));
 
 	expect(view.ipc.events).toEqual(["listen", "watch"]);
-	expect(view.ipc.watchCalls).toEqual(["p1"]);
+	expect(view.ipc.watchCalls).toEqual([{ projectId: "p1", worktree: "/p1" }]);
 	expect(view.ipc.listenerCount).toBe(1);
 });
 
@@ -109,7 +109,7 @@ test("unmount unwatches exactly once", async () => {
 
 	view.unmount();
 
-	expect(view.ipc.unwatchCalls).toEqual(["p1"]);
+	expect(view.ipc.unwatchCalls).toEqual([{ projectId: "p1", worktree: "/p1" }]);
 });
 
 test("unwatch happens once when watch completes after unmount", async () => {
@@ -122,7 +122,7 @@ test("unwatch happens once when watch completes after unmount", async () => {
 	view.ipc.resolveWatch();
 	await wait(10);
 
-	expect(view.ipc.unwatchCalls).toEqual(["p1"]);
+	expect(view.ipc.unwatchCalls).toEqual([{ projectId: "p1", worktree: "/p1" }]);
 });
 
 test("change events for other projects are ignored", async () => {
@@ -143,7 +143,9 @@ test("the initial batch reads exactly the ordered open paths with no single read
 
 	await waitFor(() => expect(view.transport.pendingCount("files")).toBe(1));
 
-	expect(view.transport.callsFor("files")).toEqual([{ projectId: "p1", files: ["a", "b"], mode: "uncommitted" }]);
+	expect(view.transport.callsFor("files")).toEqual([
+		{ projectId: "p1", worktree: "/p1", files: ["a", "b"], mode: "uncommitted" },
+	]);
 	expect(view.transport.callsFor("file")).toEqual([]);
 });
 
@@ -154,7 +156,7 @@ test("opening a not-yet-read file withholds content until it settles", async () 
 	view.rerender(base({ isFileOpen: openAll }));
 
 	await waitFor(() => expect(view.transport.pendingCount("file")).toBe(1));
-	expect(view.transport.callsFor("file")).toEqual([{ projectId: "p1", path: "c", mode: "uncommitted" }]);
+	expect(view.transport.callsFor("file")).toEqual([{ projectId: "p1", worktree: "/p1", path: "c", mode: "uncommitted" }]);
 	expect(view.result.current.generation?.contentByPath).toBeUndefined();
 
 	view.transport.resolve("file", readyContent("c"));

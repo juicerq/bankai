@@ -1,6 +1,7 @@
 import { Git } from "@main/git/Git";
 import { gitRequestSchema, type GitResponse } from "@main/git/protocol";
 import { captureTurnBaseline, turnBaselines } from "@main/git/TurnBaseline";
+import { readWorktrees } from "@main/git/Worktrees";
 
 let queue = Promise.resolve();
 
@@ -33,6 +34,8 @@ async function execute(request: typeof gitRequestSchema.infer) {
 			return await Git.file(request);
 		case "fullFile":
 			return await Git.fullFile(request);
+		case "worktrees":
+			return await readWorktrees(request.path);
 		case "startTurn":
 			await captureTurnBaseline(request);
 			return null;

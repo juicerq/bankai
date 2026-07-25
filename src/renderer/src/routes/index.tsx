@@ -206,6 +206,7 @@ function Bankai() {
 							project={project}
 							projects={availableProjects}
 							shellActivity={activity.shells}
+							shellWorktrees={activity.worktrees}
 							active={project.id === activeProjectId}
 							shellFocusRequest={shellFocusRequest}
 							fullscreen={projectRail.fullscreen}

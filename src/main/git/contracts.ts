@@ -33,6 +33,10 @@ const fileChangeSchema = type({
 });
 export type FileChange = typeof fileChangeSchema.infer;
 
+const worktreeSchema = type({ path: "string", "branch?": "string" });
+export const worktreesSchema = worktreeSchema.array();
+export type Worktree = typeof worktreeSchema.infer;
+
 export const reviewSnapshotSchema = type({
 	state: "'ready' | 'not-a-repo' | 'no-turn'",
 	files: fileChangeSchema.array(),

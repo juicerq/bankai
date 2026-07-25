@@ -3,7 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject, type UIEvent } from "react";
 import type { DiffLine, FileChange, ReviewContent, ReviewMode } from "@main/git/contracts";
 import { ReviewDiffLine, ReviewNotice, reviewContentNotice } from "@renderer/routes/-components/review-line";
-import { REVIEW_SCOPE_EMPTY } from "@renderer/routes/-utils/review-scope";
+import { REVIEW_SCOPES } from "@renderer/routes/-utils/review-scope";
 import type { ReviewReading } from "@renderer/routes/-utils/use-review-reading";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 
@@ -59,10 +59,10 @@ export function ReviewDiff({
 		return <ReviewNotice reason="not-a-repo">Not a git repository.</ReviewNotice>;
 	}
 	if (snapshot.state === "no-turn") {
-		return <ReviewNotice reason="no-turn">No agent turn seen in this shell yet.</ReviewNotice>;
+		return <ReviewNotice reason="no-turn">No agent turn seen here yet.</ReviewNotice>;
 	}
 	if (files.length === 0) {
-		return <ReviewNotice reason="empty">{REVIEW_SCOPE_EMPTY[mode]}</ReviewNotice>;
+		return <ReviewNotice reason="empty">{REVIEW_SCOPES[mode].empty}</ReviewNotice>;
 	}
 	if (!contentByPath) {
 		return <ReviewNotice>Reading changes…</ReviewNotice>;

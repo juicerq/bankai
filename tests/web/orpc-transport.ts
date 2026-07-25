@@ -3,7 +3,7 @@ import { os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/message-port";
 import { type } from "arktype";
 
-export type ReviewProcedure = "snapshot" | "files" | "file" | "fullFile";
+export type ReviewProcedure = "worktrees" | "snapshot" | "files" | "file" | "fullFile";
 
 interface PendingRequest {
 	procedure: ReviewProcedure;
@@ -88,6 +88,7 @@ function requireBrowse() {
 
 const router = {
 	review: {
+		worktrees: os.handler(({ input }) => requireTransport().request("worktrees", input)),
 		snapshot: os.handler(({ input }) => requireTransport().request("snapshot", input)),
 		files: os.handler(({ input }) => requireTransport().request("files", input)),
 		file: os.handler(({ input }) => requireTransport().request("file", input)),

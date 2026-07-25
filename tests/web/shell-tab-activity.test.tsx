@@ -15,7 +15,7 @@ function emit(event: ActivityChangedEvent) {
 beforeEach(() => {
 	listener = undefined;
 	const api: BankaiActivityApi = {
-		watch: async () => ({ state: null, shells: {} }),
+		watch: async () => ({ state: null, shells: {}, worktreeByShellId: {} }),
 		unwatch() {},
 		onChanged: (next) => {
 			listener = next;
@@ -86,12 +86,12 @@ describe("useAgentActivities shells", () => {
 		const { result } = renderHook(() => useAgentActivities(["p1"]));
 		await act(async () => {});
 
-		emit({ projectId: "p1", state: "done-unseen", shells: { s1: "working", s2: "done-unseen" } });
+		emit({ projectId: "p1", state: "done-unseen", shells: { s1: "working", s2: "done-unseen" }, worktreeByShellId: {} });
 		expect(result.current.shells.get("s1")).toBe("working");
 		expect(result.current.shells.get("s2")).toBe("done-unseen");
 		expect(result.current.projects.get("p1")).toBe("done-unseen");
 
-		emit({ projectId: "p1", state: "working", shells: { s1: "working" } });
+		emit({ projectId: "p1", state: "working", shells: { s1: "working" }, worktreeByShellId: {} });
 		expect(result.current.shells.get("s1")).toBe("working");
 		expect(result.current.shells.has("s2")).toBe(false);
 		expect(result.current.projects.get("p1")).toBe("working");

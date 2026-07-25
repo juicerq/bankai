@@ -101,7 +101,12 @@ function turnBaseline(scope: ReviewScope): TurnBaseline | undefined {
 		return undefined;
 	}
 
-	return turnBaselines.get(scope.shellId);
+	const baseline = turnBaselines.get(scope.shellId);
+	if (baseline?.path !== resolve(scope.path)) {
+		return undefined;
+	}
+
+	return baseline;
 }
 
 function readySnapshot(files: FileChange[]): ReviewSnapshot {

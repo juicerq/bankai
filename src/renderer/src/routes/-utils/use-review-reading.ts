@@ -12,6 +12,7 @@ type ReviewWatchState =
 
 interface ReviewScopeInput {
 	projectId: string;
+	worktree: string;
 	mode: ReviewMode;
 	shellId?: string;
 }
@@ -31,25 +32,27 @@ export interface ReviewReading {
 
 export function useReviewReading({
 	projectId,
+	worktree,
 	mode,
 	shellId,
 	isFileOpen,
 	focusedPath,
 }: {
 	projectId: string;
+	worktree: string;
 	mode: ReviewMode;
 	shellId?: string;
 	isFileOpen: (path: string) => boolean;
 	focusedPath?: string;
 }): ReviewReading {
-	const watch = useReviewWatch(projectId);
+	const watch = useReviewWatch(projectId, worktree);
 	const watchReady = watch.status === "ready";
 	const watchError = watch.status === "error" ? watch.error : undefined;
 
 	const turnShellId = mode === "last-turn" ? shellId : undefined;
 	const scope = useMemo(
-		() => ({ projectId, mode, ...(turnShellId ? { shellId: turnShellId } : {}) }),
-		[projectId, mode, turnShellId],
+		() => ({ projectId, worktree, mode, ...(turnShellId ? { shellId: turnShellId } : {}) }),
+		[projectId, worktree, mode, turnShellId],
 	);
 
 	const snapshotQuery = useQuery(
@@ -174,7 +177,7 @@ function useLayoutGeneration(
 	isFileOpen: (path: string) => boolean,
 ) {
 	const ref = useRef<{ key: string; generation: number; initialPaths: string[] }>(null);
-	const key = `${scope.projectId}\u0000${scope.mode}\u0000${scope.shellId ?? ""}\u0000${files.map((file) => file.path).join("\n")}`;
+	const key = `${scope.projectId}\u0000${scope.worktree}\u0000${scope.mode}\u0000${scope.shellId ?? ""}\u0000${files.map((file) => file.path).join("\n")}`;
 	const previous = ref.current;
 
 	if (!previous || previous.key !== key) {
@@ -190,11 +193,11 @@ function useLayoutGeneration(
 	return previous;
 }
 
-function useReviewWatch(projectId: string) {
+function useReviewWatch(projectId: string, worktree: string) {
 	const queryClient = useQueryClient();
 	const observer = useMemo(
-		() => new ReviewQueryObserver(projectId, queryClient),
-		[projectId, queryClient],
+		() => new ReviewQueryObserver({ projectId, worktree }, queryClient),
+		[projectId, worktree, queryClient],
 	);
 
 	return useSyncExternalStore(observer.subscribe, observer.getSnapshot);
@@ -205,7 +208,7 @@ class ReviewQueryObserver {
 	private generation = 0;
 
 	constructor(
-		private readonly projectId: string,
+		private readonly watched: { projectId: string; worktree: string },
 		private readonly queryClient: QueryClient,
 	) {}
 
@@ -216,16 +219,16 @@ class ReviewQueryObserver {
 		let watching = false;
 		this.state = PENDING;
 		const stopListening = window.bankaiReview.onChanged((event) => {
-			if (event.projectId === this.projectId) {
+			if (event.projectId === this.watched.projectId) {
 				this.refresh().catch((err) => console.error("Failed to refresh review changes", err));
 			}
 		});
 
-		window.bankaiReview.watch(this.projectId)
+		window.bankaiReview.watch(this.watched)
 			.then(async () => {
 				watching = true;
 				if (generation !== this.generation) {
-					window.bankaiReview.unwatch(this.projectId);
+					window.bankaiReview.unwatch(this.watched);
 					return;
 				}
 
@@ -251,17 +254,19 @@ class ReviewQueryObserver {
 			this.state = PENDING;
 			stopListening();
 			if (watching) {
-				window.bankaiReview.unwatch(this.projectId);
+				window.bankaiReview.unwatch(this.watched);
 			}
 		};
 	};
 
 	private async refresh() {
+		const input = { projectId: this.watched.projectId };
 		const filters = [
-			{ queryKey: orpc.review.snapshot.key({ type: "query", input: { projectId: this.projectId } }) },
-			{ queryKey: orpc.review.files.key({ type: "query", input: { projectId: this.projectId } }) },
-			{ queryKey: orpc.review.file.key({ type: "query", input: { projectId: this.projectId } }) },
-			{ queryKey: orpc.review.fullFile.key({ type: "query", input: { projectId: this.projectId } }) },
+			{ queryKey: orpc.review.worktrees.key({ type: "query", input }) },
+			{ queryKey: orpc.review.snapshot.key({ type: "query", input }) },
+			{ queryKey: orpc.review.files.key({ type: "query", input }) },
+			{ queryKey: orpc.review.file.key({ type: "query", input }) },
+			{ queryKey: orpc.review.fullFile.key({ type: "query", input }) },
 		];
 		await Promise.all(filters.map((filter) => this.queryClient.cancelQueries(filter)));
 		await Promise.all(filters.map((filter) => this.queryClient.invalidateQueries(filter)));

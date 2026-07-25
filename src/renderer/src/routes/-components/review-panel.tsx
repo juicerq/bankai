@@ -1,12 +1,15 @@
-import { ChevronDownIcon, ChevronUpIcon, FolderIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import type { ReviewMode } from "@main/git/contracts";
 import type { Project } from "@main/store/projects";
+import { orpc } from "@renderer/lib/api";
 import { ReviewDiff, type ReviewDiffHandle } from "@renderer/routes/-components/review-diff";
 import { ReviewFocusedFile } from "@renderer/routes/-components/review-focused-file";
+import { ReviewHeader } from "@renderer/routes/-components/review-header";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
+import type { ReviewWorktreeSelection } from "@renderer/routes/-components/review-worktree";
 import { REVIEW_DIFF_WIDTH_VALUE } from "@renderer/routes/-utils/review-layout";
-import { REVIEW_SCOPES } from "@renderer/routes/-utils/review-scope";
+import { resolveReviewWorktree } from "@renderer/routes/-utils/review-worktree";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
 import type { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useReviewReading } from "@renderer/routes/-utils/use-review-reading";
@@ -14,6 +17,7 @@ import { useReviewReading } from "@renderer/routes/-utils/use-review-reading";
 export function ReviewPanel({
 	project,
 	shellId,
+	shellWorktree,
 	minDiffWidth,
 	treeOpen,
 	treeDivider,
@@ -22,19 +26,30 @@ export function ReviewPanel({
 }: {
 	project: Project;
 	shellId?: string;
+	shellWorktree?: string;
 	minDiffWidth: number;
 	treeOpen: boolean;
 	treeDivider: ReturnType<typeof useDivider>;
 	onTreeOpenChange: (open: boolean) => void;
 	onClose: () => void;
 }) {
-	const [mode, setMode] = useState<ReviewMode>("uncommitted");
+	const [mode, setMode] = useState<ReviewMode>("last-turn");
 	const [closedFiles, setClosedFiles] = useState<ReadonlySet<string>>(new Set());
 	const [focusedPath, setFocusedPath] = useState<string>();
+	const [pinnedWorktree, setPinnedWorktree] = useState<string>();
 	const diff = useRef<ReviewDiffHandle>(null);
 	const isFileOpen = useCallback((path: string) => !closedFiles.has(path), [closedFiles]);
+
+	const worktreesQuery = useQuery(orpc.review.worktrees.queryOptions({ input: { projectId: project.id } }));
+	const worktrees = worktreesQuery.data ?? [];
+	if (pinnedWorktree && worktrees.length > 0 && !worktrees.some((worktree) => worktree.path === pinnedWorktree)) {
+		setPinnedWorktree(undefined);
+	}
+	const worktree = resolveReviewWorktree({ pinned: pinnedWorktree, shellWorktree, worktrees }) ?? project.path;
+
 	const { generation, fullFile, error, refreshing } = useReviewReading({
 		projectId: project.id,
+		worktree,
 		mode,
 		shellId,
 		isFileOpen,
@@ -43,6 +58,11 @@ export function ReviewPanel({
 
 	const selectMode = useCallback((next: ReviewMode) => {
 		setMode(next);
+		setFocusedPath(undefined);
+	}, []);
+
+	const selectWorktree = useCallback((next: string | undefined) => {
+		setPinnedWorktree(next);
 		setFocusedPath(undefined);
 	}, []);
 
@@ -112,11 +132,20 @@ export function ReviewPanel({
 		});
 	};
 
+	const readingKey = `${mode} ${worktree}`;
+	const worktreeSelection: ReviewWorktreeSelection = {
+		worktrees,
+		activePath: worktree,
+		pinnedPath: pinnedWorktree,
+		shellPath: shellWorktree,
+		onSelect: selectWorktree,
+	};
+
 	return (
 		<aside className="flex bg-surface-raised" aria-label="Review">
 			{treeOpen && (
 				<ReviewTree
-					key={mode}
+					key={readingKey}
 					files={files}
 					focusedPath={focusedPath}
 					divider={treeDivider}
@@ -126,92 +155,22 @@ export function ReviewPanel({
 			)}
 
 			<div style={{ width: REVIEW_DIFF_WIDTH_VALUE, minWidth: minDiffWidth }} className="flex flex-col">
-				<div className="flex h-header shrink-0 items-center justify-between border-outline border-b">
-					<div className="flex h-full min-w-0 overflow-hidden">
-						<button
-							type="button"
-							className={`flex h-full w-header shrink-0 items-center justify-center border-outline border-r hover:bg-surface-hover hover:text-primary ${
-								treeOpen ? "bg-surface-active text-primary" : "text-secondary"
-							}`}
-							aria-expanded={treeOpen}
-							aria-label="Toggle file tree"
-							title="Toggle file tree"
-							onClick={() => onTreeOpenChange(!treeOpen)}
-						>
-							<FolderIcon className="size-4" />
-						</button>
-						<div className="flex h-full" role="group" aria-label="Diff scope">
-							{REVIEW_SCOPES.map((option) => (
-								<button
-									type="button"
-									key={option.mode}
-									className={`flex h-full shrink-0 items-center border-outline border-r px-3 text-body ${
-										mode === option.mode
-											? "bg-surface-active text-primary"
-											: "text-secondary hover:bg-surface-hover hover:text-primary"
-									}`}
-									aria-pressed={mode === option.mode}
-									onClick={() => selectMode(option.mode)}
-								>
-									{option.label}
-								</button>
-							))}
-						</div>
-					</div>
-					<div className="flex shrink-0 items-center gap-2 px-3">
-						{refreshing && (
-							<span
-								role="status"
-								aria-label="Reading new changes"
-								title="Reading new changes"
-								className="review-refreshing size-[6px] shrink-0 rounded-full bg-secondary"
-							/>
-						)}
-						{currentSnapshot?.state === "ready" && (
-							<div
-								className="flex gap-2 text-data"
-								aria-label={`${currentSnapshot.totals.additions} additions, ${currentSnapshot.totals.deletions} removals`}
-							>
-								<span className="text-added">+{currentSnapshot.totals.additions}</span>
-								<span className="text-removed">−{currentSnapshot.totals.deletions}</span>
-							</div>
-						)}
-						{currentSnapshot?.state === "ready" && (
-							<div className="flex items-center" role="group" aria-label="Collapse or expand all files">
-								<button
-									type="button"
-									className="p-1 text-secondary hover:text-primary"
-									onClick={() => setScopeClosed(true)}
-									aria-label="Collapse all files"
-									title="Collapse all files"
-								>
-									<ChevronUpIcon className="size-4" />
-								</button>
-								<button
-									type="button"
-									className="p-1 text-secondary hover:text-primary"
-									onClick={() => setScopeClosed(false)}
-									aria-label="Expand all files"
-									title="Expand all files"
-								>
-									<ChevronDownIcon className="size-4" />
-								</button>
-							</div>
-						)}
-						<button
-							type="button"
-							className="-m-1 p-1 text-secondary hover:text-primary"
-							onClick={onClose}
-							aria-label="Close review"
-						>
-							<XMarkIcon className="size-4" />
-						</button>
-					</div>
-				</div>
+				<ReviewHeader
+					mode={mode}
+					worktrees={worktreeSelection}
+					totals={currentSnapshot?.state === "ready" ? currentSnapshot.totals : undefined}
+					refreshing={refreshing}
+					treeOpen={treeOpen}
+					onSelectMode={selectMode}
+					onTreeOpenChange={onTreeOpenChange}
+					onCollapseAll={() => setScopeClosed(true)}
+					onExpandAll={() => setScopeClosed(false)}
+					onClose={onClose}
+				/>
 
 				<div className="relative flex min-h-0 flex-1 flex-col">
 					<ReviewDiff
-						key={mode}
+						key={readingKey}
 						ref={diff}
 						mode={mode}
 						generation={generation}

@@ -1,13 +1,21 @@
 import type { ReviewMode } from "@main/git/contracts";
 
-export const REVIEW_SCOPES: { mode: ReviewMode; label: string }[] = [
-	{ mode: "uncommitted", label: "Uncommitted" },
-	{ mode: "branch", label: "Branch" },
-	{ mode: "last-turn", label: "Last turn" },
-];
-
-export const REVIEW_SCOPE_EMPTY: Record<ReviewMode, string> = {
-	uncommitted: "No changes in the working tree.",
-	branch: "No changes on this branch.",
-	"last-turn": "No changes since this shell's last agent turn started.",
+export const REVIEW_SCOPES: Record<ReviewMode, { label: string; detail: string; empty: string }> = {
+	"last-turn": {
+		label: "Last turn",
+		detail: "Since this shell's agent started working",
+		empty: "No changes since this shell's last agent turn started.",
+	},
+	uncommitted: {
+		label: "Uncommitted",
+		detail: "Working tree against HEAD",
+		empty: "No changes in the working tree.",
+	},
+	branch: {
+		label: "Branch",
+		detail: "Branch against its merge-base",
+		empty: "No changes on this branch.",
+	},
 };
+
+export const REVIEW_SCOPE_ORDER: ReviewMode[] = ["last-turn", "uncommitted", "branch"];

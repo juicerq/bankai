@@ -1,58 +1,63 @@
 import { type } from "arktype";
 import { ipcMain, type WebContents } from "electron";
+import { resolveProjectWorktree } from "@main/git/ProjectWorktrees";
 import { ReviewChanges } from "@main/git/ReviewChanges";
 import { Logger } from "@main/logger";
-import { Projects } from "@main/store/projects";
 import { REVIEW_IPC, type ReviewChangedEvent } from "@shared/review";
 
-const reviewWatchSchema = type({ projectId: "string" });
+const reviewWatchSchema = type({ projectId: "string", "worktree?": "string" });
 
 interface WatchedProject { references: number; stop: () => void }
 interface RendererWatches { projects: Map<string, WatchedProject> }
 const renderers = new Map<number, RendererWatches>();
 
+function watchKey(input: { projectId: string; worktree?: string }): string {
+	return `${input.projectId}\u0000${input.worktree ?? ""}`;
+}
+
 export function setupReviewIpc(): void {
 	ipcMain.handle(REVIEW_IPC.watch, async (event, raw: unknown) => {
-		const { projectId } = reviewWatchSchema.assert(raw);
+		const input = reviewWatchSchema.assert(raw);
 		const renderer = renderers.get(event.sender.id) ?? registerRenderer(event.sender);
-		const project = await Projects.find(projectId);
+		const path = await resolveProjectWorktree(input);
 		if (event.sender.isDestroyed() || renderers.get(event.sender.id) !== renderer) {
 			return;
 		}
 
-		const watched = renderer.projects.get(projectId);
+		const key = watchKey(input);
+		const watched = renderer.projects.get(key);
 		if (watched) {
 			watched.references += 1;
 			return;
 		}
 
-		const stop = ReviewChanges.subscribe(project.path, () => {
+		const stop = ReviewChanges.subscribe(path, () => {
 			if (event.sender.isDestroyed()) {
 				return;
 			}
 			try {
-				event.sender.send(REVIEW_IPC.changed, { projectId } satisfies ReviewChangedEvent);
+				event.sender.send(REVIEW_IPC.changed, { projectId: input.projectId } satisfies ReviewChangedEvent);
 			} catch (err) {
 				Logger.error("review-watch:notify-failed", {
-					projectId,
+					projectId: input.projectId,
 					err: String(err),
 				});
 			}
 		});
-		renderer.projects.set(projectId, { references: 1, stop });
+		renderer.projects.set(key, { references: 1, stop });
 	});
 
 	ipcMain.on(REVIEW_IPC.unwatch, (event, raw: unknown) => {
-		let projectId: string;
+		let key: string;
 		try {
-			projectId = reviewWatchSchema.assert(raw).projectId;
+			key = watchKey(reviewWatchSchema.assert(raw));
 		} catch (err) {
 			Logger.error("review-watch:invalid-unwatch", { err: String(err) });
 			return;
 		}
 
 		const renderer = renderers.get(event.sender.id);
-		const watched = renderer?.projects.get(projectId);
+		const watched = renderer?.projects.get(key);
 		if (!renderer || !watched) {
 			return;
 		}
@@ -62,7 +67,7 @@ export function setupReviewIpc(): void {
 		}
 
 		watched.stop();
-		renderer.projects.delete(projectId);
+		renderer.projects.delete(key);
 	});
 }
 

@@ -6,6 +6,7 @@ import { type DiffLine, type ReviewContent } from "@main/git/contracts";
 import { FULL_FILE_MAX_LINES, Git } from "@main/git/Git";
 import { captureTurnBaseline, turnBaselines } from "@main/git/TurnBaseline";
 import { GIT_OUTPUT_MAX_BYTES } from "@main/git/run";
+import { readWorktrees } from "@main/git/Worktrees";
 import { assertDefined } from "./utils/assertions";
 
 function git(cwd: string, ...args: string[]): void {
@@ -523,5 +524,51 @@ describe("Git.fullFile", () => {
 				"File path must stay within the repository root",
 			);
 		}
+	});
+});
+
+describe("Git in a linked worktree", () => {
+	function linkedRepo(name: string) {
+		assertDefined(process.env.DATA_DIR);
+		const path = repo(name);
+		writeFileSync(join(path, "a.txt"), "one\n");
+		git(path, "add", "a.txt");
+		git(path, "commit", "-m", "init");
+
+		const worktree = join(process.env.DATA_DIR, `${name}-linked`);
+		git(path, "worktree", "add", worktree, "-b", `feat/${name}`);
+
+		return { path, worktree };
+	}
+
+	it("lists the project and every linked worktree with its branch", async () => {
+		const { path, worktree } = linkedRepo("worktree-listing");
+
+		expect(await readWorktrees(worktree)).toEqual([
+			{ path, branch: "main" },
+			{ path: worktree, branch: "feat/worktree-listing" },
+		]);
+	});
+
+	it("reads a turn captured in the worktree the agent works in", async () => {
+		const { worktree } = linkedRepo("worktree-turn");
+		const shellId = "shell-linked";
+
+		await captureTurnBaseline({ path: worktree, shellId });
+		writeFileSync(join(worktree, "a.txt"), "one\nagent\n");
+
+		expect((await Git.snapshot({ path: worktree, mode: "last-turn", shellId })).files).toEqual([
+			{ path: "a.txt", status: "modified", additions: 1, deletions: 0 },
+		]);
+	});
+
+	it("does not read a turn baseline captured in another worktree", async () => {
+		const { path, worktree } = linkedRepo("worktree-turn-elsewhere");
+		const shellId = "shell-elsewhere";
+
+		await captureTurnBaseline({ path: worktree, shellId });
+		writeFileSync(join(path, "a.txt"), "one\nmine\n");
+
+		expect((await Git.snapshot({ path, mode: "last-turn", shellId })).state).toBe("no-turn");
 	});
 });

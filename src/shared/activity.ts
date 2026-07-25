@@ -10,6 +10,7 @@ export type AgentActivityState = "working" | "needs-attention" | "done-unseen";
 export interface ProjectActivitySnapshot {
 	state: AgentActivityState | null;
 	shells: Record<string, AgentActivityState>;
+	worktreeByShellId: Record<string, string>;
 }
 
 export interface ActivityChangedEvent extends ProjectActivitySnapshot {

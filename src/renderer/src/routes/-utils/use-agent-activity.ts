@@ -1,12 +1,17 @@
 import { useMemo, useSyncExternalStore } from "react";
-import type { AgentActivityState } from "@shared/activity";
+import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
 
 export interface AgentActivities {
 	projects: ReadonlyMap<string, AgentActivityState>;
 	shells: ReadonlyMap<string, AgentActivityState>;
+	worktrees: ReadonlyMap<string, string>;
 }
 
-const EMPTY_ACTIVITIES: AgentActivities = { projects: new Map(), shells: new Map() };
+const EMPTY_ACTIVITIES: AgentActivities = {
+	projects: new Map(),
+	shells: new Map(),
+	worktrees: new Map(),
+};
 
 export function useAgentActivities(projectIds: string[]): AgentActivities {
 	const key = [...projectIds].sort().join(" ");
@@ -22,6 +27,7 @@ class AgentActivityObserver {
 	private snapshot: AgentActivities = EMPTY_ACTIVITIES;
 	private notify: (() => void) | undefined;
 	private readonly shellKeys = new Map<string, string[]>();
+	private readonly worktreeKeys = new Map<string, string[]>();
 
 	constructor(private readonly projectIds: string[]) {}
 
@@ -31,13 +37,13 @@ class AgentActivityObserver {
 		this.notify = notify;
 		const stopListening = window.bankaiActivity.onChanged((event) => {
 			if (this.projectIds.includes(event.projectId)) {
-				this.set(event.projectId, event.state, event.shells);
+				this.set(event.projectId, event);
 			}
 		});
 
 		for (const projectId of this.projectIds) {
 			window.bankaiActivity.watch(projectId)
-				.then((snapshot) => this.set(projectId, snapshot.state, snapshot.shells))
+				.then((snapshot) => this.set(projectId, snapshot))
 				.catch((err) => console.error("Failed to watch agent activity", err));
 		}
 
@@ -45,30 +51,40 @@ class AgentActivityObserver {
 			stopListening();
 			this.notify = undefined;
 			this.shellKeys.clear();
+			this.worktreeKeys.clear();
 			for (const projectId of this.projectIds) {
 				window.bankaiActivity.unwatch(projectId);
 			}
 		};
 	};
 
-	private set(projectId: string, state: AgentActivityState | null, shells: Record<string, AgentActivityState>) {
+	private set(projectId: string, snapshot: ProjectActivitySnapshot) {
 		const projects = new Map(this.snapshot.projects);
-		if (state === null) {
+		if (snapshot.state === null) {
 			projects.delete(projectId);
 		} else {
-			projects.set(projectId, state);
+			projects.set(projectId, snapshot.state);
 		}
 
 		const shellStates = new Map(this.snapshot.shells);
 		for (const sessionId of this.shellKeys.get(projectId) ?? []) {
 			shellStates.delete(sessionId);
 		}
-		for (const [sessionId, shellState] of Object.entries(shells)) {
+		for (const [sessionId, shellState] of Object.entries(snapshot.shells)) {
 			shellStates.set(sessionId, shellState);
 		}
-		this.shellKeys.set(projectId, Object.keys(shells));
+		this.shellKeys.set(projectId, Object.keys(snapshot.shells));
 
-		this.snapshot = { projects, shells: shellStates };
+		const worktrees = new Map(this.snapshot.worktrees);
+		for (const shellId of this.worktreeKeys.get(projectId) ?? []) {
+			worktrees.delete(shellId);
+		}
+		for (const [shellId, worktree] of Object.entries(snapshot.worktreeByShellId)) {
+			worktrees.set(shellId, worktree);
+		}
+		this.worktreeKeys.set(projectId, Object.keys(snapshot.worktreeByShellId));
+
+		this.snapshot = { projects, shells: shellStates, worktrees };
 		this.notify?.();
 	}
 }

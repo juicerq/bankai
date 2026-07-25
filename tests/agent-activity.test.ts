@@ -2,7 +2,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
-import { aggregateProjectActivity, nextShellActivity, turnStartShells } from "@main/activity/AgentActivity";
+import {
+	aggregateProjectActivity,
+	nextShellActivity,
+	nextShellWorktrees,
+	turnBaselineShells,
+	turnStartShells,
+} from "@main/activity/AgentActivity";
 import { matchesAttentionPrompt } from "@main/activity/attention";
 import { ClaudeHarness, parseSessionRecord } from "@main/activity/claude";
 import { bindShells } from "@main/activity/SessionBinder";
@@ -111,6 +117,104 @@ describe("shell turns", () => {
 		const after = shells({ a: "working", b: "working", c: "needs-attention" });
 
 		expect(turnStartShells(before, after)).toEqual(["b", "c"]);
+	});
+});
+
+describe("shell worktrees", () => {
+	const owners = new Map([
+		["session-a", { projectId: "p1", shellId: "shell-a" }],
+		["session-b", { projectId: "p1", shellId: "shell-b" }],
+	]);
+
+	function states(entries: Record<string, AgentActivityState>) {
+		return new Map<string, AgentActivityState>(Object.entries(entries));
+	}
+
+	test("an agent that entered a worktree binds its shell to it", () => {
+		expect(nextShellWorktrees(new Map(), [{ shellId: "shell-a", worktree: "/tmp/repo-slug" }])).toEqual(
+			new Map([["shell-a", "/tmp/repo-slug"]]),
+		);
+	});
+
+	test("a shell keeps its worktree after the agent exits", () => {
+		const previous = new Map([["shell-a", "/tmp/repo-slug"]]);
+
+		expect(nextShellWorktrees(previous, [{ shellId: "shell-a" }])).toEqual(previous);
+	});
+
+	test("a closed shell drops its worktree", () => {
+		const previous = new Map([["shell-a", "/tmp/repo-slug"]]);
+
+		expect(nextShellWorktrees(previous, [{ shellId: "shell-b" }])).toEqual(new Map());
+	});
+
+	test("a shell that leaves for another worktree follows the agent", () => {
+		const previous = new Map([["shell-a", "/tmp/repo-slug"]]);
+
+		expect(nextShellWorktrees(previous, [{ shellId: "shell-a", worktree: "/tmp/repo-other" }])).toEqual(
+			new Map([["shell-a", "/tmp/repo-other"]]),
+		);
+	});
+
+	test("a turn opening captures its baseline in the shell's worktree", () => {
+		const baselines = turnBaselineShells({
+			before: states({}),
+			after: states({ "session-a": "working" }),
+			owners,
+			previousWorktrees: new Map(),
+			worktrees: new Map([["shell-a", "/tmp/repo-slug"]]),
+		});
+
+		expect(baselines).toEqual([{ owner: { projectId: "p1", shellId: "shell-a" }, worktree: "/tmp/repo-slug" }]);
+	});
+
+	test("a turn opening outside any worktree captures the project itself", () => {
+		const baselines = turnBaselineShells({
+			before: states({}),
+			after: states({ "session-a": "working" }),
+			owners,
+			previousWorktrees: new Map(),
+			worktrees: new Map(),
+		});
+
+		expect(baselines).toEqual([{ owner: { projectId: "p1", shellId: "shell-a" } }]);
+	});
+
+	test("an agent that creates its worktree mid-turn re-captures the baseline there", () => {
+		const baselines = turnBaselineShells({
+			before: states({ "session-a": "working" }),
+			after: states({ "session-a": "working" }),
+			owners,
+			previousWorktrees: new Map(),
+			worktrees: new Map([["shell-a", "/tmp/repo-slug"]]),
+		});
+
+		expect(baselines).toEqual([{ owner: { projectId: "p1", shellId: "shell-a" }, worktree: "/tmp/repo-slug" }]);
+	});
+
+	test("a settled worktree does not re-capture the baseline on every tick", () => {
+		const worktrees = new Map([["shell-a", "/tmp/repo-slug"]]);
+		const baselines = turnBaselineShells({
+			before: states({ "session-a": "working" }),
+			after: states({ "session-a": "working" }),
+			owners,
+			previousWorktrees: worktrees,
+			worktrees,
+		});
+
+		expect(baselines).toEqual([]);
+	});
+
+	test("a worktree appearing outside a turn does not capture a baseline", () => {
+		const baselines = turnBaselineShells({
+			before: states({}),
+			after: states({}),
+			owners,
+			previousWorktrees: new Map(),
+			worktrees: new Map([["shell-a", "/tmp/repo-slug"]]),
+		});
+
+		expect(baselines).toEqual([]);
 	});
 });
 

@@ -1,18 +1,32 @@
 import { type } from "arktype";
 import { reviewModeSchema, type ReviewMode } from "@main/git/contracts";
 import { GitProcess } from "@main/git/GitProcess";
+import { projectWorktrees, resolveProjectWorktree } from "@main/git/ProjectWorktrees";
 import { base } from "@main/router/_base";
 import { Projects } from "@main/store/projects";
 
-const scopeInput = type({ projectId: "string", mode: reviewModeSchema, "shellId?": "string" });
+const scopeInput = type({
+	projectId: "string",
+	mode: reviewModeSchema,
+	"shellId?": "string",
+	"worktree?": "string",
+});
 
-async function reviewScope(input: { projectId: string; mode: ReviewMode; shellId?: string }) {
-	const project = await Projects.find(input.projectId);
+async function reviewScope(input: { projectId: string; mode: ReviewMode; shellId?: string; worktree?: string }) {
+	const path = await resolveProjectWorktree(input);
 
-	return { path: project.path, mode: input.mode, ...(input.shellId ? { shellId: input.shellId } : {}) };
+	return { path, mode: input.mode, ...(input.shellId ? { shellId: input.shellId } : {}) };
 }
 
 export const reviewRouter = {
+	worktrees: base
+		.input(type({ projectId: "string" }))
+		.handler(async ({ input }) => {
+			const project = await Projects.find(input.projectId);
+
+			return await projectWorktrees(project.path).catch(() => []);
+		}),
+
 	snapshot: base
 		.input(scopeInput)
 		.handler(async ({ input }) => await GitProcess.snapshot(await reviewScope(input))),

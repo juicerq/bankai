@@ -5,6 +5,7 @@ import type { Project } from "@main/store/projects";
 import type { AgentActivityState } from "@shared/activity";
 import { ACTIVITY_DOT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import { type DragReorder, useDragReorder } from "@renderer/routes/-utils/use-drag-reorder";
+import { useMenuDismissal } from "@renderer/routes/-utils/use-menu-dismissal";
 
 export function ProjectRail({
 	projects,
@@ -41,22 +42,7 @@ export function ProjectRail({
 		(data) => onMove({ projectId: data.id, toIndex: data.toIndex }),
 		onDragActiveChange,
 	);
-	const registerMenuDismissal = useCallback(() => {
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === "Escape") {
-				closeMenu();
-			}
-		};
-
-		window.addEventListener("pointerdown", closeMenu);
-		window.addEventListener("blur", closeMenu);
-		window.addEventListener("keydown", handleKeyDown);
-		return () => {
-			window.removeEventListener("pointerdown", closeMenu);
-			window.removeEventListener("blur", closeMenu);
-			window.removeEventListener("keydown", handleKeyDown);
-		};
-	}, [closeMenu]);
+	const registerMenuDismissal = useMenuDismissal(closeMenu);
 
 	return (
 		<>

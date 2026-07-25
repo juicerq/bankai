@@ -12,6 +12,7 @@ export type TurnBaselineFile =
 	| { kind: "absent" };
 
 export interface TurnBaseline {
+	path: string;
 	head: string | null;
 	files: ReadonlyMap<string, TurnBaselineFile>;
 }
@@ -46,7 +47,7 @@ export async function captureTurnBaseline({ path, shellId }: { path: string; she
 		}
 	}
 
-	turnBaselines.set(shellId, { head, files });
+	turnBaselines.set(shellId, { path: resolve(path), head, files });
 }
 
 export async function withBaselineFile<T>(content: Buffer, read: (file: string) => Promise<T>): Promise<T> {

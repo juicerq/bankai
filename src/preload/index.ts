@@ -61,10 +61,10 @@ const terminalApi: BankaiTerminalApi = {
 contextBridge.exposeInMainWorld("bankaiTerminal", terminalApi);
 
 const reviewApi: BankaiReviewApi = {
-	watch: async (projectId) => {
-		await ipcRenderer.invoke(REVIEW_IPC.watch, { projectId });
+	watch: async (input) => {
+		await ipcRenderer.invoke(REVIEW_IPC.watch, input);
 	},
-	unwatch: (projectId) => ipcRenderer.send(REVIEW_IPC.unwatch, { projectId }),
+	unwatch: (input) => ipcRenderer.send(REVIEW_IPC.unwatch, input),
 	onChanged: (listener) => {
 		const handler = (_event: Electron.IpcRendererEvent, payload: ReviewChangedEvent) => {
 			listener(payload);

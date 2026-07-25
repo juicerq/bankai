@@ -32,6 +32,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	project,
 	projects,
 	shellActivity,
+	shellWorktrees,
 	active,
 	shellFocusRequest,
 	fullscreen,
@@ -54,6 +55,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	project: Project;
 	projects: Project[];
 	shellActivity: ReadonlyMap<string, AgentActivityState>;
+	shellWorktrees: ReadonlyMap<string, string>;
 	active: boolean;
 	shellFocusRequest: number;
 	fullscreen: boolean;
@@ -353,6 +355,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					<ReviewPanel
 						project={project}
 						shellId={activeTabId}
+						shellWorktree={activeTabId === undefined ? undefined : shellWorktrees.get(activeTabId)}
 						minDiffWidth={MIN_DIFF_WIDTH}
 						treeOpen={treeOpen}
 						treeDivider={treeDivider}

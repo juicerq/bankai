@@ -16,7 +16,7 @@ let watchState: Map<string, AgentActivityState>;
 let listener: ((event: ActivityChangedEvent) => void) | undefined;
 
 function emit(projectId: string, state: AgentActivityState | null) {
-	act(() => listener?.({ projectId, state, shells: {} }));
+	act(() => listener?.({ projectId, state, shells: {}, worktreeByShellId: {} }));
 }
 
 function advance(ms: number) {
@@ -29,7 +29,7 @@ beforeEach(() => {
 	watchState = new Map();
 	listener = undefined;
 	const api: BankaiActivityApi = {
-		watch: async (projectId) => ({ state: watchState.get(projectId) ?? null, shells: {} }),
+		watch: async (projectId) => ({ state: watchState.get(projectId) ?? null, shells: {}, worktreeByShellId: {} }),
 		unwatch() {},
 		onChanged: (next) => {
 			listener = next;

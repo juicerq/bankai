@@ -1,32 +1,32 @@
 import { ReviewTransport, setReviewTransport } from "./orpc-transport";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement, type ReactNode } from "react";
-import type { BankaiReviewApi, ReviewChangedEvent } from "@shared/review";
+import type { BankaiReviewApi, ReviewChangedEvent, ReviewWatchInput } from "@shared/review";
 import { renderHook } from "./testing-library";
 import { type ReviewReading, useReviewReading } from "@renderer/routes/-utils/use-review-reading";
 
 type WatchListener = (event: ReviewChangedEvent) => void;
 
-interface PendingWatch { projectId: string; resolve: () => void; reject: (error: unknown) => void }
+interface PendingWatch { input: ReviewWatchInput; resolve: () => void; reject: (error: unknown) => void }
 
 class ReviewIpc {
 	readonly events: ("listen" | "watch" | "unwatch")[] = [];
-	readonly watchCalls: string[] = [];
-	readonly unwatchCalls: string[] = [];
+	readonly watchCalls: ReviewWatchInput[] = [];
+	readonly unwatchCalls: ReviewWatchInput[] = [];
 	private readonly listeners = new Set<WatchListener>();
 	private readonly pendingWatch: PendingWatch[] = [];
 
 	readonly api: BankaiReviewApi = {
-		watch: (projectId) => {
+		watch: (input) => {
 			this.events.push("watch");
-			this.watchCalls.push(projectId);
+			this.watchCalls.push(input);
 			return new Promise<void>((resolve, reject) => {
-				this.pendingWatch.push({ projectId, resolve, reject });
+				this.pendingWatch.push({ input, resolve, reject });
 			});
 		},
-		unwatch: (projectId) => {
+		unwatch: (input) => {
 			this.events.push("unwatch");
-			this.unwatchCalls.push(projectId);
+			this.unwatchCalls.push(input);
 		},
 		onChanged: (listener) => {
 			this.events.push("listen");
@@ -60,7 +60,7 @@ class ReviewIpc {
 	}
 
 	private takeWatch(projectId?: string) {
-		const index = this.pendingWatch.findIndex((watch) => !projectId || watch.projectId === projectId);
+		const index = this.pendingWatch.findIndex((watch) => !projectId || watch.input.projectId === projectId);
 		if (index === -1) {
 			throw new Error("No pending watch request");
 		}

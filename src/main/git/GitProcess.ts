@@ -6,11 +6,13 @@ import {
 	reviewContentSchema,
 	reviewFilesSchema,
 	reviewSnapshotSchema,
+	worktreesSchema,
 	type FullFile,
 	type ReviewContent,
 	type ReviewFiles,
 	type ReviewMode,
 	type ReviewSnapshot,
+	type Worktree,
 } from "@main/git/contracts";
 import { gitResponseSchema, type GitRequest } from "@main/git/protocol";
 import { Logger } from "@main/logger";
@@ -28,6 +30,7 @@ type GitRequestInput =
 	| ({ operation: "files"; files: string[] } & ReviewScope)
 	| ({ operation: "file"; file: string } & ReviewScope)
 	| ({ operation: "fullFile"; file: string } & ReviewScope)
+	| { operation: "worktrees"; path: string }
 	| { operation: "startTurn"; path: string; shellId: string }
 	| { operation: "forgetTurn"; shellId: string };
 
@@ -53,6 +56,10 @@ class GitUtilityProcess {
 
 	async forgetTurn(shellId: string): Promise<void> {
 		await this.request({ operation: "forgetTurn", shellId });
+	}
+
+	async worktrees(input: { path: string }): Promise<Worktree[]> {
+		return worktreesSchema.assert(await this.request({ operation: "worktrees", ...input }));
 	}
 
 	async snapshot(scope: ReviewScope): Promise<ReviewSnapshot> {

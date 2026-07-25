@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import type { FileChange, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/contracts";
 import { ReviewDiff, REVIEW_ROW_HEIGHT } from "@renderer/routes/-components/review-diff";
-import { REVIEW_SCOPE_EMPTY } from "@renderer/routes/-utils/review-scope";
+import { REVIEW_SCOPES } from "@renderer/routes/-utils/review-scope";
 import type { ReviewReading } from "@renderer/routes/-utils/use-review-reading";
 import { get } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
@@ -119,10 +119,10 @@ function noticeOf(state: ReviewSnapshot["state"], mode: ReviewMode) {
 }
 
 test("an empty scope explains itself in that scope's own words", () => {
-	expect(noticeOf("ready", "last-turn").textContent).toBe(REVIEW_SCOPE_EMPTY["last-turn"]);
+	expect(noticeOf("ready", "last-turn").textContent).toBe(REVIEW_SCOPES["last-turn"].empty);
 	cleanup();
 
-	expect(noticeOf("ready", "branch").textContent).toBe(REVIEW_SCOPE_EMPTY.branch);
+	expect(noticeOf("ready", "branch").textContent).toBe(REVIEW_SCOPES.branch.empty);
 });
 
 test("a scope with no turn to read against says so instead of reading as empty", () => {

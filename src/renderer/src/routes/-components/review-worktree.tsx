@@ -28,19 +28,16 @@ export function ReviewWorktree({
 	onSelect,
 	onRemove,
 }: ReviewWorktreeSelection) {
-	if (worktrees.length < 2) {
-		return null;
-	}
-
 	const active = worktrees.find((worktree) => worktree.path === activePath);
+	const label = worktreeLabel(active ?? { path: activePath });
 	const following = pinnedPath === undefined;
 
 	return (
 		<HeaderMenu
 			component="review-worktree"
 			icon={<Square3Stack3DIcon className="size-4 shrink-0" aria-hidden="true" />}
-			label={active ? worktreeLabel(active) : activePath}
-			ariaLabel={`Worktree: ${active ? worktreeLabel(active) : activePath}`}
+			label={label}
+			ariaLabel={`Worktree: ${label}`}
 			title={activePath}
 			truncate
 			pinned={
@@ -51,7 +48,7 @@ export function ReviewWorktree({
 						selected={following}
 						onClick={() => onSelect()}
 					/>
-					<HeaderMenuSeparator />
+					{worktrees.length > 0 && <HeaderMenuSeparator />}
 				</>
 			}
 		>

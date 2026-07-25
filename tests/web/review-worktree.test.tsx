@@ -72,10 +72,22 @@ function menuItem(label: string) {
 	return match;
 }
 
-test("a project with a single worktree shows no selector", () => {
+test("a project with no extra worktrees still names the checkout being read", () => {
 	render(<ReviewWorktreeHarness worktrees={[{ path: PROJECT, branch: "main" }]} />);
 
-	expect(query("review-worktree")).toBeNull();
+	expect(get("review-worktree").textContent).toBe("main");
+
+	fireEvent.click(get("review-worktree"));
+
+	expect(menuItem("main").textContent).toContain(`root · ${PROJECT}`);
+	expect(get("review-worktree-menu").textContent).toContain("No agent worktree yet");
+});
+
+test("a listing that has not arrived yet falls back to the checkout's folder", () => {
+	render(<ReviewWorktreeHarness worktrees={[]} />);
+
+	expect(get("review-worktree").textContent).toBe("bankai-2");
+	expect(get("review-worktree").getAttribute("title")).toBe(PROJECT);
 });
 
 test("the review follows the shell's agent into its worktree", () => {

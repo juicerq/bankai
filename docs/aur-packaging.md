@@ -19,6 +19,16 @@ The push authenticates with the `AUR_SSH_KEY` secret — a key pair dedicated to
 
 The very first publish had to be manual: cloning an AUR package that does not exist yet fails, so the repo was created by pushing `HEAD:refs/heads/master` into it. The job's `git clone` only works from the second release on.
 
+## The AUR job can only see a published release, and electron-builder will not publish one on its own
+
+`updpkgsums` downloads the AppImage over plain HTTP, so anything that leaves the GitHub release unpublished makes the job fail with a 404. Three separate behaviours in `electron-publish`'s `gitHubPublisher.js` can do that, and none of them is fixed by `publish.releaseType` in `electron-builder.yml` — that option is only read when the release is *created* (`draft: this.releaseType === "draft"`), never when one already exists.
+
+- Deleting a tag to re-trigger the workflow turns its release into a draft. The publisher finds it, and `if (release.draft) { return release }` hands it back untouched: assets upload into a draft that no anonymous download can reach.
+- A release published more than two hours ago is refused outright, so re-running an old tag uploads nothing. `EP_GH_IGNORE_TIME` is the documented way past it, and re-uploading is safe because the publisher deletes an asset of the same name before writing the new one.
+- Both refusals are `log.warn` plus `return null`, and `doUpload` then logs `skipped publishing` and returns normally. **The build stays green while publishing nothing.**
+
+The workflow therefore does not trust the build's exit code: after `electron-builder`, it runs `gh release edit --draft=false` and asserts the `Bankai-<version>.AppImage` asset is actually listed. Both are idempotent, so a re-trigger needs no manual step.
+
 ## Self-update belongs to the AppImage, and the gate is execPath, not the env var
 
 `electron-updater`'s Linux updater decides it is inactive when `process.env.APPIMAGE` is missing, so a package install never checks, never downloads, and never shows the update button — it only logs one warning per check. Arch users update through `yay`.

@@ -12,7 +12,8 @@ import {
 } from "@main/activity/AgentActivity";
 import { matchesAttentionPrompt } from "@main/activity/attention";
 import { ClaudeHarness, parseSessionRecord } from "@main/activity/claude";
-import { bindShells } from "@main/activity/SessionBinder";
+import { procFs } from "@main/activity/procFs";
+import { bindShells, childrenByParent, type ChildrenOf } from "@main/activity/SessionBinder";
 import { aggregateActivity, type AgentActivityState } from "@shared/activity";
 
 const BUSY_RECORD =
@@ -341,44 +342,112 @@ describe("project snapshots", () => {
 });
 
 describe("shell to agent binding", () => {
-	test("binds a shell whose foreground group is the live agent pid", () => {
-		const bindings = bindShells(
+	function tree(edges: [number, number[]][] = []): ChildrenOf {
+		const children = new Map(edges);
+
+		return (pid) => Promise.resolve(children.get(pid) ?? []);
+	}
+
+	test("binds a shell whose foreground group is the live agent pid", async () => {
+		const bindings = await bindShells(
 			[{ sessionId: "shell-a", pid: 100, foreground: 200 }],
 			new Set([200]),
-			new Map(),
+			tree(),
 		);
 		expect(bindings.get("shell-a")).toBe(200);
 	});
 
-	test("walks the process tree to reach an agent below the foreground group", () => {
-		const bindings = bindShells(
+	test("walks the process tree to reach an agent below the foreground group", async () => {
+		const bindings = await bindShells(
 			[{ sessionId: "shell-a", pid: 100, foreground: 200 }],
 			new Set([300]),
-			new Map([[200, [250]], [250, [300]]]),
+			tree([[200, [250]], [250, [300]]]),
 		);
 		expect(bindings.get("shell-a")).toBe(300);
 	});
 
-	test("binds a directly spawned agent that leads its own tty session", () => {
-		const bindings = bindShells(
+	test("binds a directly spawned agent that leads its own tty session", async () => {
+		const bindings = await bindShells(
 			[{ sessionId: "shell-a", pid: 100, foreground: 100 }],
 			new Set([100]),
-			new Map(),
+			tree(),
 		);
 		expect(bindings.get("shell-a")).toBe(100);
 	});
 
-	test("does not bind a shell sitting at its own prompt or with a dead agent", () => {
-		const bindings = bindShells(
+	test("does not bind a shell sitting at its own prompt or with a dead agent", async () => {
+		const bindings = await bindShells(
 			[
 				{ sessionId: "prompt", pid: 100, foreground: 100 },
 				{ sessionId: "no-tty", pid: 101, foreground: null },
 				{ sessionId: "no-agent", pid: 102, foreground: 500 },
 			],
 			new Set([300]),
-			new Map(),
+			tree(),
 		);
 		expect(bindings.size).toBe(0);
+	});
+
+	test("stops walking a process tree that cycles back on itself", async () => {
+		const bindings = await bindShells(
+			[{ sessionId: "shell-a", pid: 100, foreground: 200 }],
+			new Set([999]),
+			tree([[200, [250]], [250, [200, 250]]]),
+		);
+		expect(bindings.size).toBe(0);
+	});
+
+	test("reaches an agent spawned from a sibling branch of the tree", async () => {
+		const bindings = await bindShells(
+			[{ sessionId: "shell-a", pid: 100, foreground: 200 }],
+			new Set([400]),
+			tree([[200, [250, 260]], [260, [400]]]),
+		);
+		expect(bindings.get("shell-a")).toBe(400);
+	});
+});
+
+describe.if(process.platform === "linux")("proc children traversal", () => {
+	test("reports the live child of a real process", async () => {
+		expect(await procFs.supportsChildren()).toBe(true);
+
+		const parent = Bun.spawn(["sh", "-c", "sleep 30; true"], { stdout: "ignore", stderr: "ignore" });
+		try {
+			await Bun.sleep(150);
+			const children = await procFs.children(parent.pid);
+			expect(children.length).toBe(1);
+			expect(children[0]).toBeGreaterThan(0);
+			expect(children[0]).not.toBe(parent.pid);
+		} finally {
+			parent.kill();
+			await parent.exited;
+		}
+	});
+
+	test("agrees with the parent-pid walk on every live process", async () => {
+		const byParent = await childrenByParent();
+		expect(byParent.size).toBeGreaterThan(0);
+
+		const disagreements: { parent: number; missing: number }[] = [];
+		for (const [parent, expected] of byParent) {
+			if (parent <= 0) {
+				continue;
+			}
+
+			const reported = new Set(await procFs.children(parent));
+			for (const child of expected.filter((pid) => !reported.has(pid))) {
+				const stillAlive = (await procFs.parent(child)) === parent;
+				if (stillAlive) {
+					disagreements.push({ parent, missing: child });
+				}
+			}
+		}
+
+		expect(disagreements).toEqual([]);
+	});
+
+	test("reports no children for a pid that does not exist", async () => {
+		expect(await procFs.children(0x7f_ff_ff_ff)).toEqual([]);
 	});
 });
 

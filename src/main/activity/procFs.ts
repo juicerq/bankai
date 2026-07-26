@@ -1,4 +1,4 @@
-import { readFile, readdir } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 
 interface ProcStat {
 	parent: number | null;
@@ -44,4 +44,28 @@ async function foreground(pid: number): Promise<number | null> {
 	return stat?.foreground ?? null;
 }
 
-export const procFs = { pids, parent, procStart, foreground };
+function childrenPath(pid: number, tid: number | string): string {
+	return `/proc/${pid}/task/${tid}/children`;
+}
+
+async function children(pid: number): Promise<number[]> {
+	const tids = await readdir(`/proc/${pid}/task`).catch((): string[] => []);
+	const listed = await Promise.all(
+		tids.map((tid) => readFile(childrenPath(pid, tid), "utf8").catch(() => "")),
+	);
+
+	return listed
+		.flatMap((raw) => raw.split(/\s+/))
+		.map(Number)
+		.filter((child) => Number.isInteger(child) && child > 0);
+}
+
+let childrenSupport: Promise<boolean> | undefined;
+
+async function supportsChildren(): Promise<boolean> {
+	childrenSupport ??= access(childrenPath(process.pid, process.pid)).then(() => true, () => false);
+
+	return await childrenSupport;
+}
+
+export const procFs = { pids, parent, procStart, foreground, children, supportsChildren };

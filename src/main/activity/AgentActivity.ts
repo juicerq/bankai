@@ -1,6 +1,6 @@
 import { ATTENTION_SCAN_WINDOW, matchesAttentionPrompt } from "@main/activity/attention";
 import type { AgentPresence } from "@main/activity/Harness";
-import { bindShells, childrenByParent } from "@main/activity/SessionBinder";
+import { bindShells, childrenReader, type ChildrenOf } from "@main/activity/SessionBinder";
 import { discoverAgents, harnessTrace } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
 import { reconcileSessionRefs, type SessionRef } from "@main/activity/SessionRefs";
@@ -20,6 +20,8 @@ import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activi
 const ACTIVITY_POLL_MS = 1500;
 
 const ATTENTION_TAIL = 64;
+
+const childless: ChildrenOf = () => Promise.resolve([]);
 
 type BoundStatus = "working" | "waiting" | "idle";
 
@@ -410,8 +412,8 @@ class AgentActivityTracker {
 		const needsWalk = foregrounds.some(
 			(shell) => shell.foreground !== null && shell.foreground !== shell.pid && !livePids.has(shell.foreground),
 		);
-		const children = needsWalk ? await childrenByParent() : new Map<number, number[]>();
-		const bindings = bindShells(foregrounds, livePids, children);
+		const childrenOf: ChildrenOf = needsWalk ? await childrenReader() : childless;
+		const bindings = await bindShells(foregrounds, livePids, childrenOf);
 		this.boundSessions = new Set(bindings.keys());
 		this.pruneAttention(owners);
 

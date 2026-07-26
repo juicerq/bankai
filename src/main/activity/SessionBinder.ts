@@ -6,17 +6,19 @@ export interface ShellProc {
 	foreground: number | null;
 }
 
-function findAgentInTree(
-	children: Map<number, number[]>,
+export type ChildrenOf = (pid: number) => Promise<number[]>;
+
+async function findAgentInTree(
+	childrenOf: ChildrenOf,
 	foreground: number,
 	livePids: Set<number>,
-): number | null {
+): Promise<number | null> {
 	if (livePids.has(foreground)) {
 		return foreground;
 	}
 
-	const seen = new Set<number>();
-	let frontier = children.get(foreground) ?? [];
+	const seen = new Set<number>([foreground]);
+	let frontier = await childrenOf(foreground);
 
 	while (frontier.length > 0) {
 		const batch = frontier.filter((pid) => !seen.has(pid));
@@ -27,34 +29,56 @@ function findAgentInTree(
 			}
 		}
 
-		frontier = batch.flatMap((pid) => children.get(pid) ?? []);
+		frontier = (await Promise.all(batch.map((pid) => childrenOf(pid)))).flat();
 	}
 
 	return null;
 }
 
-export function bindShells(
+async function boundAgent(
+	shell: ShellProc,
+	livePids: Set<number>,
+	childrenOf: ChildrenOf,
+): Promise<number | null> {
+	if (shell.foreground === null) {
+		return null;
+	}
+
+	if (shell.foreground === shell.pid && !livePids.has(shell.pid)) {
+		return null;
+	}
+
+	return await findAgentInTree(childrenOf, shell.foreground, livePids);
+}
+
+export async function bindShells(
 	shells: ShellProc[],
 	livePids: Set<number>,
-	children: Map<number, number[]>,
-): Map<string, number> {
+	childrenOf: ChildrenOf,
+): Promise<Map<string, number>> {
+	const bound = await Promise.all(shells.map(async (shell) => ({
+		sessionId: shell.sessionId,
+		agent: await boundAgent(shell, livePids, childrenOf),
+	})));
+
 	const bindings = new Map<string, number>();
-	for (const shell of shells) {
-		if (shell.foreground === null) {
-			continue;
-		}
-
-		if (shell.foreground === shell.pid && !livePids.has(shell.pid)) {
-			continue;
-		}
-
-		const agent = findAgentInTree(children, shell.foreground, livePids);
+	for (const { sessionId, agent } of bound) {
 		if (agent !== null) {
-			bindings.set(shell.sessionId, agent);
+			bindings.set(sessionId, agent);
 		}
 	}
 
 	return bindings;
+}
+
+export async function childrenReader(): Promise<ChildrenOf> {
+	if (await procFs.supportsChildren()) {
+		return procFs.children;
+	}
+
+	const byParent = await childrenByParent();
+
+	return (pid) => Promise.resolve(byParent.get(pid) ?? []);
 }
 
 export async function childrenByParent(): Promise<Map<number, number[]>> {

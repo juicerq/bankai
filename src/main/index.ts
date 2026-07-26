@@ -5,7 +5,7 @@ import { GitProcess } from "@main/git/GitProcess";
 import { setupReviewIpc } from "@main/git/ipc";
 import { startOrpcServer } from "@main/ipc";
 import { Logger } from "@main/logger";
-import { markStartup, reportStartup } from "@main/startup";
+import { markStartup, scheduleStartupReport } from "@main/startup";
 import { resolveInstanceIdentity } from "@main/store/paths";
 import { type SettingsValue, Settings } from "@main/store/settings";
 import { setupTerminalIpc } from "@main/terminal/ipc";
@@ -88,7 +88,7 @@ async function createWindow() {
 	win.webContents.once("did-finish-load", () => markStartup("content-loaded"));
 	win.once("ready-to-show", () => {
 		markStartup("ready-to-show");
-		reportStartup();
+		scheduleStartupReport();
 	});
 
 	if (saved?.maximized) {

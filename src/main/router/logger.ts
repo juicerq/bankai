@@ -1,11 +1,16 @@
 import { type } from "arktype";
 import { Logger } from "@main/logger";
 import { base } from "@main/router/_base";
+import { markRendererStartup } from "@main/startup";
 
 const rendererErrorInput = type({
 	message: "string",
 	"stack?": "string",
 	"source?": "string",
+});
+
+const startupInput = type({
+	marks: type({ stage: "string", at: "number" }).array(),
 });
 
 export const loggerRouter = {
@@ -14,6 +19,11 @@ export const loggerRouter = {
 			stack: input.stack,
 			source: input.source,
 		});
+		return null;
+	}),
+
+	startup: base.input(startupInput).handler(({ input }) => {
+		markRendererStartup(input.marks);
 		return null;
 	}),
 };

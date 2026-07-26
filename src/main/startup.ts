@@ -6,7 +6,10 @@ export interface StartupStep {
 	stepMs: number;
 }
 
+const STARTUP_REPORT_GRACE_MS = 15_000;
+
 const marks: { stage: string; elapsedMs: number }[] = [];
+let reported = false;
 
 export function markStartup(stage: string): void {
 	const processStart = process.getCreationTime();
@@ -27,12 +30,31 @@ export function startupSteps(elapsed: { stage: string; elapsedMs: number }[]): S
 	}));
 }
 
-export function reportStartup(): void {
-	const last = marks.at(-1);
-	if (!last) {
+export function markRendererStartup(reported: { stage: string; at: number }[]): void {
+	const processStart = process.getCreationTime();
+	if (processStart === null) {
 		return;
 	}
 
-	Logger.info("startup:timing", { totalMs: last.elapsedMs, steps: startupSteps(marks) });
+	for (const mark of reported) {
+		marks.push({ stage: `renderer:${mark.stage}`, elapsedMs: Math.round(mark.at - processStart) });
+	}
+
+	reportStartup();
+}
+
+export function scheduleStartupReport(): void {
+	setTimeout(reportStartup, STARTUP_REPORT_GRACE_MS).unref();
+}
+
+function reportStartup(): void {
+	const steps = startupSteps(marks);
+	const last = steps.at(-1);
+	if (reported || !last) {
+		return;
+	}
+
+	reported = true;
+	Logger.info("startup:timing", { totalMs: last.elapsedMs, steps });
 	marks.length = 0;
 }

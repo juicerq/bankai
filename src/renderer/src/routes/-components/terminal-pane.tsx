@@ -78,7 +78,7 @@ function ResumeNotice({
 			<div className="flex min-w-0 flex-col leading-tight">
 				<span className="text-label text-tertiary">RESUME FAILED</span>
 				<span className="text-secondary text-support">
-					{variant === "failed-retryable" ? "Opened a plain shell instead" : "Retry failed — plain shell kept"}
+					{variant === "failed-retryable" ? "Opened a new shell instead" : "Retry failed — new shell kept"}
 				</span>
 				{reason && (
 					<span data-slot="reason" className="mt-0.5 truncate text-secondary text-support">

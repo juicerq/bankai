@@ -86,7 +86,40 @@ function requireBrowse() {
 	return currentBrowse;
 }
 
+export interface HarnessTransport {
+	harnesses: { id: string; label: string }[];
+	harness: { autostart: boolean; id: string };
+	updates: { autostart: boolean; id: string }[];
+}
+
+let currentHarness: HarnessTransport | undefined;
+
+export function setHarnessTransport(transport: HarnessTransport) {
+	currentHarness = transport;
+}
+
+function requireHarness() {
+	if (!currentHarness) {
+		throw new Error("No harness transport is installed");
+	}
+
+	return currentHarness;
+}
+
 const router = {
+	settings: {
+		listHarnesses: os.handler(() => requireHarness().harnesses),
+		getHarness: os.handler(() => requireHarness().harness),
+		updateHarness: os
+			.input(type({ autostart: "boolean", id: "string" }))
+			.handler(({ input }) => {
+				const transport = requireHarness();
+				transport.updates.push(input);
+				transport.harness = input;
+
+				return input;
+			}),
+	},
 	review: {
 		worktrees: os.handler(({ input }) => requireTransport().request("worktrees", input)),
 		snapshot: os.handler(({ input }) => requireTransport().request("snapshot", input)),

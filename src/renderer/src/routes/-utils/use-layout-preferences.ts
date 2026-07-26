@@ -37,7 +37,7 @@ export function useLayoutPreferences() {
 	const stored = useQuery(orpc.settings.getLayout.queryOptions());
 	const mutation = useMutation(
 		orpc.settings.updateLayout.mutationOptions({
-			onSuccess: (layout) => queryClient.setQueryData(orpc.settings.getLayout.key(), layout),
+			onSuccess: (layout) => queryClient.setQueryData(orpc.settings.getLayout.key({ type: "query" }), layout),
 		}),
 	);
 	const persist = useCallback((patch: LayoutSettings) => mutation.mutate(patch), [mutation.mutate]);

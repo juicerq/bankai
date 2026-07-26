@@ -10,6 +10,7 @@ import { ProjectFooter } from "@renderer/routes/-components/project-footer";
 import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
 import { SessionSidebar } from "@renderer/routes/-components/session-sidebar";
+import { SettingsModal } from "@renderer/routes/-components/settings-modal";
 import { ShellPicker } from "@renderer/routes/-components/shell-picker";
 import { WindowControls } from "@renderer/routes/-components/window-controls";
 import {
@@ -221,11 +222,15 @@ function Bankai() {
 			closeSession(activeProjectId, selectedShellId);
 		}
 	}, [activeProjectId, closeSession, selectedShellId]);
+	const [settingsOpen, setSettingsOpen] = useState(false);
+	const openSettings = useCallback(() => setSettingsOpen(true), []);
+	const closeSettings = useCallback(() => setSettingsOpen(false), []);
 	const control = useMemo(
 		() => ({
 			initialDiffWidth: layout.initial.diffWidth,
 			initialTreeWidth: layout.initial.treeWidth,
 			onToggleFullscreen: projectRail.toggleFullscreen,
+			onOpenSettings: openSettings,
 			onPersistLayout: layout.persist,
 			onReviewOpenChange: handleReviewOpenChange,
 			onTreeOpenChange: handleTreeOpenChange,
@@ -239,6 +244,7 @@ function Bankai() {
 			layout.initial.treeWidth,
 			layout.persist,
 			projectRail.toggleFullscreen,
+			openSettings,
 			handleReviewOpenChange,
 			handleTreeOpenChange,
 			handleShellOpen,
@@ -424,6 +430,7 @@ function Bankai() {
 					onClose={closeShellPicker}
 				/>
 			)}
+			{settingsOpen && <SettingsModal onClose={closeSettings} />}
 			{pickerOpen && (
 				<ProjectPicker
 					adding={addingProject}

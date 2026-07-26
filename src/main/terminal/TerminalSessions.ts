@@ -6,6 +6,8 @@ import { harnessResume } from "@main/activity/harnesses";
 import { Logger } from "@main/logger";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
+import { autostartCommandLine } from "@main/terminal/autostart";
+import { shellArgs, shellCommandLine } from "@main/terminal/commandLine";
 import { terminalEnv } from "@main/terminal/env";
 import { forgetShellOutput, noteShellOutput } from "@main/terminal/ShellOutputLines";
 import { forgetShellTitle, noteShellTitle } from "@main/terminal/ShellTitles";
@@ -35,10 +37,9 @@ interface SpawnInput {
 	projectId: string;
 	shellId: string;
 	cwd: string;
-	file: string;
-	args: string[];
 	cols: number;
 	rows: number;
+	launch?: string;
 }
 
 const sessions = new Map<string, Session>();
@@ -50,16 +51,15 @@ export const TerminalSessions = {
 		input: { projectId: string; shellId: string; cols: number; rows: number },
 	): Promise<string> => {
 		const generation = ownerGenerations.get(owner.id) || 0;
-		const project = await Projects.find(input.projectId);
+		const [project, launch] = await Promise.all([Projects.find(input.projectId), autostartCommandLine()]);
 
 		return spawnSession(owner, generation, {
 			projectId: input.projectId,
 			shellId: input.shellId,
 			cwd: project.path,
-			file: SHELL,
-			args: [],
 			cols: input.cols,
 			rows: input.rows,
+			launch,
 		});
 	},
 	resume: async (
@@ -87,10 +87,9 @@ export const TerminalSessions = {
 			projectId: input.projectId,
 			shellId: input.shellId,
 			cwd: session.cwd,
-			file: command.file,
-			args: command.args,
 			cols: input.cols,
 			rows: input.rows,
+			launch: shellCommandLine(command),
 		});
 	},
 	write: (ownerId: number, sessionId: string, data: string) => {
@@ -141,7 +140,7 @@ function spawnSession(owner: WebContents, generation: number, input: SpawnInput)
 	}
 
 	const sessionId = randomUUID();
-	const terminal = spawn(input.file, input.args, {
+	const terminal = spawn(SHELL, shellArgs(SHELL, input.launch), {
 		name: "xterm-256color",
 		cols: input.cols,
 		rows: input.rows,

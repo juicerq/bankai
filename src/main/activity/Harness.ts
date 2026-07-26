@@ -7,15 +7,17 @@ export interface AgentPresence {
 	status: "working" | "waiting" | "idle";
 }
 
-export interface ResumeCommand {
+export interface HarnessCommand {
 	file: string;
 	args: string[];
 }
 
 export interface Harness {
 	id: string;
+	label: string;
 	discover: () => Promise<AgentPresence[]>;
-	resume?: (ref: { sessionId: string }) => ResumeCommand | null;
+	launch?: () => HarnessCommand;
+	resume?: (ref: { sessionId: string }) => HarnessCommand | null;
 	title?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
 	trace?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
 }

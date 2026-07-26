@@ -1,8 +1,21 @@
 import type { AgentPresence, Harness } from "@main/activity/Harness";
 import { ClaudeHarness } from "@main/activity/claude";
 import { Logger } from "@main/logger";
+import type { HarnessSettings } from "@main/store/settings";
 
 const harnesses: Harness[] = [ClaudeHarness];
+
+export const DEFAULT_HARNESS_SETTINGS: HarnessSettings = { autostart: true, id: ClaudeHarness.id };
+
+export function launchableHarnesses(): { id: string; label: string }[] {
+	return harnesses
+		.filter((harness) => harness.launch)
+		.map((harness) => ({ id: harness.id, label: harness.label }));
+}
+
+export function harnessLaunch(harnessId: string): Harness["launch"] {
+	return harnesses.find((harness) => harness.id === harnessId)?.launch;
+}
 
 export function harnessResume(harnessId: string): Harness["resume"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.resume;

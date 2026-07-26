@@ -134,7 +134,7 @@ test("a resumable shell attempts resume and shows no notice on success", async (
 	expect(openCalls).toBe(0);
 });
 
-test("a failed resume falls back to a plain shell and offers a single retry that can recover", async () => {
+test("a failed resume falls back to a new shell and offers a single retry that can recover", async () => {
 	resumeOutcomes = ["reject", "resolve"];
 	renderPane(true);
 

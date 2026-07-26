@@ -2,7 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { type } from "arktype";
-import type { AgentPresence, Harness, ResumeCommand } from "@main/activity/Harness";
+import type { AgentPresence, Harness, HarnessCommand } from "@main/activity/Harness";
 import { transcriptTrace } from "@main/activity/claudeTrace";
 import { transcriptTitle } from "@main/activity/claudeTranscript";
 
@@ -59,7 +59,11 @@ function sessionsDirectory(): string {
 
 export const ClaudeHarness: Harness = {
 	id: CLAUDE_HARNESS_ID,
-	resume(ref): ResumeCommand | null {
+	label: "Claude Code",
+	launch(): HarnessCommand {
+		return { file: "claude", args: [] };
+	},
+	resume(ref): HarnessCommand | null {
 		if (!CLAUDE_SESSION_ID.test(ref.sessionId)) {
 			return null;
 		}

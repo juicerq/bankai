@@ -1,4 +1,9 @@
-import { ArrowsPointingInIcon, ArrowsPointingOutIcon, ViewColumnsIcon } from "@heroicons/react/24/outline";
+import {
+	ArrowsPointingInIcon,
+	ArrowsPointingOutIcon,
+	Cog6ToothIcon,
+	ViewColumnsIcon,
+} from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
 import type { Project } from "@main/store/projects";
 import { UpdateButton } from "@renderer/routes/-components/update-button";
@@ -17,13 +22,13 @@ export function ProjectWorkspaceHeader({
 	reviewOpen: boolean;
 	onToggleReview: () => void;
 }) {
-	const { onToggleFullscreen } = useWorkspaceControl();
+	const { onToggleFullscreen, onOpenSettings } = useWorkspaceControl();
 
 	return (
 		<header className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised pr-[120px]">
 			<span className="min-w-0 flex-1 truncate px-3 text-body text-secondary">{project.name}</span>
 			{active && <UpdateButton />}
-			<ProjectWorkspaceHeaderToggle
+			<ProjectWorkspaceHeaderAction
 				className="border-l"
 				pressed={fullscreen}
 				label="Toggle focus mode"
@@ -31,9 +36,9 @@ export function ProjectWorkspaceHeader({
 				onClick={onToggleFullscreen}
 			>
 				{fullscreen ? <ArrowsPointingInIcon className="size-4" /> : <ArrowsPointingOutIcon className="size-4" />}
-			</ProjectWorkspaceHeaderToggle>
-			<ProjectWorkspaceHeaderToggle
-				className="border-x"
+			</ProjectWorkspaceHeaderAction>
+			<ProjectWorkspaceHeaderAction
+				className="border-l"
 				expanded={reviewOpen}
 				pressed={reviewOpen}
 				label="Toggle review panel"
@@ -41,12 +46,20 @@ export function ProjectWorkspaceHeader({
 				onClick={onToggleReview}
 			>
 				<ViewColumnsIcon className="size-4" />
-			</ProjectWorkspaceHeaderToggle>
+			</ProjectWorkspaceHeaderAction>
+			<ProjectWorkspaceHeaderAction
+				className="border-x"
+				label="Open settings"
+				title="Open settings"
+				onClick={onOpenSettings}
+			>
+				<Cog6ToothIcon className="size-4" />
+			</ProjectWorkspaceHeaderAction>
 		</header>
 	);
 }
 
-function ProjectWorkspaceHeaderToggle({
+function ProjectWorkspaceHeaderAction({
 	className,
 	pressed,
 	expanded,
@@ -56,7 +69,7 @@ function ProjectWorkspaceHeaderToggle({
 	children,
 }: {
 	className: string;
-	pressed: boolean;
+	pressed?: boolean;
 	expanded?: boolean;
 	label: string;
 	title: string;

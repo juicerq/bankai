@@ -16,6 +16,22 @@ export interface SessionRow {
 	trace: string | undefined;
 }
 
+const STOPPED_TRACE: Partial<Record<AgentActivityState, string>> = {
+	"needs-attention": "Waiting on you",
+	"done-unseen": "Done",
+};
+
+export function sessionTrace(
+	activity: AgentActivityState | undefined,
+	observed?: string,
+): string | undefined {
+	if (!activity) {
+		return undefined;
+	}
+
+	return STOPPED_TRACE[activity] ?? observed;
+}
+
 export function sessionRows(input: {
 	continuity: ContinuityValue;
 	projects: { id: string; name: string }[];
@@ -44,7 +60,7 @@ export function sessionRows(input: {
 				lastTouchedAt: shell.lastTouchedAt,
 				archivedAt: shell.archivedAt,
 				activity,
-				trace: activity ? input.traces.get(shell.id) : undefined,
+				trace: sessionTrace(activity, input.traces.get(shell.id)),
 			});
 		}
 	}

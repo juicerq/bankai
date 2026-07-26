@@ -19,6 +19,12 @@ Control characters are replaced with a **space**, not removed — replacing a ta
 
 The session card's trace slot is `traceByShellId`, and `sessionTraces` in `src/main/activity/AgentActivity.ts` fills it from two sources: the harness status wins, the scraped PTY line is what is left. A shell running Claude reads its status from the transcript; a plain shell has no harness and keeps the scraped line, which is what that source is actually good for.
 
+## Only a working agent is described by what it last did
+
+`sessionTrace` in `src/renderer/src/routes/-utils/session-rows.ts` overrides the observed trace for every state except `working`. A stopped agent's newest transcript block is always `text`, because a turn ends with the reply — so replaying it leaves "Writing…" pinned to a card that finished minutes ago. `needs-attention` says "Waiting on you" and `done-unseen` says "Done" instead.
+
+This is safe to key on activity alone: an activity state only exists for a shell bound to a live agent, so a plain shell never reaches those labels.
+
 ## What the scraped line is worth
 
 It is raw PTY text. A full-screen TUI redrawing its frame hands over whatever landed last, and for Claude that was observed to be a diff line number (`5`, `-7`), half a sentence, or a spinner frame — the label changed on every repaint. Scraping cannot be fixed by better filtering: the redraw emits no complete lines to pick from. Treat it as a hint for a plain shell, never as a fact about what an agent is doing.

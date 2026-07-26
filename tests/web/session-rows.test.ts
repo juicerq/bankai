@@ -6,6 +6,7 @@ import {
 	partitionSessions,
 	type SessionRow,
 	sessionRows,
+	sessionTrace,
 	successorRow,
 } from "@renderer/routes/-utils/session-rows";
 
@@ -152,6 +153,15 @@ describe("building the flat list", () => {
 		expect(row?.trace).toBeUndefined();
 	});
 
+	test("a stopped agent says so instead of replaying its last block", () => {
+		const stopped = {
+			workspaces: [{ projectId: "p1", shells: [{ id: "s1", label: "Shell 1", createdAt: 1 }] }],
+		};
+
+		expect(rowsOf(stopped, { s1: "needs-attention" }, { s1: "Writing…" })[0]?.trace).toBe("Waiting on you");
+		expect(rowsOf(stopped, { s1: "done-unseen" }, { s1: "Writing…" })[0]?.trace).toBe("Done");
+	});
+
 	test("the harness comes from the persisted session ref", () => {
 		const [row] = rowsOf({
 			workspaces: [
@@ -275,5 +285,25 @@ describe("choosing what takes the closed session's place", () => {
 
 	test("closing the last session anywhere leaves no successor", () => {
 		expect(successorRow([row("closing")], { projectId: "p1", shellId: "closing" })).toBeUndefined();
+	});
+});
+
+describe("choosing what the trace slot says", () => {
+	test("a working agent shows what it is doing", () => {
+		expect(sessionTrace("working", "Running commands…")).toBe("Running commands…");
+	});
+
+	test("a stopped agent names its state, whatever the transcript last held", () => {
+		expect(sessionTrace("needs-attention", "Writing…")).toBe("Waiting on you");
+		expect(sessionTrace("done-unseen", "Writing…")).toBe("Done");
+		expect(sessionTrace("done-unseen")).toBe("Done");
+	});
+
+	test("no activity means no trace, even with a line on hand", () => {
+		expect(sessionTrace(undefined, "vite ready in 412 ms")).toBeUndefined();
+	});
+
+	test("a working shell with nothing observed falls through", () => {
+		expect(sessionTrace("working")).toBeUndefined();
 	});
 });

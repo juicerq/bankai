@@ -62,7 +62,7 @@ jobs:
 
       - name: Build the package and refresh its metadata
         run: |
-          su builder -c 'cd /tmp/aur && updpkgsums && makepkg -f && makepkg --printsrcinfo > .SRCINFO'
+          su builder -c 'cd /tmp/aur && updpkgsums && makepkg -f --nodeps && makepkg --printsrcinfo > .SRCINFO'
           cp /tmp/aur/PKGBUILD /tmp/aur/.SRCINFO packaging/aur/
 
       - name: Push the recipe back to main

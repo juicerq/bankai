@@ -1,6 +1,6 @@
 {
 	"name": "bankai-2",
-	"version": "0.2.25",
+	"version": "0.2.26",
 	"private": true,
 	"description": "Focused Electron workspace for persistent project shell sessions",
 	"homepage": "https://github.com/juicerq/bankai-2",

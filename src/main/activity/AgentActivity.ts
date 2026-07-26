@@ -4,6 +4,7 @@ import { bindShells, childrenByParent } from "@main/activity/SessionBinder";
 import { discoverAgents } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
 import { reconcileSessionRefs, type SessionRef } from "@main/activity/SessionRefs";
+import { stampShell } from "@main/continuity/ShellFacts";
 import { GitProcess } from "@main/git/GitProcess";
 import { projectWorktrees } from "@main/git/ProjectWorktrees";
 import { ReviewChanges } from "@main/git/ReviewChanges";
@@ -12,8 +13,9 @@ import { worktreeContaining } from "@main/git/Worktrees";
 import { Logger } from "@main/logger";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
+import { shellOutputLines } from "@main/terminal/ShellOutputLines";
 import { TerminalSessions } from "@main/terminal/TerminalSessions";
-import { aggregateActivity, type AgentActivityState, type ProjectActivitySnapshot } from "@shared/activity";
+import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
 
 const ACTIVITY_POLL_MS = 1500;
 
@@ -164,10 +166,12 @@ export function snapshotsByProject({
 	shellStates,
 	owners,
 	worktrees,
+	lastLines,
 }: {
 	shellStates: Map<string, AgentActivityState>;
 	owners: Map<string, ShellOwner>;
 	worktrees: Map<string, string>;
+	lastLines: ReadonlyMap<string, string>;
 }): Map<string, ProjectActivitySnapshot> {
 	const projectIds = new Set<string>();
 	const shellsByProject = new Map<string, Record<string, AgentActivityState>>();
@@ -178,7 +182,7 @@ export function snapshotsByProject({
 		}
 
 		const grouped = shellsByProject.get(owner.projectId) ?? {};
-		grouped[sessionId] = state;
+		grouped[owner.shellId] = state;
 		shellsByProject.set(owner.projectId, grouped);
 		projectIds.add(owner.projectId);
 	}
@@ -199,10 +203,18 @@ export function snapshotsByProject({
 	const snapshots = new Map<string, ProjectActivitySnapshot>();
 	for (const projectId of projectIds) {
 		const shells = shellsByProject.get(projectId) ?? {};
+		const lastLineByShellId: Record<string, string> = {};
+		for (const shellId of Object.keys(shells)) {
+			const line = lastLines.get(shellId);
+			if (line) {
+				lastLineByShellId[shellId] = line;
+			}
+		}
+
 		snapshots.set(projectId, {
-			state: aggregateActivity(Object.values(shells)),
 			shells,
 			worktreeByShellId: worktreesByProject.get(projectId) ?? {},
+			lastLineByShellId,
 		});
 	}
 
@@ -222,18 +234,18 @@ function sameSnapshot(
 	before: ProjectActivitySnapshot | undefined,
 	after: ProjectActivitySnapshot | undefined,
 ): boolean {
-	if ((before?.state ?? null) !== (after?.state ?? null)) {
-		return false;
-	}
 	if (!sameRecord(before?.shells ?? {}, after?.shells ?? {})) {
 		return false;
 	}
+	if (!sameRecord(before?.worktreeByShellId ?? {}, after?.worktreeByShellId ?? {})) {
+		return false;
+	}
 
-	return sameRecord(before?.worktreeByShellId ?? {}, after?.worktreeByShellId ?? {});
+	return sameRecord(before?.lastLineByShellId ?? {}, after?.lastLineByShellId ?? {});
 }
 
 function emptySnapshot(): ProjectActivitySnapshot {
-	return { state: null, shells: {}, worktreeByShellId: {} };
+	return { shells: {}, worktreeByShellId: {}, lastLineByShellId: {} };
 }
 
 type ActivityListener = (snapshot: ProjectActivitySnapshot) => void;
@@ -473,7 +485,7 @@ class AgentActivityTracker {
 		const previousStates = this.shellStates;
 		const previousWorktrees = this.shellWorktrees;
 		const previous = this.projectSnapshots;
-		const nextSnapshots = snapshotsByProject({ shellStates, owners, worktrees });
+		const nextSnapshots = snapshotsByProject({ shellStates, owners, worktrees, lastLines: shellOutputLines });
 		this.shellStates = shellStates;
 		this.shellWorktrees = worktrees;
 		this.projectSnapshots = nextSnapshots;
@@ -488,6 +500,18 @@ class AgentActivityTracker {
 		for (const baseline of baselines) {
 			this.captureTurnBaseline(baseline).catch((err) =>
 				Logger.error("activity:turn-baseline-failed", { ...baseline.owner, err: String(err) }),
+			);
+		}
+
+		for (const sessionId of turnStartShells(previousStates, shellStates)) {
+			const owner = owners.get(sessionId);
+			if (!owner) {
+				continue;
+			}
+
+			const worktree = worktrees.get(owner.shellId);
+			stampShell({ ...owner, ...(worktree ? { cwd: worktree } : {}) }).catch((err) =>
+				Logger.error("activity:stamp-failed", { ...owner, err: String(err) }),
 			);
 		}
 

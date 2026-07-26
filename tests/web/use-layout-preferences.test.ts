@@ -18,6 +18,7 @@ describe("clampLayout", () => {
 			fullscreen: false,
 			reviewOpen: true,
 			treeOpen: true,
+			projectsOpen: false,
 		});
 	});
 
@@ -42,6 +43,7 @@ describe("clampLayout", () => {
 				fullscreen: true,
 				reviewOpen: false,
 				treeOpen: false,
+				projectsOpen: true,
 			}),
 		).toEqual({
 			railWidth: 300,
@@ -50,6 +52,7 @@ describe("clampLayout", () => {
 			fullscreen: true,
 			reviewOpen: false,
 			treeOpen: false,
+			projectsOpen: true,
 		});
 	});
 });

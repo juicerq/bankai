@@ -43,7 +43,6 @@ export function ProjectWorkspaceShells({
 						focusRequest={focusRequest}
 						resizeDeferred={resizeDeferred}
 						resumeOnMount={shells.resumableShellIds.has(tab.id)}
-						onSessionId={(sessionId) => shells.bindSession(tab.id, sessionId)}
 					/>
 				</div>
 			))}

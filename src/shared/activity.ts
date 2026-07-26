@@ -20,9 +20,9 @@ export function aggregateActivity(states: AgentActivityState[]): AgentActivitySt
 }
 
 export interface ProjectActivitySnapshot {
-	state: AgentActivityState | null;
 	shells: Record<string, AgentActivityState>;
 	worktreeByShellId: Record<string, string>;
+	lastLineByShellId: Record<string, string>;
 }
 
 export interface ActivityChangedEvent extends ProjectActivitySnapshot {

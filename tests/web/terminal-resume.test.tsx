@@ -56,7 +56,7 @@ window.bankaiTerminal = {
 };
 
 window.bankaiActivity = {
-	watch: async () => ({ state: null, shells: {}, worktreeByShellId: {} }),
+	watch: async () => ({ state: null, shells: {}, worktreeByShellId: {}, lastLineByShellId: {} }),
 	unwatch() {},
 	onChanged: () => () => {},
 	markViewed() {},
@@ -107,7 +107,6 @@ function renderPane(resumeOnMount: boolean) {
 			focusRequest={0}
 			resizeDeferred={false}
 			resumeOnMount={resumeOnMount}
-			onSessionId={() => {}}
 		/>,
 	);
 }

@@ -1,10 +1,20 @@
 import { type } from "arktype";
 import { Logger } from "@main/logger";
 import { Store } from "@main/store/Store";
+import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity";
 
 const sessionRefSchema = type({ harness: "string", sessionId: "string", cwd: "string" });
 
-const shellSchema = type({ id: "string", label: "string", "session?": sessionRefSchema });
+const shellSchema = type({
+	id: "string",
+	label: "string",
+	createdAt: "number",
+	"session?": sessionRefSchema,
+	"lastTouchedAt?": "number",
+	"branch?": "string",
+	"title?": "string",
+	"archivedAt?": "number",
+});
 
 const workspaceSchema = type({
 	projectId: "string",
@@ -29,7 +39,7 @@ const shellsWithoutCwdSchema = type({
 		"activeShellId?": "string",
 		shells: type({ id: "string", label: "string" }).array(),
 	}).array(),
-}).pipe((legacy): ContinuityValue => ({
+}).pipe((legacy) => ({
 	...legacy,
 	workspaces: legacy.workspaces.map((workspace) => ({
 		...workspace,
@@ -37,13 +47,52 @@ const shellsWithoutCwdSchema = type({
 	})),
 }));
 
+const shellsWithoutCreatedAtSchema = type({
+	"activeProjectId?": "string",
+	workspaces: type({
+		projectId: "string",
+		"activeShellId?": "string",
+		shells: type({
+			id: "string",
+			label: "string",
+			"session?": sessionRefSchema,
+			"lastTouchedAt?": "number",
+			"branch?": "string",
+			"title?": "string",
+		}).array(),
+	}).array(),
+}).pipe((legacy): ContinuityValue => ({
+	...legacy,
+	workspaces: legacy.workspaces.map((workspace) => ({
+		...workspace,
+		shells: workspace.shells.map((shell) => ({ ...shell, createdAt: shell.lastTouchedAt ?? 0 })),
+	})),
+}));
+
 const store = new Store({
 	name: "continuity",
-	version: 2,
+	version: 5,
 	contract: continuitySchema,
-	migrators: { 1: (raw) => shellsWithoutCwdSchema.assert(raw) },
+	migrators: {
+		1: (raw) => shellsWithoutCwdSchema.assert(raw),
+		2: (raw) => raw,
+		3: (raw) => raw,
+		4: (raw) => shellsWithoutCreatedAtSchema.assert(raw),
+	},
 	seed: (): ContinuityValue => ({ workspaces: [] }),
 });
+
+const listeners = new Set<(value: ContinuityValue) => void>();
+
+async function mutate(fn: (current: ContinuityValue) => ContinuityValue): Promise<ContinuityValue> {
+	const value = await store.mutate(fn);
+
+	for (const listener of listeners) {
+		listener(value);
+	}
+
+	return value;
+}
 
 function emptyValue(): ContinuityValue {
 	return { workspaces: [] };
@@ -76,6 +125,31 @@ function mapWorkspace(
 	};
 }
 
+function unarchived(shell: ContinuityShell): ContinuityShell {
+	const { archivedAt: _archivedAt, ...rest } = shell;
+
+	return { ...rest, lastTouchedAt: Date.now() };
+}
+
+function pinnedIfStale(shell: ContinuityShell): ContinuityShell {
+	const idleSince = shell.lastTouchedAt ?? shell.createdAt;
+	if (shell.archivedAt !== undefined || idleSince >= Date.now() - SESSION_AUTO_ARCHIVE_MS) {
+		return shell;
+	}
+
+	return { ...shell, archivedAt: idleSince };
+}
+
+function touchedShell(shell: ContinuityShell, input: { branch: string; title?: string }): ContinuityShell {
+	const touched: ContinuityShell = { ...shell, lastTouchedAt: Date.now(), branch: input.branch };
+	const title = shell.title ?? input.title;
+	if (title) {
+		touched.title = title;
+	}
+
+	return touched;
+}
+
 export const Continuity = {
 	load: async (): Promise<{ value: ContinuityValue; failed: boolean }> => {
 		try {
@@ -90,22 +164,33 @@ export const Continuity = {
 		}
 	},
 
-	activateProject: (projectId: string): Promise<ContinuityValue> =>
-		store.mutate((current) => ({ ...current, activeProjectId: projectId })),
+	subscribe: (listener: (value: ContinuityValue) => void): (() => void) => {
+		listeners.add(listener);
 
-	openShell: (input: { projectId: string; shell: ContinuityShell }): Promise<ContinuityValue> =>
-		store.mutate((current) =>
+		return () => {
+			listeners.delete(listener);
+		};
+	},
+
+	activateProject: (projectId: string): Promise<ContinuityValue> =>
+		mutate((current) => ({ ...current, activeProjectId: projectId })),
+
+	openShell: (input: {
+		projectId: string;
+		shell: Pick<ContinuityShell, "id" | "label">;
+	}): Promise<ContinuityValue> =>
+		mutate((current) =>
 			upsertWorkspace(current, input.projectId, (workspace) => {
 				const shells = workspace.shells.some((shell) => shell.id === input.shell.id)
 					? workspace.shells
-					: [...workspace.shells, input.shell];
+					: [...workspace.shells, { ...input.shell, createdAt: Date.now() }];
 
 				return { ...workspace, shells, activeShellId: input.shell.id };
 			}),
 		),
 
 	closeShell: (input: { projectId: string; shellId: string }): Promise<ContinuityValue> =>
-		store.mutate((current) =>
+		mutate((current) =>
 			mapWorkspace(current, input.projectId, (workspace) => {
 				const index = workspace.shells.findIndex((shell) => shell.id === input.shellId);
 				if (index === -1) {
@@ -129,26 +214,62 @@ export const Continuity = {
 			}),
 		),
 
-	moveShell: (input: { projectId: string; shellId: string; toIndex: number }): Promise<ContinuityValue> =>
-		store.mutate((current) =>
-			mapWorkspace(current, input.projectId, (workspace) => {
-				const others = workspace.shells.filter((shell) => shell.id !== input.shellId);
-				const moved = workspace.shells.filter((shell) => shell.id === input.shellId);
-
-				return {
-					...workspace,
-					shells: [...others.slice(0, input.toIndex), ...moved, ...others.slice(input.toIndex)],
-				};
-			}),
-		),
-
 	selectShell: (input: { projectId: string; shellId: string }): Promise<ContinuityValue> =>
-		store.mutate((current) =>
+		mutate((current) =>
 			mapWorkspace(current, input.projectId, (workspace) =>
 				workspace.shells.some((shell) => shell.id === input.shellId)
-					? { ...workspace, activeShellId: input.shellId }
+					? {
+						...workspace,
+						activeShellId: input.shellId,
+						shells: workspace.shells.map((shell) =>
+							shell.id === input.shellId ? pinnedIfStale(shell) : shell,
+						),
+					}
 					: workspace,
 			),
+		),
+
+	archiveShell: (input: { projectId: string; shellId: string }): Promise<ContinuityValue> =>
+		mutate((current) =>
+			mapWorkspace(current, input.projectId, (workspace) => ({
+				...workspace,
+				shells: workspace.shells.map((shell) =>
+					shell.id === input.shellId ? { ...shell, archivedAt: Date.now() } : shell,
+				),
+			})),
+		),
+
+	unarchiveShell: (input: { projectId: string; shellId: string }): Promise<ContinuityValue> =>
+		mutate((current) =>
+			mapWorkspace(current, input.projectId, (workspace) => ({
+				...workspace,
+				shells: workspace.shells.map((shell) => (shell.id === input.shellId ? unarchived(shell) : shell)),
+			})),
+		),
+
+	renameShell: (input: { projectId: string; shellId: string; title: string }): Promise<ContinuityValue> =>
+		mutate((current) =>
+			mapWorkspace(current, input.projectId, (workspace) => ({
+				...workspace,
+				shells: workspace.shells.map((shell) =>
+					shell.id === input.shellId ? { ...shell, title: input.title } : shell,
+				),
+			})),
+		),
+
+	touchShell: (input: {
+		projectId: string;
+		shellId: string;
+		branch: string;
+		title?: string;
+	}): Promise<ContinuityValue> =>
+		mutate((current) =>
+			mapWorkspace(current, input.projectId, (workspace) => ({
+				...workspace,
+				shells: workspace.shells.map((shell) =>
+					shell.id === input.shellId ? touchedShell(shell, input) : shell,
+				),
+			})),
 		),
 
 	setShellSession: (input: {
@@ -156,7 +277,7 @@ export const Continuity = {
 		shellId: string;
 		session: ContinuitySessionRef;
 	}): Promise<ContinuityValue> =>
-		store.mutate((current) =>
+		mutate((current) =>
 			mapWorkspace(current, input.projectId, (workspace) => ({
 				...workspace,
 				shells: workspace.shells.map((shell) =>
@@ -166,7 +287,7 @@ export const Continuity = {
 		),
 
 	clearShellSession: (input: { projectId: string; shellId: string }): Promise<ContinuityValue> =>
-		store.mutate((current) =>
+		mutate((current) =>
 			mapWorkspace(current, input.projectId, (workspace) => ({
 				...workspace,
 				shells: workspace.shells.map((shell) => {
@@ -180,17 +301,14 @@ export const Continuity = {
 			})),
 		),
 
-	shellSession: async (input: {
-		projectId: string;
-		shellId: string;
-	}): Promise<ContinuitySessionRef | undefined> => {
+	findShell: async (input: { projectId: string; shellId: string }): Promise<ContinuityShell | undefined> => {
 		const value = await store.read();
 		const workspace = value.workspaces.find((entry) => entry.projectId === input.projectId);
-		return workspace?.shells.find((shell) => shell.id === input.shellId)?.session;
+		return workspace?.shells.find((shell) => shell.id === input.shellId);
 	},
 
 	purgeProject: (projectId: string): Promise<ContinuityValue> =>
-		store.mutate((current) => {
+		mutate((current) => {
 			const workspaces = current.workspaces.filter((workspace) => workspace.projectId !== projectId);
 			if (current.activeProjectId === projectId) {
 				return { workspaces };

@@ -3,13 +3,19 @@ import { useCallback } from "react";
 const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
 
 export function useBankaiShortcuts({
-	projects,
-	onActivateProject,
 	onToggleFullscreen,
+	onNewShell,
+	onCloseShell,
+	onModifierHold,
+	onJumpToRow,
+	onJumpToWaiting,
 }: {
-	projects: { id: string }[];
-	onActivateProject: (projectId: string) => void;
 	onToggleFullscreen: () => void;
+	onNewShell: () => void;
+	onCloseShell: () => void;
+	onModifierHold: (held: boolean) => void;
+	onJumpToRow: (index: number) => void;
+	onJumpToWaiting: () => void;
 }) {
 	return useCallback(() => {
 		let leaderArmed = false;
@@ -17,15 +23,30 @@ export function useBankaiShortcuts({
 		const shortcutAction = (event: KeyboardEvent) => {
 			if (leaderArmed) {
 				leaderArmed = false;
-				if (event.code !== "KeyF") {
-					return;
+				if (event.code === "KeyF") {
+					return onToggleFullscreen;
+				}
+				if (event.code === "KeyT") {
+					return onNewShell;
+				}
+				if (event.code === "KeyX") {
+					return onCloseShell;
 				}
 
-				return onToggleFullscreen;
+				return;
+			}
+
+			if (event.altKey && !event.ctrlKey && !event.metaKey && /^Digit[1-9]$/.test(event.code)) {
+				const index = Number(event.code.slice(5)) - 1;
+				return () => onJumpToRow(index);
 			}
 
 			if (!event.ctrlKey || event.altKey || event.metaKey) {
 				return;
+			}
+
+			if (event.code === "Tab") {
+				return onJumpToWaiting;
 			}
 
 			if (event.code === "KeyX") {
@@ -34,19 +55,15 @@ export function useBankaiShortcuts({
 				};
 			}
 
-			if (!event.code.startsWith("Digit")) {
-				return;
-			}
-
-			const project = projects[Number(event.code.slice(5)) - 1];
-			return () => {
-				if (project) {
-					onActivateProject(project.id);
-				}
-			};
+			return;
 		};
 
 		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Alt") {
+				onModifierHold(true);
+				return;
+			}
+
 			if (MODIFIER_KEYS.has(event.key) || event.target instanceof HTMLInputElement) {
 				return;
 			}
@@ -60,15 +77,23 @@ export function useBankaiShortcuts({
 			event.stopPropagation();
 			action();
 		};
+		const handleKeyUp = (event: KeyboardEvent) => {
+			if (event.key === "Alt") {
+				onModifierHold(false);
+			}
+		};
 		const handleWindowBlur = () => {
 			leaderArmed = false;
+			onModifierHold(false);
 		};
 
 		window.addEventListener("keydown", handleKeyDown, true);
+		window.addEventListener("keyup", handleKeyUp, true);
 		window.addEventListener("blur", handleWindowBlur);
 		return () => {
 			window.removeEventListener("keydown", handleKeyDown, true);
+			window.removeEventListener("keyup", handleKeyUp, true);
 			window.removeEventListener("blur", handleWindowBlur);
 		};
-	}, [projects, onActivateProject, onToggleFullscreen]);
+	}, [onToggleFullscreen, onNewShell, onCloseShell, onModifierHold, onJumpToRow, onJumpToWaiting]);
 }

@@ -14,16 +14,14 @@ function shells(overrides: {
 	shellId?: string;
 	worktree?: string;
 	worktrees?: [string, string][];
-	sessionIds?: Record<string, string>;
 	activity?: [string, AgentActivityState][];
 }) {
 	return sharedWorktreeShells({
 		shellId: overrides.shellId ?? "shell-2",
 		worktree: overrides.worktree ?? PROJECT,
 		tabs: TABS,
-		sessionIds: overrides.sessionIds ?? { "shell-1": "session-1", "shell-2": "session-2" },
 		shellWorktrees: new Map(overrides.worktrees ?? [["shell-1", PROJECT], ["shell-2", PROJECT]]),
-		shellActivity: new Map(overrides.activity ?? [["session-1", "working"]]),
+		shellActivity: new Map(overrides.activity ?? [["shell-1", "working"]]),
 	});
 }
 
@@ -32,11 +30,11 @@ test("an agent working in the same worktree is named", () => {
 });
 
 test("an agent whose turn already ended still shares the worktree", () => {
-	expect(shells({ activity: [["session-1", "done-unseen"]] })).toEqual(["Shell 1"]);
+	expect(shells({ activity: [["shell-1", "done-unseen"]] })).toEqual(["Shell 1"]);
 });
 
 test("the focused shell never reports itself", () => {
-	expect(shells({ shellId: "shell-1", activity: [["session-1", "working"]] })).toEqual([]);
+	expect(shells({ shellId: "shell-1", activity: [["shell-1", "working"]] })).toEqual([]);
 });
 
 test("an agent in another worktree writes somewhere else", () => {
@@ -45,10 +43,6 @@ test("an agent in another worktree writes somewhere else", () => {
 
 test("a shell with no agent of its own changes nothing", () => {
 	expect(shells({ activity: [] })).toEqual([]);
-});
-
-test("a shell that never bound a session changes nothing", () => {
-	expect(shells({ sessionIds: { "shell-2": "session-2" } })).toEqual([]);
 });
 
 test("reading a worktree the focused shell does not work in reports nobody", () => {

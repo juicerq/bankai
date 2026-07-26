@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { setupActivityIpc } from "@main/activity/ipc";
+import { setupContinuityIpc } from "@main/continuity/ipc";
 import { GitProcess } from "@main/git/GitProcess";
 import { setupReviewIpc } from "@main/git/ipc";
 import { startOrpcServer } from "@main/ipc";
@@ -115,6 +116,7 @@ async function start() {
 		startOrpcServer();
 		setupReviewIpc();
 		setupActivityIpc();
+		setupContinuityIpc();
 		setupTerminalIpc();
 		setupWindowIpc();
 		setupUpdateIpc();

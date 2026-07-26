@@ -34,14 +34,6 @@ export const Projects = {
 	remove: async (id: string) => {
 		await store.mutate((current) => current.filter((project) => project.id !== id));
 	},
-	move: async (data: { projectId: string; toIndex: number }) => {
-		await store.mutate((current) => {
-			const others = current.filter((project) => project.id !== data.projectId);
-			const moved = current.filter((project) => project.id === data.projectId);
-
-			return [...others.slice(0, data.toIndex), ...moved, ...others.slice(data.toIndex)];
-		});
-	},
 	add: async (path: string): Promise<Project> => {
 		const normalizedPath = resolve(path);
 		const projects = await store.mutate((current) => {

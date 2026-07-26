@@ -1,17 +1,32 @@
 import { type } from "arktype";
+import { stampShell } from "@main/continuity/ShellFacts";
 import { GitProcess } from "@main/git/GitProcess";
 import { Logger } from "@main/logger";
 import { base } from "@main/router/_base";
-import { Continuity } from "@main/store/continuity";
+import { Continuity, type ContinuityValue } from "@main/store/continuity";
 
 const shellInput = type({ id: "string", label: "string" });
+
+async function stamped(
+	input: { projectId: string; shellId: string },
+	fallback: ContinuityValue,
+): Promise<ContinuityValue> {
+	return await stampShell(input).catch((err) => {
+		Logger.error("continuity:stamp-failed", { ...input, err: String(err) });
+		return fallback;
+	});
+}
 
 export const continuityRouter = {
 	get: base.handler(() => Continuity.load()),
 	activateProject: base.input(type({ projectId: "string" })).handler(({ input }) => Continuity.activateProject(input.projectId)),
 	openShell: base
 		.input(type({ projectId: "string", shell: shellInput }))
-		.handler(({ input }) => Continuity.openShell(input)),
+		.handler(async ({ input }) => {
+			const opened = await Continuity.openShell(input);
+
+			return await stamped({ projectId: input.projectId, shellId: input.shell.id }, opened);
+		}),
 	closeShell: base
 		.input(type({ projectId: "string", shellId: "string" }))
 		.handler(({ input }) => {
@@ -21,10 +36,20 @@ export const continuityRouter = {
 
 			return Continuity.closeShell(input);
 		}),
-	moveShell: base
-		.input(type({ projectId: "string", shellId: "string", toIndex: "number" }))
-		.handler(({ input }) => Continuity.moveShell(input)),
+	renameShell: base
+		.input(type({ projectId: "string", shellId: "string", title: "string > 0" }))
+		.handler(({ input }) => Continuity.renameShell(input)),
+	archiveShell: base
+		.input(type({ projectId: "string", shellId: "string" }))
+		.handler(({ input }) => Continuity.archiveShell(input)),
+	unarchiveShell: base
+		.input(type({ projectId: "string", shellId: "string" }))
+		.handler(({ input }) => Continuity.unarchiveShell(input)),
 	selectShell: base
 		.input(type({ projectId: "string", shellId: "string" }))
-		.handler(({ input }) => Continuity.selectShell(input)),
+		.handler(async ({ input }) => {
+			const selected = await Continuity.selectShell(input);
+
+			return await stamped(input, selected);
+		}),
 };

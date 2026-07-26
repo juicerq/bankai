@@ -6,19 +6,17 @@ const PROJECT = "/home/jui/projects/bankai-2";
 
 test("a shell's state reaches the worktree its agent runs in", () => {
 	const activity = worktreeActivity({
-		sessionIds: { "shell-1": "session-a" },
 		shellWorktrees: new Map([["shell-1", SOLO]]),
-		shellActivity: new Map([["session-a", "working"]]),
+		shellActivity: new Map([["shell-1", "working"]]),
 	});
 
 	expect(activity.get(SOLO)).toBe("working");
 });
 
-test("a shell with no session yet leaves its worktree unsignalled", () => {
+test("a shell with no live agent leaves its worktree unsignalled", () => {
 	const activity = worktreeActivity({
-		sessionIds: {},
 		shellWorktrees: new Map([["shell-1", SOLO]]),
-		shellActivity: new Map([["session-a", "working"]]),
+		shellActivity: new Map(),
 	});
 
 	expect(activity.size).toBe(0);
@@ -26,14 +24,13 @@ test("a shell with no session yet leaves its worktree unsignalled", () => {
 
 test("shells sharing a worktree report the state that asks for a human", () => {
 	const activity = worktreeActivity({
-		sessionIds: { "shell-1": "session-a", "shell-2": "session-b" },
 		shellWorktrees: new Map([
 			["shell-1", PROJECT],
 			["shell-2", PROJECT],
 		]),
 		shellActivity: new Map([
-			["session-a", "working"],
-			["session-b", "needs-attention"],
+			["shell-1", "working"],
+			["shell-2", "needs-attention"],
 		]),
 	});
 

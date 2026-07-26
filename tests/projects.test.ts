@@ -24,18 +24,4 @@ describe("projects", () => {
 		expect(stored[0]?.name).toBe("workspace");
 	});
 
-	it("persists the order a project was dropped into", async () => {
-		const dataDir = process.env.DATA_DIR;
-		assertDefined(dataDir);
-		for (const name of ["alpha", "beta", "gamma"]) {
-			mkdirSync(join(dataDir, name));
-			await Projects.add(join(dataDir, name));
-		}
-
-		const gamma = (await Projects.list())[2];
-		assertDefined(gamma);
-		await Projects.move({ projectId: gamma.id, toIndex: 0 });
-
-		expect((await Projects.list()).map((project) => project.name)).toEqual(["gamma", "alpha", "beta"]);
-	});
 });

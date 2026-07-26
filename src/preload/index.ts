@@ -6,6 +6,7 @@ import type {
 	TerminalExitEvent,
 } from "@shared/terminal";
 import { ACTIVITY_IPC, type ActivityChangedEvent, type BankaiActivityApi } from "@shared/activity";
+import { CONTINUITY_IPC, type BankaiContinuityApi, type ContinuityChangedEvent } from "@shared/continuity";
 import { REVIEW_IPC, type BankaiReviewApi, type ReviewChangedEvent } from "@shared/review";
 import { UPDATE_IPC, type BankaiUpdateApi, type UpdateDownloadedEvent } from "@shared/update";
 import type { BankaiWindowApi } from "@shared/window";
@@ -90,6 +91,19 @@ const activityApi: BankaiActivityApi = {
 };
 
 contextBridge.exposeInMainWorld("bankaiActivity", activityApi);
+
+const continuityApi: BankaiContinuityApi = {
+	subscribe: () => ipcRenderer.send(CONTINUITY_IPC.subscribe),
+	onChanged: (listener) => {
+		const handler = (_event: Electron.IpcRendererEvent, payload: ContinuityChangedEvent) => {
+			listener(payload);
+		};
+		ipcRenderer.on(CONTINUITY_IPC.changed, handler);
+		return () => ipcRenderer.removeListener(CONTINUITY_IPC.changed, handler);
+	},
+};
+
+contextBridge.exposeInMainWorld("bankaiContinuity", continuityApi);
 
 const updateApi: BankaiUpdateApi = {
 	getPending: () => ipcRenderer.invoke(UPDATE_IPC.getPending),

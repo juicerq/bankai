@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
-import { ProjectRail } from "@renderer/routes/-components/project-rail";
+import { ProjectFooter } from "@renderer/routes/-components/project-footer";
 import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
 import {
 	DEFAULT_RAIL_WIDTH,
@@ -65,18 +65,17 @@ function RailResizeHarness() {
 			<button type="button" data-component="fullscreen-toggle" onClick={() => projectRail.toggleFullscreen()} />
 			<span data-component="rail-width" data-value={railWidth} />
 			<ProjectRailFrame projectRail={projectRail} divider={railDivider} frameRef={railFrameRef} railWidth={railWidth}>
-				<ProjectRail
+				<ProjectFooter
 					projects={projects}
-					activity={new Map()}
 					loading={false}
-					selectedId="bankai"
-					onSelect={() => {}}
+					open
+					shellCounts={new Map()}
+					onToggle={() => {}}
+					onOpenProject={() => {}}
 					onAdd={() => {}}
 					onOpenDirectory={() => {}}
 					onRemove={() => {}}
-					onMove={() => {}}
-					onMenuOpenChange={projectRail.setMenuOpen}
-					onDragActiveChange={projectRail.setDragging}
+					onOverlayChange={projectRail.setMenuOpen}
 				/>
 			</ProjectRailFrame>
 		</main>

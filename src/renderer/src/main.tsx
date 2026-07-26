@@ -3,6 +3,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@renderer/lib/api";
+import { installContinuityPush } from "@renderer/lib/continuity-push";
 import { installLoggerBridge } from "@renderer/lib/logger-bridge";
 import { installReviewPrewarm } from "@renderer/lib/prewarm-reviews";
 import { queryClient } from "@renderer/lib/query-client";
@@ -11,6 +12,7 @@ import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-utils/review-scope";
 import "@renderer/styles.css";
 
 installLoggerBridge();
+installContinuityPush({ queryClient });
 installReviewPrewarm({ queryClient, mode: DEFAULT_REVIEW_MODE });
 
 const rootElement = document.querySelector("#root");

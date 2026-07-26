@@ -16,7 +16,6 @@ export function TerminalPane({
 	focusRequest,
 	resizeDeferred,
 	resumeOnMount,
-	onSessionId,
 }: {
 	projectId: string;
 	shellId: string;
@@ -24,7 +23,6 @@ export function TerminalPane({
 	focusRequest: number;
 	resizeDeferred: boolean;
 	resumeOnMount: boolean;
-	onSessionId: (sessionId: string) => void;
 }) {
 	const [resumeState, setResumeState] = useState<ResumeState>(() => initialResumeState(resumeOnMount));
 	const handleResumeOutcome = useCallback((outcome: ResumeOutcome) => {
@@ -37,7 +35,6 @@ export function TerminalPane({
 			focusRequest,
 			resizeDeferred,
 			resumeOnMount,
-			onSessionId,
 			onResumeOutcome: handleResumeOutcome,
 		});
 	const handleRetry = useCallback(() => {

@@ -10,25 +10,38 @@ export function useContinuity() {
 	const { mutate: activate } = useMutation(orpc.continuity.activateProject.mutationOptions());
 	const { mutate: open } = useMutation(orpc.continuity.openShell.mutationOptions());
 	const { mutate: close } = useMutation(orpc.continuity.closeShell.mutationOptions());
-	const { mutate: move } = useMutation(orpc.continuity.moveShell.mutationOptions());
 	const { mutate: select } = useMutation(orpc.continuity.selectShell.mutationOptions());
+	const { mutate: rename } = useMutation(orpc.continuity.renameShell.mutationOptions());
+	const { mutate: archive } = useMutation(orpc.continuity.archiveShell.mutationOptions());
+	const { mutate: unarchive } = useMutation(orpc.continuity.unarchiveShell.mutationOptions());
 
 	const activateProject = useCallback((projectId: string) => activate({ projectId }), [activate]);
 	const openShell = useCallback(
-		(projectId: string, shell: ContinuityShell) => open({ projectId, shell }),
+		(projectId: string, shell: Pick<ContinuityShell, "id" | "label">) => open({ projectId, shell }),
 		[open],
 	);
 	const closeShell = useCallback(
 		(projectId: string, shellId: string) => close({ projectId, shellId }),
 		[close],
 	);
-	const moveShell = useCallback(
-		(projectId: string, shellId: string, toIndex: number) => move({ projectId, shellId, toIndex }),
-		[move],
-	);
 	const selectShell = useCallback(
 		(projectId: string, shellId: string) => select({ projectId, shellId }),
 		[select],
+	);
+
+	const renameShell = useCallback(
+		(projectId: string, shellId: string, title: string) => rename({ projectId, shellId, title }),
+		[rename],
+	);
+
+	const archiveShell = useCallback(
+		(projectId: string, shellId: string) => archive({ projectId, shellId }),
+		[archive],
+	);
+
+	const unarchiveShell = useCallback(
+		(projectId: string, shellId: string) => unarchive({ projectId, shellId }),
+		[unarchive],
 	);
 
 	return {
@@ -37,7 +50,9 @@ export function useContinuity() {
 		activateProject,
 		openShell,
 		closeShell,
-		moveShell,
 		selectShell,
+		renameShell,
+		archiveShell,
+		unarchiveShell,
 	};
 }

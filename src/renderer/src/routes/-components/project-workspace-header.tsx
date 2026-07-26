@@ -1,43 +1,27 @@
 import { ArrowsPointingInIcon, ArrowsPointingOutIcon, ViewColumnsIcon } from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
 import type { Project } from "@main/store/projects";
-import { ActivityIndicator } from "@renderer/routes/-components/activity-indicator";
-import { ProjectWorkspaceShellTabs } from "@renderer/routes/-components/project-workspace-shell-tabs";
 import { UpdateButton } from "@renderer/routes/-components/update-button";
-import { useWorkspaceAgents, useWorkspaceControl } from "@renderer/routes/-utils/workspace-context";
-import type { useShellTabs } from "@renderer/routes/-utils/use-shell-tabs";
+import { useWorkspaceControl } from "@renderer/routes/-utils/workspace-context";
 
 export function ProjectWorkspaceHeader({
 	project,
-	shells,
 	active,
 	fullscreen,
 	reviewOpen,
 	onToggleReview,
 }: {
 	project: Project;
-	shells: ReturnType<typeof useShellTabs>;
 	active: boolean;
 	fullscreen: boolean;
 	reviewOpen: boolean;
 	onToggleReview: () => void;
 }) {
-	const { projects, onToggleFullscreen } = useWorkspaceControl();
-	const agents = useWorkspaceAgents();
+	const { onToggleFullscreen } = useWorkspaceControl();
 
 	return (
 		<header className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised pr-[120px]">
-			{active && fullscreen && <ActivityIndicator projects={projects} activeProjectId={project.id} />}
-			<ProjectWorkspaceShellTabs
-				tabs={shells.tabs}
-				activeTabId={shells.activeTabId}
-				shellActivity={agents.shells}
-				sessionIds={shells.sessionIds}
-				onSelect={shells.selectTab}
-				onClose={shells.closeTab}
-				onMove={shells.moveTab}
-				onNew={shells.openTab}
-			/>
+			<span className="min-w-0 flex-1 truncate px-3 text-body text-secondary">{project.name}</span>
 			{active && <UpdateButton />}
 			<ProjectWorkspaceHeaderToggle
 				className="border-l"

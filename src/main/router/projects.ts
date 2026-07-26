@@ -30,10 +30,6 @@ export const projectsRouter = {
 		await Projects.remove(input.projectId);
 		await Continuity.purgeProject(input.projectId);
 	}),
-	move: base.input(type({ projectId: "string", toIndex: "number" })).handler(async ({ input }) => {
-		await Projects.find(input.projectId);
-		await Projects.move(input);
-	}),
 	chooseDirectory: base.handler(async () => {
 		const result = await dialog.showOpenDialog({
 			properties: ["openDirectory"],

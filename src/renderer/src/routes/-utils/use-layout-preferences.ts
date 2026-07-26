@@ -17,6 +17,7 @@ export interface LayoutPreferences {
 	fullscreen: boolean;
 	reviewOpen: boolean;
 	treeOpen: boolean;
+	projectsOpen: boolean;
 }
 
 export function clampLayout(stored: LayoutSettings | null): LayoutPreferences {
@@ -27,6 +28,7 @@ export function clampLayout(stored: LayoutSettings | null): LayoutPreferences {
 		fullscreen: stored?.fullscreen ?? false,
 		reviewOpen: stored?.reviewOpen ?? true,
 		treeOpen: stored?.treeOpen ?? true,
+		projectsOpen: stored?.projectsOpen ?? false,
 	};
 }
 

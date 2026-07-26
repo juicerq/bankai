@@ -37,7 +37,6 @@ export function useTerminalSession(options: {
 	focusRequest: number;
 	resizeDeferred: boolean;
 	resumeOnMount: boolean;
-	onSessionId: (sessionId: string) => void;
 	onResumeOutcome: (outcome: ResumeOutcome) => void;
 }) {
 	const { projectId, shellId, focusRequest, resizeDeferred, resumeOnMount } = options;
@@ -48,8 +47,6 @@ export function useTerminalSession(options: {
 	resizeDeferredRef.current = resizeDeferred;
 	const resumeOnMountRef = useRef(resumeOnMount);
 	resumeOnMountRef.current = resumeOnMount;
-	const onSessionIdRef = useRef(options.onSessionId);
-	onSessionIdRef.current = options.onSessionId;
 	const onResumeOutcomeRef = useRef(options.onResumeOutcome);
 	onResumeOutcomeRef.current = options.onResumeOutcome;
 	const registerContainer = useCallback((container: HTMLDivElement | null) => {
@@ -64,7 +61,6 @@ export function useTerminalSession(options: {
 				shellId,
 				resume: resumeOnMountRef.current,
 				resizeDeferred: resizeDeferredRef.current,
-				onSessionId: (sessionId) => onSessionIdRef.current(sessionId),
 				onResumeOutcome: (outcome) => onResumeOutcomeRef.current(outcome),
 			});
 			sessionRef.current = session;
@@ -117,7 +113,6 @@ interface RendererTerminalOptions {
 	shellId: string;
 	resume: boolean;
 	resizeDeferred: boolean;
-	onSessionId: (sessionId: string) => void;
 	onResumeOutcome: (outcome: ResumeOutcome) => void;
 }
 
@@ -276,7 +271,6 @@ export class RendererTerminalSession {
 		}
 
 		this.sessionId = sessionId;
-		this.options.onSessionId(sessionId);
 		this.syncProcessDimensions();
 		if (this.active) {
 			this.terminal.focus();

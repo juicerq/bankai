@@ -65,7 +65,7 @@ window.bankaiTerminal = {
 };
 
 window.bankaiActivity = {
-	watch: async () => ({ state: null, shells: {}, worktreeByShellId: {} }),
+	watch: async () => ({ state: null, shells: {}, worktreeByShellId: {}, lastLineByShellId: {} }),
 	unwatch() {},
 	onChanged: () => () => {},
 	markViewed() {},
@@ -102,7 +102,6 @@ async function startSession() {
 		shellId: "shell-1",
 		resume: false,
 		resizeDeferred: false,
-		onSessionId: () => {},
 		onResumeOutcome: () => {},
 	});
 	await new Promise((resolve) => setTimeout(resolve, 0));

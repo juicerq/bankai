@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import type { Project } from "@main/store/projects";
 import { ProjectWorkspaceHeader } from "@renderer/routes/-components/project-workspace-header";
 import { ProjectWorkspaceShells } from "@renderer/routes/-components/project-workspace-shells";
@@ -40,7 +40,6 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		restoredActiveShellId,
 		onShellOpen: control.onShellOpen,
 		onShellClose: control.onShellClose,
-		onShellMove: control.onShellMove,
 		onShellSelect: control.onShellSelect,
 	});
 	const geometry = useReviewGeometry({
@@ -58,24 +57,38 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 
 	const registerWorkspaceShortcuts = useProjectWorkspaceShortcuts({
 		active,
-		tabs: shells.tabs,
-		activeTabId: shells.activeTabId,
-		onActivateTab: shells.selectTab,
-		onCloseTab: shells.closeTab,
-		onNewTab: shells.openTab,
 		onToggleReview: handleToggleReview,
 	});
+	const commands = useMemo(
+		() => ({ selectShell: shells.selectTab, openShell: shells.openTab, closeShell: shells.closeTab }),
+		[shells.selectTab, shells.openTab, shells.closeTab],
+	);
+	const registerWorkspace = useCallback(
+		(node: HTMLElement | null) => {
+			if (!node) {
+				return;
+			}
+
+			const stopShortcuts = registerWorkspaceShortcuts();
+			const stopCommands = control.registerWorkspace(project.id, commands);
+
+			return () => {
+				stopShortcuts();
+				stopCommands();
+			};
+		},
+		[commands, control.registerWorkspace, project.id, registerWorkspaceShortcuts],
+	);
 
 	return (
 		<section
-			ref={registerWorkspaceShortcuts}
+			ref={registerWorkspace}
 			className={`col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col ${active ? "" : "invisible"}`}
 			aria-label={`${project.name} workspace`}
 		>
 			<span ref={shells.registerDefaultShell} hidden />
 			<ProjectWorkspaceHeader
 				project={project}
-				shells={shells}
 				active={active}
 				fullscreen={fullscreen}
 				reviewOpen={reviewOpen}
@@ -105,7 +118,6 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 						project={project}
 						shellId={shells.activeTabId}
 						tabs={shells.tabs}
-						sessionIds={shells.sessionIds}
 						treeOpen={treeOpen}
 						treeDivider={geometry.treeDivider}
 					/>

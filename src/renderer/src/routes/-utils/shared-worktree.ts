@@ -5,14 +5,12 @@ export function sharedWorktreeShells({
 	shellId,
 	worktree,
 	tabs,
-	sessionIds,
 	shellWorktrees,
 	shellActivity,
 }: {
 	shellId?: string;
 	worktree: string;
 	tabs: ShellTab[];
-	sessionIds: Record<string, string>;
 	shellWorktrees: ReadonlyMap<string, string>;
 	shellActivity: ReadonlyMap<string, AgentActivityState>;
 }): string[] {
@@ -21,13 +19,10 @@ export function sharedWorktreeShells({
 	}
 
 	return tabs
-		.filter((tab) => {
-			const sessionId = sessionIds[tab.id];
-
-			return tab.id !== shellId
-				&& shellWorktrees.get(tab.id) === worktree
-				&& !!sessionId
-				&& shellActivity.has(sessionId);
-		})
+		.filter((tab) =>
+			tab.id !== shellId
+			&& shellWorktrees.get(tab.id) === worktree
+			&& shellActivity.has(tab.id),
+		)
 		.map((tab) => tab.label);
 }

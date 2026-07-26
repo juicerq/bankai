@@ -229,17 +229,18 @@ describe("project snapshots", () => {
 		return new Map<string, AgentActivityState>(Object.entries(entries));
 	}
 
-	test("gathers a project's shells under it and aggregates their states", () => {
+	test("gathers a project's shells under it", () => {
 		const snapshots = snapshotsByProject({
 			shellStates: states({ "session-a": "working", "session-b": "needs-attention" }),
 			owners,
 			worktrees: new Map(),
+			lastLines: new Map(),
 		});
 
 		expect(snapshots.get("p1")).toEqual({
-			state: "needs-attention",
-			shells: { "session-a": "working", "session-b": "needs-attention" },
+			shells: { "shell-a": "working", "shell-b": "needs-attention" },
 			worktreeByShellId: {},
+			lastLineByShellId: {},
 		});
 	});
 
@@ -248,13 +249,14 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working", "session-c": "done-unseen" }),
 			owners,
 			worktrees: new Map(),
+			lastLines: new Map(),
 		});
 
 		expect([...snapshots.keys()].sort()).toEqual(["p1", "p2"]);
 		expect(snapshots.get("p2")).toEqual({
-			state: "done-unseen",
-			shells: { "session-c": "done-unseen" },
+			shells: { "shell-c": "done-unseen" },
 			worktreeByShellId: {},
+			lastLineByShellId: {},
 		});
 	});
 
@@ -263,24 +265,37 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working", "session-loose": "working" }),
 			owners,
 			worktrees: new Map(),
+			lastLines: new Map(),
 		});
 
 		expect(snapshots.size).toBe(1);
-		expect(snapshots.get("p1")?.shells).toEqual({ "session-a": "working" });
+		expect(snapshots.get("p1")?.shells).toEqual({ "shell-a": "working" });
 	});
 
-	test("indexes worktrees by shell while states stay keyed by session", () => {
+	test("keys both states and worktrees by the persistent shell id", () => {
 		const snapshots = snapshotsByProject({
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map([["shell-a", "/tmp/repo-slug"]]),
+			lastLines: new Map(),
 		});
 
 		expect(snapshots.get("p1")).toEqual({
-			state: "working",
-			shells: { "session-a": "working" },
+			shells: { "shell-a": "working" },
 			worktreeByShellId: { "shell-a": "/tmp/repo-slug" },
+			lastLineByShellId: {},
 		});
+	});
+
+	test("a shell with no live agent gets no entry under its own id", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: states({ "session-a": "working" }),
+			owners,
+			worktrees: new Map(),
+			lastLines: new Map(),
+		});
+
+		expect(snapshots.get("p1")?.shells["shell-b"]).toBeUndefined();
 	});
 
 	test("a project whose only news is a worktree still gets a snapshot", () => {
@@ -288,17 +303,29 @@ describe("project snapshots", () => {
 			shellStates: new Map(),
 			owners,
 			worktrees: new Map([["shell-c", "/tmp/repo-slug"]]),
+			lastLines: new Map(),
 		});
 
 		expect(snapshots.get("p2")).toEqual({
-			state: null,
 			shells: {},
 			worktreeByShellId: { "shell-c": "/tmp/repo-slug" },
+			lastLineByShellId: {},
 		});
 	});
 
+	test("the last output line rides along for a shell that has activity", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: states({ "session-a": "working" }),
+			owners,
+			worktrees: new Map(),
+			lastLines: new Map([["shell-a", "Running bun run check"], ["shell-b", "vite ready in 412 ms"]]),
+		});
+
+		expect(snapshots.get("p1")?.lastLineByShellId).toEqual({ "shell-a": "Running bun run check" });
+	});
+
 	test("no bound shells means no snapshots at all", () => {
-		expect(snapshotsByProject({ shellStates: new Map(), owners, worktrees: new Map() }).size).toBe(0);
+		expect(snapshotsByProject({ shellStates: new Map(), owners, worktrees: new Map(), lastLines: new Map() }).size).toBe(0);
 	});
 });
 

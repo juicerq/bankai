@@ -1,11 +1,10 @@
 import { createContext, type ReactNode, use } from "react";
-import type { Project } from "@main/store/projects";
 import type { LayoutSettings } from "@main/store/settings";
 import type { AgentActivities } from "@renderer/routes/-utils/use-agent-activity";
+import type { WorkspaceCommands } from "@renderer/routes/-utils/use-session-commands";
 import type { ShellTab } from "@renderer/routes/-utils/shell-topology";
 
 interface WorkspaceControl {
-	projects: Project[];
 	initialDiffWidth: number;
 	initialTreeWidth: number;
 	onToggleFullscreen: () => void;
@@ -14,8 +13,8 @@ interface WorkspaceControl {
 	onTreeOpenChange: (open: boolean) => void;
 	onShellOpen: (projectId: string, shell: ShellTab) => void;
 	onShellClose: (projectId: string, shellId: string) => void;
-	onShellMove: (projectId: string, shellId: string, toIndex: number) => void;
 	onShellSelect: (projectId: string, shellId: string) => void;
+	registerWorkspace: (projectId: string, commands: WorkspaceCommands) => () => void;
 }
 
 const WorkspaceControlContext = createContext<WorkspaceControl | null>(null);

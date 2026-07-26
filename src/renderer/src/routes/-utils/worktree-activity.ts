@@ -1,20 +1,17 @@
 import { aggregateActivity, type AgentActivityState } from "@shared/activity";
 
 export function worktreeActivity({
-	sessionIds,
 	shellWorktrees,
 	shellActivity,
 }: {
-	sessionIds: Record<string, string>;
 	shellWorktrees: ReadonlyMap<string, string>;
 	shellActivity: ReadonlyMap<string, AgentActivityState>;
 }): ReadonlyMap<string, AgentActivityState> {
 	const grouped = new Map<string, AgentActivityState[]>();
 
-	for (const [shellId, sessionId] of Object.entries(sessionIds)) {
-		const worktree = shellWorktrees.get(shellId);
-		const state = shellActivity.get(sessionId);
-		if (worktree === undefined || state === undefined) {
+	for (const [shellId, worktree] of shellWorktrees) {
+		const state = shellActivity.get(shellId);
+		if (state === undefined) {
 			continue;
 		}
 

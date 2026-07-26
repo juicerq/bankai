@@ -7,6 +7,8 @@ import { Logger } from "@main/logger";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { terminalEnv } from "@main/terminal/env";
+import { forgetShellOutput, noteShellOutput } from "@main/terminal/ShellOutputLines";
+import { forgetShellTitle, noteShellTitle } from "@main/terminal/ShellTitles";
 import { TerminalDataBuffer } from "@main/terminal/TerminalDataBuffer";
 import type { TerminalEvent, TerminalExitEvent } from "@shared/terminal";
 
@@ -65,7 +67,8 @@ export const TerminalSessions = {
 		input: { projectId: string; shellId: string; cols: number; rows: number },
 	): Promise<string> => {
 		const generation = ownerGenerations.get(owner.id) || 0;
-		const session = await Continuity.shellSession({ projectId: input.projectId, shellId: input.shellId });
+		const shell = await Continuity.findShell({ projectId: input.projectId, shellId: input.shellId });
+		const session = shell?.session;
 		if (!session) {
 			throw new Error("No resumable agent session for this shell");
 		}
@@ -158,11 +161,15 @@ function spawnSession(owner: WebContents, generation: number, input: SpawnInput)
 
 	terminal.onData((data) => {
 		AgentActivity.noteData(sessionId, data);
+		noteShellTitle(input.shellId, data);
+		noteShellOutput(input.shellId, data);
 		output.append(data);
 	});
 	terminal.onExit(({ exitCode }) => {
 		output.dispose();
 		const spontaneous = sessions.delete(sessionId);
+		forgetShellTitle(input.shellId);
+		forgetShellOutput(input.shellId);
 		if (spontaneous) {
 			Continuity.clearShellSession({ projectId: input.projectId, shellId: input.shellId }).catch((err) =>
 				Logger.error("terminal:exit-clear-session-failed", { sessionId, err: String(err) }),

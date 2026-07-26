@@ -16,6 +16,7 @@ export const layoutSchema = type({
 	"fullscreen?": "boolean",
 	"reviewOpen?": "boolean",
 	"treeOpen?": "boolean",
+	"projectsOpen?": "boolean",
 });
 export type LayoutSettings = typeof layoutSchema.infer;
 

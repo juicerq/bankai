@@ -2,15 +2,15 @@ import { useMemo, useSyncExternalStore } from "react";
 import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
 
 export interface AgentActivities {
-	projects: ReadonlyMap<string, AgentActivityState>;
 	shells: ReadonlyMap<string, AgentActivityState>;
 	worktrees: ReadonlyMap<string, string>;
+	lastLines: ReadonlyMap<string, string>;
 }
 
 const EMPTY_ACTIVITIES: AgentActivities = {
-	projects: new Map(),
 	shells: new Map(),
 	worktrees: new Map(),
+	lastLines: new Map(),
 };
 
 export function useAgentActivities(projectIds: string[]): AgentActivities {
@@ -28,6 +28,7 @@ class AgentActivityObserver {
 	private notify: (() => void) | undefined;
 	private readonly shellKeys = new Map<string, string[]>();
 	private readonly worktreeKeys = new Map<string, string[]>();
+	private readonly lastLineKeys = new Map<string, string[]>();
 
 	constructor(private readonly projectIds: string[]) {}
 
@@ -52,6 +53,7 @@ class AgentActivityObserver {
 			this.notify = undefined;
 			this.shellKeys.clear();
 			this.worktreeKeys.clear();
+			this.lastLineKeys.clear();
 			for (const projectId of this.projectIds) {
 				window.bankaiActivity.unwatch(projectId);
 			}
@@ -59,13 +61,6 @@ class AgentActivityObserver {
 	};
 
 	private set(projectId: string, snapshot: ProjectActivitySnapshot) {
-		const projects = new Map(this.snapshot.projects);
-		if (snapshot.state === null) {
-			projects.delete(projectId);
-		} else {
-			projects.set(projectId, snapshot.state);
-		}
-
 		const shellStates = new Map(this.snapshot.shells);
 		for (const sessionId of this.shellKeys.get(projectId) ?? []) {
 			shellStates.delete(sessionId);
@@ -84,7 +79,16 @@ class AgentActivityObserver {
 		}
 		this.worktreeKeys.set(projectId, Object.keys(snapshot.worktreeByShellId));
 
-		this.snapshot = { projects, shells: shellStates, worktrees };
+		const lastLines = new Map(this.snapshot.lastLines);
+		for (const shellId of this.lastLineKeys.get(projectId) ?? []) {
+			lastLines.delete(shellId);
+		}
+		for (const [shellId, line] of Object.entries(snapshot.lastLineByShellId)) {
+			lastLines.set(shellId, line);
+		}
+		this.lastLineKeys.set(projectId, Object.keys(snapshot.lastLineByShellId));
+
+		this.snapshot = { shells: shellStates, worktrees, lastLines };
 		this.notify?.();
 	}
 }

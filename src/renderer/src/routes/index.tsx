@@ -6,9 +6,10 @@ import { queryClient } from "@renderer/lib/query-client";
 import { ContinuityFailedNotice } from "@renderer/routes/-components/continuity-failed-notice";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ProjectPicker } from "@renderer/routes/-components/project-picker";
-import { ProjectRail } from "@renderer/routes/-components/project-rail";
+import { ProjectFooter } from "@renderer/routes/-components/project-footer";
 import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
+import { SessionSidebar } from "@renderer/routes/-components/session-sidebar";
 import { WindowControls } from "@renderer/routes/-components/window-controls";
 import {
 	MAX_RAIL_WIDTH,
@@ -16,14 +17,18 @@ import {
 	RAIL_WIDTH_PROPERTY,
 	resolveRailWidth,
 } from "@renderer/routes/-utils/rail-layout";
+import { type SessionRow, sessionRows, successorRow } from "@renderer/routes/-utils/session-rows";
 import { useAgentActivities } from "@renderer/routes/-utils/use-agent-activity";
 import { useBankaiShortcuts } from "@renderer/routes/-utils/use-bankai-shortcuts";
 import { useContinuity } from "@renderer/routes/-utils/use-continuity";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
 import { useLayoutPreferences } from "@renderer/routes/-utils/use-layout-preferences";
+import { useSessionList } from "@renderer/routes/-utils/use-session-list";
+import { useSessionCommands } from "@renderer/routes/-utils/use-session-commands";
 import { useWorkspaceActivation } from "@renderer/routes/-utils/use-workspace-activation";
 import { WorkspaceProvider } from "@renderer/routes/-utils/workspace-context";
+import type { ShellTab } from "@renderer/routes/-utils/shell-topology";
 
 export const Route = createFileRoute("/")({
 	component: Bankai,
@@ -53,6 +58,11 @@ function Bankai() {
 		},
 		[layout.persist],
 	);
+	const [projectsOpen, setProjectsOpen] = useState(layout.initial.projectsOpen);
+	const toggleProjects = useCallback(() => {
+		setProjectsOpen(!projectsOpen);
+		layout.persist({ projectsOpen: !projectsOpen });
+	}, [layout.persist, projectsOpen]);
 	const [treeOpen, setTreeOpen] = useState(layout.initial.treeOpen);
 	const handleTreeOpenChange = useCallback(
 		(open: boolean) => {
@@ -111,38 +121,130 @@ function Bankai() {
 			onActivate: continuity.activateProject,
 		},
 	);
+	const commands = useSessionCommands({
+		restored: continuity.restored,
+		onActivateProject: activateProject,
+		onPersistSelection: continuity.selectShell,
+		onPersistClose: continuity.closeShell,
+	});
+	const handleShellSelect = useCallback(
+		(projectId: string, shellId: string) => {
+			commands.noteSelection(projectId, shellId);
+			continuity.selectShell(projectId, shellId);
+		},
+		[commands.noteSelection, continuity.selectShell],
+	);
+	const handleShellOpen = useCallback(
+		(projectId: string, shell: ShellTab) => {
+			commands.noteSelection(projectId, shell.id);
+			continuity.openShell(projectId, shell);
+		},
+		[commands.noteSelection, continuity.openShell],
+	);
+	const rows = useMemo(
+		() =>
+			sessionRows({
+				continuity: continuity.restored,
+				projects: availableProjects,
+				shellActivity: activity.shells,
+				lastLines: activity.lastLines,
+			}),
+		[continuity.restored, availableProjects, activity.shells, activity.lastLines],
+	);
+	const sessions = useSessionList(rows, Date.now());
+	const selectedShellId = activeProjectId ? commands.byProject[activeProjectId] : undefined;
+	const handOverSelection = useCallback(
+		(projectId: string, shellId: string) => {
+			if (commands.byProject[projectId] !== shellId) {
+				return;
+			}
+
+			const successor = successorRow(sessions.open, { projectId, shellId });
+			if (successor) {
+				commands.selectSession(successor.projectId, successor.shellId);
+			}
+		},
+		[commands.byProject, commands.selectSession, sessions.open],
+	);
+	const closeSession = useCallback(
+		(projectId: string, shellId: string) => {
+			commands.closeSession(projectId, shellId);
+			handOverSelection(projectId, shellId);
+		},
+		[commands.closeSession, handOverSelection],
+	);
+	const archiveSession = useCallback(
+		(projectId: string, shellId: string) => {
+			continuity.archiveShell(projectId, shellId);
+			handOverSelection(projectId, shellId);
+		},
+		[continuity.archiveShell, handOverSelection],
+	);
+	const newShellHere = useCallback(() => {
+		if (activeProjectId) {
+			commands.createSession(activeProjectId);
+		}
+	}, [activeProjectId, commands.createSession]);
+	const closeShellHere = useCallback(() => {
+		if (activeProjectId && selectedShellId) {
+			closeSession(activeProjectId, selectedShellId);
+		}
+	}, [activeProjectId, closeSession, selectedShellId]);
 	const control = useMemo(
 		() => ({
-			projects: availableProjects,
 			initialDiffWidth: layout.initial.diffWidth,
 			initialTreeWidth: layout.initial.treeWidth,
 			onToggleFullscreen: projectRail.toggleFullscreen,
 			onPersistLayout: layout.persist,
 			onReviewOpenChange: handleReviewOpenChange,
 			onTreeOpenChange: handleTreeOpenChange,
-			onShellOpen: continuity.openShell,
+			onShellOpen: handleShellOpen,
 			onShellClose: continuity.closeShell,
-			onShellMove: continuity.moveShell,
-			onShellSelect: continuity.selectShell,
+			onShellSelect: handleShellSelect,
+			registerWorkspace: commands.registerWorkspace,
 		}),
 		[
-			availableProjects,
 			layout.initial.diffWidth,
 			layout.initial.treeWidth,
 			layout.persist,
 			projectRail.toggleFullscreen,
 			handleReviewOpenChange,
 			handleTreeOpenChange,
-			continuity.openShell,
+			handleShellOpen,
 			continuity.closeShell,
-			continuity.moveShell,
-			continuity.selectShell,
+			handleShellSelect,
+			commands.registerWorkspace,
 		],
 	);
+	const [numbersVisible, setNumbersVisible] = useState(false);
+	const holdModifier = useCallback(
+		(held: boolean) => {
+			setNumbersVisible(held);
+			projectRail.setModifierHeld(held);
+		},
+		[projectRail.setModifierHeld],
+	);
+	const jumpToRow = useCallback(
+		(index: number) => {
+			const row = sessions.numbered[index];
+			if (row) {
+				commands.selectSession(row.projectId, row.shellId);
+			}
+		},
+		[commands.selectSession, sessions.numbered],
+	);
+	const jumpToWaiting = useCallback(() => {
+		if (sessions.waiting) {
+			commands.selectSession(sessions.waiting.projectId, sessions.waiting.shellId);
+		}
+	}, [commands.selectSession, sessions.waiting]);
 	const registerShortcuts = useBankaiShortcuts({
-		projects: availableProjects,
-		onActivateProject: activateProject,
 		onToggleFullscreen: projectRail.toggleFullscreen,
+		onNewShell: newShellHere,
+		onCloseShell: closeShellHere,
+		onModifierHold: holdModifier,
+		onJumpToRow: jumpToRow,
+		onJumpToWaiting: jumpToWaiting,
 	});
 
 	const [pickerOpen, setPickerOpen] = useState(false);
@@ -173,13 +275,6 @@ function Bankai() {
 		orpc.projects.chooseDirectory.mutationOptions({ onSuccess: mountProject }),
 	);
 	const openDirectory = useMutation(orpc.projects.openDirectory.mutationOptions());
-	const moveProject = useMutation(
-		orpc.projects.move.mutationOptions({
-			onSuccess: async () => {
-				await reactQueryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
-			},
-		}),
-	);
 	const removeProject = useMutation(
 		orpc.projects.remove.mutationOptions({
 			onSuccess: async (_, input) => {
@@ -188,23 +283,72 @@ function Bankai() {
 			},
 		}),
 	);
+	const openProject = useCallback(
+		(projectId: string) => {
+			const belongs = (row: SessionRow) => row.projectId === projectId;
+			const target = sessions.open.find(belongs) ?? rows.find(belongs);
+			if (target) {
+				commands.selectSession(projectId, target.shellId);
+				return;
+			}
+
+			commands.createSession(projectId);
+		},
+		[commands.createSession, commands.selectSession, rows, sessions.open],
+	);
+	const discardProject = useCallback(
+		(projectId: string) => {
+			const successor = activeProjectId === projectId
+				? rows.find((row) => row.projectId !== projectId)
+				: undefined;
+
+			removeProject.mutate({ projectId });
+
+			if (successor) {
+				commands.selectSession(successor.projectId, successor.shellId);
+			}
+		},
+		[activeProjectId, commands.selectSession, removeProject.mutate, rows],
+	);
+	const shellCounts = useMemo(() => {
+		const counts = new Map<string, number>();
+		for (const row of rows) {
+			counts.set(row.projectId, (counts.get(row.projectId) ?? 0) + 1);
+		}
+
+		return counts;
+	}, [rows]);
+
 	return (
 		<main ref={registerShortcuts} className="relative flex h-full bg-surface">
 			<WindowControls />
 			{continuity.failed && <ContinuityFailedNotice />}
 			<ProjectRailFrame projectRail={projectRail} divider={railDivider} frameRef={railFrameRef} railWidth={railWidth}>
-				<ProjectRail
-					projects={availableProjects}
-					activity={activity.projects}
-					loading={projects.isPending}
-					selectedId={activeProjectId}
-					onSelect={activateProject}
-					onAdd={openPicker}
-					onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
-					onRemove={(projectId) => removeProject.mutate({ projectId })}
-					onMove={moveProject.mutate}
-					onMenuOpenChange={projectRail.setMenuOpen}
-					onDragActiveChange={projectRail.setDragging}
+				<SessionSidebar
+					list={sessions}
+					selectedShellId={selectedShellId}
+					selectedProjectId={activeProjectId}
+					numbersVisible={numbersVisible}
+					onSelect={commands.selectSession}
+					onCreate={commands.createSession}
+					onClose={closeSession}
+					onArchive={archiveSession}
+					onUnarchive={continuity.unarchiveShell}
+					onRename={continuity.renameShell}
+					footer={
+						<ProjectFooter
+							projects={availableProjects}
+							loading={projects.isPending}
+							open={projectsOpen}
+							shellCounts={shellCounts}
+							onToggle={toggleProjects}
+							onOpenProject={openProject}
+							onAdd={openPicker}
+							onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
+							onRemove={discardProject}
+							onOverlayChange={projectRail.setMenuOpen}
+						/>
+					}
 				/>
 			</ProjectRailFrame>
 			<section className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-1">
@@ -242,7 +386,7 @@ function Bankai() {
 								reviewOpen={reviewOpen}
 								treeOpen={treeOpen}
 								restoredShells={workspace?.shells}
-								restoredActiveShellId={workspace?.activeShellId}
+								restoredActiveShellId={commands.byProject[project.id] ?? workspace?.activeShellId}
 							/>
 						);
 					})}

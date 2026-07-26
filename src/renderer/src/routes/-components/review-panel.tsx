@@ -22,14 +22,12 @@ export function ReviewPanel({
 	project,
 	shellId,
 	tabs,
-	sessionIds,
 	treeOpen,
 	treeDivider,
 }: {
 	project: Project;
 	shellId?: string;
 	tabs: ShellTab[];
-	sessionIds: Record<string, string>;
 	treeOpen: boolean;
 	treeDivider: ReturnType<typeof useDivider>;
 }) {
@@ -107,7 +105,6 @@ export function ReviewPanel({
 		shellId,
 		worktree,
 		tabs,
-		sessionIds,
 		shellWorktrees: agents.worktrees,
 		shellActivity: agents.shells,
 	});
@@ -117,7 +114,7 @@ export function ReviewPanel({
 		mainPath: project.path,
 		pinnedPath: worktree === pinnedWorktree ? pinnedWorktree : undefined,
 		shellPath: shellWorktree,
-		activity: worktreeActivity({ sessionIds, shellWorktrees: agents.worktrees, shellActivity: agents.shells }),
+		activity: worktreeActivity({ shellWorktrees: agents.worktrees, shellActivity: agents.shells }),
 		removeFailure:
 			removeWorktree.error && removeWorktree.variables
 				? { path: removeWorktree.variables.worktree, message: removeWorktree.error.message }

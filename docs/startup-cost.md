@@ -41,3 +41,26 @@ The main process was blocked. `ReviewChanges.observe` was building a recursive w
 Skipping the recursive watch for non-repositories: **7419 ms → 862–1179 ms**, and the run-to-run spread collapsed with it.
 
 The lesson that generalizes: a synchronous call in the main process shows up as latency in whatever asynchronous work was in flight at the time. Time attributed to a subprocess is worth one check against that subprocess's own clock before believing it.
+
+# The serial git queue is not worth parallelizing
+
+`src/main/git/worker.ts` runs every request through one global promise chain. That looks like an obvious win to parallelize, and it was measured. It is not.
+
+Replacing it with one queue per repository — safe, since concurrent reads are fine and only `worktree remove` writes — moved the numbers like this:
+
+| | global queue | per repository |
+|---|---|---|
+| total time queued, whole boot | 198–251 ms | 57–76 ms |
+| longest single wait | 54–73 ms | 40–50 ms |
+| git window during boot (median) | 1355 ms | 1354 ms |
+| first frame | no change | no change |
+
+The queued time is real and it still buys nothing, because the operations do not sit on the critical path — the startup total is identical within noise.
+
+The remaining argument was tail risk: one slow operation stalling every other project. No such operation exists at plausible sizes. Measured on this machine:
+
+- 3000 modified files: `git diff` 61 ms
+- 5000 untracked files, the path that reads every file to count lines: 215 ms
+- 320 concurrent `git diff` / `ls-files` against one repository: zero failures, empty stderr
+
+Git reads are safe to run concurrently (`GIT_OPTIONAL_LOCKS` in `man git` describes index refresh as an optional, skippable sub-operation), so the change is available if a genuinely slow operation ever appears. Until one does, the global queue costs nothing worth the code.

@@ -1,6 +1,7 @@
 import electronUpdater from "electron-updater";
 import { app, BrowserWindow, ipcMain } from "electron";
 import { Logger } from "@main/logger";
+import { canSelfUpdate } from "@main/update/self-update";
 import { UPDATE_IPC, type UpdateDownloadedEvent } from "@shared/update";
 
 const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
@@ -26,6 +27,18 @@ export function setupUpdateIpc(): void {
 	});
 
 	if (!app.isPackaged) {
+		return;
+	}
+
+	if (
+		!canSelfUpdate({
+			platform: process.platform,
+			execPath: process.execPath,
+			appImage: process.env.APPIMAGE,
+			appDir: process.env.APPDIR,
+		})
+	) {
+		Logger.info("update:managed-externally", { execPath: process.execPath });
 		return;
 	}
 

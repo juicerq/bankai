@@ -72,13 +72,15 @@ jobs:
       - name: Build the package and refresh its metadata
         run: |
           su builder -c 'cd /tmp/aur && updpkgsums && makepkg -f --nodeps && makepkg --printsrcinfo > .SRCINFO'
-          cp /tmp/aur/PKGBUILD /tmp/aur/.SRCINFO packaging/aur/
 
       - name: Push the recipe back to main
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git reset --hard origin/main
+          cp /tmp/aur/PKGBUILD /tmp/aur/.SRCINFO packaging/aur/
           if git diff --quiet -- packaging/aur; then
             echo "recipe already current"
             exit 0

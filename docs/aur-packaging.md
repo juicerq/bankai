@@ -15,6 +15,10 @@ created_at: 2026-07-26
 
 The `aur` job in `.github/workflows/release.yml` runs after the Linux release inside an `archlinux:base-devel` container: it rewrites `pkgver` from the tag, lets `updpkgsums` fetch the new AppImage and recompute the checksum, builds the package as a non-root `builder` user to prove the recipe still works, regenerates `.SRCINFO`, commits the refreshed files back to `main`, and pushes them to `ssh://aur@aur.archlinux.org/bankai-bin.git`.
 
+The recipe is copied over the checkout only after `git fetch origin main && git reset --hard origin/main`, so a commit landing on `main` during the ten-minute build cannot make the push non-fast-forward. A rebase would not work here: `actions/checkout` clones shallow, and the merge base is usually missing.
+
+`pkgrel` is pinned to 1 rather than incremented, and that is deliberate. Re-running the same tag has to be a no-op, and it is only a no-op while the regenerated recipe is byte-identical — `updpkgsums` recomputes the same checksum from the same AppImage, so nothing else moves. Bumping `pkgrel` would make every re-run produce a diff, push a fresh AUR revision, and offer `yay` users an update that changes nothing. Republishing one version with a corrected recipe is a hand edit.
+
 The push authenticates with the `AUR_SSH_KEY` secret — a key pair dedicated to CI (`~/.ssh/aur_ci` locally), separate from the maintainer's personal key. The AUR account's SSH field holds both.
 
 The very first publish had to be manual: cloning an AUR package that does not exist yet fails, so the repo was created by pushing `HEAD:refs/heads/master` into it. The job's `git clone` only works from the second release on.

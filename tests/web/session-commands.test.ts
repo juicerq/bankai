@@ -32,7 +32,7 @@ function spyWorkspace() {
 	const calls: string[] = [];
 	const commands: WorkspaceCommands = {
 		selectShell: (shellId) => calls.push(`select:${shellId}`),
-		openShell: () => calls.push("open"),
+		openShell: (plain) => calls.push(plain ? "open:plain" : "open"),
 		closeShell: (shellId) => calls.push(`close:${shellId}`),
 	};
 
@@ -99,7 +99,7 @@ test("creating in a mounted project opens through its command", () => {
 	act(() => {
 		result.current.registerWorkspace("p1", workspace.commands);
 	});
-	act(() => result.current.createSession("p1"));
+	act(() => result.current.createSession("p1", false));
 
 	expect(workspace.calls).toEqual(["open"]);
 	expect(activated).toEqual(["p1"]);
@@ -109,7 +109,7 @@ test("creating in an unmounted project activates it and waits for it to mount", 
 	const { result, activated } = renderCommands();
 	const workspace = spyWorkspace();
 
-	act(() => result.current.createSession("p2"));
+	act(() => result.current.createSession("p2", false));
 
 	expect(activated).toEqual(["p2"]);
 	expect(workspace.calls).toEqual([]);
@@ -121,11 +121,23 @@ test("creating in an unmounted project activates it and waits for it to mount", 
 	expect(workspace.calls).toEqual(["open"]);
 });
 
+test("a shell asked for without a harness carries that through the queue", () => {
+	const { result } = renderCommands();
+	const workspace = spyWorkspace();
+
+	act(() => result.current.createSession("p2", true));
+	act(() => {
+		result.current.registerWorkspace("p2", workspace.commands);
+	});
+
+	expect(workspace.calls).toEqual(["open:plain"]);
+});
+
 test("a workspace mounting a second time does not open again", () => {
 	const { result } = renderCommands();
 	const workspace = spyWorkspace();
 
-	act(() => result.current.createSession("p2"));
+	act(() => result.current.createSession("p2", false));
 	act(() => {
 		result.current.registerWorkspace("p2", workspace.commands);
 	});

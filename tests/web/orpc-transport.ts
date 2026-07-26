@@ -2,6 +2,7 @@ import "./register-dom";
 import { os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/message-port";
 import { type } from "arktype";
+import type { HarnessSettings } from "@main/store/settings";
 
 export type ReviewProcedure = "worktrees" | "snapshot" | "files" | "file" | "fullFile";
 
@@ -87,9 +88,10 @@ function requireBrowse() {
 }
 
 export interface HarnessTransport {
-	harnesses: { id: string; label: string }[];
-	harness: { autostart: boolean; id: string };
-	updates: { autostart: boolean; id: string }[];
+	harnesses: { id: string; label: string; available: boolean }[];
+	harness: HarnessSettings;
+	updates: HarnessSettings[];
+	saveFailure?: string;
 }
 
 let currentHarness: HarnessTransport | undefined;
@@ -111,9 +113,13 @@ const router = {
 		listHarnesses: os.handler(() => requireHarness().harnesses),
 		getHarness: os.handler(() => requireHarness().harness),
 		updateHarness: os
-			.input(type({ autostart: "boolean", id: "string" }))
+			.input(type({ autostart: "boolean", id: "string", "args?": "string" }))
 			.handler(({ input }) => {
 				const transport = requireHarness();
+				if (transport.saveFailure) {
+					throw new Error(transport.saveFailure);
+				}
+
 				transport.updates.push(input);
 				transport.harness = input;
 

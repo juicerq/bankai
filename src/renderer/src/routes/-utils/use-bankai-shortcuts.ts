@@ -11,7 +11,7 @@ export function useBankaiShortcuts({
 	onJumpToWaiting,
 }: {
 	onToggleFullscreen: () => void;
-	onNewShell: () => void;
+	onNewShell: (plain: boolean) => void;
 	onCloseShell: () => void;
 	onModifierHold: (held: boolean) => void;
 	onJumpToRow: (index: number) => void;
@@ -27,7 +27,7 @@ export function useBankaiShortcuts({
 					return onToggleFullscreen;
 				}
 				if (event.code === "KeyT") {
-					return onNewShell;
+					return () => onNewShell(event.shiftKey);
 				}
 				if (event.code === "KeyX") {
 					return onCloseShell;

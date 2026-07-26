@@ -29,6 +29,13 @@ describe("continuity store", () => {
 		]);
 	});
 
+	it("remembers a shell that was asked to skip the harness", async () => {
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1", plain: true } });
+
+		const { value } = await Continuity.load();
+		expect(value.workspaces[0]?.shells[0]?.plain).toBe(true);
+	});
+
 	it("appends shells in open order, keeping the latest active and deduping by id", async () => {
 		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
 		await Continuity.openShell({ projectId: "p1", shell: { id: "s2", label: "Shell 2" } });

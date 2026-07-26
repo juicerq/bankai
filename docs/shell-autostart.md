@@ -28,11 +28,23 @@ The trap when measuring any of this is that it needs a faithful terminal on the 
 
 ## Autostart is one global setting, resolved in main
 
-`settings.json` v3 carries `harness: { autostart, id }`. It is absent until the panel is used; `autostartCommandLine` in `src/main/terminal/autostart.ts` falls back to `DEFAULT_HARNESS_SETTINGS` — autostart on, Claude — so a fresh install and every store written before v3 behave the same.
+`settings.json` v3 carries `harness: { autostart, id, args? }`. It is absent until the panel is used; `autostartCommandLine` in `src/main/terminal/autostart.ts` falls back to `DEFAULT_HARNESS_SETTINGS` — autostart on, Claude — so a fresh install and every store written before v3 behave the same.
 
 Three things produce no command and open a bare shell rather than failing: autostart off, an `id` no registered harness claims, and an unreadable settings store. A terminal that will not open is worse than a terminal without an agent.
 
-`launchableHarnesses` is what the settings panel lists, by id and label. A harness with no `launch` — one Bankai can only observe, never start — is invisible there by construction.
+`launchableHarnesses` is what the settings panel lists, by id, label and binary. A harness with no `launch` — one Bankai can only observe, never start — is invisible there by construction. The binary never reaches the renderer: the router turns it into `available` and sends that.
+
+`args` is a raw string the user types. `splitArguments` cuts it into words, honouring `'…'` and `"…"` so a quoted run survives as one argument, and `shellCommandLine` re-quotes each word — typed text can never become shell syntax. The extras are appended to autostart *and* to resume, but only while the stored session's harness is the configured one; resuming some other harness gets its plain command.
+
+## Whether the harness exists is a question only the user's shell can answer
+
+`harnessAvailable` in `src/main/terminal/harnessAvailability.ts` runs `$SHELL -i -c "command -v <file>"` and reads the exit code. `-i` is the point: the PATH that matters is the one the rc builds, not the one Electron inherited from the desktop session, so checking `process.env.PATH` would answer a different question than the one the shell will ask at launch.
+
+Positive results are cached for the life of the process; negative ones are not, so installing the harness and reopening the panel is enough. Without this the only symptom of a missing binary is a `command not found` scrolling past inside a shell that then looks like autostart simply did nothing.
+
+## A shell can opt out of the harness one at a time, and it is remembered
+
+Alt+click on New shell, or Ctrl+X Shift+T, records `plain: true` on the shell in `continuity.json`, and `TerminalSessions.open` reads it back and skips the launch command. The two requests travel different channels — the shell record over oRPC, the terminal over `window.bankaiTerminal` — so nothing orders them, and a `plain` that arrives late would open with a harness. It is left as a race on purpose: `scheduleAfterPaint` in `use-terminal-session.ts` puts two animation frames between the click and the terminal request, the store serialises reads behind writes, and losing costs one Ctrl+C. Threading `plain` through the pane to remove the race would spread the field across six more files for that. Ctrl+C twice still works and is the escape hatch for a shell already running; `plain` is for the shells you know up front you do not want an agent in, and it survives a restart because the shell that reopens should be the shell you had.
 
 ## A harness that exits inside its shell still clears its session ref
 

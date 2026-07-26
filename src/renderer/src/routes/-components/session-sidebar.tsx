@@ -56,7 +56,7 @@ export function SessionSidebar({
 	canCreateShell: boolean;
 	onSelect: (projectId: string, shellId: string) => void;
 	onCreate: (projectId: string) => void;
-	onRequestShell: () => void;
+	onRequestShell: (plain: boolean) => void;
 	onClose: (projectId: string, shellId: string) => void;
 	onArchive: (projectId: string, shellId: string) => void;
 	onUnarchive: (projectId: string, shellId: string) => void;
@@ -100,9 +100,9 @@ export function SessionSidebar({
 					data-slot="new-session"
 					className="text-secondary hover:text-primary disabled:text-outline-strong"
 					disabled={!canCreateShell}
-					onClick={onRequestShell}
+					onClick={(event) => onRequestShell(event.altKey)}
 					aria-label="New shell"
-					title="New shell (Ctrl+X T)"
+					title="New shell (Ctrl+X T) — hold Alt for a shell with no harness"
 				>
 					<PlusIcon className="size-4" aria-hidden="true" />
 				</button>

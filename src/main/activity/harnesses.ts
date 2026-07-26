@@ -7,10 +7,15 @@ const harnesses: Harness[] = [ClaudeHarness];
 
 export const DEFAULT_HARNESS_SETTINGS: HarnessSettings = { autostart: true, id: ClaudeHarness.id };
 
-export function launchableHarnesses(): { id: string; label: string }[] {
-	return harnesses
-		.filter((harness) => harness.launch)
-		.map((harness) => ({ id: harness.id, label: harness.label }));
+export function launchableHarnesses(): { id: string; label: string; file: string }[] {
+	return harnesses.flatMap((harness) => {
+		const launch = harness.launch;
+		if (!launch) {
+			return [];
+		}
+
+		return [{ id: harness.id, label: harness.label, file: launch().file }];
+	});
 }
 
 export function harnessLaunch(harnessId: string): Harness["launch"] {

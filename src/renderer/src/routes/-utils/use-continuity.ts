@@ -17,7 +17,7 @@ export function useContinuity() {
 
 	const activateProject = useCallback((projectId: string) => activate({ projectId }), [activate]);
 	const openShell = useCallback(
-		(projectId: string, shell: Pick<ContinuityShell, "id" | "label">) => open({ projectId, shell }),
+		(projectId: string, shell: Pick<ContinuityShell, "id" | "label" | "plain">) => open({ projectId, shell }),
 		[open],
 	);
 	const closeShell = useCallback(

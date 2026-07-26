@@ -58,6 +58,14 @@ describe("settings harness", () => {
 		expect((await Settings.get()).harness).toEqual({ autostart: false, id: "codex" });
 	});
 
+	it("drops the extra arguments when the choice is saved without them", async () => {
+		await Settings.updateHarness({ autostart: true, id: "claude", args: "--model opus" });
+		expect((await Settings.get()).harness).toEqual({ autostart: true, id: "claude", args: "--model opus" });
+
+		await Settings.updateHarness({ autostart: true, id: "claude" });
+		expect((await Settings.get()).harness).toEqual({ autostart: true, id: "claude" });
+	});
+
 	it("carries a v2 file forward with no harness choice recorded", async () => {
 		assertDefined(process.env.DATA_DIR);
 		writeFileSync(

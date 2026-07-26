@@ -1,6 +1,7 @@
 export interface ShellTab {
 	id: string;
 	label: string;
+	plain?: boolean;
 }
 
 export interface RestoredShell {
@@ -9,8 +10,14 @@ export interface RestoredShell {
 	session?: { harness: string; sessionId: string };
 }
 
-export function newShellTab(index: number): ShellTab {
-	return { id: crypto.randomUUID(), label: `Shell ${index}` };
+export function newShellTab(index: number, plain?: boolean): ShellTab {
+	const tab: ShellTab = { id: crypto.randomUUID(), label: `Shell ${index}` };
+
+	if (plain) {
+		return { ...tab, plain };
+	}
+
+	return tab;
 }
 
 export interface ShellTopology {

@@ -3,7 +3,7 @@ import type { ContinuityValue } from "@main/store/continuity";
 
 export interface WorkspaceCommands {
 	selectShell: (shellId: string) => void;
-	openShell: () => void;
+	openShell: (plain: boolean) => void;
 	closeShell: (shellId: string) => void;
 }
 
@@ -70,18 +70,18 @@ export function useSessionCommands({
 	);
 
 	const createSession = useCallback(
-		(projectId: string) => {
+		(projectId: string, plain: boolean) => {
 			onActivateProject(projectId);
 
 			const commands = mounted.current.get(projectId);
 			if (commands) {
-				commands.openShell();
+				commands.openShell(plain);
 				return;
 			}
 
 			queued.current.set(projectId, [
 				...(queued.current.get(projectId) ?? []),
-				(pending) => pending.openShell(),
+				(pending) => pending.openShell(plain),
 			]);
 		},
 		[onActivateProject],

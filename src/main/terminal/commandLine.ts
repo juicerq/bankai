@@ -14,6 +14,15 @@ export function shellCommandLine(command: HarnessCommand): string {
 	return [command.file, ...command.args].map(quote).join(" ");
 }
 
+const ARGUMENT = /(?:[^\s'"]+|'[^']*'|"[^"]*")+/g;
+const QUOTED_RUN = /'([^']*)'|"([^"]*)"/g;
+
+export function splitArguments(raw: string): string[] {
+	return (raw.match(ARGUMENT) ?? []).map((argument) =>
+		argument.replaceAll(QUOTED_RUN, (_, single: string | undefined, double: string) => single ?? double)
+	);
+}
+
 export function shellArgs(shell: string, launch?: string): string[] {
 	if (!launch) {
 		return [];

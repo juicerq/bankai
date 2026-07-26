@@ -36,7 +36,7 @@ function renderSidebar(
 		onArchive?: (projectId: string, shellId: string) => void;
 		onUnarchive?: (projectId: string, shellId: string) => void;
 		onRename?: (projectId: string, shellId: string, title: string) => void;
-		onRequestShell?: () => void;
+		onRequestShell?: (plain: boolean) => void;
 		canCreateShell?: boolean;
 		numbersVisible?: boolean;
 	} = {},
@@ -247,6 +247,16 @@ test("the header plus asks for a shell instead of naming a project itself", () =
 
 	expect(requests).toBe(1);
 	expect(created).toEqual([]);
+});
+
+test("the header plus asks for a shell with no harness while Alt is held", () => {
+	const asked: boolean[] = [];
+	renderSidebar({ open: [row("s1")] }, { onRequestShell: (plain) => asked.push(plain) });
+
+	fireEvent.click(slot(document.body, "new-session"), { altKey: true });
+	fireEvent.click(slot(document.body, "new-session"));
+
+	expect(asked).toEqual([true, false]);
 });
 
 test("the header plus is dead while no project is mounted", () => {

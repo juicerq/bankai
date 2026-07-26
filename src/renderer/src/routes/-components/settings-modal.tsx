@@ -1,11 +1,17 @@
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { HarnessSettings } from "@main/store/settings";
 import { PickerHint } from "@renderer/routes/-components/picker-hint";
 import { useHarnessSettings } from "@renderer/routes/-utils/use-harness-settings";
 
+interface LaunchableHarness {
+	id: string;
+	label: string;
+	available: boolean;
+}
+
 export function SettingsModal({ onClose }: { onClose: () => void }) {
-	const { harness, harnesses, save } = useHarnessSettings();
+	const { harness, harnesses, save, saveError } = useHarnessSettings();
 	const takeFocus = useCallback((element: HTMLDivElement | null) => element?.focus(), []);
 
 	return (
@@ -37,8 +43,13 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 				) : (
 					<p className="px-3 py-6 text-data text-secondary">Reading settings…</p>
 				)}
-				<div className="flex items-center border-outline border-t px-3 py-2">
+				<div className="flex items-center gap-3 border-outline border-t px-3 py-2">
 					<PickerHint keys={["Esc"]} label="Close" />
+					{saveError && (
+						<span data-slot="save-error" className="min-w-0 flex-1 truncate text-right text-data text-removed">
+							Could not save — the change was not applied.
+						</span>
+					)}
 				</div>
 			</div>
 		</div>
@@ -51,8 +62,8 @@ function HarnessSection({
 	onSave,
 }: {
 	harness: HarnessSettings;
-	harnesses: { id: string; label: string }[];
-	onSave: (harness: HarnessSettings) => void;
+	harnesses: LaunchableHarness[];
+	onSave: (patch: Partial<HarnessSettings>) => void;
 }) {
 	return (
 		<>
@@ -60,13 +71,13 @@ function HarnessSection({
 				<div className="min-w-0 flex-1">
 					<span className="block text-body text-primary">Start a harness in every new shell</span>
 					<span className="mt-1 block text-data text-secondary">
-						Quit it with Ctrl+C twice and the plain shell is right there.
+						Quit it with Ctrl+C twice and the plain shell is right there. Alt+click New shell to skip it up front.
 					</span>
 				</div>
 				<Switch
 					label="Start a harness in every new shell"
 					on={harness.autostart}
-					onToggle={() => onSave({ ...harness, autostart: !harness.autostart })}
+					onToggle={() => onSave({ autostart: !harness.autostart })}
 				/>
 			</div>
 			<div className={harness.autostart ? "" : "opacity-40"}>
@@ -75,28 +86,30 @@ function HarnessSection({
 					{harnesses.map((entry) => (
 						<HarnessRow
 							key={entry.id}
-							label={entry.label}
-							id={entry.id}
+							harness={entry}
 							selected={entry.id === harness.id}
 							disabled={!harness.autostart}
-							onSelect={() => onSave({ ...harness, id: entry.id })}
+							onSelect={() => onSave({ id: entry.id })}
 						/>
 					))}
 				</div>
+				<ArgumentsField
+					args={harness.args ?? ""}
+					disabled={!harness.autostart}
+					onCommit={(args) => onSave({ args })}
+				/>
 			</div>
 		</>
 	);
 }
 
 function HarnessRow({
-	label,
-	id,
+	harness,
 	selected,
 	disabled,
 	onSelect,
 }: {
-	label: string;
-	id: string;
+	harness: LaunchableHarness;
 	selected: boolean;
 	disabled: boolean;
 	onSelect: () => void;
@@ -108,16 +121,60 @@ function HarnessRow({
 			aria-checked={selected}
 			disabled={disabled}
 			data-component="settings-harness"
-			data-id={id}
+			data-id={harness.id}
 			className={`relative flex w-full items-center gap-2.5 px-3 py-2 text-left ${
 				selected ? "bg-surface-active" : "hover:bg-surface-hover"
 			}`}
 			onClick={onSelect}
 		>
 			{selected && <span className="absolute inset-y-0 left-0 w-0.5 bg-tertiary" aria-hidden="true" />}
-			<span className="min-w-0 flex-1 truncate text-body text-primary">{label}</span>
-			{selected && <span className="shrink-0 text-label text-tertiary">CURRENT</span>}
+			<span className="min-w-0 flex-1 truncate text-body text-primary">{harness.label}</span>
+			{!harness.available && (
+				<span data-slot="missing" className="shrink-0 text-label text-removed">NOT ON PATH</span>
+			)}
+			{selected && harness.available && <span className="shrink-0 text-label text-tertiary">CURRENT</span>}
 		</button>
+	);
+}
+
+function ArgumentsField({
+	args,
+	disabled,
+	onCommit,
+}: {
+	args: string;
+	disabled: boolean;
+	onCommit: (args: string) => void;
+}) {
+	const [draft, setDraft] = useState(args);
+	const commit = () => {
+		if (draft.trim() !== args) {
+			onCommit(draft.trim());
+		}
+	};
+
+	return (
+		<div className="border-outline border-t px-3 py-3">
+			<span className="block pb-1.5 text-label text-secondary">EXTRA ARGUMENTS</span>
+			<input
+				data-slot="harness-args"
+				spellCheck={false}
+				autoComplete="off"
+				aria-label="Extra arguments"
+				disabled={disabled}
+				placeholder="--model opus"
+				className="w-full border border-outline bg-surface px-2 py-1.5 text-data text-primary outline-none placeholder:text-secondary focus:border-tertiary"
+				value={draft}
+				onInput={(event) => setDraft(event.currentTarget.value)}
+				onBlur={commit}
+				onKeyDown={(event) => {
+					if (event.key === "Enter") {
+						commit();
+					}
+				}}
+			/>
+			<span className="mt-1.5 block text-data text-secondary">Appended to every launch and resume of this harness.</span>
+		</div>
 	);
 }
 

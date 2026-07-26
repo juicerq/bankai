@@ -5,7 +5,7 @@ import { Logger } from "@main/logger";
 import { base } from "@main/router/_base";
 import { Continuity, type ContinuityValue } from "@main/store/continuity";
 
-const shellInput = type({ id: "string", label: "string" });
+const shellInput = type({ id: "string", label: "string", "plain?": "boolean" });
 
 async function stamped(
 	input: { projectId: string; shellId: string },

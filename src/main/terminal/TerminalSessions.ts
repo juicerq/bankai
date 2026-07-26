@@ -6,17 +6,14 @@ import { harnessResume } from "@main/activity/harnesses";
 import { Logger } from "@main/logger";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
-import { autostartCommandLine } from "@main/terminal/autostart";
-import { shellArgs, shellCommandLine } from "@main/terminal/commandLine";
+import { autostartCommandLine, harnessCommandLine } from "@main/terminal/autostart";
+import { shellArgs } from "@main/terminal/commandLine";
 import { terminalEnv } from "@main/terminal/env";
+import { SHELL } from "@main/terminal/shell";
 import { forgetShellOutput, noteShellOutput } from "@main/terminal/ShellOutputLines";
 import { forgetShellTitle, noteShellTitle } from "@main/terminal/ShellTitles";
 import { TerminalDataBuffer } from "@main/terminal/TerminalDataBuffer";
 import type { TerminalEvent, TerminalExitEvent } from "@shared/terminal";
-
-const SHELL = process.platform === "win32"
-	? process.env.ComSpec || "cmd.exe"
-	: process.env.SHELL || "/bin/sh";
 
 interface Session {
 	ownerId: number;
@@ -51,7 +48,8 @@ export const TerminalSessions = {
 		input: { projectId: string; shellId: string; cols: number; rows: number },
 	): Promise<string> => {
 		const generation = ownerGenerations.get(owner.id) || 0;
-		const [project, launch] = await Promise.all([Projects.find(input.projectId), autostartCommandLine()]);
+		const [project, shell] = await Promise.all([Projects.find(input.projectId), Continuity.findShell(input)]);
+		const launch = shell?.plain ? undefined : await autostartCommandLine();
 
 		return spawnSession(owner, generation, {
 			projectId: input.projectId,
@@ -89,7 +87,7 @@ export const TerminalSessions = {
 			cwd: session.cwd,
 			cols: input.cols,
 			rows: input.rows,
-			launch: shellCommandLine(command),
+			launch: await harnessCommandLine(command, session.harness),
 		});
 	},
 	write: (ownerId: number, sessionId: string, data: string) => {

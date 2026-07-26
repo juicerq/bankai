@@ -28,7 +28,7 @@ export function ProjectWorkspaceShells({
 					title="No open shells"
 					description={`Start a shell in ${project.name} to continue.`}
 					actionLabel="New shell"
-					onAction={shells.openTab}
+					onAction={() => shells.openTab(false)}
 				/>
 			)}
 			{shells.tabs.map((tab) => (

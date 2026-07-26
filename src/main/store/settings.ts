@@ -20,7 +20,7 @@ export const layoutSchema = type({
 });
 export type LayoutSettings = typeof layoutSchema.infer;
 
-export const harnessSchema = type({ autostart: "boolean", id: "string" });
+export const harnessSchema = type({ autostart: "boolean", id: "string", "args?": "string" });
 export type HarnessSettings = typeof harnessSchema.infer;
 
 const settingsContract = type({

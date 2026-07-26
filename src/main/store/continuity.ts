@@ -14,6 +14,7 @@ const shellSchema = type({
 	"branch?": "string",
 	"title?": "string",
 	"archivedAt?": "number",
+	"plain?": "boolean",
 });
 
 const workspaceSchema = type({
@@ -177,7 +178,7 @@ export const Continuity = {
 
 	openShell: (input: {
 		projectId: string;
-		shell: Pick<ContinuityShell, "id" | "label">;
+		shell: Pick<ContinuityShell, "id" | "label" | "plain">;
 	}): Promise<ContinuityValue> =>
 		mutate((current) =>
 			upsertWorkspace(current, input.projectId, (workspace) => {

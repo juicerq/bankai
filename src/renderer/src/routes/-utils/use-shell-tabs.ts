@@ -52,8 +52,8 @@ export function useShellTabs({
 		[onShellSelect, projectId],
 	);
 
-	const openTab = useCallback(() => {
-		const tab = newShellTab(nextShellNumber.current);
+	const openTab = useCallback((plain: boolean) => {
+		const tab = newShellTab(nextShellNumber.current, plain);
 		nextShellNumber.current += 1;
 		setTabs((current) => [...current, tab]);
 		setActiveTabId(tab.id);

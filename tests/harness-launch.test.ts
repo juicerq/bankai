@@ -2,8 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { ClaudeHarness } from "@main/activity/claude";
 import { DEFAULT_HARNESS_SETTINGS, harnessLaunch, launchableHarnesses } from "@main/activity/harnesses";
 import { Settings } from "@main/store/settings";
-import { autostartCommandLine } from "@main/terminal/autostart";
-import { shellArgs, shellCommandLine } from "@main/terminal/commandLine";
+import { autostartCommandLine, harnessCommandLine } from "@main/terminal/autostart";
+import { shellArgs, shellCommandLine, splitArguments } from "@main/terminal/commandLine";
+import { harnessAvailable } from "@main/terminal/harnessAvailability";
 import { assertDefined } from "./utils/assertions";
 
 describe("claude launch command", () => {
@@ -17,7 +18,9 @@ describe("claude launch command", () => {
 
 describe("launchable harnesses", () => {
 	test("lists every harness that can be started", () => {
-		expect(launchableHarnesses()).toEqual([{ id: ClaudeHarness.id, label: ClaudeHarness.label }]);
+		expect(launchableHarnesses()).toEqual([
+			{ id: ClaudeHarness.id, label: ClaudeHarness.label, file: "claude" },
+		]);
 	});
 
 	test("resolves the claude launch capability", () => {
@@ -56,6 +59,46 @@ describe("autostart command line", () => {
 
 		expect(await autostartCommandLine()).toBeUndefined();
 	});
+
+	test("appends the configured extra arguments", async () => {
+		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id, args: "--model opus" });
+
+		expect(await autostartCommandLine()).toBe("claude --model opus");
+	});
+});
+
+describe("harness command line", () => {
+	test("appends the extra arguments of the configured harness to a resume", async () => {
+		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id, args: "--model opus" });
+
+		expect(await harnessCommandLine({ file: "claude", args: ["--resume", "67af"] }, ClaudeHarness.id)).toBe(
+			"claude --resume 67af --model opus",
+		);
+	});
+
+	test("leaves a resume of another harness untouched", async () => {
+		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id, args: "--model opus" });
+
+		expect(await harnessCommandLine({ file: "codex", args: ["resume", "67af"] }, "codex")).toBe(
+			"codex resume 67af",
+		);
+	});
+});
+
+describe("argument splitting", () => {
+	test("splits on whitespace", () => {
+		expect(splitArguments("  --model opus  ")).toEqual(["--model", "opus"]);
+		expect(splitArguments("")).toEqual([]);
+	});
+
+	test("keeps a quoted run together and drops the quotes", () => {
+		expect(splitArguments(`--append-system-prompt "be brief"`)).toEqual(["--append-system-prompt", "be brief"]);
+		expect(splitArguments(`--flag='a b'`)).toEqual(["--flag=a b"]);
+	});
+
+	test("never lets typed text become shell syntax", () => {
+		expect(shellCommandLine({ file: "claude", args: splitArguments("; rm -rf /") })).toBe("claude ';' rm -rf /");
+	});
 });
 
 describe("shell command line", () => {
@@ -89,5 +132,15 @@ describe("shell arguments", () => {
 
 	test("quotes a shell path a shell would otherwise split", () => {
 		expect(shellArgs("/opt/my shell/fish", "claude")).toEqual(["-i", "-c", "claude; exec '/opt/my shell/fish'"]);
+	});
+});
+
+describe("harness availability", () => {
+	test("finds a binary the user's interactive shell resolves", async () => {
+		expect(await harnessAvailable("ls")).toBe(true);
+	});
+
+	test("reports a binary no shell can find", async () => {
+		expect(await harnessAvailable("bankai-not-a-real-binary")).toBe(false);
 	});
 });

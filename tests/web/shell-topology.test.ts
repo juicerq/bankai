@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { initialShellTopology } from "@renderer/routes/-utils/shell-topology";
+import { initialShellTopology, newShellTab } from "@renderer/routes/-utils/shell-topology";
 
 describe("initialShellTopology", () => {
 	test("creates a default shell and marks it for registration when nothing is restored", () => {
@@ -48,5 +48,15 @@ describe("initialShellTopology", () => {
 
 	test("ignores restored labels that do not match the Shell N pattern", () => {
 		expect(initialShellTopology([{ id: "x", label: "notes" }]).nextShellNumber).toBe(1);
+	});
+});
+
+describe("newShellTab", () => {
+	test("leaves the harness flag off a shell that never asked to skip it", () => {
+		expect(newShellTab(2)).toEqual({ id: expect.any(String), label: "Shell 2" });
+	});
+
+	test("carries the request for a shell with no harness", () => {
+		expect(newShellTab(2, true).plain).toBe(true);
 	});
 });

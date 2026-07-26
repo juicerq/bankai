@@ -199,24 +199,37 @@ function Bankai() {
 	// The picker only earns its overlay when there is a choice to make: one
 	// mounted project has a single answer, and asking for it would turn the
 	// shortcut into two gestures for no decision.
-	const requestNewShell = useCallback(() => {
-		if (pickerOpen) {
-			return;
-		}
+	const plainRequest = useRef(false);
+	const requestNewShell = useCallback(
+		(plain: boolean) => {
+			if (pickerOpen) {
+				return;
+			}
 
-		const [onlyProject, ...rest] = availableProjects;
-		if (!onlyProject) {
-			return;
-		}
+			const [onlyProject, ...rest] = availableProjects;
+			if (!onlyProject) {
+				return;
+			}
 
-		if (rest.length === 0) {
-			commands.createSession(onlyProject.id);
-			return;
-		}
+			if (rest.length === 0) {
+				commands.createSession(onlyProject.id, plain);
+				return;
+			}
 
-		setShellPickerOpen(true);
-		projectRail.setPickerActive(true);
-	}, [availableProjects, commands.createSession, pickerOpen, projectRail.setPickerActive]);
+			plainRequest.current = plain;
+			setShellPickerOpen(true);
+			projectRail.setPickerActive(true);
+		},
+		[availableProjects, commands.createSession, pickerOpen, projectRail.setPickerActive],
+	);
+	const createShell = useCallback(
+		(projectId: string) => commands.createSession(projectId, false),
+		[commands.createSession],
+	);
+	const createRequestedShell = useCallback(
+		(projectId: string) => commands.createSession(projectId, plainRequest.current),
+		[commands.createSession],
+	);
 	const closeShellHere = useCallback(() => {
 		if (activeProjectId && selectedShellId) {
 			closeSession(activeProjectId, selectedShellId);
@@ -320,9 +333,9 @@ function Bankai() {
 				return;
 			}
 
-			commands.createSession(projectId);
+			createShell(projectId);
 		},
-		[commands.createSession, commands.selectSession, rows, sessions.open],
+		[createShell, commands.selectSession, rows, sessions.open],
 	);
 	const discardProject = useCallback(
 		(projectId: string) => {
@@ -358,7 +371,7 @@ function Bankai() {
 					canCreateShell={availableProjects.length > 0}
 					numbersVisible={numbersVisible}
 					onSelect={commands.selectSession}
-					onCreate={commands.createSession}
+					onCreate={createShell}
 					onRequestShell={requestNewShell}
 					onClose={closeSession}
 					onArchive={archiveSession}
@@ -426,7 +439,7 @@ function Bankai() {
 					projects={availableProjects}
 					activeProjectId={activeProjectId}
 					shellCounts={shellCounts}
-					onCreate={commands.createSession}
+					onCreate={createRequestedShell}
 					onClose={closeShellPicker}
 				/>
 			)}

@@ -1,7 +1,7 @@
 ---
 title: How the sidebar session list orders and partitions itself, what archiving means, and how a session gets selected across projects
 tags: [ui, continuity, activity]
-updated_at: 2026-07-25
+updated_at: 2026-07-26
 created_at: 2026-07-25
 ---
 
@@ -85,3 +85,15 @@ Removing a project with open shells asks first, naming the count. Removing the o
 ## The tab strip is gone
 
 `project-workspace-shell-tabs.tsx` and `Continuity.moveShell` were deleted with the session list. Creating, archiving and closing live on the sidebar: the header `+`, the row's hover box and cross, and the row context menu. `Ctrl+X T` and `Ctrl+X X` moved out of the per-workspace shortcut hook into `useBankaiShortcuts`, where they act on the selected session with no gate on a workspace being active — the workspace hook now owns only `Ctrl+X R`.
+
+## Creating takes the project as an argument, not as a mode
+
+The header `+` and `Ctrl+X T` both run `requestNewShell`, which opens the **Shell picker** whenever more than one project is mounted and creates immediately when only one is. Neither ever reads `activeProjectId` any more: the target used to be whichever project owned the selected session, so creating into another one meant going there first — through the footer, which lands you in an existing session of that project — and only then pressing `+`. `Ctrl+X T` then `Enter` reproduces the old gesture exactly, because the picker opens highlighting the current project.
+
+`createSession` already took a project id and already handled a project that is not resident (activate, queue, drain on register), so the picker needed nothing new underneath it — the shortcut was simply passing one id where the user had a list.
+
+The picker filters on `project.name` only. Every name is its directory's basename (`src/main/store/projects.ts`), so a path substring match makes `ju` hit every project under `/home/jui/projects`. The path stays rendered on the row, where it disambiguates two projects sharing a basename without polluting the search.
+
+Reusing an idle shell instead of opening another was considered and dropped. It is the right move in t3code, where an unsent draft thread is noise, but a Bankai shell sitting at a prompt is a usable terminal, and nothing here can tell one that was never used from one whose output has scrolled — `ShellOutputLines` only emits behind an activity state (`shell-output-lines.md`).
+
+The two overlays do not stack: `requestNewShell` bails while the Project picker is open, because both feed the rail's single `setPickerActive` flag and the second one to close would withdraw the rail out from under the first.

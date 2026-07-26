@@ -36,7 +36,8 @@ function renderSidebar(
 		onArchive?: (projectId: string, shellId: string) => void;
 		onUnarchive?: (projectId: string, shellId: string) => void;
 		onRename?: (projectId: string, shellId: string, title: string) => void;
-		selectedProjectId?: string;
+		onRequestShell?: () => void;
+		canCreateShell?: boolean;
 		numbersVisible?: boolean;
 	} = {},
 ) {
@@ -56,10 +57,11 @@ function renderSidebar(
 					toggleArchived: () => setArchivedOpen((current) => !current),
 				}}
 				selectedShellId={undefined}
-				selectedProjectId={handlers.selectedProjectId ?? "p1"}
+				canCreateShell={handlers.canCreateShell ?? true}
 				numbersVisible={handlers.numbersVisible ?? false}
 				onSelect={handlers.onSelect ?? (() => {})}
 				onCreate={handlers.onCreate ?? (() => {})}
+				onRequestShell={handlers.onRequestShell ?? (() => {})}
 				onClose={handlers.onClose ?? (() => {})}
 				onArchive={handlers.onArchive ?? (() => {})}
 				onUnarchive={handlers.onUnarchive ?? (() => {})}
@@ -233,13 +235,27 @@ test("clicking a row hands back the project it belongs to", () => {
 	expect(selected).toEqual(["p2/s1"]);
 });
 
-test("the header plus creates in the project of the selected session", () => {
+test("the header plus asks for a shell instead of naming a project itself", () => {
 	const created: string[] = [];
-	renderSidebar({ open: [row("s1")] }, { onCreate: (projectId) => created.push(projectId), selectedProjectId: "p9" });
+	let requests = 0;
+	renderSidebar(
+		{ open: [row("s1")] },
+		{ onCreate: (projectId) => created.push(projectId), onRequestShell: () => (requests += 1) },
+	);
 
 	fireEvent.click(slot(document.body, "new-session"));
 
-	expect(created).toEqual(["p9"]);
+	expect(requests).toBe(1);
+	expect(created).toEqual([]);
+});
+
+test("the header plus is dead while no project is mounted", () => {
+	let requests = 0;
+	renderSidebar({}, { onRequestShell: () => (requests += 1), canCreateShell: false });
+
+	fireEvent.click(slot(document.body, "new-session"));
+
+	expect(requests).toBe(0);
 });
 
 test("the row cross closes without confirmation", () => {

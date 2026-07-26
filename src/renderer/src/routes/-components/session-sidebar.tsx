@@ -39,10 +39,11 @@ interface SessionGestures {
 export function SessionSidebar({
 	list,
 	selectedShellId,
-	selectedProjectId,
+	canCreateShell,
 	numbersVisible,
 	onSelect,
 	onCreate,
+	onRequestShell,
 	onClose,
 	onArchive,
 	onUnarchive,
@@ -52,9 +53,10 @@ export function SessionSidebar({
 	list: ReturnType<typeof useSessionList>;
 	selectedShellId: string | undefined;
 	numbersVisible: boolean;
-	selectedProjectId: string | undefined;
+	canCreateShell: boolean;
 	onSelect: (projectId: string, shellId: string) => void;
 	onCreate: (projectId: string) => void;
+	onRequestShell: () => void;
 	onClose: (projectId: string, shellId: string) => void;
 	onArchive: (projectId: string, shellId: string) => void;
 	onUnarchive: (projectId: string, shellId: string) => void;
@@ -97,8 +99,8 @@ export function SessionSidebar({
 					type="button"
 					data-slot="new-session"
 					className="text-secondary hover:text-primary disabled:text-outline-strong"
-					disabled={!selectedProjectId}
-					onClick={() => selectedProjectId && onCreate(selectedProjectId)}
+					disabled={!canCreateShell}
+					onClick={onRequestShell}
 					aria-label="New shell"
 					title="New shell (Ctrl+X T)"
 				>

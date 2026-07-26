@@ -2,6 +2,7 @@ import { ArrowUturnUpIcon, FolderIcon } from "@heroicons/react/24/outline";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { orpc } from "@renderer/lib/api";
+import { PickerHint, PickerKeys } from "@renderer/routes/-components/picker-hint";
 import {
 	appendBrowseSegment,
 	browseDirectoryPath,
@@ -218,21 +219,4 @@ function PickerItem({
 			<span className="truncate text-body text-primary">{name}</span>
 		</button>
 	);
-}
-
-function PickerHint({ keys, label }: { keys: string[]; label: string }) {
-	return (
-		<span className="flex items-center gap-1.5">
-			<PickerKeys keys={keys} />
-			<span className="text-data text-secondary">{label}</span>
-		</span>
-	);
-}
-
-function PickerKeys({ keys }: { keys: string[] }) {
-	return keys.map((key) => (
-		<kbd key={key} className="border border-outline px-1 py-0.5 text-label text-secondary">
-			{key}
-		</kbd>
-	));
 }

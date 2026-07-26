@@ -24,6 +24,10 @@ _Avoid_: Sidebar
 The overlay that mounts a Project, built around one editable path: typing narrows the directory it names, Enter opens the highlighted directory, and Ctrl+Enter mounts whatever the path currently reads. The system dialog stays behind it as an escape hatch.
 _Avoid_: File picker, directory dialog, file browser, modal
 
+**Shell picker**:
+The overlay that names which Project a new Shell opens in. It is what the header `+` and `Ctrl+X T` reach for once more than one Project is mounted; with a single one they create straight away. Typing narrows by Project name, Enter creates in the highlighted one, and it opens highlighting the Project the selected Shell belongs to, so the shortcut still creates here without a second thought.
+_Avoid_: Command palette, project switcher, quick open, modal
+
 **Fullscreen mode**:
 The internal layout state that removes the Project rail from its fixed position and gives the Workspace the full window width. Entered by the explicit toggle or by dragging the rail's divider below the rail's minimum width. Exited by the toggle or by resizing the revealed rail, which docks it at the chosen width.
 _Avoid_: Native fullscreen, system fullscreen, collapsed rail

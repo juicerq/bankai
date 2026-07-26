@@ -10,6 +10,7 @@ import { ProjectFooter } from "@renderer/routes/-components/project-footer";
 import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
 import { SessionSidebar } from "@renderer/routes/-components/session-sidebar";
+import { ShellPicker } from "@renderer/routes/-components/shell-picker";
 import { WindowControls } from "@renderer/routes/-components/window-controls";
 import {
 	MAX_RAIL_WIDTH,
@@ -180,11 +181,41 @@ function Bankai() {
 		},
 		[continuity.archiveShell, handOverSelection],
 	);
-	const newShellHere = useCallback(() => {
-		if (activeProjectId) {
-			commands.createSession(activeProjectId);
+	const [pickerOpen, setPickerOpen] = useState(false);
+	const openPicker = useCallback(() => {
+		setPickerOpen(true);
+		projectRail.setPickerActive(true);
+	}, [projectRail.setPickerActive]);
+	const closePicker = useCallback(() => {
+		setPickerOpen(false);
+		projectRail.setPickerActive(false);
+	}, [projectRail.setPickerActive]);
+	const [shellPickerOpen, setShellPickerOpen] = useState(false);
+	const closeShellPicker = useCallback(() => {
+		setShellPickerOpen(false);
+		projectRail.setPickerActive(false);
+	}, [projectRail.setPickerActive]);
+	// The picker only earns its overlay when there is a choice to make: one
+	// mounted project has a single answer, and asking for it would turn the
+	// shortcut into two gestures for no decision.
+	const requestNewShell = useCallback(() => {
+		if (pickerOpen) {
+			return;
 		}
-	}, [activeProjectId, commands.createSession]);
+
+		const [onlyProject, ...rest] = availableProjects;
+		if (!onlyProject) {
+			return;
+		}
+
+		if (rest.length === 0) {
+			commands.createSession(onlyProject.id);
+			return;
+		}
+
+		setShellPickerOpen(true);
+		projectRail.setPickerActive(true);
+	}, [availableProjects, commands.createSession, pickerOpen, projectRail.setPickerActive]);
 	const closeShellHere = useCallback(() => {
 		if (activeProjectId && selectedShellId) {
 			closeSession(activeProjectId, selectedShellId);
@@ -240,22 +271,13 @@ function Bankai() {
 	}, [commands.selectSession, sessions.waiting]);
 	const registerShortcuts = useBankaiShortcuts({
 		onToggleFullscreen: projectRail.toggleFullscreen,
-		onNewShell: newShellHere,
+		onNewShell: requestNewShell,
 		onCloseShell: closeShellHere,
 		onModifierHold: holdModifier,
 		onJumpToRow: jumpToRow,
 		onJumpToWaiting: jumpToWaiting,
 	});
 
-	const [pickerOpen, setPickerOpen] = useState(false);
-	const openPicker = useCallback(() => {
-		setPickerOpen(true);
-		projectRail.setPickerActive(true);
-	}, [projectRail.setPickerActive]);
-	const closePicker = useCallback(() => {
-		setPickerOpen(false);
-		projectRail.setPickerActive(false);
-	}, [projectRail.setPickerActive]);
 	const mountProject = useCallback(
 		async (project: { id: string } | null) => {
 			if (!project) {
@@ -327,10 +349,11 @@ function Bankai() {
 				<SessionSidebar
 					list={sessions}
 					selectedShellId={selectedShellId}
-					selectedProjectId={activeProjectId}
+					canCreateShell={availableProjects.length > 0}
 					numbersVisible={numbersVisible}
 					onSelect={commands.selectSession}
 					onCreate={commands.createSession}
+					onRequestShell={requestNewShell}
 					onClose={closeSession}
 					onArchive={archiveSession}
 					onUnarchive={continuity.unarchiveShell}
@@ -392,6 +415,15 @@ function Bankai() {
 					})}
 				</WorkspaceProvider>
 			</section>
+			{shellPickerOpen && (
+				<ShellPicker
+					projects={availableProjects}
+					activeProjectId={activeProjectId}
+					shellCounts={shellCounts}
+					onCreate={commands.createSession}
+					onClose={closeShellPicker}
+				/>
+			)}
 			{pickerOpen && (
 				<ProjectPicker
 					adding={addingProject}

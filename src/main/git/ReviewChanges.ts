@@ -189,8 +189,21 @@ function gitMetadataPaths(root: string): string[] {
 	}
 }
 
+function isRepository(root: string): boolean {
+	const probed = spawnSync("git", ["rev-parse", "--is-inside-work-tree"], {
+		cwd: root,
+		encoding: "utf8",
+	});
+
+	return probed.stdout.trim() === "true";
+}
+
 export function reviewWatchPlan(root: string): WatchPlan {
 	const directories = topLevelDirectories(root);
+	if (!isRepository(root)) {
+		return { targets: [{ path: root, recursive: false }], directories };
+	}
+
 	const metadata = gitMetadataPaths(root).map((path) => ({ path, recursive: true }));
 	const ignored = ignoredDirectories(root, directories);
 	if (!ignored) {

@@ -34,7 +34,11 @@ Two traps this arrangement has to dodge:
 - **`.git` must stay watched.** In a normal repository `.git` is a directory and the old recursive root watch covered it; a commit is what invalidates the panel. `check-ignore` does not report `.git` as ignored, so it survives as a recursive target. In a linked worktree `.git` is a file, and `gitMetadataPaths` resolves the real gitdir and commondir.
 - **A non-recursive root watch never sees into a directory created later.** `ReviewChanges.adopt` re-plans on the debounce whenever `readdirSync` (0.02 ms) shows a top-level name it has not classified.
 
-Outside a Git repository `check-ignore` exits 128 and the plan degrades to the original single recursive watch, so a plain directory behaves exactly as before.
+**A project that is not a repository gets no recursive watch at all.** `Git.snapshot` returns `not-a-repo` for it, so the panel has nothing to render and there is nothing worth observing. `reviewWatchPlan` probes with `git rev-parse --is-inside-work-tree` and stops at a non-recursive watch on the root, which is still enough to notice a `.git` appearing later — `adopt` re-plans on that new top-level name.
+
+Skipping that probe is expensive, not merely wasteful. A project pointed at `~/projects` — the directory that holds every other project — blocked the main process for **4162 ms** building watch descriptors it could never use. See `startup-cost.md`.
+
+`check-ignore` failing inside a real repository still degrades to the single recursive watch.
 
 ## Known gap
 

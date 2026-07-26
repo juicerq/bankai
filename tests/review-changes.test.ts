@@ -16,6 +16,7 @@ it("debounces recursive project filesystem changes into one invalidation", async
 	assertDefined(process.env.DATA_DIR);
 	const project = join(process.env.DATA_DIR, "observed");
 	const nested = join(project, "src");
+	initRepository(project);
 	mkdirSync(nested, { recursive: true });
 
 	let notifications = 0;
@@ -77,12 +78,12 @@ it("skips Git-ignored directories and still watches the repository metadata", ()
 	expect(plan.targets.find((target) => target.path === project)?.recursive).toBe(false);
 });
 
-it("watches the whole tree when the project is not a Git repository", () => {
+it("does not descend into a project that is not a Git repository", () => {
 	assertDefined(process.env.DATA_DIR);
 	const project = join(process.env.DATA_DIR, "plain");
 	mkdirSync(join(project, "src"), { recursive: true });
 
-	expect(reviewWatchPlan(project).targets).toEqual([{ path: project, recursive: true }]);
+	expect(reviewWatchPlan(project).targets).toEqual([{ path: project, recursive: false }]);
 });
 
 it("invalidates on a commit in a repository whose .git is a directory", async () => {

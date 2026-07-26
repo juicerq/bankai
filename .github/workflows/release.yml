@@ -81,10 +81,12 @@ jobs:
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
         run: |
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+          install -d -m 700 /tmp/aur-ssh
+          printf '%s\n' "$AUR_SSH_KEY" > /tmp/aur-ssh/key
+          chmod 600 /tmp/aur-ssh/key
+          ssh-keyscan -t ed25519 aur.archlinux.org > /tmp/aur-ssh/known_hosts
+          test -s /tmp/aur-ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i /tmp/aur-ssh/key -o IdentitiesOnly=yes -o UserKnownHostsFile=/tmp/aur-ssh/known_hosts"
           git clone ssh://aur@aur.archlinux.org/bankai-bin.git /tmp/aur-repo
           cp packaging/aur/PKGBUILD packaging/aur/.SRCINFO /tmp/aur-repo/
           cd /tmp/aur-repo

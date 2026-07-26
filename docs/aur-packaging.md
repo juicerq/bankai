@@ -11,9 +11,13 @@ created_at: 2026-07-26
 
 `chrome-sandbox` is installed setuid root (4755), so the packaged app runs with the Chromium sandbox on. Running the binary straight out of `pkg/` for a smoke test needs `--no-sandbox` because the file is not root-owned there yet.
 
-## Every release needs three edits in the PKGBUILD
+## The release workflow republishes the recipe by itself
 
-`pkgver`, `sha256sums` (of the new AppImage) and a regenerated `.SRCINFO` (`makepkg --printsrcinfo > .SRCINFO`). Nothing in CI does this yet — the AUR repo is a separate git remote (`ssh://aur@aur.archlinux.org/bankai-bin.git`) that has to be pushed by hand.
+The `aur` job in `.github/workflows/release.yml` runs after the Linux release inside an `archlinux:base-devel` container: it rewrites `pkgver` from the tag, lets `updpkgsums` fetch the new AppImage and recompute the checksum, builds the package as a non-root `builder` user to prove the recipe still works, regenerates `.SRCINFO`, commits the refreshed files back to `main`, and pushes them to `ssh://aur@aur.archlinux.org/bankai-bin.git`.
+
+The push authenticates with the `AUR_SSH_KEY` secret — a key pair dedicated to CI (`~/.ssh/aur_ci` locally), separate from the maintainer's personal key. The AUR account's SSH field holds both.
+
+The very first publish had to be manual: cloning an AUR package that does not exist yet fails, so the repo was created by pushing `HEAD:refs/heads/master` into it. The job's `git clone` only works from the second release on.
 
 ## Auto-update is dead in the AUR install
 

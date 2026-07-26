@@ -31,3 +31,68 @@ jobs:
         run: bun run build && bunx electron-builder --linux --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  aur:
+    needs: release
+
+    permissions:
+      contents: write
+
+    runs-on: ubuntu-latest
+
+    container: archlinux:base-devel
+
+    steps:
+      - name: Provide packaging tools
+        run: |
+          pacman -Sy --noconfirm --needed git openssh pacman-contrib
+          useradd -m builder
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Point the recipe at the released version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          sed -i "s/^pkgver=.*/pkgver=$version/;s/^pkgrel=.*/pkgrel=1/" packaging/aur/PKGBUILD
+          install -d -o builder /tmp/aur
+          cp packaging/aur/PKGBUILD /tmp/aur/
+          chown builder /tmp/aur/PKGBUILD
+
+      - name: Build the package and refresh its metadata
+        run: |
+          su builder -c 'cd /tmp/aur && updpkgsums && makepkg -f && makepkg --printsrcinfo > .SRCINFO'
+          cp /tmp/aur/PKGBUILD /tmp/aur/.SRCINFO packaging/aur/
+
+      - name: Push the recipe back to main
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- packaging/aur; then
+            echo "recipe already current"
+            exit 0
+          fi
+          git commit -qm "release $GITHUB_REF_NAME to the AUR" -- packaging/aur
+          git push origin HEAD:main
+
+      - name: Publish to the AUR
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+          git clone ssh://aur@aur.archlinux.org/bankai-bin.git /tmp/aur-repo
+          cp packaging/aur/PKGBUILD packaging/aur/.SRCINFO /tmp/aur-repo/
+          cd /tmp/aur-repo
+          git config user.name "juicerq"
+          git config user.email "julio.cerqueiira@gmail.com"
+          if git diff --quiet; then
+            echo "AUR already at this version"
+            exit 0
+          fi
+          git commit -qam "bankai-bin $GITHUB_REF_NAME"
+          git push

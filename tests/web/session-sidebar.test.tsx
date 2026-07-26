@@ -22,7 +22,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
 		activity: undefined,
-		lastLine: undefined,
+		trace: undefined,
 		...patch,
 	};
 }
@@ -105,7 +105,7 @@ test("an open session renders as a card carrying project, title and harness", ()
 
 	expect(card.textContent).toContain("flatten the sidebar");
 	expect(card.textContent).toContain("bankai");
-	expect(card.textContent).toContain("claude");
+	expect(card.querySelector("[aria-label='Claude']")).not.toBeNull();
 	expect(slot(card, "session-trace").textContent).toBe("sessions-first-sidebar");
 });
 
@@ -121,7 +121,7 @@ test("a session with no activity keeps the card it had, only quieter", () => {
 
 test("the output line takes the trace slot while the agent is running", () => {
 	renderSidebar({
-		open: [row("s1", { branch: "main", activity: "working", lastLine: "Editing index.tsx" })],
+		open: [row("s1", { branch: "main", activity: "working", trace: "Editing index.tsx" })],
 	});
 
 	const trace = slot(sessionRow("s1"), "session-trace");

@@ -1,7 +1,7 @@
 import { ATTENTION_SCAN_WINDOW, matchesAttentionPrompt } from "@main/activity/attention";
 import type { AgentPresence } from "@main/activity/Harness";
 import { bindShells, childrenByParent } from "@main/activity/SessionBinder";
-import { discoverAgents } from "@main/activity/harnesses";
+import { discoverAgents, harnessTrace } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
 import { reconcileSessionRefs, type SessionRef } from "@main/activity/SessionRefs";
 import { stampShell } from "@main/continuity/ShellFacts";
@@ -141,6 +141,34 @@ export function turnBaselineShells(input: {
 	});
 }
 
+async function observeTraces(
+	shells: { sessionId: string; shellId: string }[],
+	bindings: Map<string, number>,
+	liveByPid: Map<number, AgentPresence>,
+): Promise<Map<string, string>> {
+	const traces = new Map<string, string>();
+
+	await Promise.all(shells.map(async (shell) => {
+		const boundPid = bindings.get(shell.sessionId);
+		const presence = boundPid === undefined ? undefined : liveByPid.get(boundPid);
+		if (!presence) {
+			return;
+		}
+
+		const read = harnessTrace(presence.harness);
+		if (!read) {
+			return;
+		}
+
+		const trace = await read(presence);
+		if (trace) {
+			traces.set(shell.shellId, trace);
+		}
+	}));
+
+	return traces;
+}
+
 async function locateWorktree(projectPath: string, cwd: string): Promise<Worktree | undefined> {
 	const listed = await projectWorktrees(projectPath).catch((err) => {
 		Logger.error("activity:worktrees-failed", { projectPath, err: String(err) });
@@ -162,16 +190,28 @@ function shellOwners(shells: { sessionId: string; projectId: string; shellId: st
 	);
 }
 
+export function sessionTraces(
+	harnessTraces: ReadonlyMap<string, string>,
+	outputLines: ReadonlyMap<string, string>,
+): Map<string, string> {
+	const traces = new Map(outputLines);
+	for (const [shellId, trace] of harnessTraces) {
+		traces.set(shellId, trace);
+	}
+
+	return traces;
+}
+
 export function snapshotsByProject({
 	shellStates,
 	owners,
 	worktrees,
-	lastLines,
+	traces,
 }: {
 	shellStates: Map<string, AgentActivityState>;
 	owners: Map<string, ShellOwner>;
 	worktrees: Map<string, string>;
-	lastLines: ReadonlyMap<string, string>;
+	traces: ReadonlyMap<string, string>;
 }): Map<string, ProjectActivitySnapshot> {
 	const projectIds = new Set<string>();
 	const shellsByProject = new Map<string, Record<string, AgentActivityState>>();
@@ -203,18 +243,18 @@ export function snapshotsByProject({
 	const snapshots = new Map<string, ProjectActivitySnapshot>();
 	for (const projectId of projectIds) {
 		const shells = shellsByProject.get(projectId) ?? {};
-		const lastLineByShellId: Record<string, string> = {};
+		const traceByShellId: Record<string, string> = {};
 		for (const shellId of Object.keys(shells)) {
-			const line = lastLines.get(shellId);
-			if (line) {
-				lastLineByShellId[shellId] = line;
+			const trace = traces.get(shellId);
+			if (trace) {
+				traceByShellId[shellId] = trace;
 			}
 		}
 
 		snapshots.set(projectId, {
 			shells,
 			worktreeByShellId: worktreesByProject.get(projectId) ?? {},
-			lastLineByShellId,
+			traceByShellId,
 		});
 	}
 
@@ -241,11 +281,11 @@ function sameSnapshot(
 		return false;
 	}
 
-	return sameRecord(before?.lastLineByShellId ?? {}, after?.lastLineByShellId ?? {});
+	return sameRecord(before?.traceByShellId ?? {}, after?.traceByShellId ?? {});
 }
 
 function emptySnapshot(): ProjectActivitySnapshot {
-	return { shells: {}, worktreeByShellId: {}, lastLineByShellId: {} };
+	return { shells: {}, worktreeByShellId: {}, traceByShellId: {} };
 }
 
 type ActivityListener = (snapshot: ProjectActivitySnapshot) => void;
@@ -259,6 +299,7 @@ class AgentActivityTracker {
 	private boundSessions = new Set<string>();
 	private sessionRefs = new Map<string, SessionRef>();
 	private shellWorktrees = new Map<string, string>();
+	private harnessTraces = new Map<string, string>();
 	private agentCwds = new Map<string, string>();
 	private viewed: string | undefined;
 	private timer: ReturnType<typeof setInterval> | undefined;
@@ -317,7 +358,12 @@ class AgentActivityTracker {
 
 		const cleared = new Map(this.shellStates);
 		cleared.delete(sessionId);
-		this.commit(cleared, shellOwners(TerminalSessions.list()), this.shellWorktrees);
+		this.commit({
+			shellStates: cleared,
+			owners: shellOwners(TerminalSessions.list()),
+			worktrees: this.shellWorktrees,
+			harnessTraces: this.harnessTraces,
+		});
 	}
 
 	private runTick(): void {
@@ -342,7 +388,7 @@ class AgentActivityTracker {
 			this.attention.clear();
 			this.attentionTail.clear();
 			this.agentCwds.clear();
-			this.commit(new Map(), owners, new Map());
+			this.commit({ shellStates: new Map(), owners, worktrees: new Map(), harnessTraces: new Map() });
 			return;
 		}
 
@@ -388,7 +434,11 @@ class AgentActivityTracker {
 		}
 
 		this.captureSessionRefs(shells, bindings, liveByPid);
-		this.commit(nextStates, owners, await this.observeWorktrees(shells, bindings, liveByPid));
+		const [worktrees, harnessTraces] = await Promise.all([
+			this.observeWorktrees(shells, bindings, liveByPid),
+			observeTraces(shells, bindings, liveByPid),
+		]);
+		this.commit({ shellStates: nextStates, owners, worktrees, harnessTraces });
 	}
 
 	private async observeWorktrees(
@@ -477,17 +527,29 @@ class AgentActivityTracker {
 		}
 	}
 
-	private commit(
-		shellStates: Map<string, AgentActivityState>,
-		owners: Map<string, ShellOwner>,
-		worktrees: Map<string, string>,
-	): void {
+	private commit({
+		shellStates,
+		owners,
+		worktrees,
+		harnessTraces,
+	}: {
+		shellStates: Map<string, AgentActivityState>;
+		owners: Map<string, ShellOwner>;
+		worktrees: Map<string, string>;
+		harnessTraces: Map<string, string>;
+	}): void {
 		const previousStates = this.shellStates;
 		const previousWorktrees = this.shellWorktrees;
 		const previous = this.projectSnapshots;
-		const nextSnapshots = snapshotsByProject({ shellStates, owners, worktrees, lastLines: shellOutputLines });
+		const nextSnapshots = snapshotsByProject({
+			shellStates,
+			owners,
+			worktrees,
+			traces: sessionTraces(harnessTraces, shellOutputLines),
+		});
 		this.shellStates = shellStates;
 		this.shellWorktrees = worktrees;
+		this.harnessTraces = harnessTraces;
 		this.projectSnapshots = nextSnapshots;
 
 		const baselines = turnBaselineShells({

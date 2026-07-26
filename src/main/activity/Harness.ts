@@ -17,4 +17,5 @@ export interface Harness {
 	discover: () => Promise<AgentPresence[]>;
 	resume?: (ref: { sessionId: string }) => ResumeCommand | null;
 	title?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
+	trace?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
 }

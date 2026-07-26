@@ -19,13 +19,13 @@ const NOW = 1_800_000_000_000;
 function rowsOf(
 	continuity: ContinuityValue,
 	activity: Record<string, AgentActivityState> = {},
-	lastLines: Record<string, string> = {},
+	traces: Record<string, string> = {},
 ) {
 	return sessionRows({
 		continuity,
 		projects: PROJECTS,
 		shellActivity: new Map(Object.entries(activity)),
-		lastLines: new Map(Object.entries(lastLines)),
+		traces: new Map(Object.entries(traces)),
 	});
 }
 
@@ -139,7 +139,7 @@ describe("building the flat list", () => {
 			{ s1: "Running bun run check" },
 		);
 
-		expect(row?.lastLine).toBe("Running bun run check");
+		expect(row?.trace).toBe("Running bun run check");
 	});
 
 	test("a shell with no activity carries no last output line", () => {
@@ -149,7 +149,7 @@ describe("building the flat list", () => {
 			{ s1: "vite ready in 412 ms" },
 		);
 
-		expect(row?.lastLine).toBeUndefined();
+		expect(row?.trace).toBeUndefined();
 	});
 
 	test("the harness comes from the persisted session ref", () => {
@@ -185,7 +185,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
 		activity: undefined,
-		lastLine: undefined,
+		trace: undefined,
 		...patch,
 	};
 }

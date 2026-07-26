@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
 	nextShellActivity,
 	nextShellWorktrees,
+	sessionTraces,
 	snapshotsByProject,
 	turnBaselineShells,
 	turnStartShells,
@@ -234,13 +235,13 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working", "session-b": "needs-attention" }),
 			owners,
 			worktrees: new Map(),
-			lastLines: new Map(),
+			traces: new Map(),
 		});
 
 		expect(snapshots.get("p1")).toEqual({
 			shells: { "shell-a": "working", "shell-b": "needs-attention" },
 			worktreeByShellId: {},
-			lastLineByShellId: {},
+			traceByShellId: {},
 		});
 	});
 
@@ -249,14 +250,14 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working", "session-c": "done-unseen" }),
 			owners,
 			worktrees: new Map(),
-			lastLines: new Map(),
+			traces: new Map(),
 		});
 
 		expect([...snapshots.keys()].sort()).toEqual(["p1", "p2"]);
 		expect(snapshots.get("p2")).toEqual({
 			shells: { "shell-c": "done-unseen" },
 			worktreeByShellId: {},
-			lastLineByShellId: {},
+			traceByShellId: {},
 		});
 	});
 
@@ -265,7 +266,7 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working", "session-loose": "working" }),
 			owners,
 			worktrees: new Map(),
-			lastLines: new Map(),
+			traces: new Map(),
 		});
 
 		expect(snapshots.size).toBe(1);
@@ -277,13 +278,13 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map([["shell-a", "/tmp/repo-slug"]]),
-			lastLines: new Map(),
+			traces: new Map(),
 		});
 
 		expect(snapshots.get("p1")).toEqual({
 			shells: { "shell-a": "working" },
 			worktreeByShellId: { "shell-a": "/tmp/repo-slug" },
-			lastLineByShellId: {},
+			traceByShellId: {},
 		});
 	});
 
@@ -292,7 +293,7 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map(),
-			lastLines: new Map(),
+			traces: new Map(),
 		});
 
 		expect(snapshots.get("p1")?.shells["shell-b"]).toBeUndefined();
@@ -303,13 +304,13 @@ describe("project snapshots", () => {
 			shellStates: new Map(),
 			owners,
 			worktrees: new Map([["shell-c", "/tmp/repo-slug"]]),
-			lastLines: new Map(),
+			traces: new Map(),
 		});
 
 		expect(snapshots.get("p2")).toEqual({
 			shells: {},
 			worktreeByShellId: { "shell-c": "/tmp/repo-slug" },
-			lastLineByShellId: {},
+			traceByShellId: {},
 		});
 	});
 
@@ -318,14 +319,24 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map(),
-			lastLines: new Map([["shell-a", "Running bun run check"], ["shell-b", "vite ready in 412 ms"]]),
+			traces: new Map([["shell-a", "Running bun run check"], ["shell-b", "vite ready in 412 ms"]]),
 		});
 
-		expect(snapshots.get("p1")?.lastLineByShellId).toEqual({ "shell-a": "Running bun run check" });
+		expect(snapshots.get("p1")?.traceByShellId).toEqual({ "shell-a": "Running bun run check" });
+	});
+
+	test("the harness status wins over the shell's own output line", () => {
+		const traces = sessionTraces(
+			new Map([["shell-a", "Running commands…"]]),
+			new Map([["shell-a", "-7"], ["shell-b", "vite ready in 412 ms"]]),
+		);
+
+		expect(traces.get("shell-a")).toBe("Running commands…");
+		expect(traces.get("shell-b")).toBe("vite ready in 412 ms");
 	});
 
 	test("no bound shells means no snapshots at all", () => {
-		expect(snapshotsByProject({ shellStates: new Map(), owners, worktrees: new Map(), lastLines: new Map() }).size).toBe(0);
+		expect(snapshotsByProject({ shellStates: new Map(), owners, worktrees: new Map(), traces: new Map() }).size).toBe(0);
 	});
 });
 

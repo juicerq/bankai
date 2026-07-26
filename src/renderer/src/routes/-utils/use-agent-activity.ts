@@ -4,13 +4,13 @@ import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activi
 export interface AgentActivities {
 	shells: ReadonlyMap<string, AgentActivityState>;
 	worktrees: ReadonlyMap<string, string>;
-	lastLines: ReadonlyMap<string, string>;
+	traces: ReadonlyMap<string, string>;
 }
 
 const EMPTY_ACTIVITIES: AgentActivities = {
 	shells: new Map(),
 	worktrees: new Map(),
-	lastLines: new Map(),
+	traces: new Map(),
 };
 
 export function useAgentActivities(projectIds: string[]): AgentActivities {
@@ -28,7 +28,7 @@ class AgentActivityObserver {
 	private notify: (() => void) | undefined;
 	private readonly shellKeys = new Map<string, string[]>();
 	private readonly worktreeKeys = new Map<string, string[]>();
-	private readonly lastLineKeys = new Map<string, string[]>();
+	private readonly traceKeys = new Map<string, string[]>();
 
 	constructor(private readonly projectIds: string[]) {}
 
@@ -53,7 +53,7 @@ class AgentActivityObserver {
 			this.notify = undefined;
 			this.shellKeys.clear();
 			this.worktreeKeys.clear();
-			this.lastLineKeys.clear();
+			this.traceKeys.clear();
 			for (const projectId of this.projectIds) {
 				window.bankaiActivity.unwatch(projectId);
 			}
@@ -79,16 +79,16 @@ class AgentActivityObserver {
 		}
 		this.worktreeKeys.set(projectId, Object.keys(snapshot.worktreeByShellId));
 
-		const lastLines = new Map(this.snapshot.lastLines);
-		for (const shellId of this.lastLineKeys.get(projectId) ?? []) {
-			lastLines.delete(shellId);
+		const traces = new Map(this.snapshot.traces);
+		for (const shellId of this.traceKeys.get(projectId) ?? []) {
+			traces.delete(shellId);
 		}
-		for (const [shellId, line] of Object.entries(snapshot.lastLineByShellId)) {
-			lastLines.set(shellId, line);
+		for (const [shellId, trace] of Object.entries(snapshot.traceByShellId)) {
+			traces.set(shellId, trace);
 		}
-		this.lastLineKeys.set(projectId, Object.keys(snapshot.lastLineByShellId));
+		this.traceKeys.set(projectId, Object.keys(snapshot.traceByShellId));
 
-		this.snapshot = { shells: shellStates, worktrees, lastLines };
+		this.snapshot = { shells: shellStates, worktrees, traces };
 		this.notify?.();
 	}
 }

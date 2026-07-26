@@ -13,14 +13,14 @@ export interface SessionRow {
 	lastTouchedAt: number | undefined;
 	archivedAt: number | undefined;
 	activity: AgentActivityState | undefined;
-	lastLine: string | undefined;
+	trace: string | undefined;
 }
 
 export function sessionRows(input: {
 	continuity: ContinuityValue;
 	projects: { id: string; name: string }[];
 	shellActivity: ReadonlyMap<string, AgentActivityState>;
-	lastLines: ReadonlyMap<string, string>;
+	traces: ReadonlyMap<string, string>;
 }): SessionRow[] {
 	const rows: SessionRow[] = [];
 
@@ -44,7 +44,7 @@ export function sessionRows(input: {
 				lastTouchedAt: shell.lastTouchedAt,
 				archivedAt: shell.archivedAt,
 				activity,
-				lastLine: activity ? input.lastLines.get(shell.id) : undefined,
+				trace: activity ? input.traces.get(shell.id) : undefined,
 			});
 		}
 	}

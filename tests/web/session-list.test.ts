@@ -20,7 +20,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
 		activity: undefined,
-		lastLine: undefined,
+		trace: undefined,
 		...patch,
 	};
 }

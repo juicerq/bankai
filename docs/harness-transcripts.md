@@ -1,7 +1,7 @@
 ---
 title: What a harness transcript can and cannot tell us about a session, and which title sources are dead
 tags: [activity, terminal]
-updated_at: 2026-07-25
+updated_at: 2026-07-26
 created_at: 2026-07-25
 ---
 
@@ -24,6 +24,16 @@ Several families of block reach the transcript as `type: "user"` records without
 `message.content` is either a plain string or a list of blocks; only `{type: "text"}` blocks hold user text, and a `tool_result` or an unknown block type is skipped.
 
 Filtering those and taking the first remaining message yields, over 150 recent transcripts: 81% usable intent, 7% junk too short to identify anything (`oi`, `concordo.`), 11% no user message at all. This filter is a **list, not a rule** — it is third-party format, so a new block type degrades the result silently rather than failing.
+
+## The tail of a Claude transcript says what the agent is doing right now
+
+`src/main/activity/claudeTrace.ts` reads the last 64KB of the transcript, scans backwards for the newest `type: "assistant"` record, and takes its newest content block. Three block types carry the answer: `thinking`, `text`, and `tool_use` with a `name`. Over 7427 assistant records on this machine, no other block type appeared.
+
+The tool name is mapped to a family — `Bash` is "Running commands…", `Read`/`Grep`/`Glob`/`Find`/`Ls` are "Exploring…", `Edit`/`Write` are "Editing files…". An MCP tool arrives as `mcp__<server>__<tool>`, so only the segment after the last `__` is matched. An unmapped tool falls back to its own bare name rather than to nothing, so a tool Claude adds later degrades to a readable label instead of a blank card.
+
+Records the tail must be skipped over, in order of how often they appear: `attachment`, `last-prompt`, `mode`, `ai-title`, `system`, `permission-mode`, `file-history-snapshot`, `file-history-delta`, `queue-operation`, `worktree-state`, `relocated`, `pr-link`. They are ~40% of the lines and none of them describes the agent.
+
+A pasted image writes an `attachment` record that can exceed the whole 64KB window on its own. That is survivable because the agent's reply is written *after* it, so scanning from the end reaches the assistant record first; the only cost is a tick with no trace while the attachment is the newest line.
 
 ## The transcript folder is the working directory with its punctuation flattened
 

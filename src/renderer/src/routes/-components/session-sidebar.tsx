@@ -205,10 +205,10 @@ function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGest
 			<span
 				data-slot="session-trace"
 				className={`block h-3.5 w-full truncate text-data ${
-					row.lastLine && row.activity ? ACTIVITY_TEXT_CLASS[row.activity] : "text-outline-strong"
+					row.trace && row.activity ? ACTIVITY_TEXT_CLASS[row.activity] : "text-outline-strong"
 				}`}
 			>
-				{row.lastLine ?? row.branch}
+				{row.trace ?? row.branch}
 			</span>
 		</SessionEntry>
 	);

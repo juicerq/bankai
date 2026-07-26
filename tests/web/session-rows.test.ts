@@ -158,8 +158,8 @@ describe("building the flat list", () => {
 			workspaces: [{ projectId: "p1", shells: [{ id: "s1", label: "Shell 1", createdAt: 1 }] }],
 		};
 
-		expect(rowsOf(stopped, { s1: "needs-attention" }, { s1: "Writing…" })[0]?.trace).toBe("Waiting on you");
-		expect(rowsOf(stopped, { s1: "done-unseen" }, { s1: "Writing…" })[0]?.trace).toBe("Done");
+		expect(rowsOf(stopped, { s1: "needs-attention" }, { s1: "Writing" })[0]?.trace).toBe("Waiting on you");
+		expect(rowsOf(stopped, { s1: "done-unseen" }, { s1: "Writing" })[0]?.trace).toBe("Done");
 	});
 
 	test("the harness comes from the persisted session ref", () => {
@@ -290,12 +290,12 @@ describe("choosing what takes the closed session's place", () => {
 
 describe("choosing what the trace slot says", () => {
 	test("a working agent shows what it is doing", () => {
-		expect(sessionTrace("working", "Running commands…")).toBe("Running commands…");
+		expect(sessionTrace("working", "Running commands")).toBe("Running commands");
 	});
 
 	test("a stopped agent names its state, whatever the transcript last held", () => {
-		expect(sessionTrace("needs-attention", "Writing…")).toBe("Waiting on you");
-		expect(sessionTrace("done-unseen", "Writing…")).toBe("Done");
+		expect(sessionTrace("needs-attention", "Writing")).toBe("Waiting on you");
+		expect(sessionTrace("done-unseen", "Writing")).toBe("Done");
 		expect(sessionTrace("done-unseen")).toBe("Done");
 	});
 

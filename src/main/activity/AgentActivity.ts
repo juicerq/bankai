@@ -1,5 +1,6 @@
 import { ATTENTION_SCAN_WINDOW, matchesAttentionPrompt } from "@main/activity/attention";
-import type { AgentPresence } from "@main/activity/Harness";
+import { COMPACTION_TRACE, matchesCompactionNotice } from "@main/activity/compaction";
+import type { AgentPresence, HarnessTrace } from "@main/activity/Harness";
 import { bindShells, childrenReader, type ChildrenOf } from "@main/activity/SessionBinder";
 import { discoverAgents, harnessTrace } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
@@ -63,6 +64,28 @@ export function nextShellActivity(
 	}
 
 	return next;
+}
+
+const NO_RECORD = "";
+
+export function nextCompactionAnchor(input: {
+	anchor: string | undefined;
+	noticed: boolean;
+	recordId: string | undefined;
+	bound: BoundStatus | undefined;
+}): string | undefined {
+	const record = input.recordId ?? NO_RECORD;
+	if (input.noticed) {
+		return record;
+	}
+	if (input.anchor === undefined) {
+		return undefined;
+	}
+	if (input.bound !== "working" || record !== input.anchor) {
+		return undefined;
+	}
+
+	return input.anchor;
 }
 
 function turnOpen(state: AgentActivityState | undefined): boolean {
@@ -147,8 +170,8 @@ async function observeTraces(
 	shells: { sessionId: string; shellId: string }[],
 	bindings: Map<string, number>,
 	liveByPid: Map<number, AgentPresence>,
-): Promise<Map<string, string>> {
-	const traces = new Map<string, string>();
+): Promise<Map<string, HarnessTrace>> {
+	const traces = new Map<string, HarnessTrace>();
 
 	await Promise.all(shells.map(async (shell) => {
 		const boundPid = bindings.get(shell.sessionId);
@@ -193,12 +216,16 @@ function shellOwners(shells: { sessionId: string; projectId: string; shellId: st
 }
 
 export function sessionTraces(
-	harnessTraces: ReadonlyMap<string, string>,
+	compacting: ReadonlySet<string>,
+	harnessTraces: ReadonlyMap<string, HarnessTrace>,
 	outputLines: ReadonlyMap<string, string>,
 ): Map<string, string> {
 	const traces = new Map(outputLines);
 	for (const [shellId, trace] of harnessTraces) {
-		traces.set(shellId, trace);
+		traces.set(shellId, trace.label);
+	}
+	for (const shellId of compacting) {
+		traces.set(shellId, COMPACTION_TRACE);
 	}
 
 	return traces;
@@ -298,10 +325,12 @@ class AgentActivityTracker {
 	private readonly listeners = new Map<string, Set<ActivityListener>>();
 	private readonly attention = new Set<string>();
 	private readonly attentionTail = new Map<string, string>();
+	private readonly compactionNoticed = new Set<string>();
+	private readonly compacting = new Map<string, string>();
 	private boundSessions = new Set<string>();
 	private sessionRefs = new Map<string, SessionRef>();
 	private shellWorktrees = new Map<string, string>();
-	private harnessTraces = new Map<string, string>();
+	private harnessTraces = new Map<string, HarnessTrace>();
 	private agentCwds = new Map<string, string>();
 	private viewed: string | undefined;
 	private timer: ReturnType<typeof setInterval> | undefined;
@@ -318,6 +347,9 @@ class AgentActivityTracker {
 			: combined;
 		if (matchesAttentionPrompt(window)) {
 			this.attention.add(sessionId);
+		}
+		if (matchesCompactionNotice(window)) {
+			this.compactionNoticed.add(sessionId);
 		}
 		this.attentionTail.set(sessionId, combined.slice(-ATTENTION_TAIL));
 	}
@@ -389,6 +421,8 @@ class AgentActivityTracker {
 			this.sessionRefs = new Map();
 			this.attention.clear();
 			this.attentionTail.clear();
+			this.compactionNoticed.clear();
+			this.compacting.clear();
 			this.agentCwds.clear();
 			this.commit({ shellStates: new Map(), owners, worktrees: new Map(), harnessTraces: new Map() });
 			return;
@@ -415,7 +449,7 @@ class AgentActivityTracker {
 		const childrenOf: ChildrenOf = needsWalk ? await childrenReader() : childless;
 		const bindings = await bindShells(foregrounds, livePids, childrenOf);
 		this.boundSessions = new Set(bindings.keys());
-		this.pruneAttention(owners);
+		this.pruneScans(owners);
 
 		const nextStates = new Map<string, AgentActivityState>();
 		for (const shell of shells) {
@@ -440,6 +474,7 @@ class AgentActivityTracker {
 			this.observeWorktrees(shells, bindings, liveByPid),
 			observeTraces(shells, bindings, liveByPid),
 		]);
+		this.trackCompaction(shells, bindings, liveByPid, harnessTraces);
 		this.commit({ shellStates: nextStates, owners, worktrees, harnessTraces });
 	}
 
@@ -516,7 +551,7 @@ class AgentActivityTracker {
 		}
 	}
 
-	private pruneAttention(present: Map<string, ShellOwner>): void {
+	private pruneScans(present: Map<string, ShellOwner>): void {
 		for (const sessionId of this.attention) {
 			if (!present.has(sessionId)) {
 				this.attention.delete(sessionId);
@@ -526,6 +561,42 @@ class AgentActivityTracker {
 			if (!present.has(sessionId)) {
 				this.attentionTail.delete(sessionId);
 			}
+		}
+		for (const sessionId of this.compactionNoticed) {
+			if (!present.has(sessionId)) {
+				this.compactionNoticed.delete(sessionId);
+			}
+		}
+
+		const shellIds = new Set([...present.values()].map((owner) => owner.shellId));
+		for (const shellId of this.compacting.keys()) {
+			if (!shellIds.has(shellId)) {
+				this.compacting.delete(shellId);
+			}
+		}
+	}
+
+	private trackCompaction(
+		shells: { sessionId: string; shellId: string }[],
+		bindings: Map<string, number>,
+		liveByPid: Map<number, AgentPresence>,
+		traces: Map<string, HarnessTrace>,
+	): void {
+		for (const shell of shells) {
+			const boundPid = bindings.get(shell.sessionId);
+			const anchor = nextCompactionAnchor({
+				anchor: this.compacting.get(shell.shellId),
+				noticed: this.compactionNoticed.delete(shell.sessionId),
+				recordId: traces.get(shell.shellId)?.recordId,
+				bound: boundPid === undefined ? undefined : liveByPid.get(boundPid)?.status,
+			});
+
+			if (anchor === undefined) {
+				this.compacting.delete(shell.shellId);
+				continue;
+			}
+
+			this.compacting.set(shell.shellId, anchor);
 		}
 	}
 
@@ -538,7 +609,7 @@ class AgentActivityTracker {
 		shellStates: Map<string, AgentActivityState>;
 		owners: Map<string, ShellOwner>;
 		worktrees: Map<string, string>;
-		harnessTraces: Map<string, string>;
+		harnessTraces: Map<string, HarnessTrace>;
 	}): void {
 		const previousStates = this.shellStates;
 		const previousWorktrees = this.shellWorktrees;
@@ -547,7 +618,7 @@ class AgentActivityTracker {
 			shellStates,
 			owners,
 			worktrees,
-			traces: sessionTraces(harnessTraces, shellOutputLines),
+			traces: sessionTraces(new Set(this.compacting.keys()), harnessTraces, shellOutputLines),
 		});
 		this.shellStates = shellStates;
 		this.shellWorktrees = worktrees;

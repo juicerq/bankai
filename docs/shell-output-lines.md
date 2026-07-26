@@ -17,7 +17,21 @@ Control characters are replaced with a **space**, not removed — replacing a ta
 
 ## It is the fallback, not the source, for an agent session
 
-The session card's trace slot is `traceByShellId`, and `sessionTraces` in `src/main/activity/AgentActivity.ts` fills it from two sources: the harness status wins, the scraped PTY line is what is left. A shell running Claude reads its status from the transcript; a plain shell has no harness and keeps the scraped line, which is what that source is actually good for.
+The session card's trace slot is `traceByShellId`, and `sessionTraces` in `src/main/activity/AgentActivity.ts` fills it from three sources, weakest first: the scraped PTY line, the harness status, then "Compacting". A shell running Claude reads its status from the transcript; a plain shell has no harness and keeps the scraped line, which is what that source is actually good for.
+
+Compaction has to sit on top because it is the one moment the transcript lies by omission — see `harness-transcripts.md`.
+
+## A scraped spinner message is an event, not a state
+
+The claude TUI repaints **only the cells that changed**. Captured from a real PTY, a frame while the agent works is `ESC[H \r ESC[16B <colour> ✻ ESC[39m` — the spinner glyph and nothing else. The message beside it (`Hashing…`, `thinking with medium effort`) is written once, when it changes, and then only rewritten if its own pixels change — a shimmer sweep rewrites the whole string every frame, a plain message never does.
+
+So anything scraped from that row is a **one-shot event**. A freshness window is the wrong shape for it: `Compacting conversation` may be painted once and then sit on screen, unwritten, for the two minutes the compaction lasts.
+
+`matchesCompactionNotice` therefore only says *started*. The end comes from the transcript: `nextCompactionAnchor` in `src/main/activity/AgentActivity.ts` records which transcript record the agent stopped at when the notice arrived, and holds "Compacting" until that record is no longer the newest — which is exactly when the agent resumes — or until the turn ends. See `harness-transcripts.md` for why the transcript is frozen throughout.
+
+The match runs on `plainText`, the same strip-and-collapse `outputLine` uses, because a message is painted between colour escapes and cursor jumps. That is safe for the *first* paint of a message, which the TUI writes as one contiguous string with real spaces; it is hopeless for a per-cell diff, where the phrase arrives as scattered single characters. Only the first paint has to match, and it does.
+
+Two known holes, both accepted: a paint that wraps *inside* a word defeats the match, and a terminal that merely prints the words "Compacting conversation" is a false positive that lasts until the next transcript record.
 
 ## Only a working agent is described by what it last did
 

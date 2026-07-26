@@ -12,6 +12,11 @@ export interface HarnessCommand {
 	args: string[];
 }
 
+export interface HarnessTrace {
+	label: string;
+	recordId: string;
+}
+
 export interface Harness {
 	id: string;
 	label: string;
@@ -19,5 +24,5 @@ export interface Harness {
 	launch?: () => HarnessCommand;
 	resume?: (ref: { sessionId: string }) => HarnessCommand | null;
 	title?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
-	trace?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
+	trace?: (ref: { sessionId: string; cwd: string }) => Promise<HarnessTrace | null>;
 }

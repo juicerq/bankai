@@ -11,14 +11,18 @@ const TAIL_LIMIT = 4096;
 const tails = new Map<string, string>();
 const lines = new Map<string, string>();
 
-export function outputLine(segment: string): string | null {
-	const clean = segment
+export function plainText(raw: string): string {
+	return raw
 		.replaceAll(OSC, "")
 		.replaceAll(CSI, "")
 		.replaceAll(ESCAPE, "")
 		.replaceAll(CONTROL, " ")
 		.replace(/\s+/g, " ")
 		.trim();
+}
+
+export function outputLine(segment: string): string | null {
+	const clean = plainText(segment);
 
 	if (!clean || !READABLE.test(clean)) {
 		return null;

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import {
+	nextCompactionAnchor,
 	nextShellActivity,
 	nextShellWorktrees,
 	sessionTraces,
@@ -12,6 +13,7 @@ import {
 } from "@main/activity/AgentActivity";
 import { matchesAttentionPrompt } from "@main/activity/attention";
 import { ClaudeHarness, parseSessionRecord } from "@main/activity/claude";
+import { COMPACTION_TRACE, matchesCompactionNotice } from "@main/activity/compaction";
 import { procFs } from "@main/activity/procFs";
 import { bindShells, childrenByParent, type ChildrenOf } from "@main/activity/SessionBinder";
 import { aggregateActivity, type AgentActivityState } from "@shared/activity";
@@ -328,12 +330,27 @@ describe("project snapshots", () => {
 
 	test("the harness status wins over the shell's own output line", () => {
 		const traces = sessionTraces(
-			new Map([["shell-a", "Running commands…"]]),
+			new Set(),
+			new Map([["shell-a", { label: "Running commands", recordId: "uuid-1" }]]),
 			new Map([["shell-a", "-7"], ["shell-b", "vite ready in 412 ms"]]),
 		);
 
-		expect(traces.get("shell-a")).toBe("Running commands…");
+		expect(traces.get("shell-a")).toBe("Running commands");
 		expect(traces.get("shell-b")).toBe("vite ready in 412 ms");
+	});
+
+	test("compacting wins over the transcript, which is frozen while it runs", () => {
+		const traces = sessionTraces(
+			new Set(["shell-a"]),
+			new Map([
+				["shell-a", { label: "Running commands", recordId: "uuid-1" }],
+				["shell-b", { label: "Thinking", recordId: "uuid-2" }],
+			]),
+			new Map([["shell-a", "-7"]]),
+		);
+
+		expect(traces.get("shell-a")).toBe(COMPACTION_TRACE);
+		expect(traces.get("shell-b")).toBe("Thinking");
 	});
 
 	test("no bound shells means no snapshots at all", () => {
@@ -545,5 +562,61 @@ describe("attention prompt detection", () => {
 
 	test("ignores the agent's own auto-accept footer while it works", () => {
 		expect(matchesAttentionPrompt("\x1b[2m⏵⏵ auto-accept edits on (shift+tab to cycle)\x1b[22m")).toBe(false);
+	});
+});
+
+describe("how long a compaction lasts", () => {
+	const WORKING = { bound: "working", noticed: false, recordId: "uuid-1" } as const;
+
+	test("the notice anchors on the record the transcript stopped at", () => {
+		expect(nextCompactionAnchor({ ...WORKING, anchor: undefined, noticed: true })).toBe("uuid-1");
+	});
+
+	test("it holds for as long as the transcript stays frozen", () => {
+		expect(nextCompactionAnchor({ ...WORKING, anchor: "uuid-1" })).toBe("uuid-1");
+	});
+
+	test("it ends when the agent writes its next record", () => {
+		expect(nextCompactionAnchor({ ...WORKING, anchor: "uuid-1", recordId: "uuid-2" })).toBeUndefined();
+	});
+
+	test("it ends when the turn ends, even with the transcript still frozen", () => {
+		expect(nextCompactionAnchor({ ...WORKING, anchor: "uuid-1", bound: "idle" })).toBeUndefined();
+		expect(nextCompactionAnchor({ ...WORKING, anchor: "uuid-1", bound: undefined })).toBeUndefined();
+	});
+
+	test("a shell that never saw the notice is never compacting", () => {
+		expect(nextCompactionAnchor({ ...WORKING, anchor: undefined })).toBeUndefined();
+	});
+
+	test("a session with no transcript record yet still ends on the first one", () => {
+		const anchor = nextCompactionAnchor({ bound: "working", noticed: true, recordId: undefined, anchor: undefined });
+
+		expect(nextCompactionAnchor({ bound: "working", noticed: false, recordId: undefined, anchor })).toBe(anchor);
+		expect(nextCompactionAnchor({ bound: "working", noticed: false, recordId: "uuid-1", anchor })).toBeUndefined();
+	});
+});
+
+describe("compaction notice in the terminal stream", () => {
+	test("matches the spinner line the harness paints while it compacts", () => {
+		expect(matchesCompactionNotice("✳ Compacting conversation… (esc to interrupt · 42s)")).toBe(true);
+	});
+
+	test("matches the shimmer repaint that colours the message one character at a time", () => {
+		const shimmer = "Compacting conversation"
+			.split("")
+			.map((char, index) => `\x1b[38;5;${117 + (index % 3)}m${char}\x1b[39m`)
+			.join("");
+
+		expect(matchesCompactionNotice(`\x1b[2K\r✳ ${shimmer}\x1b[0m`)).toBe(true);
+	});
+
+	test("matches across the line break a repaint puts between the two words", () => {
+		expect(matchesCompactionNotice("✳ Compacting\r\n  conversation…")).toBe(true);
+	});
+
+	test("ignores ordinary output that never names the harness's own notice", () => {
+		expect(matchesCompactionNotice("$ bun run build\r\n✓ built in 1.42s\r\n")).toBe(false);
+		expect(matchesCompactionNotice("Compacted 12 files into one bundle")).toBe(false);
 	});
 });

@@ -1,45 +1,46 @@
 import { open } from "node:fs/promises";
 import { type } from "arktype";
+import type { HarnessTrace } from "@main/activity/Harness";
 import { transcriptPath } from "@main/activity/claudeTranscript";
 import { Logger } from "@main/logger";
 
 const TRACE_TAIL_BYTES = 64 * 1024;
 
 const TOOL_TRACE: Record<string, string> = {
-	bash: "Running commands…",
-	read: "Exploring…",
-	grep: "Exploring…",
-	glob: "Exploring…",
-	find: "Exploring…",
-	ls: "Exploring…",
-	toolsearch: "Exploring…",
-	edit: "Editing files…",
-	multiedit: "Editing files…",
-	write: "Editing files…",
-	notebookedit: "Editing files…",
-	agent: "Delegating…",
-	subagent: "Delegating…",
-	task: "Delegating…",
-	workflow: "Delegating…",
-	webfetch: "Searching the web…",
-	websearch: "Searching the web…",
-	skill: "Loading a skill…",
+	bash: "Running commands",
+	read: "Exploring",
+	grep: "Exploring",
+	glob: "Exploring",
+	find: "Exploring",
+	ls: "Exploring",
+	toolsearch: "Exploring",
+	edit: "Editing files",
+	multiedit: "Editing files",
+	write: "Editing files",
+	notebookedit: "Editing files",
+	agent: "Delegating",
+	subagent: "Delegating",
+	task: "Delegating",
+	workflow: "Delegating",
+	webfetch: "Searching the web",
+	websearch: "Searching the web",
+	skill: "Loading a skill",
 };
 
 const BLOCK_TRACE: Record<string, string> = {
-	thinking: "Thinking…",
-	redacted_thinking: "Thinking…",
-	text: "Writing…",
+	thinking: "Thinking",
+	redacted_thinking: "Thinking",
+	text: "Writing",
 };
 
-const traceRecordSchema = type({ type: "'assistant'", message: { content: "unknown[]" } });
+const traceRecordSchema = type({ type: "'assistant'", "uuid?": "string", message: { content: "unknown[]" } });
 
 const traceBlockSchema = type({ type: "string", "name?": "string" });
 
 function toolTrace(name: string): string {
 	const bare = name.split("__").at(-1) ?? name;
 
-	return TOOL_TRACE[bare.toLowerCase()] ?? `${bare}…`;
+	return TOOL_TRACE[bare.toLowerCase()] ?? bare;
 }
 
 function blockTrace(block: { type: string; name?: string }): string | null {
@@ -54,7 +55,7 @@ function blockTrace(block: { type: string; name?: string }): string | null {
 	return toolTrace(block.name);
 }
 
-export function recordTrace(raw: string): string | null {
+export function recordTrace(raw: string): HarnessTrace | null {
 	let value: unknown;
 	try {
 		value = JSON.parse(raw);
@@ -73,9 +74,9 @@ export function recordTrace(raw: string): string | null {
 			continue;
 		}
 
-		const trace = blockTrace(block);
-		if (trace) {
-			return trace;
+		const label = blockTrace(block);
+		if (label) {
+			return { label, recordId: record.uuid ?? label };
 		}
 	}
 
@@ -103,7 +104,7 @@ function missingFile(err: unknown): boolean {
 	return err instanceof Error && "code" in err && err.code === "ENOENT";
 }
 
-export async function transcriptTrace(ref: { sessionId: string; cwd: string }): Promise<string | null> {
+export async function transcriptTrace(ref: { sessionId: string; cwd: string }): Promise<HarnessTrace | null> {
 	const path = transcriptPath(ref);
 	const tail = await readTail(path).catch((err: unknown) => {
 		if (!missingFile(err)) {

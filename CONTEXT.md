@@ -157,5 +157,5 @@ The one changed file occupying the Review's content area in full, with unchanged
 _Avoid_: Full-file view, preview, expand, open file, source view, modal
 
 **Update button**:
-The Workspace header control, left of the Fullscreen mode toggle, that appears only once a new version is downloaded and waiting. Clicking it restarts Bankai into that version; ignoring it changes nothing, since the version also applies whenever the app is closed.
+The Workspace header control, left of the Fullscreen mode toggle, that appears only once a new version is downloaded and waiting. It names that version on its face rather than behind a hover, so it reads as an offer and not as a state. Clicking it restarts Bankai into that version; ignoring it changes nothing, since the version also applies whenever the app is closed.
 _Avoid_: Update notification, toast, restart banner, upgrade prompt

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import type { BankaiUpdateApi, UpdateDownloadedEvent } from "@shared/update";
 import { UpdateButton } from "@renderer/routes/-components/update-button";
-import { get, query } from "./dom";
+import { get, query, slot } from "./dom";
 import { act, cleanup, fireEvent, render } from "./testing-library";
 
 let pending: UpdateDownloadedEvent | null;
@@ -54,6 +54,14 @@ describe("Update button", () => {
 		emit("0.3.0");
 
 		expect(get("update-button").getAttribute("aria-label")).toBe("Update to v0.3.0");
+	});
+
+	test("carries the version on its face, not only in the tooltip", () => {
+		render(<UpdateButton />);
+
+		emit("0.3.0");
+
+		expect(slot(get("update-button"), "update-version").textContent).toBe("v0.3.0");
 	});
 
 	test("shows an already-downloaded update on mount", async () => {

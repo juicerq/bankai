@@ -13,12 +13,13 @@ export function UpdateButton() {
 			type="button"
 			data-component="update-button"
 			data-version={update.version}
-			className="update-button-enter flex h-full w-header shrink-0 items-center justify-center border-outline border-l text-tertiary hover:bg-surface-hover"
+			className="update-button-enter flex h-full shrink-0 items-center gap-1.5 border-outline border-l px-3 text-label text-tertiary hover:bg-surface-hover"
 			aria-label={`Update to v${update.version}`}
 			title={`Update to v${update.version} — restarts Bankai`}
 			onClick={() => window.bankaiUpdate.install()}
 		>
-			<ArrowPathIcon className="size-4" />
+			<ArrowPathIcon className="size-3.5 shrink-0" aria-hidden="true" />
+			<span data-slot="update-version">v{update.version}</span>
 		</button>
 	);
 }

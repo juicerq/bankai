@@ -2,6 +2,7 @@
 	"name": "bankai-2",
 	"version": "0.2.26",
 	"private": true,
+	"license": "MIT",
 	"description": "Focused Electron workspace for persistent project shell sessions",
 	"homepage": "https://github.com/juicerq/bankai-2",
 	"repository": {

@@ -10,6 +10,7 @@ import { type ReactNode, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AgentActivityState } from "@shared/activity";
 import { BankaiWordmark } from "@renderer/routes/-components/bankai-wordmark";
+import { ClaudeGlyph } from "@renderer/routes/-components/claude-glyph";
 import { MenuItem } from "@renderer/routes/-components/menu-item";
 import { ACTIVITY_DOT_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
@@ -192,11 +193,13 @@ function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGest
 			<span className="flex w-full items-center gap-2">
 				<ActivityDot activity={row.activity} />
 				<span className="min-w-0 flex-1 truncate text-data text-secondary">{row.projectName}</span>
-				{row.harness && (
-					<span className="shrink-0 border border-outline px-1 text-data text-outline-strong uppercase">
-						{row.harness}
-					</span>
-				)}
+				{row.harness === "claude"
+					? <ClaudeGlyph />
+					: row.harness && (
+						<span className="shrink-0 border border-outline px-1 text-data text-outline-strong uppercase">
+							{row.harness}
+						</span>
+					)}
 			</span>
 			<span className="w-full truncate text-body text-primary">{row.title}</span>
 			<span

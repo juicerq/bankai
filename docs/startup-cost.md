@@ -1,11 +1,11 @@
 ---
-title: How to measure Bankai's startup, and what was actually slow the first time it was measured
+title: How to measure Bankai's startup, and why ablation lies here
 tags: [git, ui, test]
 updated_at: 2026-07-26
 created_at: 2026-07-26
 ---
 
-# Measuring it
+## Measuring it
 
 `src/main/startup.ts` marks stages against `process.getCreationTime()` — the only clock that covers the time before our first line of JavaScript runs. It is Electron-only and `undefined` under `bun test`, so it is called inside `markStartup`, never at module scope.
 
@@ -23,13 +23,13 @@ Preview is not packaged, so it uses the dev data directory (`~/.config/Bankai-de
 
 Exactly one report is emitted per boot. `ready-to-show` schedules a 15 s fallback in case the renderer never reports; whichever arrives first wins.
 
-# Do not trust ablation on this
+## Do not trust ablation on this
 
 Before the instrumentation existed, boots of the same scenario ranged from **2401 ms to 5698 ms**. Every ablation — removing shells, disabling the review prewarm — produced a difference smaller than that spread, so none of them meant anything. Two confident diagnoses died that way.
 
 The variance was not noise in the usual sense. It was the recursive watch below, whose cost tracks how much of the directory tree is in the page cache.
 
-# What it was: a blocked main process, wearing git's clothes
+## What it was: a blocked main process, wearing git's clothes
 
 First real measurement: **7419 ms** to first frame, with a **6302 ms** hole between the review queries being issued and answered. The obvious read is that Git is slow, and it is wrong twice over.
 
@@ -42,7 +42,7 @@ Skipping the recursive watch for non-repositories: **7419 ms → 862–1179 ms**
 
 The lesson that generalizes: a synchronous call in the main process shows up as latency in whatever asynchronous work was in flight at the time. Time attributed to a subprocess is worth one check against that subprocess's own clock before believing it.
 
-# The serial git queue is not worth parallelizing
+## The serial git queue is not worth parallelizing
 
 `src/main/git/worker.ts` runs every request through one global promise chain. That looks like an obvious win to parallelize, and it was measured. It is not.
 

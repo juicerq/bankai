@@ -1,5 +1,5 @@
 ---
-title: What a shell record persists beyond its id and label, and when those facts are written
+title: What a shell record persists, and when it is stamped
 tags: [continuity, store, git]
 updated_at: 2026-07-25
 created_at: 2026-07-25

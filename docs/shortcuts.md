@@ -1,11 +1,11 @@
 ---
-title: Why shortcut design in Bankai is constrained by the terminal always having focus, and which modifiers are safe to hold
+title: Why the always-focused terminal constrains every shortcut
 tags: [ui, terminal]
 updated_at: 2026-07-25
 created_at: 2026-07-25
 ---
 
-# Shortcuts always win over xterm, so the terminal is not the constraint
+## Shortcuts always win over xterm, so the terminal is not the constraint
 
 `use-bankai-shortcuts.ts` and `use-project-workspace-shortcuts.ts` both register `keydown` on `window` in the **capture** phase and call `preventDefault` plus `stopPropagation` before acting. Any chord they claim never reaches xterm. Picking a chord is therefore never a question of whether the terminal would eat it — it is a question of what the user loses inside the agent, and of what the window manager takes first.
 

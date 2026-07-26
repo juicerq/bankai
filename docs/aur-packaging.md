@@ -1,5 +1,5 @@
 ---
-title: How Bankai reaches Arch users through the AUR, and what each release has to touch
+title: What an AUR release has to touch
 tags: [build, update]
 updated_at: 2026-07-26
 created_at: 2026-07-26

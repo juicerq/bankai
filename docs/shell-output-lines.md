@@ -1,5 +1,5 @@
 ---
-title: Where the "last output line" on a session card comes from, and what it is worth
+title: Where the "last output line" on a session card comes from
 tags: [terminal, activity]
 updated_at: 2026-07-26
 created_at: 2026-07-25
@@ -19,7 +19,7 @@ Control characters are replaced with a **space**, not removed — replacing a ta
 
 The session card's trace slot is `traceByShellId`, and `sessionTraces` in `src/main/activity/AgentActivity.ts` fills it from three sources, weakest first: the scraped PTY line, the harness status, then "Compacting". A shell running Claude reads its status from the transcript; a plain shell has no harness and keeps the scraped line, which is what that source is actually good for.
 
-Compaction has to sit on top because it is the one moment the transcript lies by omission — see `harness-transcripts.md`.
+Compaction has to sit on top because it is the one moment the transcript lies by omission — see `agent-trace.md`.
 
 ## A scraped spinner message is an event, not a state
 
@@ -27,7 +27,7 @@ The claude TUI repaints **only the cells that changed**. Captured from a real PT
 
 So anything scraped from that row is a **one-shot event**. A freshness window is the wrong shape for it: `Compacting conversation` may be painted once and then sit on screen, unwritten, for the two minutes the compaction lasts.
 
-`matchesCompactionNotice` therefore only says *started*. The end comes from the transcript: `nextCompactionAnchor` in `src/main/activity/AgentActivity.ts` records which transcript record the agent stopped at when the notice arrived, and holds "Compacting" until that record is no longer the newest — which is exactly when the agent resumes — or until the turn ends. See `harness-transcripts.md` for why the transcript is frozen throughout.
+`matchesCompactionNotice` therefore only says *started*. The end comes from the transcript: `nextCompactionAnchor` in `src/main/activity/AgentActivity.ts` records which transcript record the agent stopped at when the notice arrived, and holds "Compacting" until that record is no longer the newest — which is exactly when the agent resumes — or until the turn ends. See `agent-trace.md` for why the transcript is frozen throughout.
 
 The match runs on `plainText`, the same strip-and-collapse `outputLine` uses, because a message is painted between colour escapes and cursor jumps. That is safe for the *first* paint of a message, which the TUI writes as one contiguous string with real spaces; it is hopeless for a per-cell diff, where the phrase arrives as scattered single characters. Only the first paint has to match, and it does.
 

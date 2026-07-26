@@ -5,7 +5,7 @@ updated_at: 2026-07-25
 created_at: 2026-07-25
 ---
 
-# A live PTY is not activity
+## A live PTY is not activity
 
 `nextShellActivity` in `src/main/activity/AgentActivity.ts` only produces a state when `SessionBinder` matches the shell to an agent process that has a turn open. A shell running a plain command, or nothing at all, never has a state — no matter that its PTY exists and its terminal is mounted.
 
@@ -25,7 +25,7 @@ Reading a shell clears `done-unseen`; typing in it while the agent is idle produ
 
 This does not make activity available for cold shells — it is still PTY-derived, so a shell whose terminal is not mounted has no state at all.
 
-The sessions-first sidebar hit this twice. Its first prototype split `ACTIVE` from `IDLE` on `session.activity` being set, and the session being worked in fell into the shelf. The fix removed activity from the partition but left it choosing the row's height, so the session under the cursor still shrank the moment its turn ended — the same mistake, one layer down. Activity now decides paint only: a border colour, a dot, and what the card's trace line says. Placement comes from `createdAt`, and the open/archived split comes from the user (see `session-list-layout.md`).
+The sessions-first sidebar hit this twice. Its first prototype split `ACTIVE` from `IDLE` on `session.activity` being set, and the session being worked in fell into the shelf. The fix removed activity from the partition but left it choosing the row's height, so the session under the cursor still shrank the moment its turn ended — the same mistake, one layer down. Activity now decides paint only: a border colour, a dot, and what the card's trace line says. Placement comes from `createdAt`, and the open/archived split comes from the user (see `session-archiving.md`).
 
 The one thing activity still decides is a veto: a shell with any state cannot be archived, explicitly or automatically. That is safe only because these states are short-lived — a permanent signal used the same way would pin a row open forever.
 

@@ -1,11 +1,11 @@
 ---
-title: What the Last turn scope can and cannot attribute, and why shells sharing a worktree mix
+title: What the Last turn scope can and cannot attribute
 tags: [git, ui]
 updated_at: 2026-07-25
 created_at: 2026-07-25
 ---
 
-# Last turn is a time window over a directory
+## Last turn is a time window over a directory
 
 `captureTurnBaseline` snapshots the content of every dirty file when a shell's agent opens a turn, and `turnSnapshot` diffs the whole worktree against that snapshot. The baseline is keyed by shell, so each tab already reads its own marker — but the comparison is per directory, not per author.
 

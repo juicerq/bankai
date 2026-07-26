@@ -1,5 +1,5 @@
 ---
-title: How the renderer's continuity value stays true, and which writes never pass through the renderer
+title: How the renderer's continuity value stays true
 tags: [continuity, store, ipc, ui]
 updated_at: 2026-07-25
 created_at: 2026-07-25

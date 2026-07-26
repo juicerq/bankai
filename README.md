@@ -14,12 +14,20 @@ The review panel reads the selected project's working tree through `git` and ren
 
 ## Install
 
-Download the latest `.AppImage` from the [releases page](https://github.com/juicerq/bankai-2/releases), then run it:
+On Arch Linux, install [`bankai-bin`](https://aur.archlinux.org/packages/bankai-bin) from the AUR:
+
+```sh
+yay -S bankai-bin
+```
+
+Anywhere else, download the latest `.AppImage` from the [releases page](https://github.com/juicerq/bankai-2/releases), then run it:
 
 ```sh
 chmod +x Bankai-*.AppImage
 ./Bankai-*.AppImage
 ```
+
+The AppImage updates itself. The AUR package does not — update it with `yay`.
 
 ## Development
 

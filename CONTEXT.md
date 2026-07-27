@@ -32,16 +32,16 @@ _Avoid_: File picker, directory dialog, file browser, modal
 The overlay that names which Project a new Shell opens in. It is what the header `+` and `Ctrl+X T` reach for once more than one Project is mounted; with a single one they create straight away. Typing narrows by Project name, Enter creates in the highlighted one, and it opens highlighting the Project the selected Shell belongs to, so the shortcut still creates here without a second thought.
 _Avoid_: Command palette, project switcher, quick open, modal
 
-**Fullscreen mode**:
-The internal layout state that removes the Project rail from its fixed position and gives the Workspace the full window width. Entered by the explicit toggle or by dragging the rail's divider below the rail's minimum width. Exited by the toggle or by resizing the revealed rail, which docks it at the chosen width.
-_Avoid_: Native fullscreen, system fullscreen, collapsed rail
+**Focus mode**:
+The internal layout state that gives the Workspace's content the whole window: the Project rail leaves its fixed position and the top band — the Workspace header and the window controls — disappears with it. Each hidden region returns over the content while the pointer rests at its own edge. Entered by the explicit toggle or by dragging the rail's divider below the rail's minimum width. Exited by the toggle or by resizing the revealed rail, which docks it at the chosen width.
+_Avoid_: Fullscreen mode, native fullscreen, system fullscreen, collapsed rail, zen mode
 
 **Divider**:
 The draggable hairline between two adjacent regions that trades width between them. Every divider supports pointer drag and keyboard steps.
 _Avoid_: Resize handle, separator, splitter, gutter
 
 **Layout preferences**:
-The user's chosen region widths, fullscreen state, and panel visibility (Review panel and Tree open or closed), remembered across app launches. Global to the app, not per project.
+The user's chosen region widths, Focus mode state, and panel visibility (Review panel and Tree open or closed), remembered across app launches. Global to the app, not per project.
 _Avoid_: Panel sizes, UI state
 
 **Shell**:
@@ -161,7 +161,7 @@ The agent finished its turn and the user has not looked at that Shell since. Cle
 _Avoid_: Unread, completed, finished, new
 
 **Activity indicator**:
-The compact element left of the shell tabs, present during Fullscreen mode, that keeps every mounted project's Agent activity visible while the Project rail is hidden. Passive: activating a project stays with the rail and shortcuts.
+The compact element left of the shell tabs, present during Focus mode, that keeps every mounted project's Agent activity visible while the Project rail is hidden. Passive: activating a project stays with the rail and shortcuts.
 _Avoid_: Mini rail, project dots, status bar
 
 **Reading position**:
@@ -173,5 +173,5 @@ The one changed file occupying the Review's content area in full, with unchanged
 _Avoid_: Full-file view, preview, expand, open file, source view, modal
 
 **Update button**:
-The Workspace header control, left of the Fullscreen mode toggle, that appears only once a new version is downloaded and waiting. It names that version on its face rather than behind a hover, so it reads as an offer and not as a state. Clicking it restarts Bankai into that version; ignoring it changes nothing, since the version also applies whenever the app is closed.
+The Workspace header control, left of the Focus mode toggle, that appears only once a new version is downloaded and waiting. It names that version on its face rather than behind a hover, so it reads as an offer and not as a state. Clicking it restarts Bankai into that version; ignoring it changes nothing, since the version also applies whenever the app is closed.
 _Avoid_: Update notification, toast, restart banner, upgrade prompt

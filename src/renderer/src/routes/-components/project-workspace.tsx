@@ -64,6 +64,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 				project={project}
 				active={active}
 				fullscreen={fullscreen}
+				animating={fullscreenAnimating}
 				reviewOpen={reviewOpen}
 				onToggleReview={handleToggleReview}
 			/>

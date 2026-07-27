@@ -7,55 +7,83 @@ import {
 import type { ReactNode } from "react";
 import type { Project } from "@main/store/projects";
 import { UpdateButton } from "@renderer/routes/-components/update-button";
-import { useWorkspaceControl } from "@renderer/routes/-utils/workspace-context";
+import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-utils/layout-motion";
+import { useWorkspaceControl, useWorkspaceTopBand } from "@renderer/routes/-utils/workspace-context";
 
 export function ProjectWorkspaceHeader({
 	project,
 	active,
 	fullscreen,
+	animating,
 	reviewOpen,
 	onToggleReview,
 }: {
 	project: Project;
 	active: boolean;
 	fullscreen: boolean;
+	animating: boolean;
 	reviewOpen: boolean;
 	onToggleReview: () => void;
 }) {
 	const { onToggleFullscreen, onOpenSettings } = useWorkspaceControl();
+	const topBand = useWorkspaceTopBand();
 
 	return (
-		<header className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised pr-[120px]">
-			<span className="min-w-0 flex-1 truncate px-3 text-body text-secondary">{project.name}</span>
-			{active && <UpdateButton />}
-			<ProjectWorkspaceHeaderAction
-				className="border-l"
-				pressed={fullscreen}
-				label="Toggle focus mode"
-				title="Toggle focus mode (Ctrl+X F)"
-				onClick={onToggleFullscreen}
+		<div
+			data-component="workspace-header-frame"
+			data-fullscreen={fullscreen}
+			style={{ transitionDuration: `${LAYOUT_MOTION_DURATION_MS}ms` }}
+			className={`relative shrink-0 ease-out motion-reduce:transition-none ${fullscreen ? "h-0" : "h-header"} ${
+				animating ? "transition-[height]" : "transition-none"
+			}`}
+		>
+			<header
+				inert={fullscreen && !topBand.revealed}
+				data-revealed={fullscreen ? topBand.revealed : true}
+				style={{ transitionDuration: `${LAYOUT_MOTION_DURATION_MS}ms` }}
+				onFocusCapture={topBand.onFocus}
+				onBlurCapture={topBand.onBlur}
+				className={`absolute inset-x-0 top-0 flex h-header items-center border-outline border-b bg-surface-raised pr-[120px] ${
+					fullscreen
+						? `z-30 transition-[transform,opacity] ease-out motion-reduce:transition-none ${
+							topBand.revealed
+								? "translate-y-0 opacity-100 shadow-[0_4px_16px_rgba(0,0,0,0.32)]"
+								: "pointer-events-none -translate-y-full opacity-0"
+						}`
+						: ""
+				}`}
 			>
-				{fullscreen ? <ArrowsPointingInIcon className="size-4" /> : <ArrowsPointingOutIcon className="size-4" />}
-			</ProjectWorkspaceHeaderAction>
-			<ProjectWorkspaceHeaderAction
-				className="border-l"
-				expanded={reviewOpen}
-				pressed={reviewOpen}
-				label="Toggle review panel"
-				title="Toggle review panel (Ctrl+X R)"
-				onClick={onToggleReview}
-			>
-				<ViewColumnsIcon className="size-4" />
-			</ProjectWorkspaceHeaderAction>
-			<ProjectWorkspaceHeaderAction
-				className="border-x"
-				label="Open settings"
-				title="Open settings (Ctrl+X ,)"
-				onClick={onOpenSettings}
-			>
-				<Cog6ToothIcon className="size-4" />
-			</ProjectWorkspaceHeaderAction>
-		</header>
+				<span className="min-w-0 flex-1 truncate px-3 text-body text-secondary">{project.name}</span>
+				{active && <UpdateButton />}
+				<ProjectWorkspaceHeaderAction
+					className="border-l"
+					pressed={fullscreen}
+					label="Toggle focus mode"
+					title="Toggle focus mode (Ctrl+X F)"
+					onClick={onToggleFullscreen}
+				>
+					{fullscreen ? <ArrowsPointingInIcon className="size-4" /> : <ArrowsPointingOutIcon className="size-4" />}
+				</ProjectWorkspaceHeaderAction>
+				<ProjectWorkspaceHeaderAction
+					className="border-l"
+					expanded={reviewOpen}
+					pressed={reviewOpen}
+					label="Toggle review panel"
+					title="Toggle review panel (Ctrl+X R)"
+					onClick={onToggleReview}
+				>
+					<ViewColumnsIcon className="size-4" />
+				</ProjectWorkspaceHeaderAction>
+				<ProjectWorkspaceHeaderAction
+					className="border-x"
+					label="Open settings"
+					title="Open settings (Ctrl+X ,)"
+					onClick={onOpenSettings}
+				>
+					<Cog6ToothIcon className="size-4" />
+				</ProjectWorkspaceHeaderAction>
+			</header>
+		</div>
 	);
 }
 

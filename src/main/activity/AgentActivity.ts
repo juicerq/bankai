@@ -208,7 +208,7 @@ async function observeReadings(
 	return readings;
 }
 
-function readTraces(readings: ReadonlyMap<string, HarnessReading>): Map<string, HarnessTrace> {
+function tracesOf(readings: ReadonlyMap<string, HarnessReading>): Map<string, HarnessTrace> {
 	const traces = new Map<string, HarnessTrace>();
 
 	for (const [shellId, reading] of readings) {
@@ -580,18 +580,24 @@ class AgentActivityTracker {
 			pass === "full" ? this.observeWorktrees(shells, bindings, liveByPid) : this.shellWorktrees,
 			this.liveTrace ? observeReadings(shells, bindings, liveByPid) : new Map<string, HarnessReading>(),
 		]);
-		const harnessTraces = readTraces(readings);
+		const harnessTraces = tracesOf(readings);
 
 		const nextStates = new Map<string, AgentActivityState>();
 		const waitingFor = new Map<string, string>();
 		const statusSince = new Map<string, number>();
+		const bound = new Map<string, BoundStatus>();
 		for (const shell of shells) {
 			const boundPid = bindings.get(shell.sessionId);
 			const presence = boundPid === undefined ? undefined : liveByPid.get(boundPid);
 			const endedAt = readings.get(shell.shellId)?.endedAt;
 			const ended = turnEnded(presence, endedAt);
+			const status = ended ? "idle" : presence?.status;
+			if (status) {
+				bound.set(shell.shellId, status);
+			}
+
 			const previous = this.shellStates.get(shell.sessionId);
-			const next = nextShellActivity(previous, ended ? "idle" : presence?.status, shell.sessionId === this.viewed);
+			const next = nextShellActivity(previous, status, shell.sessionId === this.viewed);
 			if (next !== undefined) {
 				nextStates.set(shell.sessionId, next);
 			}
@@ -613,7 +619,11 @@ class AgentActivityTracker {
 		if (pass === "full") {
 			this.prune(new Set(presences.map((presence) => presence.sessionId)));
 		}
-		this.trackCompaction(shells, bindings, liveByPid, readings);
+		if (this.liveTrace) {
+			this.trackCompaction(shells, bound, harnessTraces);
+		} else {
+			this.forgetCompaction();
+		}
 		this.commit({ shellStates: nextStates, owners, worktrees, harnessTraces, waitingFor, statusSince });
 	}
 
@@ -732,27 +742,22 @@ class AgentActivityTracker {
 		}
 	}
 
+	private forgetCompaction(): void {
+		this.compactionNoticed.clear();
+		this.compacting.clear();
+	}
+
 	private trackCompaction(
 		shells: { sessionId: string; shellId: string }[],
-		bindings: Map<string, number>,
-		liveByPid: Map<number, AgentPresence>,
-		readings: Map<string, HarnessReading>,
+		bound: ReadonlyMap<string, BoundStatus>,
+		traces: ReadonlyMap<string, HarnessTrace>,
 	): void {
-		if (!this.liveTrace) {
-			this.compactionNoticed.clear();
-			this.compacting.clear();
-			return;
-		}
-
 		for (const shell of shells) {
-			const boundPid = bindings.get(shell.sessionId);
-			const presence = boundPid === undefined ? undefined : liveByPid.get(boundPid);
-			const reading = readings.get(shell.shellId);
 			const anchor = nextCompactionAnchor({
 				anchor: this.compacting.get(shell.shellId),
 				noticed: this.compactionNoticed.delete(shell.sessionId),
-				recordId: reading?.trace?.recordId,
-				bound: turnEnded(presence, reading?.endedAt) ? "idle" : presence?.status,
+				recordId: traces.get(shell.shellId)?.recordId,
+				bound: bound.get(shell.shellId),
 			});
 
 			if (anchor === undefined) {

@@ -37,7 +37,9 @@ Nothing is printed to stdout. On `UserPromptSubmit` the harness feeds a hook's s
 
 ## One toggle decides it, and it is on by default
 
-`harness.liveTrace` — `DEFAULT_LIVE_TRACE` in `src/shared/activity.ts` — is applied on startup and on every save of the harness panel. Off uninstalls the hook, on reinstalls it.
+`harness.liveTrace` — `DEFAULT_LIVE_TRACE` in `src/shared/activity.ts` — is applied by `applyLiveTrace` on startup and on every save of the harness panel. Off uninstalls the hook, on reinstalls it.
+
+That single function carries the platform guard, and it has to: activity tracking is Linux-only, so anywhere else the install would write a `#!/bin/sh` script into the user's own `settings.json` — costing every tool call a shell — to feed a spool nothing will ever read. Both callers go through it for that reason, not for tidiness.
 
 Off is not "fall back to the transcript". It means the card says only **Working** and **Done**, so `AgentActivity` stops calling the harness's `read` altogether, stops scanning PTY output for the compaction notice, and drops any compaction it was holding. A transcript-fed label is seconds stale and names a block that already finished; offering that as the quiet mode would be offering a worse version of the same feature rather than turning the feature off. The reason a shell was handed back to the user still shows — "Needs permission" is a state to act on, not a trace.
 

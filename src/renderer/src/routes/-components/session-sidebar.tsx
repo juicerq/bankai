@@ -14,7 +14,7 @@ import { BankaiWordmark } from "@renderer/routes/-components/bankai-wordmark";
 import { ClaudeGlyph } from "@renderer/routes/-components/claude-glyph";
 import { MenuItem } from "@renderer/routes/-components/menu-item";
 import { ProjectBadges } from "@renderer/routes/-components/project-badges";
-import { ACTIVITY_DOT_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
+import { ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import { elapsedLabel } from "@renderer/routes/-utils/elapsed";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { useMenuDismissal } from "@renderer/routes/-utils/use-menu-dismissal";
@@ -215,7 +215,6 @@ function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGest
 	return (
 		<SessionEntry row={row} gestures={gestures} archived={false}>
 			<span className="flex w-full items-center gap-2">
-				<ActivityDot activity={row.activity} />
 				<span className="min-w-0 flex-1 truncate text-data text-secondary">{row.projectName}</span>
 				{row.harness === "claude"
 					? <ClaudeGlyph />
@@ -252,7 +251,6 @@ function ElapsedClock({ since }: { since: number }) {
 function SessionShelfRow({ row, gestures }: { row: SessionRow; gestures: SessionGestures }) {
 	return (
 		<SessionEntry row={row} gestures={gestures} archived>
-			<ActivityDot />
 			<span className="min-w-0 flex-1 truncate text-body text-secondary">{row.title}</span>
 			<span className="shrink-0 text-data text-outline-strong group-hover:invisible">{row.projectName}</span>
 		</SessionEntry>
@@ -350,18 +348,6 @@ function SessionEntry({
 				</button>
 			</span>
 		</div>
-	);
-}
-
-function ActivityDot({ activity }: { activity?: AgentActivityState }) {
-	return (
-		<span
-			data-slot="activity-signal"
-			className={`size-1.5 shrink-0 rounded-full ${
-				activity ? ACTIVITY_DOT_CLASS[activity] : "bg-outline-strong"
-			}`}
-			aria-hidden="true"
-		/>
 	);
 }
 

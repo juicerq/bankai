@@ -13,8 +13,10 @@ import { BankaiWordmark } from "@renderer/routes/-components/bankai-wordmark";
 import { ClaudeGlyph } from "@renderer/routes/-components/claude-glyph";
 import { MenuItem } from "@renderer/routes/-components/menu-item";
 import { ACTIVITY_DOT_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
+import { elapsedLabel } from "@renderer/routes/-utils/elapsed";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { useMenuDismissal } from "@renderer/routes/-utils/use-menu-dismissal";
+import { useSecondsClock } from "@renderer/routes/-utils/use-seconds-clock";
 import type { useSessionList } from "@renderer/routes/-utils/use-session-list";
 
 const ACTIVITY_BORDER_CLASS: Record<AgentActivityState, string> = {
@@ -206,13 +208,24 @@ function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGest
 			<span className="w-full truncate text-body text-primary">{row.title}</span>
 			<span
 				data-slot="session-trace"
-				className={`block h-3.5 w-full truncate text-data ${
+				className={`flex h-3.5 w-full items-baseline gap-1 text-data ${
 					row.trace && row.activity ? ACTIVITY_TEXT_CLASS[row.activity] : "text-outline-strong"
 				}`}
 			>
-				{row.trace ?? row.branch}
+				<span className="min-w-0 truncate">{row.trace ?? row.branch}</span>
+				{row.activity && row.statusSince ? <ElapsedClock since={row.statusSince} /> : null}
 			</span>
 		</SessionEntry>
+	);
+}
+
+function ElapsedClock({ since }: { since: number }) {
+	const now = useSecondsClock();
+
+	return (
+		<span data-slot="session-elapsed" className="shrink-0 text-outline-strong">
+			· {elapsedLabel(now - since)}
+		</span>
 	);
 }
 

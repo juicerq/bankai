@@ -5,6 +5,8 @@ export interface AgentPresence {
 	procStart: string;
 	cwd: string;
 	status: "working" | "waiting" | "idle";
+	statusSince?: number;
+	waitingFor?: string;
 }
 
 export interface HarnessCommand {

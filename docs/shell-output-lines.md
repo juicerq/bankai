@@ -17,7 +17,7 @@ Control characters are replaced with a **space**, not removed — replacing a ta
 
 ## It is the fallback, not the source, for an agent session
 
-The session card's trace slot is `traceByShellId`, and `sessionTraces` in `src/main/activity/AgentActivity.ts` fills it from three sources, weakest first: the scraped PTY line, the harness status, then "Compacting". A shell running Claude reads its status from the transcript; a plain shell has no harness and keeps the scraped line, which is what that source is actually good for.
+The session card's trace slot is `traceByShellId`, and `sessionTraces` in `src/main/activity/AgentActivity.ts` fills it from four sources, weakest first: the scraped PTY line, the harness status, what the agent is waiting for, then "Compacting". A shell running Claude reads its status from the transcript; a plain shell has no harness and keeps the scraped line, which is what that source is actually good for.
 
 Compaction has to sit on top because it is the one moment the transcript lies by omission — see `agent-trace.md`.
 
@@ -33,9 +33,11 @@ The match runs on `plainText`, the same strip-and-collapse `outputLine` uses, be
 
 Two known holes, both accepted: a paint that wraps *inside* a word defeats the match, and a terminal that merely prints the words "Compacting conversation" is a false positive that lasts until the next transcript record.
 
-## Only a working agent is described by what it last did
+## A finished agent is not described by what it last did
 
-`sessionTrace` in `src/renderer/src/routes/-utils/session-rows.ts` overrides the observed trace for every state except `working`. A stopped agent's newest transcript block is always `text`, because a turn ends with the reply — so replaying it leaves "Writing…" pinned to a card that finished minutes ago. `needs-attention` says "Waiting on you" and `done-unseen` says "Done" instead.
+`sessionTrace` in `src/renderer/src/routes/-utils/session-rows.ts` overrides the observed trace for `done-unseen` only. A stopped agent's newest transcript block is always `text`, because a turn ends with the reply — so replaying it leaves "Writing" pinned to a card that finished minutes ago. It says "Done" instead.
+
+A waiting agent is no longer overridden here: the main process already put the reason on the trace, read from `waitingFor` in the session registry, so the renderer would only be fabricating a vaguer version of a label it was handed. See `claude-session-registry.md`.
 
 This is safe to key on activity alone: an activity state only exists for a shell bound to a live agent, so a plain shell never reaches those labels.
 

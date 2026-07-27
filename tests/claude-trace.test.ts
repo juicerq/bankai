@@ -64,8 +64,16 @@ describe("recordTrace", () => {
 		).toBe("Running commands");
 	});
 
-	it("ignores anything that is not the agent acting", () => {
-		expect(recordTrace(JSON.stringify({ type: "user", message: { content: [{ type: "tool_result" }] } }))).toBeNull();
+	it("reads a record handed back to the agent as the agent thinking about it", () => {
+		expect(recordTrace(JSON.stringify({ type: "user", uuid: "u-1", message: { content: [{ type: "tool_result" }] } })))
+			.toEqual({ label: "Thinking", recordId: "u-1" });
+		expect(recordTrace(JSON.stringify({ type: "user", message: { content: "faz isso" } }))).toEqual({
+			label: "Thinking",
+			recordId: "Thinking",
+		});
+	});
+
+	it("ignores anything that is neither side of the turn", () => {
 		expect(recordTrace(JSON.stringify({ type: "attachment" }))).toBeNull();
 		expect(recordTrace(assistantRecord([{ type: "block-nobody-has-seen" }]))).toBeNull();
 		expect(recordTrace(assistantRecord([{ type: "tool_use" }]))).toBeNull();
@@ -101,7 +109,7 @@ describe("transcriptTrace", () => {
 		expect((await transcriptTrace(REF))?.label).toBe("Running commands");
 	});
 
-	it("looks past the records that are not the agent acting", async () => {
+	it("says the agent is thinking once the tool result is back and no new block has landed", async () => {
 		transcript([
 			toolUse("Edit"),
 			JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", content: "ok" }] } }),
@@ -109,7 +117,17 @@ describe("transcriptTrace", () => {
 			JSON.stringify({ type: "queue-operation" }),
 		]);
 
-		expect((await transcriptTrace(REF))?.label).toBe("Editing files");
+		expect((await transcriptTrace(REF))?.label).toBe("Thinking");
+	});
+
+	it("says the agent is thinking on a prompt it has not answered yet", async () => {
+		transcript([
+			assistantRecord([{ type: "text", text: "pronto" }]),
+			JSON.stringify({ type: "user", message: { content: "agora arruma o clock" } }),
+			JSON.stringify({ type: "last-prompt", prompt: "agora arruma o clock" }),
+		]);
+
+		expect((await transcriptTrace(REF))?.label).toBe("Thinking");
 	});
 
 	it("finds the agent behind a record too long to fit the tail", async () => {
@@ -121,8 +139,8 @@ describe("transcriptTrace", () => {
 		expect((await transcriptTrace(REF))?.label).toBe("Thinking");
 	});
 
-	it("has nothing to say when the transcript holds no agent record", async () => {
-		transcript([JSON.stringify({ type: "user", message: { content: "oi" } })]);
+	it("has nothing to say when the transcript holds neither side of a turn", async () => {
+		transcript([JSON.stringify({ type: "attachment", attachment: {} }), JSON.stringify({ type: "mode" })]);
 
 		expect(await transcriptTrace(REF)).toBeNull();
 	});

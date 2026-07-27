@@ -1,0 +1,25 @@
+import { describe, expect, test } from "bun:test";
+import { elapsedLabel } from "@renderer/routes/-utils/elapsed";
+
+describe("saying how long a session has held its state", () => {
+	test("the first minute counts in seconds", () => {
+		expect(elapsedLabel(0)).toBe("0s");
+		expect(elapsedLabel(7_400)).toBe("7s");
+		expect(elapsedLabel(59_999)).toBe("59s");
+	});
+
+	test("past a minute the seconds stop mattering", () => {
+		expect(elapsedLabel(60_000)).toBe("1m");
+		expect(elapsedLabel(4 * 60_000 + 59_000)).toBe("4m");
+		expect(elapsedLabel(59 * 60_000)).toBe("59m");
+	});
+
+	test("past an hour both parts show", () => {
+		expect(elapsedLabel(60 * 60_000)).toBe("1h0m");
+		expect(elapsedLabel(2 * 60 * 60_000 + 13 * 60_000)).toBe("2h13m");
+	});
+
+	test("a clock that reads ahead of the harness never counts backwards", () => {
+		expect(elapsedLabel(-5_000)).toBe("0s");
+	});
+});

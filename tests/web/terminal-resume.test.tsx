@@ -56,7 +56,7 @@ window.bankaiTerminal = {
 };
 
 window.bankaiActivity = {
-	watch: async () => ({ state: null, shells: {}, worktreeByShellId: {}, traceByShellId: {} }),
+	watch: async () => ({ state: null, shells: {}, worktreeByShellId: {}, traceByShellId: {}, statusSinceByShellId: {} }),
 	unwatch() {},
 	onChanged: () => () => {},
 	markViewed() {},

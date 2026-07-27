@@ -33,7 +33,11 @@ const BLOCK_TRACE: Record<string, string> = {
 	text: "Writing",
 };
 
+const THINKING_TRACE = "Thinking";
+
 const traceRecordSchema = type({ type: "'assistant'", "uuid?": "string", message: { content: "unknown[]" } });
+
+const turnedRecordSchema = type({ type: "'user'", "uuid?": "string" });
 
 const traceBlockSchema = type({ type: "string", "name?": "string" });
 
@@ -61,6 +65,11 @@ export function recordTrace(raw: string): HarnessTrace | null {
 		value = JSON.parse(raw);
 	} catch {
 		return null;
+	}
+
+	const turned = turnedRecordSchema(value);
+	if (!(turned instanceof type.errors)) {
+		return { label: THINKING_TRACE, recordId: turned.uuid ?? THINKING_TRACE };
 	}
 
 	const record = traceRecordSchema(value);

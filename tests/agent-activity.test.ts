@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import {
+	clockSince,
 	nextCompactionAnchor,
 	nextShellActivity,
 	nextShellWorktrees,
@@ -11,71 +12,75 @@ import {
 	turnBaselineShells,
 	turnStartShells,
 } from "@main/activity/AgentActivity";
-import { matchesAttentionPrompt } from "@main/activity/attention";
-import { ClaudeHarness, parseSessionRecord } from "@main/activity/claude";
+import { ClaudeHarness, parseSessionRecord, WAITING_TRACE_FALLBACK } from "@main/activity/claude";
 import { COMPACTION_TRACE, matchesCompactionNotice } from "@main/activity/compaction";
 import { procFs } from "@main/activity/procFs";
 import { bindShells, childrenByParent, type ChildrenOf } from "@main/activity/SessionBinder";
 import { aggregateActivity, type AgentActivityState } from "@shared/activity";
 
 const BUSY_RECORD =
-	'{"pid":141653,"sessionId":"67af1e51-358c-475f-b33a-7de1e199d0a5","cwd":"/home/jui/projects/bankai-2","startedAt":1784894292497,"procStart":"215800","version":"2.1.218","kind":"interactive","status":"busy","updatedAt":1784901075701}';
+	'{"pid":141653,"sessionId":"67af1e51-358c-475f-b33a-7de1e199d0a5","cwd":"/home/jui/projects/bankai-2","startedAt":1784894292497,"procStart":"215800","version":"2.1.220","kind":"interactive","status":"busy","updatedAt":1784901075701,"statusUpdatedAt":1784901075701}';
 const IDLE_RECORD =
-	'{"pid":336333,"sessionId":"5daa2868-d467-4a46-b335-cd6405f22327","cwd":"/home/jui/dogama/app","startedAt":1784896966459,"procStart":"483184","version":"2.1.218","kind":"interactive","status":"idle","updatedAt":1784901169072}';
+	'{"pid":336333,"sessionId":"5daa2868-d467-4a46-b335-cd6405f22327","cwd":"/home/jui/dogama/app","startedAt":1784896966459,"procStart":"483184","version":"2.1.220","kind":"interactive","status":"idle","updatedAt":1784901169072,"statusUpdatedAt":1784901169072}';
+const WAITING_RECORD =
+	'{"pid":141653,"sessionId":"67af1e51-358c-475f-b33a-7de1e199d0a5","cwd":"/home/jui/projects/bankai-2","startedAt":1784894292497,"procStart":"215800","version":"2.1.220","kind":"interactive","status":"waiting","waitingFor":"permission prompt","updatedAt":1784901075701,"statusUpdatedAt":1784901075701}';
 
 describe("shell activity transitions", () => {
 	test("a bound working agent yields working regardless of prior state", () => {
-		expect(nextShellActivity(undefined, "working", false, false)).toBe("working");
-		expect(nextShellActivity("done-unseen", "working", false, false)).toBe("working");
+		expect(nextShellActivity(undefined, "working", false)).toBe("working");
+		expect(nextShellActivity("done-unseen", "working", false)).toBe("working");
 	});
 
 	test("a turn finishing (working then idle) yields done-unseen", () => {
-		expect(nextShellActivity("working", "idle", false, false)).toBe("done-unseen");
+		expect(nextShellActivity("working", "idle", false)).toBe("done-unseen");
 	});
 
 	test("an idle agent with no observed turn yields no activity", () => {
-		expect(nextShellActivity(undefined, "idle", false, false)).toBeUndefined();
+		expect(nextShellActivity(undefined, "idle", false)).toBeUndefined();
 	});
 
 	test("done-unseen persists while the agent rests or disappears", () => {
-		expect(nextShellActivity("done-unseen", "idle", false, false)).toBe("done-unseen");
-		expect(nextShellActivity("done-unseen", undefined, false, false)).toBe("done-unseen");
+		expect(nextShellActivity("done-unseen", "idle", false)).toBe("done-unseen");
+		expect(nextShellActivity("done-unseen", undefined, false)).toBe("done-unseen");
 	});
 
 	test("killing the agent mid-turn removes the working signal", () => {
-		expect(nextShellActivity("working", undefined, false, false)).toBeUndefined();
+		expect(nextShellActivity("working", undefined, false)).toBeUndefined();
 	});
 
 	test("viewing the shell clears done-unseen, including as the turn completes", () => {
-		expect(nextShellActivity("done-unseen", "idle", true, false)).toBeUndefined();
-		expect(nextShellActivity("working", "idle", true, false)).toBeUndefined();
+		expect(nextShellActivity("done-unseen", "idle", true)).toBeUndefined();
+		expect(nextShellActivity("working", "idle", true)).toBeUndefined();
 	});
 
 	test("viewing a still-working shell keeps it working", () => {
-		expect(nextShellActivity("working", "working", true, false)).toBe("working");
+		expect(nextShellActivity("working", "working", true)).toBe("working");
 	});
 });
 
 describe("needs-attention", () => {
 	test("a prompt while the agent waits mid-turn yields needs-attention", () => {
-		expect(nextShellActivity("working", "waiting", false, true)).toBe("needs-attention");
+		expect(nextShellActivity("working", "waiting", false)).toBe("needs-attention");
 	});
 
 	test("needs-attention persists across ticks while still waiting", () => {
-		expect(nextShellActivity("needs-attention", "waiting", false, true)).toBe("needs-attention");
+		expect(nextShellActivity("needs-attention", "waiting", false)).toBe("needs-attention");
 	});
 
 	test("answering the prompt returns the shell to working as the turn continues", () => {
-		expect(nextShellActivity("needs-attention", "working", false, false)).toBe("working");
+		expect(nextShellActivity("needs-attention", "working", false)).toBe("working");
 	});
 
 	test("answering into a finished turn hands off to done-unseen", () => {
-		expect(nextShellActivity("needs-attention", "idle", false, false)).toBe("done-unseen");
+		expect(nextShellActivity("needs-attention", "idle", false)).toBe("done-unseen");
 	});
 
-	test("a waiting status without a recognized prompt never fabricates done-unseen", () => {
-		expect(nextShellActivity("working", "waiting", false, false)).toBe("working");
-		expect(nextShellActivity(undefined, "waiting", false, false)).toBeUndefined();
+	test("a waiting agent needs attention even on the first tick that sees it", () => {
+		expect(nextShellActivity(undefined, "waiting", false)).toBe("needs-attention");
+	});
+
+	test("reading the shell does not dismiss a prompt that is still open", () => {
+		expect(nextShellActivity("needs-attention", "waiting", true)).toBe("needs-attention");
 	});
 });
 
@@ -239,12 +244,14 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			traces: new Map(),
+			statusSince: new Map(),
 		});
 
 		expect(snapshots.get("p1")).toEqual({
 			shells: { "shell-a": "working", "shell-b": "needs-attention" },
 			worktreeByShellId: {},
 			traceByShellId: {},
+			statusSinceByShellId: {},
 		});
 	});
 
@@ -254,6 +261,7 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			traces: new Map(),
+			statusSince: new Map(),
 		});
 
 		expect([...snapshots.keys()].sort()).toEqual(["p1", "p2"]);
@@ -261,6 +269,7 @@ describe("project snapshots", () => {
 			shells: { "shell-c": "done-unseen" },
 			worktreeByShellId: {},
 			traceByShellId: {},
+			statusSinceByShellId: {},
 		});
 	});
 
@@ -270,6 +279,7 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			traces: new Map(),
+			statusSince: new Map(),
 		});
 
 		expect(snapshots.size).toBe(1);
@@ -282,12 +292,14 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map([["shell-a", "/tmp/repo-slug"]]),
 			traces: new Map(),
+			statusSince: new Map(),
 		});
 
 		expect(snapshots.get("p1")).toEqual({
 			shells: { "shell-a": "working" },
 			worktreeByShellId: { "shell-a": "/tmp/repo-slug" },
 			traceByShellId: {},
+			statusSinceByShellId: {},
 		});
 	});
 
@@ -297,6 +309,7 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			traces: new Map(),
+			statusSince: new Map(),
 		});
 
 		expect(snapshots.get("p1")?.shells["shell-b"]).toBeUndefined();
@@ -308,12 +321,14 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map([["shell-c", "/tmp/repo-slug"]]),
 			traces: new Map(),
+			statusSince: new Map(),
 		});
 
 		expect(snapshots.get("p2")).toEqual({
 			shells: {},
 			worktreeByShellId: { "shell-c": "/tmp/repo-slug" },
 			traceByShellId: {},
+			statusSinceByShellId: {},
 		});
 	});
 
@@ -323,38 +338,64 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			traces: new Map([["shell-a", "Running bun run check"], ["shell-b", "vite ready in 412 ms"]]),
+			statusSince: new Map(),
 		});
 
 		expect(snapshots.get("p1")?.traceByShellId).toEqual({ "shell-a": "Running bun run check" });
 	});
 
+	test("the moment the status changed rides along for a shell that has activity", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: states({ "session-a": "working" }),
+			owners,
+			worktrees: new Map(),
+			traces: new Map(),
+			statusSince: new Map([["shell-a", 1784901075701], ["shell-b", 1784901169072]]),
+		});
+
+		expect(snapshots.get("p1")?.statusSinceByShellId).toEqual({ "shell-a": 1784901075701 });
+	});
+
 	test("the harness status wins over the shell's own output line", () => {
-		const traces = sessionTraces(
-			new Set(),
-			new Map([["shell-a", { label: "Running commands", recordId: "uuid-1" }]]),
-			new Map([["shell-a", "-7"], ["shell-b", "vite ready in 412 ms"]]),
-		);
+		const traces = sessionTraces({
+			compacting: new Set(),
+			harnessTraces: new Map([["shell-a", { label: "Running commands", recordId: "uuid-1" }]]),
+			waitingFor: new Map(),
+			outputLines: new Map([["shell-a", "-7"], ["shell-b", "vite ready in 412 ms"]]),
+		});
 
 		expect(traces.get("shell-a")).toBe("Running commands");
 		expect(traces.get("shell-b")).toBe("vite ready in 412 ms");
 	});
 
+	test("a waiting reason wins over the transcript, which still names the last finished block", () => {
+		const traces = sessionTraces({
+			compacting: new Set(),
+			harnessTraces: new Map([["shell-a", { label: "Running commands", recordId: "uuid-1" }]]),
+			waitingFor: new Map([["shell-a", "Needs permission"]]),
+			outputLines: new Map(),
+		});
+
+		expect(traces.get("shell-a")).toBe("Needs permission");
+	});
+
 	test("compacting wins over the transcript, which is frozen while it runs", () => {
-		const traces = sessionTraces(
-			new Set(["shell-a"]),
-			new Map([
+		const traces = sessionTraces({
+			compacting: new Set(["shell-a"]),
+			harnessTraces: new Map([
 				["shell-a", { label: "Running commands", recordId: "uuid-1" }],
 				["shell-b", { label: "Thinking", recordId: "uuid-2" }],
 			]),
-			new Map([["shell-a", "-7"]]),
-		);
+			waitingFor: new Map(),
+			outputLines: new Map([["shell-a", "-7"]]),
+		});
 
 		expect(traces.get("shell-a")).toBe(COMPACTION_TRACE);
 		expect(traces.get("shell-b")).toBe("Thinking");
 	});
 
 	test("no bound shells means no snapshots at all", () => {
-		expect(snapshotsByProject({ shellStates: new Map(), owners, worktrees: new Map(), traces: new Map() }).size).toBe(0);
+		expect(snapshotsByProject({ shellStates: new Map(), owners, worktrees: new Map(), traces: new Map(), statusSince: new Map() }).size).toBe(0);
 	});
 });
 
@@ -478,16 +519,26 @@ describe("claude session registry parsing", () => {
 			procStart: "215800",
 			cwd: "/home/jui/projects/bankai-2",
 			status: "working",
+			statusSince: 1784901075701,
 		});
 	});
 
-	test("maps any non-busy status to idle", () => {
-		expect(parseSessionRecord(IDLE_RECORD)?.status).toBe("idle");
+	test("a shell status is an agent still working, not an idle one", () => {
+		const record = BUSY_RECORD.replace('"status":"busy"', '"status":"shell"');
+		expect(parseSessionRecord(record)?.status).toBe("working");
 	});
 
-	test("preserves the waiting status a prompt writes to the registry", () => {
-		const record = BUSY_RECORD.replace('"status":"busy"', '"status":"waiting"');
-		expect(parseSessionRecord(record)?.status).toBe("waiting");
+	test("maps an unknown status to idle rather than inventing a state", () => {
+		expect(parseSessionRecord(IDLE_RECORD)?.status).toBe("idle");
+		expect(parseSessionRecord(BUSY_RECORD.replace('"status":"busy"', '"status":"warping"'))?.status).toBe("idle");
+	});
+
+	test("statusSince carries the registry's own turn clock", () => {
+		expect(parseSessionRecord(IDLE_RECORD)?.statusSince).toBe(1784901169072);
+	});
+
+	test("a record with no status timestamp still parses, with no clock to show", () => {
+		expect(parseSessionRecord(BUSY_RECORD.replace(/,"statusUpdatedAt":\d+/, ""))?.statusSince).toBeUndefined();
 	});
 
 	test("rejects malformed or incomplete records", () => {
@@ -530,38 +581,35 @@ describe("claude harness discovery", () => {
 	});
 });
 
-describe("attention prompt detection", () => {
-	const PERMISSION_PROMPT =
-		"\x1b[1mBash command\x1b[22m\r\n\x1b[2m╭─────────────╮\x1b[22m\r\n" +
-		"Do you want to proceed?\r\n  1. Yes\r\n  2. Yes, and don't ask again for git commands in this project\r\n" +
-		"\x1b[36m❯ 3. No, and tell Claude what to do differently\x1b[39m\r\n";
-	const EDIT_PROMPT =
-		"Edit file src/index.ts\r\n  1. Yes\r\n  2. Yes, allow all edits during this session\r\n" +
-		"\x1b[36m❯ 3. No, and tell Claude what to do differently \x1b[2m(esc)\x1b[22m\x1b[39m\r\n";
-	const PLAN_PROMPT =
-		"Claude has written up a plan and is ready to execute. Would you like to proceed?\r\n" +
-		"  1. Yes, and auto-accept edits\r\n  2. Yes, and manually approve edits\r\n\x1b[36m❯ 3. No, keep planning\x1b[39m\r\n";
+describe("what the agent is waiting for", () => {
+	function waitingFor(reason: string): string | undefined {
+		return parseSessionRecord(WAITING_RECORD.replace('"permission prompt"', JSON.stringify(reason)))?.waitingFor;
+	}
 
-	test("matches a tool permission prompt", () => {
-		expect(matchesAttentionPrompt(PERMISSION_PROMPT)).toBe(true);
+	test("a permission prompt reads as needing permission", () => {
+		expect(parseSessionRecord(WAITING_RECORD)?.waitingFor).toBe("Needs permission");
 	});
 
-	test("matches an edit permission prompt", () => {
-		expect(matchesAttentionPrompt(EDIT_PROMPT)).toBe(true);
+	test("each reason the registry writes gets its own label", () => {
+		expect(waitingFor("sandbox request")).toBe("Needs permission");
+		expect(waitingFor("input needed")).toBe("Needs input");
+		expect(waitingFor("worker request")).toBe("Needs input");
+		expect(waitingFor("dialog open")).toBe("Waiting on you");
 	});
 
-	test("matches a plan approval prompt", () => {
-		expect(matchesAttentionPrompt(PLAN_PROMPT)).toBe(true);
+	test("a reason this version has never seen still says the agent is stopped", () => {
+		expect(waitingFor("holodeck request")).toBe(WAITING_TRACE_FALLBACK);
 	});
 
-	test("ignores ordinary build, shell and TUI output", () => {
-		expect(matchesAttentionPrompt("$ bun run build\r\n✓ built in 1.42s\r\n")).toBe(false);
-		expect(matchesAttentionPrompt("jui@host ~/projects/bankai-2 (main) $ ")).toBe(false);
-		expect(matchesAttentionPrompt("? Select a template › Vanilla\r\n  Vue\r\n  React\r\n")).toBe(false);
+	test("a waiting record with no reason at all still says the agent is stopped", () => {
+		const record = WAITING_RECORD.replace(',"waitingFor":"permission prompt"', "");
+		expect(parseSessionRecord(record)?.waitingFor).toBe(WAITING_TRACE_FALLBACK);
 	});
 
-	test("ignores the agent's own auto-accept footer while it works", () => {
-		expect(matchesAttentionPrompt("\x1b[2m⏵⏵ auto-accept edits on (shift+tab to cycle)\x1b[22m")).toBe(false);
+	test("an agent that is not waiting carries no reason", () => {
+		expect(parseSessionRecord(BUSY_RECORD)?.waitingFor).toBeUndefined();
+		const stray = BUSY_RECORD.replace('"status":"busy"', '"status":"busy","waitingFor":"permission prompt"');
+		expect(parseSessionRecord(stray)?.waitingFor).toBeUndefined();
 	});
 });
 
@@ -618,5 +666,27 @@ describe("compaction notice in the terminal stream", () => {
 	test("ignores ordinary output that never names the harness's own notice", () => {
 		expect(matchesCompactionNotice("$ bun run build\r\n✓ built in 1.42s\r\n")).toBe(false);
 		expect(matchesCompactionNotice("Compacted 12 files into one bundle")).toBe(false);
+	});
+});
+
+describe("how long the card has held its state", () => {
+	test("a state that did not change keeps the clock it was already showing", () => {
+		expect(clockSince({ previous: "working", next: "working", held: 1000, reported: 5000 })).toBe(1000);
+	});
+
+	test("a busy agent dropping into a shell does not restart the clock", () => {
+		expect(clockSince({ previous: "working", next: "working", held: 1000, reported: 9000 })).toBe(1000);
+	});
+
+	test("a state that changed adopts the moment the harness reported", () => {
+		expect(clockSince({ previous: "working", next: "done-unseen", held: 1000, reported: 9000 })).toBe(9000);
+	});
+
+	test("a shell seen for the first time takes the harness clock", () => {
+		expect(clockSince({ previous: undefined, next: "working", held: undefined, reported: 9000 })).toBe(9000);
+	});
+
+	test("a harness with no clock leaves the card without one", () => {
+		expect(clockSince({ previous: undefined, next: "working", held: undefined, reported: undefined })).toBeUndefined();
 	});
 });

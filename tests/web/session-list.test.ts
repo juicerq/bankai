@@ -21,6 +21,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		archivedAt: undefined,
 		activity: undefined,
 		trace: undefined,
+		statusSince: undefined,
 		...patch,
 	};
 }

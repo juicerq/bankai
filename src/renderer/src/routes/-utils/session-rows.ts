@@ -14,12 +14,8 @@ export interface SessionRow {
 	archivedAt: number | undefined;
 	activity: AgentActivityState | undefined;
 	trace: string | undefined;
+	statusSince: number | undefined;
 }
-
-const STOPPED_TRACE: Partial<Record<AgentActivityState, string>> = {
-	"needs-attention": "Waiting on you",
-	"done-unseen": "Done",
-};
 
 export function sessionTrace(
 	activity: AgentActivityState | undefined,
@@ -28,8 +24,11 @@ export function sessionTrace(
 	if (!activity) {
 		return undefined;
 	}
+	if (activity === "done-unseen") {
+		return "Done";
+	}
 
-	return STOPPED_TRACE[activity] ?? observed;
+	return observed;
 }
 
 export function sessionRows(input: {
@@ -37,6 +36,7 @@ export function sessionRows(input: {
 	projects: { id: string; name: string }[];
 	shellActivity: ReadonlyMap<string, AgentActivityState>;
 	traces: ReadonlyMap<string, string>;
+	statusSince: ReadonlyMap<string, number>;
 }): SessionRow[] {
 	const rows: SessionRow[] = [];
 
@@ -61,6 +61,7 @@ export function sessionRows(input: {
 				archivedAt: shell.archivedAt,
 				activity,
 				trace: sessionTrace(activity, input.traces.get(shell.id)),
+				statusSince: activity ? input.statusSince.get(shell.id) : undefined,
 			});
 		}
 	}

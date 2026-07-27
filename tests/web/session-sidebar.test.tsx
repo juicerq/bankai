@@ -23,6 +23,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		archivedAt: undefined,
 		activity: undefined,
 		trace: undefined,
+		statusSince: undefined,
 		...patch,
 	};
 }
@@ -130,6 +131,22 @@ test("the output line takes the trace slot while the agent is running", () => {
 
 	expect(trace.textContent).toBe("Editing index.tsx");
 	expect(trace.className).toContain("text-tertiary");
+});
+
+test("a running session says how long it has been in that state", () => {
+	renderSidebar({
+		open: [
+			row("s1", { activity: "working", trace: "Thinking", statusSince: Date.now() - 74_000 }),
+		],
+	});
+
+	expect(slot(sessionRow("s1"), "session-elapsed").textContent).toContain("1m");
+});
+
+test("a session the harness gave no clock for shows the verb alone", () => {
+	renderSidebar({ open: [row("s1", { activity: "working", trace: "Thinking" })] });
+
+	expect(sessionRow("s1").querySelector('[data-slot="session-elapsed"]')).toBeNull();
 });
 
 test("a state each session can be in paints its own border", () => {

@@ -10,15 +10,25 @@ const CLAUDE_HARNESS_ID = "claude";
 
 const CLAUDE_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function presenceStatus(status: string | undefined): AgentPresence["status"] {
-	if (status === "busy") {
-		return "working";
-	}
-	if (status === "waiting") {
-		return "waiting";
-	}
+const PRESENCE_STATUS: Record<string, AgentPresence["status"]> = {
+	busy: "working",
+	shell: "working",
+	waiting: "waiting",
+	idle: "idle",
+};
 
-	return "idle";
+const WAITING_TRACE: Record<string, string> = {
+	"permission prompt": "Needs permission",
+	"sandbox request": "Needs permission",
+	"input needed": "Needs input",
+	"worker request": "Needs input",
+	"dialog open": "Waiting on you",
+};
+
+export const WAITING_TRACE_FALLBACK = "Waiting on you";
+
+function presenceStatus(status: string | undefined): AgentPresence["status"] {
+	return (status === undefined ? undefined : PRESENCE_STATUS[status]) ?? "idle";
 }
 
 const sessionRecordSchema = type({
@@ -27,14 +37,22 @@ const sessionRecordSchema = type({
 	cwd: "string",
 	procStart: "string",
 	"status?": "string",
-}).pipe((raw): AgentPresence => ({
-	harness: CLAUDE_HARNESS_ID,
-	sessionId: raw.sessionId,
-	pid: raw.pid,
-	procStart: raw.procStart,
-	cwd: raw.cwd,
-	status: presenceStatus(raw.status),
-}));
+	"statusUpdatedAt?": "number",
+	"waitingFor?": "string",
+}).pipe((raw): AgentPresence => {
+	const status = presenceStatus(raw.status);
+
+	return {
+		harness: CLAUDE_HARNESS_ID,
+		sessionId: raw.sessionId,
+		pid: raw.pid,
+		procStart: raw.procStart,
+		cwd: raw.cwd,
+		status,
+		...(raw.statusUpdatedAt !== undefined && { statusSince: raw.statusUpdatedAt }),
+		...(status === "waiting" && { waitingFor: WAITING_TRACE[raw.waitingFor ?? ""] ?? WAITING_TRACE_FALLBACK }),
+	};
+});
 
 export function parseSessionRecord(raw: string): AgentPresence | null {
 	let value: unknown;

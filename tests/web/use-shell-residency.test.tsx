@@ -15,11 +15,11 @@ function renderResidency(shells: ResidencyShell[]) {
 test("an archived shell starts asleep and stays asleep across a re-render", () => {
 	const { result, rerender } = renderResidency([{ id: "s1", archivedAt: 10, session: SESSION }]);
 
-	expect(result.current.resident.has("s1")).toBe(false);
+	expect(result.current.asleep.has("s1")).toBe(true);
 
 	rerender();
 
-	expect(result.current.resident.has("s1")).toBe(false);
+	expect(result.current.asleep.has("s1")).toBe(true);
 });
 
 test("waking an archived shell keeps it running until it is filed again", () => {
@@ -27,11 +27,11 @@ test("waking an archived shell keeps it running until it is filed again", () => 
 
 	act(() => result.current.wake("s1"));
 
-	expect(result.current.resident.has("s1")).toBe(true);
+	expect(result.current.asleep.has("s1")).toBe(false);
 
 	act(() => result.current.sleep("s1"));
 
-	expect(result.current.resident.has("s1")).toBe(false);
+	expect(result.current.asleep.has("s1")).toBe(true);
 });
 
 test("filing a shell that was never woken still puts it to sleep", () => {
@@ -42,10 +42,10 @@ test("filing a shell that was never woken still puts it to sleep", () => {
 		{ initialProps: { shells: [shell] } },
 	);
 
-	expect(result.current.resident.has("s1")).toBe(true);
+	expect(result.current.asleep.has("s1")).toBe(false);
 
 	act(() => result.current.sleep("s1"));
 	rerender({ shells: [{ ...shell, archivedAt: 10 }] });
 
-	expect(result.current.resident.has("s1")).toBe(false);
+	expect(result.current.asleep.has("s1")).toBe(true);
 });

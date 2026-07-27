@@ -6,7 +6,7 @@ import type { AgentActivityState } from "@shared/activity";
 const RESIDENCY_CLOCK_MS = 30 * SECOND_MS;
 
 export interface ShellResidency {
-	resident: ReadonlySet<string>;
+	asleep: ReadonlySet<string>;
 	resumable: ReadonlySet<string>;
 	wake: (shellId: string) => void;
 	sleep: (shellId: string) => void;

@@ -34,6 +34,7 @@ let resumeOutcomes: ("resolve" | "reject")[] = [];
 let openCalls = 0;
 let resumeCalls = 0;
 let dataListeners: ((event: { sessionId: string; data: string }) => void)[] = [];
+let closedSessions: string[] = [];
 
 window.bankaiTerminal = {
 	open: async () => {
@@ -50,7 +51,9 @@ window.bankaiTerminal = {
 	},
 	write() {},
 	resize() {},
-	close() {},
+	close(sessionId) {
+		closedSessions.push(sessionId);
+	},
 	onData: (listener) => {
 		dataListeners.push(listener);
 
@@ -123,6 +126,7 @@ beforeEach(() => {
 	openCalls = 0;
 	resumeCalls = 0;
 	dataListeners = [];
+	closedSessions = [];
 });
 
 afterEach(() => {
@@ -199,4 +203,16 @@ test("a shell opening fresh is never marked as resuming", async () => {
 	});
 
 	expect(query("resuming-mark")).toBeNull();
+});
+
+test("unmounting the pane closes the shell it opened, which is what hibernating relies on", async () => {
+	const { unmount } = renderPane(false);
+
+	await waitFor(() => {
+		expect(openCalls).toBe(1);
+	});
+
+	unmount();
+
+	expect(closedSessions).toEqual(["open-1"]);
 });

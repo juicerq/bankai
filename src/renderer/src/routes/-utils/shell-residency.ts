@@ -11,8 +11,8 @@ export function shellResidency(input: {
 	statusSince: ReadonlyMap<string, number>;
 	woken: ReadonlySet<string>;
 	now: number;
-}): { resident: Set<string>; resumable: Set<string> } {
-	const resident = new Set<string>();
+}): { asleep: Set<string>; resumable: Set<string> } {
+	const asleep = new Set<string>();
 	const resumable = new Set<string>();
 
 	for (const shell of input.shells) {
@@ -21,19 +21,14 @@ export function shellResidency(input: {
 		}
 
 		if (shell.archivedAt === undefined || !shell.session || input.woken.has(shell.id)) {
-			resident.add(shell.id);
-			continue;
-		}
-
-		if (!input.activity.has(shell.id)) {
 			continue;
 		}
 
 		const graceEndsAt = (input.statusSince.get(shell.id) ?? shell.archivedAt) + SHELL_ARCHIVE_GRACE_MS;
-		if (graceEndsAt > input.now) {
-			resident.add(shell.id);
+		if (!input.activity.has(shell.id) || graceEndsAt <= input.now) {
+			asleep.add(shell.id);
 		}
 	}
 
-	return { resident, resumable };
+	return { asleep, resumable };
 }

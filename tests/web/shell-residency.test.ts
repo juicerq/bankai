@@ -28,33 +28,39 @@ function residencyOf(
 }
 
 describe("what stays running", () => {
-	test("an open shell is resident whether or not it can be resumed", () => {
-		const { resident } = residencyOf([
+	test("an open shell stays running whether or not it can be resumed", () => {
+		const { asleep } = residencyOf([
 			{ id: "s1", session: SESSION },
 			{ id: "s2" },
 		]);
 
-		expect([...resident]).toEqual(["s1", "s2"]);
+		expect(asleep.size).toBe(0);
 	});
 
 	test("an archived shell that can be resumed sleeps", () => {
-		const { resident } = residencyOf([{ id: "s1", archivedAt: NOW, session: SESSION }]);
+		const { asleep } = residencyOf([{ id: "s1", archivedAt: NOW, session: SESSION }]);
 
-		expect(resident.size).toBe(0);
+		expect([...asleep]).toEqual(["s1"]);
 	});
 
 	test("an archived shell with nothing to resume stays running", () => {
-		const { resident } = residencyOf([{ id: "s1", archivedAt: NOW }]);
+		const { asleep } = residencyOf([{ id: "s1", archivedAt: NOW }]);
 
-		expect([...resident]).toEqual(["s1"]);
+		expect(asleep.size).toBe(0);
 	});
 
 	test("selecting an archived shell wakes it without unfiling it", () => {
-		const { resident } = residencyOf([{ id: "s1", archivedAt: NOW, session: SESSION }], {
+		const { asleep } = residencyOf([{ id: "s1", archivedAt: NOW, session: SESSION }], {
 			woken: ["s1"],
 		});
 
-		expect([...resident]).toEqual(["s1"]);
+		expect(asleep.size).toBe(0);
+	});
+
+	test("a shell the store has not caught up to yet is never asleep", () => {
+		const { asleep } = residencyOf([]);
+
+		expect(asleep.has("s1")).toBe(false);
 	});
 });
 
@@ -62,38 +68,38 @@ describe("the grace an archived shell gets to finish", () => {
 	const archived: ResidencyShell[] = [{ id: "s1", archivedAt: NOW, session: SESSION }];
 
 	test("a shell that just entered its state survives", () => {
-		const { resident } = residencyOf(archived, {
+		const { asleep } = residencyOf(archived, {
 			activity: { s1: "working" },
 			statusSince: { s1: NOW },
 			now: NOW + SHELL_ARCHIVE_GRACE_MS - 1,
 		});
 
-		expect([...resident]).toEqual(["s1"]);
+		expect(asleep.size).toBe(0);
 	});
 
 	test("the grace runs from when the state began, not from the archiving", () => {
-		const { resident } = residencyOf(archived, {
+		const { asleep } = residencyOf(archived, {
 			activity: { s1: "needs-attention" },
 			statusSince: { s1: NOW - SHELL_ARCHIVE_GRACE_MS },
 			now: NOW,
 		});
 
-		expect(resident.size).toBe(0);
+		expect([...asleep]).toEqual(["s1"]);
 	});
 
 	test("without a timestamp the grace runs from the archiving", () => {
-		const { resident } = residencyOf(archived, {
+		const { asleep } = residencyOf(archived, {
 			activity: { s1: "needs-attention" },
 			now: NOW + SHELL_ARCHIVE_GRACE_MS - 1,
 		});
 
-		expect([...resident]).toEqual(["s1"]);
+		expect(asleep.size).toBe(0);
 	});
 
 	test("an archived shell with no activity at all gets no grace", () => {
-		const { resident } = residencyOf(archived, { now: NOW });
+		const { asleep } = residencyOf(archived, { now: NOW });
 
-		expect(resident.size).toBe(0);
+		expect([...asleep]).toEqual(["s1"]);
 	});
 });
 

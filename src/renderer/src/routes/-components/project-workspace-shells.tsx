@@ -25,7 +25,7 @@ export function ProjectWorkspaceShells({
 			style={{ minWidth: MIN_TERMINAL_WIDTH, contain: "paint" }}
 			className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-1 overflow-hidden bg-surface-sunken"
 		>
-			{!shells.tabs.some((tab) => residency.resident.has(tab.id)) && (
+			{shells.tabs.every((tab) => residency.asleep.has(tab.id)) && (
 				<EmptyState
 					mark="›_"
 					title="No open shells"
@@ -39,7 +39,7 @@ export function ProjectWorkspaceShells({
 					className={`col-start-1 row-start-1 min-h-0 min-w-0 overflow-hidden ${tab.id === shells.activeTabId ? "" : "invisible"}`}
 					key={tab.id}
 				>
-					{residency.resident.has(tab.id) && (
+					{!residency.asleep.has(tab.id) && (
 						<TerminalPane
 							projectId={project.id}
 							shellId={tab.id}

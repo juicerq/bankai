@@ -1,20 +1,22 @@
 ---
 title: Which shells keep a live process, and what puts one to sleep
 tags: [ui, terminal, activity]
-updated_at: 2026-07-26
+updated_at: 2026-07-27
 created_at: 2026-07-26
 ---
 
 ## Residency is derived, and it decides whether a pane mounts
 
-`shellResidency` in `src/renderer/src/routes/-utils/shell-residency.ts` answers one question per shell: does it keep a live PTY? `ProjectWorkspaceShells` mounts a `TerminalPane` only for resident shells, and that mount is the whole mechanism — unmounting disposes the renderer session, which closes the PTY, which stops the agent.
+`shellResidency` in `src/renderer/src/routes/-utils/shell-residency.ts` answers one question per shell: should it be put to sleep? `ProjectWorkspaceShells` mounts a `TerminalPane` for every tab it is *not* asleep, and that mount is the whole mechanism — unmounting disposes the renderer session, which closes the PTY, which stops the agent.
 
-A shell is resident when any of these holds:
+A shell sleeps only when all of these hold:
 
-- it is not archived (`archivedAt` unset)
-- it has no `session` ref, so nothing could resume it
-- it was woken this run — `wake` is called when the shell is selected
-- it is archived, has an activity state, and that state is younger than `SHELL_ARCHIVE_GRACE_MS`
+- it is archived (`archivedAt` set)
+- it carries a `session` ref, so waking it can resume the conversation
+- it was not woken this run — `wake` is called when the shell is selected
+- it has no activity state, or that state is older than `SHELL_ARCHIVE_GRACE_MS`
+
+The set is deliberately the sleeping shells and not the running ones. A tab exists in local state the instant it is opened, but the continuity store only echoes it back after a disk write, so for a frame or two the shell is unknown to this rule. Asking "is it asleep?" answers no for an unknown shell and the terminal mounts; asking "is it running?" would have answered no as well, and the tab would have opened blank.
 
 Nothing here is persisted. `useShellResidency` holds only the woken set; everything else is read live from continuity and from the activity snapshot.
 

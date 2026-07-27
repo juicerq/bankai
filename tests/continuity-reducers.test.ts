@@ -29,13 +29,26 @@ const OWN_AND_NEIGHBOUR = twoProjects(
 test("opening a shell mounts an unknown project, stamps the injected clock and selects it", () => {
 	const opened = ContinuityReducers.openShell(
 		{ workspaces: [] },
-		{ projectId: "p1", shell: { id: "s1", label: "Shell 1" }, now: NOW },
+		{ projectId: "p1", shell: { id: "s1" }, now: NOW },
 	);
 
 	expect(opened).toEqual({
 		selectedShellId: "s1",
 		workspaces: [{ projectId: "p1", shells: [{ id: "s1", label: "Shell 1", createdAt: NOW }] }],
 	});
+});
+
+test("a shell is named one above the highest number its own project holds", () => {
+	const before: ContinuityValue = {
+		workspaces: [
+			{ projectId: "p1", shells: [shell("a1", { label: "Shell 3" }), shell("a2", { label: "deploy watcher" })] },
+			{ projectId: "p2", shells: [shell("b1", { label: "Shell 9" })] },
+		],
+	};
+
+	const opened = ContinuityReducers.openShell(before, { projectId: "p1", shell: { id: "a3" }, now: NOW });
+
+	expect(opened.workspaces[0]?.shells.at(-1)?.label).toBe("Shell 4");
 });
 
 test("the same value and the same clock always produce the same result", () => {
@@ -51,7 +64,7 @@ test("no reducer mutates the value it was given", () => {
 	const untouched = structuredClone(before);
 	const address = { projectId: "p1", shellId: "a1", now: NOW };
 
-	ContinuityReducers.openShell(before, { projectId: "p1", shell: { id: "a3", label: "Shell 3" }, now: NOW });
+	ContinuityReducers.openShell(before, { projectId: "p1", shell: { id: "a3" }, now: NOW });
 	ContinuityReducers.closeShell(before, address);
 	ContinuityReducers.selectShell(before, address);
 	ContinuityReducers.archiveShell(before, address);

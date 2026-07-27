@@ -20,3 +20,11 @@ The v5 migrator promotes the `activeShellId` of the workspace that was the activ
 "Open" here is the same judgement `pinnedIfStale` makes — not archived, and touched inside `SESSION_AUTO_ARCHIVE_MS`. The reducer cannot see agent activity, so a stale session with a live agent ranks below an open one; the sidebar would rank it above. The disagreement only decides a fallback, and it resolves on the next stamp.
 
 Ordering matches the sidebar (`session-rows.ts`): newest `createdAt` first, ties broken by ascending id.
+
+## Clicking a Project opens its newest session
+
+`ProjectFooter` is pinned under the session list, sorted by name, closed by default, its open state persisted as `layout.projectsOpen`. Sorting is by name and not by store order because project order no longer exists: it was array order in the store, so removing it migrated nothing.
+
+Clicking a project row opens its newest **open** session, falling back to its newest archived one, and creating one when it has none. It never sets an Active project directly — that is a consequence of the selection, never a thing the user sets (`session-creation.md`).
+
+Removing a project with open shells asks first, naming the count. Removing the one that owns the selected session moves the selection through `purgeProject`, so the route hands nothing over; with no projects left the workspace region is empty and the existing `EmptyState` takes over.

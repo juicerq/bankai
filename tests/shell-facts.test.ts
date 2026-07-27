@@ -63,7 +63,7 @@ describe("branchLabel", () => {
 describe("stampShell", () => {
 	it("stamps a timestamp and the project's branch on the shell", async () => {
 		const project = await Projects.add(repo("stamped", "feat/flat-list"));
-		await Continuity.openShell({ projectId: project.id, shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
 
 		const before = Date.now();
 		await stampShell({ projectId: project.id, shellId: "s1" });
@@ -77,7 +77,7 @@ describe("stampShell", () => {
 	it("resolves the branch from the agent session's directory when the shell has one", async () => {
 		const project = await Projects.add(repo("owner", "main"));
 		const worktree = repo("agent-cwd", "feat/agent");
-		await Continuity.openShell({ projectId: project.id, shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
 		await Continuity.setShellSession({
 			projectId: project.id,
 			shellId: "s1",
@@ -90,7 +90,7 @@ describe("stampShell", () => {
 
 	it("prefers an explicit directory over the shell's own", async () => {
 		const project = await Projects.add(repo("explicit", "main"));
-		await Continuity.openShell({ projectId: project.id, shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
 		await stampShell({ projectId: project.id, shellId: "s1", cwd: repo("other-tree", "feat/other") });
 
 		expect((await shell(project.id, "s1"))?.branch).toBe("feat/other");
@@ -99,7 +99,7 @@ describe("stampShell", () => {
 	it("holds a stale branch until the next stamp", async () => {
 		const path = repo("renamed", "main");
 		const project = await Projects.add(path);
-		await Continuity.openShell({ projectId: project.id, shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
 		await stampShell({ projectId: project.id, shellId: "s1" });
 		execFileSync("git", ["checkout", "-b", "feat/moved"], { cwd: path });
 
@@ -131,7 +131,7 @@ describe("stampShell titles", () => {
 	it("titles a shell with its agent's first real intent", async () => {
 		const cwd = repo("agent-titled", "main");
 		const project = await Projects.add(cwd);
-		await Continuity.openShell({ projectId: project.id, shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
 		await claudeSession({ projectId: project.id, sessionId: "abc", cwd, intent: "arruma o header" });
 		await stampShell({ projectId: project.id, shellId: "s1" });
 
@@ -140,7 +140,7 @@ describe("stampShell titles", () => {
 
 	it("titles an agentless shell with the raw title its own shell wrote", async () => {
 		const project = await Projects.add(repo("osc-titled", "main"));
-		await Continuity.openShell({ projectId: project.id, shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
 		noteShellTitle("s1", "\u001b]0;jui@box: ~/projects\u0007");
 		await stampShell({ projectId: project.id, shellId: "s1" });
 
@@ -150,7 +150,7 @@ describe("stampShell titles", () => {
 	it("keeps the title it already had when the session resumes under a new id", async () => {
 		const cwd = repo("resumed", "main");
 		const project = await Projects.add(cwd);
-		await Continuity.openShell({ projectId: project.id, shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
 		await claudeSession({ projectId: project.id, sessionId: "first", cwd, intent: "a intencao original" });
 		await stampShell({ projectId: project.id, shellId: "s1" });
 		await claudeSession({ projectId: project.id, sessionId: "second", cwd, intent: "outra coisa" });
@@ -162,7 +162,7 @@ describe("stampShell titles", () => {
 	it("leaves a shell untitled when nothing yields a title, and still stamps its branch", async () => {
 		const cwd = repo("untitled", "feat/no-title");
 		const project = await Projects.add(cwd);
-		await Continuity.openShell({ projectId: project.id, shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
 		await claudeSession({
 			projectId: project.id,
 			sessionId: "quiet",
@@ -178,7 +178,7 @@ describe("stampShell titles", () => {
 
 	it("leaves a shell untitled when its harness cannot derive one", async () => {
 		const project = await Projects.add(repo("unknown-harness", "main"));
-		await Continuity.openShell({ projectId: project.id, shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
 		await Continuity.setShellSession({
 			projectId: project.id,
 			shellId: "s1",

@@ -139,7 +139,7 @@ export const Continuity = {
 
 	openShell: (input: {
 		projectId: string;
-		shell: Pick<ContinuityShell, "id" | "label" | "plain">;
+		shell: Pick<ContinuityShell, "id" | "plain">;
 	}): Promise<ContinuityValue> =>
 		mutate((current) => ContinuityReducers.openShell(current, { ...input, now: Date.now() })),
 

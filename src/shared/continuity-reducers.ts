@@ -101,7 +101,7 @@ export function nextShellNumber(shells: Pick<ContinuityShell, "label">[]): numbe
 export const ContinuityReducers = {
 	openShell: (
 		value: ContinuityValue,
-		input: { projectId: string; shell: Pick<ContinuityShell, "id" | "label" | "plain">; now: number },
+		input: { projectId: string; shell: Pick<ContinuityShell, "id" | "plain">; now: number },
 	): ContinuityValue => {
 		const known = value.workspaces.some((workspace) => workspace.projectId === input.projectId);
 		const mounted = known
@@ -112,7 +112,14 @@ export const ContinuityReducers = {
 			...workspace,
 			shells: workspace.shells.some((shell) => shell.id === input.shell.id)
 				? workspace.shells
-				: [...workspace.shells, { ...input.shell, createdAt: input.now }],
+				: [
+					...workspace.shells,
+					{
+						...input.shell,
+						label: `Shell ${nextShellNumber(workspace.shells)}`,
+						createdAt: input.now,
+					},
+				],
 		}));
 	},
 

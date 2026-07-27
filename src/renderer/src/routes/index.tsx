@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { ContinuityShell } from "@main/store/continuity";
 import { orpc } from "@renderer/lib/api";
 import { queryClient } from "@renderer/lib/query-client";
 import { ContinuityFailedNotice } from "@renderer/routes/-components/continuity-failed-notice";
@@ -22,18 +23,18 @@ import {
 import { type SessionRow, sessionRows } from "@renderer/routes/-utils/session-rows";
 import { useAgentActivities } from "@renderer/routes/-utils/use-agent-activity";
 import { useBankaiShortcuts } from "@renderer/routes/-utils/use-bankai-shortcuts";
-import { useContinuity } from "@renderer/routes/-utils/use-continuity";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
 import { useLayoutPreferences } from "@renderer/routes/-utils/use-layout-preferences";
 import { useSessionList } from "@renderer/routes/-utils/use-session-list";
-import { useSessionCommands } from "@renderer/routes/-utils/use-session-commands";
-import { useShellResidency } from "@renderer/routes/-utils/use-shell-residency";
+import { useSessions } from "@renderer/routes/-utils/use-sessions";
 import {
 	restoredResidentProjectIds,
 	useWorkspaceActivation,
 } from "@renderer/routes/-utils/use-workspace-activation";
 import { WorkspaceProvider } from "@renderer/routes/-utils/workspace-context";
+
+const NO_SHELLS: ContinuityShell[] = [];
 
 export const Route = createFileRoute("/")({
 	component: Bankai,
@@ -48,7 +49,6 @@ function Bankai() {
 	const reactQueryClient = useQueryClient();
 	const projects = useQuery(orpc.projects.list.queryOptions());
 	const layout = useLayoutPreferences();
-	const continuity = useContinuity();
 	const [shellFocusRequest, setShellFocusRequest] = useState(0);
 	const requestShellFocus = useCallback(() => setShellFocusRequest((current) => current + 1), []);
 	const persistFullscreen = useCallback(
@@ -118,46 +118,38 @@ function Bankai() {
 	});
 	const availableProjects = projects.data || [];
 	const activity = useAgentActivities(availableProjects.map((project) => project.id));
-	const selectedShellId = continuity.restored.selectedShellId;
+	const sessions = useSessions({ activity: activity.shells, statusSince: activity.statusSince });
+	const workspaces = sessions.continuity.workspaces;
+	const selectedShellId = sessions.continuity.selectedShellId;
 	const selectedProjectId = useMemo(
-		() =>
-			continuity.restored.workspaces.find((workspace) =>
-				workspace.shells.some((shell) => shell.id === selectedShellId),
-			)?.projectId,
-		[continuity.restored, selectedShellId],
+		() => workspaces.find((workspace) => workspace.shells.some((shell) => shell.id === selectedShellId))?.projectId,
+		[workspaces, selectedShellId],
 	);
 	const { activeProjectId, residentProjectIds, activateProject, dropWorkspace } = useWorkspaceActivation(
 		availableProjects.map((project) => project.id),
 		{
 			activeProjectId: selectedProjectId,
-			initialResidentProjectIds: restoredResidentProjectIds(continuity.restored.workspaces),
+			initialResidentProjectIds: restoredResidentProjectIds(workspaces),
 		},
 	);
-	const allShells = useMemo(
-		() => continuity.restored.workspaces.flatMap((workspace) => workspace.shells),
-		[continuity.restored],
-	);
-	const residency = useShellResidency({
-		shells: allShells,
-		activity: activity.shells,
-		statusSince: activity.statusSince,
-	});
-	const selectShell = useCallback(
+	const selectSession = useCallback(
 		(projectId: string, shellId: string) => {
-			continuity.selectShell(projectId, shellId);
-			residency.wake(shellId);
+			sessions.selectShell(projectId, shellId);
+			activateProject(projectId);
 		},
-		[continuity.selectShell, residency.wake],
+		[activateProject, sessions.selectShell],
 	);
-	const commands = useSessionCommands({
-		onActivateProject: activateProject,
-		onPersistSelection: selectShell,
-		onPersistClose: continuity.closeShell,
-	});
+	const createShell = useCallback(
+		(projectId: string, plain?: boolean) => {
+			sessions.openShell(projectId, plain);
+			activateProject(projectId);
+		},
+		[activateProject, sessions.openShell],
+	);
 	const rows = useMemo(
 		() =>
 			sessionRows({
-				continuity: continuity.restored,
+				continuity: sessions.continuity,
 				projects: availableProjects,
 				shellActivity: activity.shells,
 				traces: activity.traces,
@@ -165,7 +157,7 @@ function Bankai() {
 				statusSince: activity.statusSince,
 			}),
 		[
-			continuity.restored,
+			sessions.continuity,
 			availableProjects,
 			activity.shells,
 			activity.traces,
@@ -173,14 +165,7 @@ function Bankai() {
 			activity.statusSince,
 		],
 	);
-	const sessions = useSessionList(rows, Date.now());
-	const archiveSession = useCallback(
-		(projectId: string, shellId: string) => {
-			continuity.archiveShell(projectId, shellId);
-			residency.sleep(shellId);
-		},
-		[continuity.archiveShell, residency.sleep],
-	);
+	const list = useSessionList(rows, Date.now());
 	const [pickerOpen, setPickerOpen] = useState(false);
 	const openPicker = useCallback(() => {
 		setPickerOpen(true);
@@ -211,7 +196,7 @@ function Bankai() {
 			}
 
 			if (rest.length === 0) {
-				commands.createSession(onlyProject.id, plain);
+				createShell(onlyProject.id, plain);
 				return;
 			}
 
@@ -219,21 +204,17 @@ function Bankai() {
 			setShellPickerOpen(true);
 			projectRail.setPickerActive(true);
 		},
-		[availableProjects, commands.createSession, pickerOpen, projectRail.setPickerActive],
-	);
-	const createShell = useCallback(
-		(projectId: string) => commands.createSession(projectId, false),
-		[commands.createSession],
+		[availableProjects, createShell, pickerOpen, projectRail.setPickerActive],
 	);
 	const createRequestedShell = useCallback(
-		(projectId: string) => commands.createSession(projectId, plainRequest.current),
-		[commands.createSession],
+		(projectId: string) => createShell(projectId, plainRequest.current),
+		[createShell],
 	);
 	const closeShellHere = useCallback(() => {
-		if (activeProjectId && selectedShellId) {
-			commands.closeSession(activeProjectId, selectedShellId);
+		if (selectedProjectId && selectedShellId) {
+			sessions.closeShell(selectedProjectId, selectedShellId);
 		}
-	}, [activeProjectId, commands.closeSession, selectedShellId]);
+	}, [selectedProjectId, sessions.closeShell, selectedShellId]);
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const openSettings = useCallback(() => setSettingsOpen(true), []);
 	const closeSettings = useCallback(() => setSettingsOpen(false), []);
@@ -246,10 +227,7 @@ function Bankai() {
 			onPersistLayout: layout.persist,
 			onReviewOpenChange: handleReviewOpenChange,
 			onTreeOpenChange: handleTreeOpenChange,
-			onShellOpen: continuity.openShell,
-			onShellClose: continuity.closeShell,
-			onShellSelect: selectShell,
-			registerWorkspace: commands.registerWorkspace,
+			onOpenShell: createShell,
 		}),
 		[
 			layout.initial.diffWidth,
@@ -259,10 +237,7 @@ function Bankai() {
 			openSettings,
 			handleReviewOpenChange,
 			handleTreeOpenChange,
-			continuity.openShell,
-			continuity.closeShell,
-			selectShell,
-			commands.registerWorkspace,
+			createShell,
 		],
 	);
 	const [numbersVisible, setNumbersVisible] = useState(false);
@@ -275,18 +250,18 @@ function Bankai() {
 	);
 	const jumpToRow = useCallback(
 		(index: number) => {
-			const row = sessions.numbered[index];
+			const row = list.numbered[index];
 			if (row) {
-				commands.selectSession(row.projectId, row.shellId);
+				selectSession(row.projectId, row.shellId);
 			}
 		},
-		[commands.selectSession, sessions.numbered],
+		[selectSession, list.numbered],
 	);
 	const jumpToWaiting = useCallback(() => {
-		if (sessions.waiting) {
-			commands.selectSession(sessions.waiting.projectId, sessions.waiting.shellId);
+		if (list.waiting) {
+			selectSession(list.waiting.projectId, list.waiting.shellId);
 		}
-	}, [commands.selectSession, sessions.waiting]);
+	}, [selectSession, list.waiting]);
 	const registerShortcuts = useBankaiShortcuts({
 		onToggleFullscreen: projectRail.toggleFullscreen,
 		onNewShell: requestNewShell,
@@ -304,10 +279,17 @@ function Bankai() {
 			}
 
 			closePicker();
-			activateProject(project.id);
+
+			const mounted = workspaces.find((workspace) => workspace.projectId === project.id);
+			if (mounted?.shells.length) {
+				activateProject(project.id);
+			} else {
+				createShell(project.id);
+			}
+
 			await reactQueryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
 		},
-		[activateProject, closePicker, reactQueryClient],
+		[activateProject, closePicker, createShell, reactQueryClient, workspaces],
 	);
 	const { mutate: addProject, isPending: addingProject, error: addProjectError } = useMutation(
 		orpc.projects.add.mutationOptions({ onSuccess: mountProject }),
@@ -327,15 +309,15 @@ function Bankai() {
 	const openProject = useCallback(
 		(projectId: string) => {
 			const belongs = (row: SessionRow) => row.projectId === projectId;
-			const target = sessions.open.find(belongs) ?? rows.find(belongs);
+			const target = list.open.find(belongs) ?? rows.find(belongs);
 			if (target) {
-				commands.selectSession(projectId, target.shellId);
+				selectSession(projectId, target.shellId);
 				return;
 			}
 
 			createShell(projectId);
 		},
-		[createShell, commands.selectSession, rows, sessions.open],
+		[createShell, selectSession, rows, list.open],
 	);
 	const shellCounts = useMemo(() => {
 		const counts = new Map<string, number>();
@@ -349,20 +331,20 @@ function Bankai() {
 	return (
 		<main ref={registerShortcuts} className="relative flex h-full bg-surface">
 			<WindowControls />
-			{continuity.failed && <ContinuityFailedNotice />}
+			{sessions.failed && <ContinuityFailedNotice />}
 			<ProjectRailFrame projectRail={projectRail} divider={railDivider} frameRef={railFrameRef} railWidth={railWidth}>
 				<SessionSidebar
-					list={sessions}
+					list={list}
 					selectedShellId={selectedShellId}
 					canCreateShell={availableProjects.length > 0}
 					numbersVisible={numbersVisible}
-					onSelect={commands.selectSession}
+					onSelect={selectSession}
 					onCreate={createShell}
 					onRequestShell={requestNewShell}
-					onClose={commands.closeSession}
-					onArchive={archiveSession}
-					onUnarchive={continuity.unarchiveShell}
-					onRename={continuity.renameShell}
+					onClose={sessions.closeShell}
+					onArchive={sessions.archiveShell}
+					onUnarchive={sessions.unarchiveShell}
+					onRename={sessions.renameShell}
 					footer={
 						<ProjectFooter
 							projects={availableProjects}
@@ -398,9 +380,9 @@ function Bankai() {
 						onAction={openPicker}
 					/>
 				)}
-				<WorkspaceProvider control={control} agents={activity} residency={residency}>
+				<WorkspaceProvider control={control} agents={activity} residency={sessions.residency}>
 					{!projects.isError && availableProjects.filter((project) => residentProjectIds.includes(project.id)).map((project) => {
-						const workspace = continuity.restored.workspaces.find((entry) => entry.projectId === project.id);
+						const workspace = workspaces.find((entry) => entry.projectId === project.id);
 
 						return (
 							<ProjectWorkspace
@@ -413,7 +395,7 @@ function Bankai() {
 								railResizing={railDivider.resizing}
 								reviewOpen={reviewOpen}
 								treeOpen={treeOpen}
-								restoredShells={workspace?.shells}
+								shells={workspace?.shells ?? NO_SHELLS}
 								selectedShellId={selectedShellId}
 							/>
 						);

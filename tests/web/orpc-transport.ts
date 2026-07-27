@@ -2,6 +2,7 @@ import "./register-dom";
 import { os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/message-port";
 import { type } from "arktype";
+import type { ContinuityValue } from "@main/store/continuity";
 import type { HarnessSettings } from "@main/store/settings";
 
 export type ReviewProcedure = "worktrees" | "snapshot" | "files" | "file" | "fullFile";
@@ -108,7 +109,44 @@ function requireHarness() {
 	return currentHarness;
 }
 
+export interface ContinuityTransport {
+	value: ContinuityValue;
+	calls: { procedure: string; input: unknown }[];
+}
+
+let currentContinuity: ContinuityTransport | undefined;
+
+export function setContinuityTransport(transport: ContinuityTransport) {
+	currentContinuity = transport;
+}
+
+function requireContinuity() {
+	if (!currentContinuity) {
+		throw new Error("No continuity transport is installed");
+	}
+
+	return currentContinuity;
+}
+
+function recordContinuity(procedure: string) {
+	return os.handler(({ input }) => {
+		const transport = requireContinuity();
+		transport.calls.push({ procedure, input });
+
+		return transport.value;
+	});
+}
+
 const router = {
+	continuity: {
+		get: os.handler(() => ({ value: requireContinuity().value, failed: false })),
+		openShell: recordContinuity("openShell"),
+		closeShell: recordContinuity("closeShell"),
+		selectShell: recordContinuity("selectShell"),
+		renameShell: recordContinuity("renameShell"),
+		archiveShell: recordContinuity("archiveShell"),
+		unarchiveShell: recordContinuity("unarchiveShell"),
+	},
 	settings: {
 		listHarnesses: os.handler(() => requireHarness().harnesses),
 		getHarness: os.handler(() => requireHarness().harness),

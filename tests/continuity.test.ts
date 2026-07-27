@@ -21,7 +21,7 @@ describe("continuity store", () => {
 	});
 
 	it("opens a shell by creating its workspace and selecting it", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 
 		const { value } = await Continuity.load();
 		expect(value).toEqual({
@@ -31,16 +31,16 @@ describe("continuity store", () => {
 	});
 
 	it("remembers a shell that was asked to skip the harness", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1", plain: true } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", plain: true } });
 
 		const { value } = await Continuity.load();
 		expect(value.workspaces[0]?.shells[0]?.plain).toBe(true);
 	});
 
 	it("appends shells in open order, selecting the latest and deduping by id", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s2", label: "Shell 2" } });
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s2" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 
 		const { value } = await Continuity.load();
 		expect(value.workspaces[0]?.shells.map((shell) => shell.id)).toEqual(["s1", "s2"]);
@@ -48,8 +48,8 @@ describe("continuity store", () => {
 	});
 
 	it("selects an existing shell", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s2", label: "Shell 2" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s2" } });
 		await Continuity.selectShell({ projectId: "p1", shellId: "s1" });
 
 		expect((await Continuity.load()).value.selectedShellId).toBe("s1");
@@ -80,15 +80,15 @@ describe("continuity store", () => {
 	});
 
 	it("clears the selection when the last shell closes", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.closeShell({ projectId: "p1", shellId: "s1" });
 
 		expect((await Continuity.load()).value).toEqual({ workspaces: [{ projectId: "p1", shells: [] }] });
 	});
 
 	it("purges a project's workspace and hands its selection to another project", async () => {
-		await Continuity.openShell({ projectId: "p2", shell: { id: "s2", label: "Shell 1" } });
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p2", shell: { id: "s2" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.purgeProject("p1");
 
 		const { value } = await Continuity.load();
@@ -97,8 +97,8 @@ describe("continuity store", () => {
 	});
 
 	it("keeps the selection when purging a workspace that does not own it", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
-		await Continuity.openShell({ projectId: "p2", shell: { id: "s2", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
+		await Continuity.openShell({ projectId: "p2", shell: { id: "s2" } });
 		await Continuity.purgeProject("p1");
 
 		expect((await Continuity.load()).value.selectedShellId).toBe("s2");
@@ -190,7 +190,7 @@ describe("continuity store", () => {
 
 	it("stamps a shell with a branch and a fresh timestamp", async () => {
 		const before = Date.now();
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.touchShell({ projectId: "p1", shellId: "s1", branch: "feat/sidebar" });
 
 		const shell = (await Continuity.load()).value.workspaces[0]?.shells[0];
@@ -200,8 +200,8 @@ describe("continuity store", () => {
 	});
 
 	it("leaves other shells untouched when stamping one", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s2", label: "Shell 2" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s2" } });
 		await Continuity.touchShell({ projectId: "p1", shellId: "s2", branch: "main" });
 
 		const shells = (await Continuity.load()).value.workspaces[0]?.shells;
@@ -210,7 +210,7 @@ describe("continuity store", () => {
 	});
 
 	it("freezes the first title a stamp brings, ignoring every later one", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.touchShell({ projectId: "p1", shellId: "s1", branch: "main", title: "a primeira intencao" });
 		await Continuity.touchShell({ projectId: "p1", shellId: "s1", branch: "main", title: "outra coisa" });
 		await Continuity.touchShell({ projectId: "p1", shellId: "s1", branch: "main" });
@@ -219,7 +219,7 @@ describe("continuity store", () => {
 	});
 
 	it("keeps a renamed session's name against every later stamp", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.touchShell({ projectId: "p1", shellId: "s1", branch: "main", title: "a intencao derivada" });
 		await Continuity.renameShell({ projectId: "p1", shellId: "s1", title: "deploy watcher" });
 		await Continuity.touchShell({ projectId: "p1", shellId: "s1", branch: "main", title: "outra derivacao" });
@@ -228,7 +228,7 @@ describe("continuity store", () => {
 	});
 
 	it("renames a session that never carried a derived title", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.renameShell({ projectId: "p1", shellId: "s1", title: "psql" });
 
 		expect((await Continuity.load()).value.workspaces[0]?.shells[0]?.title).toBe("psql");
@@ -236,20 +236,20 @@ describe("continuity store", () => {
 
 	it("stamps a shell with the moment it was opened, and keeps it across a reopen", async () => {
 		const before = Date.now();
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 
 		const created = (await Continuity.load()).value.workspaces[0]?.shells[0]?.createdAt;
 		assertDefined(created);
 		expect(created).toBeGreaterThanOrEqual(before);
 
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 
 		expect((await Continuity.load()).value.workspaces[0]?.shells[0]?.createdAt).toBe(created);
 	});
 
 	it("archives a shell without dropping it or its facts", async () => {
 		const before = Date.now();
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.touchShell({ projectId: "p1", shellId: "s1", branch: "main" });
 		await Continuity.archiveShell({ projectId: "p1", shellId: "s1" });
 
@@ -260,8 +260,8 @@ describe("continuity store", () => {
 	});
 
 	it("archives only the shell it names", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s2", label: "Shell 2" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s2" } });
 		await Continuity.archiveShell({ projectId: "p1", shellId: "s2" });
 
 		const shells = (await Continuity.load()).value.workspaces[0]?.shells;
@@ -270,8 +270,8 @@ describe("continuity store", () => {
 	});
 
 	it("selecting an archived shell opens it and leaves it archived", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s2", label: "Shell 2" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s2" } });
 		await Continuity.archiveShell({ projectId: "p1", shellId: "s1" });
 		await Continuity.selectShell({ projectId: "p1", shellId: "s1" });
 
@@ -282,7 +282,7 @@ describe("continuity store", () => {
 
 	it("unarchiving clears the stamp and touches the shell so the window cannot refile it", async () => {
 		const before = Date.now();
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.archiveShell({ projectId: "p1", shellId: "s1" });
 		await Continuity.unarchiveShell({ projectId: "p1", shellId: "s1" });
 
@@ -294,7 +294,7 @@ describe("continuity store", () => {
 
 	it("unarchiving a shell the window filed on its own still touches it", async () => {
 		const before = Date.now();
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.unarchiveShell({ projectId: "p1", shellId: "s1" });
 
 		const shell = (await Continuity.load()).value.workspaces[0]?.shells[0];
@@ -320,7 +320,7 @@ describe("continuity store", () => {
 	});
 
 	it("selecting a shell the window has not filed leaves it unarchived", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.selectShell({ projectId: "p1", shellId: "s1" });
 
 		expect((await Continuity.load()).value.workspaces[0]?.shells[0]?.archivedAt).toBeUndefined();
@@ -382,7 +382,7 @@ describe("continuity push", () => {
 		const pushes: ContinuityValue[] = [];
 		const stop = Continuity.subscribe((value) => pushes.push(value));
 
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.setShellSession({
 			projectId: "p1",
 			shellId: "s1",
@@ -402,7 +402,7 @@ describe("continuity push", () => {
 			pushes += 1;
 		})();
 
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 
 		expect(pushes).toBe(0);
 	});
@@ -416,7 +416,7 @@ describe("continuity live session refs", () => {
 	};
 
 	it("stores a live session ref on the owning shell", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.setShellSession({ projectId: "p1", shellId: "s1", session: CLAUDE_REF });
 
 		expect((await Continuity.load()).value.workspaces[0]?.shells[0]).toEqual({
@@ -428,7 +428,7 @@ describe("continuity live session refs", () => {
 	});
 
 	it("reads back the stored ref through the facade", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.setShellSession({ projectId: "p1", shellId: "s1", session: CLAUDE_REF });
 
 		expect((await Continuity.findShell({ projectId: "p1", shellId: "s1" }))?.session).toEqual(CLAUDE_REF);
@@ -436,7 +436,7 @@ describe("continuity live session refs", () => {
 	});
 
 	it("survives a fresh store read after being persisted", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.setShellSession({ projectId: "p1", shellId: "s1", session: CLAUDE_REF });
 
 		expect(readContinuityFile()).toEqual({
@@ -452,8 +452,8 @@ describe("continuity live session refs", () => {
 	});
 
 	it("keeps a duplicated ref independently on two shells", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s2", label: "Shell 2" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s2" } });
 		await Continuity.setShellSession({ projectId: "p1", shellId: "s1", session: CLAUDE_REF });
 		await Continuity.setShellSession({ projectId: "p1", shellId: "s2", session: CLAUDE_REF });
 
@@ -462,7 +462,7 @@ describe("continuity live session refs", () => {
 	});
 
 	it("clears the ref when the shell returns to its prompt", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.setShellSession({ projectId: "p1", shellId: "s1", session: CLAUDE_REF });
 		await Continuity.clearShellSession({ projectId: "p1", shellId: "s1" });
 
@@ -475,7 +475,7 @@ describe("continuity live session refs", () => {
 	});
 
 	it("drops the ref together with the shell when it closes", async () => {
-		await Continuity.openShell({ projectId: "p1", shell: { id: "s1", label: "Shell 1" } });
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
 		await Continuity.setShellSession({ projectId: "p1", shellId: "s1", session: CLAUDE_REF });
 		await Continuity.closeShell({ projectId: "p1", shellId: "s1" });
 

@@ -1,9 +1,7 @@
 import { createContext, type ReactNode, use } from "react";
 import type { LayoutSettings } from "@main/store/settings";
 import type { AgentActivities } from "@renderer/routes/-utils/use-agent-activity";
-import type { WorkspaceCommands } from "@renderer/routes/-utils/use-session-commands";
 import type { ShellResidency } from "@renderer/routes/-utils/use-shell-residency";
-import type { ShellTab } from "@renderer/routes/-utils/shell-topology";
 
 interface WorkspaceControl {
 	initialDiffWidth: number;
@@ -13,10 +11,7 @@ interface WorkspaceControl {
 	onPersistLayout: (patch: LayoutSettings) => void;
 	onReviewOpenChange: (open: boolean) => void;
 	onTreeOpenChange: (open: boolean) => void;
-	onShellOpen: (projectId: string, shell: ShellTab) => void;
-	onShellClose: (projectId: string, shellId: string) => void;
-	onShellSelect: (projectId: string, shellId: string) => void;
-	registerWorkspace: (projectId: string, commands: WorkspaceCommands) => () => void;
+	onOpenShell: (projectId: string) => void;
 }
 
 const WorkspaceControlContext = createContext<WorkspaceControl | null>(null);

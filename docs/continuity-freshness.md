@@ -23,9 +23,11 @@ These call sites mutate the continuity store with no renderer mutation behind th
 - `src/main/terminal/TerminalSessions.ts` — `clearShellSession`
 - `src/main/router/projects.ts` — `purgeProject`
 
-## Only the tab list is still owned twice
+## The store owns the list, and a gesture projects its own result
 
-`useShellTabs` remains the optimistic owner of the **tab list** for a mounted project — it binds the PTY and must answer instantly — while cross-project surfaces read the pushed value. Which tab is active is no longer part of that split: it is derived from the pushed `selectedShellId` (`session-selection.md`), so selecting a tab trails the round-trip until the mutations write their projected value into the cache.
+Nothing in the renderer keeps a second copy of the shell list. Each mutation in `src/renderer/src/routes/-utils/use-sessions.ts` applies the shared reducer to the cached value and writes the result back with `setQueryData` before the main process answers, so a gesture repaints in its own commit and the push overwrites it a moment later with the authoritative value. The renderer generates the shell id, because the projection needs it before the round trip.
+
+That is why the two ruled-out designs above still hold with an optimistic write in place: the projection is the renderer's own guess, computed by the same reducer the main process runs, and never the mutation's answer.
 
 ## There is no second window
 

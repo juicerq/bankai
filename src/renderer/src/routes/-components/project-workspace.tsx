@@ -1,4 +1,5 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useState } from "react";
+import type { ContinuityShell } from "@main/store/continuity";
 import type { Project } from "@main/store/projects";
 import { ProjectWorkspaceHeader } from "@renderer/routes/-components/project-workspace-header";
 import { ProjectWorkspaceShells } from "@renderer/routes/-components/project-workspace-shells";
@@ -6,9 +7,7 @@ import { ReviewPanel } from "@renderer/routes/-components/review-panel";
 import { ReviewPanelFrame } from "@renderer/routes/-components/review-panel-frame";
 import { useProjectWorkspaceShortcuts } from "@renderer/routes/-utils/use-project-workspace-shortcuts";
 import { useReviewGeometry } from "@renderer/routes/-utils/use-review-geometry";
-import { useShellTabs } from "@renderer/routes/-utils/use-shell-tabs";
 import { useWorkspaceControl } from "@renderer/routes/-utils/workspace-context";
-import type { RestoredShell } from "@renderer/routes/-utils/shell-topology";
 
 export const ProjectWorkspace = memo(function ProjectWorkspace({
 	project,
@@ -19,7 +18,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	railResizing,
 	reviewOpen,
 	treeOpen,
-	restoredShells,
+	shells,
 	selectedShellId,
 }: {
 	project: Project;
@@ -30,18 +29,13 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	railResizing: boolean;
 	reviewOpen: boolean;
 	treeOpen: boolean;
-	restoredShells: RestoredShell[] | undefined;
+	shells: ContinuityShell[];
 	selectedShellId: string | undefined;
 }) {
 	const control = useWorkspaceControl();
-	const shells = useShellTabs({
-		projectId: project.id,
-		restoredShells,
-		selectedShellId,
-		onShellOpen: control.onShellOpen,
-		onShellClose: control.onShellClose,
-		onShellSelect: control.onShellSelect,
-	});
+	// A workspace that does not own the selection still has to name a shell for
+	// the review to read, so it falls back to its first one.
+	const activeShellId = shells.some((shell) => shell.id === selectedShellId) ? selectedShellId : shells[0]?.id;
 	const geometry = useReviewGeometry({
 		initialDiffWidth: control.initialDiffWidth,
 		initialTreeWidth: control.initialTreeWidth,
@@ -59,25 +53,15 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		active,
 		onToggleReview: handleToggleReview,
 	});
-	const commands = useMemo(
-		() => ({ openShell: shells.openTab, closeShell: shells.closeTab }),
-		[shells.openTab, shells.closeTab],
-	);
 	const registerWorkspace = useCallback(
 		(node: HTMLElement | null) => {
 			if (!node) {
 				return;
 			}
 
-			const stopShortcuts = registerWorkspaceShortcuts();
-			const stopCommands = control.registerWorkspace(project.id, commands);
-
-			return () => {
-				stopShortcuts();
-				stopCommands();
-			};
+			return registerWorkspaceShortcuts();
 		},
-		[commands, control.registerWorkspace, project.id, registerWorkspaceShortcuts],
+		[registerWorkspaceShortcuts],
 	);
 
 	return (
@@ -86,7 +70,6 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 			className={`col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col ${active ? "" : "invisible"}`}
 			aria-label={`${project.name} workspace`}
 		>
-			<span ref={shells.registerDefaultShell} hidden />
 			<ProjectWorkspaceHeader
 				project={project}
 				active={active}
@@ -102,6 +85,8 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 				<ProjectWorkspaceShells
 					project={project}
 					shells={shells}
+					activeShellId={activeShellId}
+					onOpenShell={control.onOpenShell}
 					active={active}
 					focusRequest={shellFocusRequest}
 					resizeDeferred={fullscreenAnimating || reviewAnimating || geometry.resizing || railResizing}
@@ -116,8 +101,8 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 				>
 					<ReviewPanel
 						project={project}
-						shellId={shells.activeTabId}
-						tabs={shells.tabs}
+						shellId={activeShellId}
+						shells={shells}
 						treeOpen={treeOpen}
 						treeDivider={geometry.treeDivider}
 					/>

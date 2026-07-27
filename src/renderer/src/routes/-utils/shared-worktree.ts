@@ -1,16 +1,16 @@
+import type { ContinuityShell } from "@main/store/continuity";
 import type { AgentActivityState } from "@shared/activity";
-import type { ShellTab } from "@renderer/routes/-utils/shell-topology";
 
 export function sharedWorktreeShells({
 	shellId,
 	worktree,
-	tabs,
+	shells,
 	shellWorktrees,
 	shellActivity,
 }: {
 	shellId?: string;
 	worktree: string;
-	tabs: ShellTab[];
+	shells: Pick<ContinuityShell, "id" | "label">[];
 	shellWorktrees: ReadonlyMap<string, string>;
 	shellActivity: ReadonlyMap<string, AgentActivityState>;
 }): string[] {
@@ -18,11 +18,11 @@ export function sharedWorktreeShells({
 		return [];
 	}
 
-	return tabs
-		.filter((tab) =>
-			tab.id !== shellId
-			&& shellWorktrees.get(tab.id) === worktree
-			&& shellActivity.has(tab.id),
+	return shells
+		.filter((shell) =>
+			shell.id !== shellId
+			&& shellWorktrees.get(shell.id) === worktree
+			&& shellActivity.has(shell.id),
 		)
-		.map((tab) => tab.label);
+		.map((shell) => shell.label);
 }

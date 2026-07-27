@@ -19,7 +19,7 @@ function shells(overrides: {
 	return sharedWorktreeShells({
 		shellId: overrides.shellId ?? "shell-2",
 		worktree: overrides.worktree ?? PROJECT,
-		tabs: TABS,
+		shells: TABS,
 		shellWorktrees: new Map(overrides.worktrees ?? [["shell-1", PROJECT], ["shell-2", PROJECT]]),
 		shellActivity: new Map(overrides.activity ?? [["shell-1", "working"]]),
 	});

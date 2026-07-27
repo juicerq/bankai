@@ -1,19 +1,23 @@
+import type { ContinuityShell } from "@main/store/continuity";
 import type { Project } from "@main/store/projects";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
 import { MIN_TERMINAL_WIDTH } from "@renderer/routes/-utils/review-layout";
-import type { useShellTabs } from "@renderer/routes/-utils/use-shell-tabs";
 import { useWorkspaceResidency } from "@renderer/routes/-utils/workspace-context";
 
 export function ProjectWorkspaceShells({
 	project,
 	shells,
+	activeShellId,
+	onOpenShell,
 	active,
 	focusRequest,
 	resizeDeferred,
 }: {
 	project: Project;
-	shells: ReturnType<typeof useShellTabs>;
+	shells: ContinuityShell[];
+	activeShellId: string | undefined;
+	onOpenShell: (projectId: string) => void;
 	active: boolean;
 	focusRequest: number;
 	resizeDeferred: boolean;
@@ -25,28 +29,28 @@ export function ProjectWorkspaceShells({
 			style={{ minWidth: MIN_TERMINAL_WIDTH, contain: "paint" }}
 			className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-1 overflow-hidden bg-surface-sunken"
 		>
-			{shells.tabs.every((tab) => residency.asleep.has(tab.id)) && (
+			{shells.every((shell) => residency.asleep.has(shell.id)) && (
 				<EmptyState
 					mark="›_"
 					title="No open shells"
 					description={`Start a shell in ${project.name} to continue.`}
 					actionLabel="New shell"
-					onAction={() => shells.openTab(false)}
+					onAction={() => onOpenShell(project.id)}
 				/>
 			)}
-			{shells.tabs.map((tab) => (
+			{shells.map((shell) => (
 				<div
-					className={`col-start-1 row-start-1 min-h-0 min-w-0 overflow-hidden ${tab.id === shells.activeTabId ? "" : "invisible"}`}
-					key={tab.id}
+					className={`col-start-1 row-start-1 min-h-0 min-w-0 overflow-hidden ${shell.id === activeShellId ? "" : "invisible"}`}
+					key={shell.id}
 				>
-					{!residency.asleep.has(tab.id) && (
+					{!residency.asleep.has(shell.id) && (
 						<TerminalPane
 							projectId={project.id}
-							shellId={tab.id}
-							active={active && tab.id === shells.activeTabId}
+							shellId={shell.id}
+							active={active && shell.id === activeShellId}
 							focusRequest={focusRequest}
 							resizeDeferred={resizeDeferred}
-							resumeOnMount={residency.resumable.has(tab.id)}
+							resumeOnMount={residency.resumable.has(shell.id)}
 						/>
 					)}
 				</div>

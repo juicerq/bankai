@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "@tanstack/react-store";
 import { useCallback, useRef, useState } from "react";
+import type { ContinuityShell } from "@main/store/continuity";
 import type { Project } from "@main/store/projects";
 import { orpc } from "@renderer/lib/api";
 import { ReviewDiff, type ReviewDiffHandle } from "@renderer/routes/-components/review-diff";
@@ -12,7 +13,6 @@ import { MIN_DIFF_WIDTH, REVIEW_DIFF_WIDTH_VALUE } from "@renderer/routes/-utils
 import { createReviewPanelStore } from "@renderer/routes/-utils/review-panel-store";
 import { resolveReviewWorktree } from "@renderer/routes/-utils/review-worktree";
 import { sharedWorktreeShells } from "@renderer/routes/-utils/shared-worktree";
-import type { ShellTab } from "@renderer/routes/-utils/shell-topology";
 import type { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useReviewReading } from "@renderer/routes/-utils/use-review-reading";
 import { worktreeActivity } from "@renderer/routes/-utils/worktree-activity";
@@ -21,13 +21,13 @@ import { useWorkspaceAgents, useWorkspaceControl } from "@renderer/routes/-utils
 export function ReviewPanel({
 	project,
 	shellId,
-	tabs,
+	shells,
 	treeOpen,
 	treeDivider,
 }: {
 	project: Project;
 	shellId?: string;
-	tabs: ShellTab[];
+	shells: ContinuityShell[];
 	treeOpen: boolean;
 	treeDivider: ReturnType<typeof useDivider>;
 }) {
@@ -104,7 +104,7 @@ export function ReviewPanel({
 	const sharedWith = sharedWorktreeShells({
 		shellId,
 		worktree,
-		tabs,
+		shells,
 		shellWorktrees: agents.worktrees,
 		shellActivity: agents.shells,
 	});

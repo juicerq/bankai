@@ -7,18 +7,18 @@ created_at: 2026-07-26
 
 ## Residency is derived, and it decides whether a pane mounts
 
-`shellResidency` in `src/renderer/src/routes/-utils/shell-residency.ts` answers one question per shell: should it be put to sleep? `ProjectWorkspaceShells` mounts a `TerminalPane` for every tab it is *not* asleep, and that mount is the whole mechanism — unmounting disposes the renderer session, which closes the PTY, which stops the agent.
+`shellResidency` in `src/renderer/src/routes/-utils/shell-residency.ts` answers one question per shell: should it be put to sleep? `ProjectWorkspaceShells` mounts a `TerminalPane` for every shell it is *not* asleep, and that mount is the whole mechanism — unmounting disposes the renderer session, which closes the PTY, which stops the agent.
 
 A shell sleeps only when all of these hold:
 
 - it is archived (`archivedAt` set)
 - it carries a `session` ref, so waking it can resume the conversation
-- it was not woken this run — `wake` is called when the shell is selected
+- it was not woken this run — `wake` is called by `useSessions` when the shell is selected
 - it has no activity state, or that state is older than `SHELL_ARCHIVE_GRACE_MS`
 
-The set is deliberately the sleeping shells and not the running ones. A tab exists in local state the instant it is opened, but the continuity store only echoes it back after a disk write, so for a frame or two the shell is unknown to this rule. Asking "is it asleep?" answers no for an unknown shell and the terminal mounts; asking "is it running?" would have answered no as well, and the tab would have opened blank.
+The set is deliberately the sleeping shells and not the running ones: asking "is it asleep?" answers no for a shell this rule has never seen, so an unknown shell mounts its terminal instead of opening blank.
 
-Nothing here is persisted. `useShellResidency` holds only the woken set; everything else is read live from continuity and from the activity snapshot.
+Nothing here is persisted. `useShellResidency` holds only the woken set, and `useSessions` is what calls into it — selecting wakes, archiving sleeps, one call per intent; everything else is read live from continuity and from the activity snapshot.
 
 The workspace's empty state is keyed to residency, not to the tab count. Archiving the last session in a project leaves tabs behind with no pane in them, and without that the region would render blank with no way out of it.
 

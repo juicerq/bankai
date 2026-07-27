@@ -53,20 +53,10 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		active,
 		onToggleReview: handleToggleReview,
 	});
-	const registerWorkspace = useCallback(
-		(node: HTMLElement | null) => {
-			if (!node) {
-				return;
-			}
-
-			return registerWorkspaceShortcuts();
-		},
-		[registerWorkspaceShortcuts],
-	);
 
 	return (
 		<section
-			ref={registerWorkspace}
+			ref={registerWorkspaceShortcuts}
 			className={`col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col ${active ? "" : "invisible"}`}
 			aria-label={`${project.name} workspace`}
 		>

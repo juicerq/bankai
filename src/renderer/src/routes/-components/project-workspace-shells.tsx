@@ -38,21 +38,19 @@ export function ProjectWorkspaceShells({
 					onAction={() => onOpenShell(project.id)}
 				/>
 			)}
-			{shells.map((shell) => (
+			{shells.filter((shell) => !residency.asleep.has(shell.id)).map((shell) => (
 				<div
 					className={`col-start-1 row-start-1 min-h-0 min-w-0 overflow-hidden ${shell.id === activeShellId ? "" : "invisible"}`}
 					key={shell.id}
 				>
-					{!residency.asleep.has(shell.id) && (
-						<TerminalPane
-							projectId={project.id}
-							shellId={shell.id}
-							active={active && shell.id === activeShellId}
-							focusRequest={focusRequest}
-							resizeDeferred={resizeDeferred}
-							resumeOnMount={residency.resumable.has(shell.id)}
-						/>
-					)}
+					<TerminalPane
+						projectId={project.id}
+						shellId={shell.id}
+						active={active && shell.id === activeShellId}
+						focusRequest={focusRequest}
+						resizeDeferred={resizeDeferred}
+						resumeOnMount={residency.resumable.has(shell.id)}
+					/>
 				</div>
 			))}
 		</div>

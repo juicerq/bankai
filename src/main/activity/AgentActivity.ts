@@ -1,4 +1,8 @@
+import { type FSWatcher, watch } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import { COMPACTION_SCAN_WINDOW, COMPACTION_TRACE, matchesCompactionNotice } from "@main/activity/compaction";
+import { hookSpoolDir, pruneSpool } from "@main/activity/HookSource";
+import { TraceDwell } from "@main/activity/TraceDwell";
 import type { AgentPresence, HarnessTrace } from "@main/activity/Harness";
 import { bindShells } from "@main/activity/SessionBinder";
 import { discoverAgents, harnessTrace } from "@main/activity/harnesses";
@@ -16,10 +20,17 @@ import { Projects } from "@main/store/projects";
 import { shellOutputLines } from "@main/terminal/ShellOutputLines";
 import { TerminalSessions } from "@main/terminal/TerminalSessions";
 import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
+import { throttle } from "@shared/throttle";
 
 const ACTIVITY_POLL_MS = 1500;
 
+const SPOOL_PASS_MS = 150;
+
+const SPOOL_PRUNE_MS = 5 * 60 * 1000;
+
 const OUTPUT_TAIL = 64;
+
+type ActivityPass = "full" | "event";
 
 type BoundStatus = "working" | "waiting" | "idle";
 
@@ -392,9 +403,15 @@ class AgentActivityTracker {
 	private waitingFor = new Map<string, string>();
 	private statusSince = new Map<string, number>();
 	private agentCwds = new Map<string, string>();
+	private readonly dwell = new TraceDwell();
+	private readonly noteSpoolWrite = throttle(() => this.runTick("event"), SPOOL_PASS_MS);
 	private viewed: string | undefined;
 	private timer: ReturnType<typeof setInterval> | undefined;
+	private watcher: FSWatcher | undefined;
+	private drainTimer: ReturnType<typeof setTimeout> | undefined;
 	private ticking = false;
+	private queuedPass: ActivityPass | undefined;
+	private prunedAt = 0;
 
 	noteData(sessionId: string, data: string): void {
 		if (!this.boundSessions.has(sessionId)) {
@@ -416,8 +433,27 @@ class AgentActivityTracker {
 			return;
 		}
 
-		this.timer = setInterval(() => this.runTick(), ACTIVITY_POLL_MS);
+		this.timer = setInterval(() => this.runTick("full"), ACTIVITY_POLL_MS);
 		this.timer.unref();
+		this.watchSpool().catch((err) => Logger.warn("activity:spool-watch-failed", { err: String(err) }));
+	}
+
+	private async watchSpool(): Promise<void> {
+		await mkdir(hookSpoolDir(), { recursive: true });
+		this.watcher = watch(hookSpoolDir(), () => this.noteSpoolWrite());
+		this.watcher.unref();
+	}
+
+	private scheduleDrain(wakeIn: number | undefined): void {
+		if (wakeIn === undefined || this.drainTimer) {
+			return;
+		}
+
+		this.drainTimer = setTimeout(() => {
+			this.drainTimer = undefined;
+			this.runTick("event");
+		}, Math.max(wakeIn, 0));
+		this.drainTimer.unref();
 	}
 
 	getProjectSnapshot(projectId: string): ProjectActivitySnapshot {
@@ -459,20 +495,26 @@ class AgentActivityTracker {
 		});
 	}
 
-	private runTick(): void {
+	private runTick(pass: ActivityPass): void {
 		if (this.ticking) {
+			this.queuedPass = this.queuedPass === "full" ? "full" : pass;
 			return;
 		}
 
 		this.ticking = true;
-		this.tick()
+		this.tick(pass)
 			.catch((err) => Logger.error("activity:tick-failed", { err: String(err) }))
 			.finally(() => {
 				this.ticking = false;
+				const queued = this.queuedPass;
+				this.queuedPass = undefined;
+				if (queued) {
+					this.runTick(queued);
+				}
 			});
 	}
 
-	private async tick(): Promise<void> {
+	private async tick(pass: ActivityPass): Promise<void> {
 		const shells = TerminalSessions.list();
 		const owners = shellOwners(shells);
 		if (shells.length === 0) {
@@ -533,11 +575,24 @@ class AgentActivityTracker {
 
 		this.captureSessionRefs(shells, bindings, liveByPid);
 		const [worktrees, harnessTraces] = await Promise.all([
-			this.observeWorktrees(shells, bindings, liveByPid),
+			pass === "full" ? this.observeWorktrees(shells, bindings, liveByPid) : this.shellWorktrees,
 			observeTraces(shells, bindings, liveByPid),
 		]);
+		if (pass === "full") {
+			this.prune(new Set(presences.map((presence) => presence.sessionId)));
+		}
 		this.trackCompaction(shells, bindings, liveByPid, harnessTraces);
 		this.commit({ shellStates: nextStates, owners, worktrees, harnessTraces, waitingFor, statusSince });
+	}
+
+	private prune(live: Set<string>): void {
+		const now = Date.now();
+		if (now - this.prunedAt < SPOOL_PRUNE_MS) {
+			return;
+		}
+
+		this.prunedAt = now;
+		pruneSpool(live).catch((err) => Logger.warn("activity:spool-prune-failed", { err: String(err) }));
 	}
 
 	private async observeWorktrees(
@@ -687,6 +742,7 @@ class AgentActivityTracker {
 		const previousStates = this.shellStates;
 		const previousWorktrees = this.shellWorktrees;
 		const previous = this.projectSnapshots;
+		const now = Date.now();
 		const traces = sessionTraces({
 			compacting: new Set(this.compacting.keys()),
 			harnessTraces,
@@ -695,9 +751,15 @@ class AgentActivityTracker {
 			outputLines: shellOutputLines,
 			agentShells: this.agentShells(owners),
 			held: this.traces,
-			now: Date.now(),
+			now,
 		});
-		const nextSnapshots = snapshotsByProject({ shellStates, owners, worktrees, traces, statusSince });
+		const { visible, wakeIn } = this.dwell.next({
+			traces,
+			immediate: new Set([...this.compacting.keys(), ...waitingFor.keys()]),
+			now,
+		});
+		this.scheduleDrain(wakeIn);
+		const nextSnapshots = snapshotsByProject({ shellStates, owners, worktrees, traces: visible, statusSince });
 		this.shellStates = shellStates;
 		this.shellWorktrees = worktrees;
 		this.harnessTraces = harnessTraces;

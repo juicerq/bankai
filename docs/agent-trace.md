@@ -23,6 +23,24 @@ Records the tail must be skipped over, in order of how often they appear: `attac
 
 A pasted image writes an `attachment` record that can exceed the whole 64KB window on its own. That is survivable because the agent's reply is written *after* it, so scanning from the end reaches the assistant record first; the only cost is a tick with no trace while the attachment is the newest line.
 
+## The fresher of the two sources wins, and no flag says which
+
+`claudeTrace` in `src/main/activity/claudeTraceSource.ts` reads the spool and the transcript at once and returns whichever carries the newer moment. That single comparison is the whole fallback rule: the hook fires 5–8ms after the record it mirrors, so while the source is installed the event always wins, and the transcript can only win once events have stopped. An uninstalled hook, a session that predates installation, and a stale spool all land on the transcript with no mode to configure and no state to get wrong.
+
+`PreToolUse` names the tool, running `toolTrace` over `tool_input` — a hook-fed `Read` and a transcript-fed `Read` produce the same string, because the payload's `tool_input` has the same shape as a `tool_use` block's `input`. `UserPromptSubmit` and `PostToolUse` both read as "Thinking": a completion must not name the tool, or a call that returned in 20ms would paint a label nobody can read. `Stop` yields no label at all — the end of a turn is "Done", and that comes from the registry's status, not from the trace.
+
+## A hook-fed label needs a floor, or it is correct and unreadable
+
+Tools completed 10–30ms after they started in the measured turn, and two of four labels would have lived under half a second. `TraceDwell` holds each label `TRACE_DWELL_MS` before letting the next one take its place; labels arriving faster than that queue in order and drain, and the last label of a burst is always the one left on screen. The queue is capped at `TRACE_QUEUE_CAP`, dropping the middle of a long burst rather than falling seconds behind what the agent is doing.
+
+The floor decides when a label is *shown*, never what its `since` is: a label held back still counts from the moment its event happened, so it appears already aged. A waiting reason and "Compacting" bypass the queue — a state the user has to act on is never delayed.
+
+## A spool write wakes the tick; the interval stays as the floor
+
+`AgentActivity` watches the spool directory and runs a pass on write, throttled to `SPOOL_PASS_MS` — the first event of a burst is acted on immediately and the rest coalesce into one trailing pass. Running faster would buy nothing, since a label cannot change on screen more often than the dwell floor anyway.
+
+An event-driven pass holds the worktree map it already had instead of looking it up, so a cold Git call can never delay a label. The periodic pass keeps everything it always did: it is what notices a session dying, a status edge with no event behind it, and a harness that publishes nothing.
+
 ## A transcript is a log, so it is always one block behind
 
 A record is written when its block **completes**. There is no record for "a block is being produced". So while the agent thinks, the newest record is whatever finished before it — which is why a card built only from the transcript said "Writing" for the whole of a thinking phase: the last thing written was the previous turn's reply. Reading `user` records closes that particular hole, but the structure remains: the transcript can only ever name a finished block.

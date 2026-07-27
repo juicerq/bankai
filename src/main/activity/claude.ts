@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { type } from "arktype";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/activity/Harness";
 import { claudeConfigDir } from "@main/activity/claudeConfig";
-import { claudeTrace } from "@main/activity/claudeTraceSource";
+import { claudeRead } from "@main/activity/claudeTraceSource";
 import { transcriptTitle } from "@main/activity/claudeTranscript";
 
 const CLAUDE_HARNESS_ID = "claude";
@@ -88,7 +88,7 @@ export const ClaudeHarness: Harness = {
 		return { file: "claude", args: ["--resume", ref.sessionId] };
 	},
 	title: transcriptTitle,
-	trace: claudeTrace,
+	read: claudeRead,
 	async discover() {
 		const directory = sessionsDirectory();
 		const files = await readdir(directory).catch((): string[] => []);

@@ -35,8 +35,8 @@ export function harnessTitle(harnessId: string): Harness["title"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.title;
 }
 
-export function harnessTrace(harnessId: string): Harness["trace"] {
-	return harnesses.find((harness) => harness.id === harnessId)?.trace;
+export function harnessReader(harnessId: string): Harness["read"] {
+	return harnesses.find((harness) => harness.id === harnessId)?.read;
 }
 
 export async function discoverAgents(): Promise<AgentPresence[]> {

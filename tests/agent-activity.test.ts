@@ -11,6 +11,7 @@ import {
 	type ShellTrace,
 	snapshotsByProject,
 	turnBaselineShells,
+	turnEnded,
 	turnStartShells,
 } from "@main/activity/AgentActivity";
 import type { HarnessTrace } from "@main/activity/Harness";
@@ -84,6 +85,28 @@ describe("needs-attention", () => {
 
 	test("reading the shell does not dismiss a prompt that is still open", () => {
 		expect(nextShellActivity("needs-attention", "waiting", true)).toBe("needs-attention");
+	});
+});
+
+describe("the harness reporting the end of its own turn", () => {
+	const working = { status: "working", statusSince: 1784901075701 } as const;
+
+	test("an end newer than the reported status finishes the turn before the poll sees it", () => {
+		expect(turnEnded(working, 1784901076200)).toBe(true);
+		expect(nextShellActivity("working", "idle", false)).toBe("done-unseen");
+	});
+
+	test("the end of the previous turn does not finish the one running now", () => {
+		expect(turnEnded(working, 1784901075000)).toBe(false);
+	});
+
+	test("a shell with no end reported keeps the status the poll found", () => {
+		expect(turnEnded(working)).toBe(false);
+		expect(turnEnded(undefined, 1784901076200)).toBe(false);
+	});
+
+	test("an open prompt outranks the end of a turn", () => {
+		expect(turnEnded({ status: "waiting", statusSince: 1784901075701 }, 1784901076200)).toBe(false);
 	});
 });
 

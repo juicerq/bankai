@@ -25,9 +25,17 @@ A pasted image writes an `attachment` record that can exceed the whole 64KB wind
 
 ## The fresher of the two sources wins, and no flag says which
 
-`claudeTrace` in `src/main/activity/claudeTraceSource.ts` reads the spool and the transcript at once and returns whichever carries the newer moment. That single comparison is the whole fallback rule: the hook fires 5–8ms after the record it mirrors, so while the source is installed the event always wins, and the transcript can only win once events have stopped. An uninstalled hook, a session that predates installation, and a stale spool all land on the transcript with no mode to configure and no state to get wrong.
+`claudeRead` in `src/main/activity/claudeTraceSource.ts` reads the spool and the transcript at once and returns whichever carries the newer moment. That single comparison is the whole fallback rule: the hook fires 5–8ms after the record it mirrors, so while the source is installed the event always wins, and the transcript can only win once events have stopped. An uninstalled hook, a session that predates installation, and a stale spool all land on the transcript with no mode to configure and no state to get wrong.
 
-`PreToolUse` names the tool, running `toolTrace` over `tool_input` — a hook-fed `Read` and a transcript-fed `Read` produce the same string, because the payload's `tool_input` has the same shape as a `tool_use` block's `input`. `UserPromptSubmit` and `PostToolUse` both read as "Thinking": a completion must not name the tool, or a call that returned in 20ms would paint a label nobody can read. `Stop` yields no label at all — the end of a turn is "Done", and that comes from the registry's status, not from the trace.
+`PreToolUse` names the tool, running `toolTrace` over `tool_input` — a hook-fed `Read` and a transcript-fed `Read` produce the same string, because the payload's `tool_input` has the same shape as a `tool_use` block's `input`. `UserPromptSubmit` and `PostToolUse` both read as "Thinking": a completion must not name the tool, or a call that returned in 20ms would paint a label nobody can read. `Stop` yields no label at all, and that absence is only half of what it means — see below.
+
+## The end of a turn is a reading, not just the absence of a label
+
+`Stop` says the turn is over, which is a fact about the session's *state*, not about its trace. Dropping the label and leaving the state alone left a hole the user saw: the card went blank the instant the agent stopped and "Done" arrived a poll later, up to `ACTIVITY_POLL_MS` behind.
+
+So a harness returns a `HarnessReading` — a trace and, when it knows, the moment its turn ended. `turnEnded` in `AgentActivity` promotes that to `idle` only when the registry still reports `working` and the end is newer than the status it reported; a `Stop` older than the current turn's status is the previous turn's and is ignored, and an open prompt (`waiting`) outranks it, since a turn that stopped to ask something is not done. The promoted moment also becomes the status clock, so "Done" counts from the `Stop` rather than from whenever the poll noticed.
+
+It settles on its own. While the registry file lags, the `Stop` stays newer and the state holds; once the file catches up both agree; and a new prompt makes the registry's status newer than the `Stop`, so the shell reads as working again with no state to reset.
 
 ## A hook-fed label needs a floor, or it is correct and unreadable
 

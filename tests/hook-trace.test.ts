@@ -4,7 +4,7 @@ import { appendFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 import { spoolEvent, spoolTrace } from "@main/activity/claudeHookTrace";
 import { SPOOL_SEPARATOR } from "@main/activity/claudeHooks";
-import { fresherTrace } from "@main/activity/claudeTraceSource";
+import { fresherReading } from "@main/activity/claudeTraceSource";
 import { recordTrace } from "@main/activity/claudeTrace";
 import { hookSpoolDir, spoolPath } from "@main/activity/HookSource";
 
@@ -96,21 +96,22 @@ describe("choosing between the event and the transcript", () => {
 	test("the event wins while it is the fresher of the two", () => {
 		const event = { at: 1784901075701, trace: { label: "Reading a.ts", recordId: "toolu_1", since: 1784901075701 } };
 
-		expect(fresherTrace(event, transcript)).toBe(event.trace);
+		expect(fresherReading(event, transcript)).toEqual({ trace: event.trace });
 	});
 
 	test("a stale spool loses to the transcript", () => {
 		const event = { at: 1784900000000, trace: { label: "Thinking", recordId: "x", since: 1784900000000 } };
 
-		expect(fresherTrace(event, transcript)).toBe(transcript);
+		expect(fresherReading(event, transcript)).toEqual({ trace: transcript });
 	});
 
 	test("a session with no spool keeps the transcript", () => {
-		expect(fresherTrace(null, transcript)).toBe(transcript);
+		expect(fresherReading(null, transcript)).toEqual({ trace: transcript });
 	});
 
-	test("the end of a turn silences the trace instead of falling back", () => {
-		expect(fresherTrace({ at: 1784901075701, trace: null }, transcript)).toBeNull();
+	test("the end of a turn silences the trace and dates the end", () => {
+		expect(fresherReading({ at: 1784901075701, trace: null }, transcript))
+			.toEqual({ trace: null, endedAt: 1784901075701 });
 	});
 });
 

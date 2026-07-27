@@ -20,6 +20,11 @@ export interface HarnessTrace {
 	since?: number;
 }
 
+export interface HarnessReading {
+	trace: HarnessTrace | null;
+	endedAt?: number;
+}
+
 export interface Harness {
 	id: string;
 	label: string;
@@ -27,5 +32,5 @@ export interface Harness {
 	launch?: () => HarnessCommand;
 	resume?: (ref: { sessionId: string }) => HarnessCommand | null;
 	title?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
-	trace?: (ref: { sessionId: string; cwd: string }) => Promise<HarnessTrace | null>;
+	read?: (ref: { sessionId: string; cwd: string }) => Promise<HarnessReading>;
 }

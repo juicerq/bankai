@@ -24,6 +24,7 @@ import { sessionRows } from "@renderer/routes/-utils/session-rows";
 import { useAgentActivities } from "@renderer/routes/-utils/use-agent-activity";
 import { useBankaiShortcuts } from "@renderer/routes/-utils/use-bankai-shortcuts";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
+import { useFocusTopBand } from "@renderer/routes/-utils/use-focus-top-band";
 import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
 import { useLayoutPreferences } from "@renderer/routes/-utils/use-layout-preferences";
 import { useChosenProjects } from "@renderer/routes/-utils/use-chosen-projects";
@@ -52,9 +53,13 @@ function Bankai() {
 	const layout = useLayoutPreferences();
 	const [shellFocusRequest, setShellFocusRequest] = useState(0);
 	const requestShellFocus = useCallback(() => setShellFocusRequest((current) => current + 1), []);
-	const persistFullscreen = useCallback(
-		(fullscreen: boolean) => layout.persist({ fullscreen }),
-		[layout.persist],
+	const topBand = useFocusTopBand({ initialFullscreen: layout.initial.fullscreen });
+	const handleFullscreenChange = useCallback(
+		(fullscreen: boolean) => {
+			topBand.handleFullscreenChange(fullscreen);
+			layout.persist({ fullscreen });
+		},
+		[topBand.handleFullscreenChange, layout.persist],
 	);
 	const [reviewOpen, setReviewOpen] = useState(layout.initial.reviewOpen);
 	const handleReviewOpenChange = useCallback(
@@ -79,7 +84,7 @@ function Bankai() {
 	);
 	const projectRail = useFullscreenProjectRail(requestShellFocus, {
 		initialFullscreen: layout.initial.fullscreen,
-		onFullscreenChange: persistFullscreen,
+		onFullscreenChange: handleFullscreenChange,
 	});
 	const [railWidth, setRailWidth] = useState(layout.initial.railWidth);
 	const railFrameRef = useRef<HTMLDivElement>(null);
@@ -320,7 +325,7 @@ function Bankai() {
 
 	return (
 		<main ref={registerShortcuts} className="relative flex h-full bg-surface">
-			<WindowControls />
+			<WindowControls fullscreen={projectRail.fullscreen} topBand={topBand} />
 			{sessions.failed && <ContinuityFailedNotice />}
 			<ProjectRailFrame projectRail={projectRail} divider={railDivider} frameRef={railFrameRef} railWidth={railWidth}>
 				<SessionSidebar
@@ -374,7 +379,7 @@ function Bankai() {
 						onAction={openPicker}
 					/>
 				)}
-				<WorkspaceProvider control={control} agents={activity} residency={sessions.residency}>
+				<WorkspaceProvider control={control} agents={activity} residency={sessions.residency} topBand={topBand.band}>
 					{!projects.isError && availableProjects.filter((project) => residentProjectIds.includes(project.id)).map((project) => {
 						const workspace = workspaces.find((entry) => entry.projectId === project.id);
 

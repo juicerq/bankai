@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { ContinuityShell, ContinuityValue } from "@main/store/continuity";
 import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity";
-import { ContinuityReducers, nextShellNumber } from "@shared/continuity-reducers";
+import { ContinuityReducers, nextShellNumber, type ShellName } from "@shared/continuity-reducers";
 
 const NOW = 1_700_000_000_000;
 
@@ -70,6 +70,7 @@ test("no reducer mutates the value it was given", () => {
 	ContinuityReducers.archiveShell(before, address);
 	ContinuityReducers.unarchiveShell(before, address);
 	ContinuityReducers.renameShell(before, { ...address, title: "psql" });
+	ContinuityReducers.nameShell(before, { ...address, title: "psql", source: "model" });
 	ContinuityReducers.touchShell(before, { ...address, branch: "main" });
 	ContinuityReducers.clearShellSession(before, address);
 	ContinuityReducers.purgeProject(before, { projectId: "p1", now: NOW });
@@ -193,6 +194,58 @@ test("purging the last project with sessions leaves no selection", () => {
 	const purged = ContinuityReducers.purgeProject(twoProjects("a1", shell("a1")), { projectId: "p1", now: NOW });
 
 	expect(purged).toEqual({ workspaces: [{ projectId: "p2", shells: [] }] });
+});
+
+const A1 = { projectId: "p1", shellId: "a1" };
+
+const AUTOMATIC_SOURCES: ShellName["source"][] = ["model", "published"];
+
+function oneShell(extra: Partial<ContinuityShell> = {}): ContinuityValue {
+	return { workspaces: [{ projectId: "p1", shells: [shell("a1", extra)] }] };
+}
+
+function onlyShell(value: ContinuityValue): ContinuityShell | undefined {
+	return value.workspaces[0]?.shells[0];
+}
+
+test("a name the user typed by hand survives every automatic source", () => {
+	const renamed = ContinuityReducers.renameShell(oneShell(), { ...A1, title: "psql" });
+
+	for (const source of AUTOMATIC_SOURCES) {
+		expect(ContinuityReducers.nameShell(renamed, { ...A1, title: "outra coisa", source })).toEqual(renamed);
+	}
+});
+
+test("a model name counts as a naming and a published one does not", () => {
+	const model = ContinuityReducers.nameShell(oneShell(), { ...A1, title: "ajusta o header", source: "model" });
+	const published = ContinuityReducers.nameShell(oneShell(), { ...A1, title: "ajusta o header", source: "published" });
+
+	expect(onlyShell(model)?.namings).toBe(1);
+	expect(onlyShell(published)?.namings).toBeUndefined();
+});
+
+test("a published name outranks a model one, which cannot take it back", () => {
+	const model = ContinuityReducers.nameShell(oneShell(), { ...A1, title: "modelo", source: "model" });
+	const published = ContinuityReducers.nameShell(model, { ...A1, title: "publicado", source: "published" });
+
+	expect(onlyShell(published)?.title).toBe("publicado");
+	expect(ContinuityReducers.nameShell(published, { ...A1, title: "modelo", source: "model" })).toEqual(published);
+});
+
+test("writing the name a shell already carries counts nothing and changes nothing", () => {
+	const model = ContinuityReducers.nameShell(oneShell(), { ...A1, title: "modelo", source: "model" });
+
+	expect(ContinuityReducers.nameShell(model, { ...A1, title: "modelo", source: "model" })).toEqual(model);
+});
+
+test("a title stamped before name origins existed is still open to naming", () => {
+	const named = ContinuityReducers.nameShell(oneShell({ title: "oi" }), {
+		...A1,
+		title: "sessao de naming",
+		source: "model",
+	});
+
+	expect(onlyShell(named)?.title).toBe("sessao de naming");
 });
 
 test("the next shell number is one above the highest numbered label, ignoring named ones", () => {

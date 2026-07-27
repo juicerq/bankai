@@ -3,7 +3,7 @@ import { type ReactNode, useCallback, useState } from "react";
 import type { HarnessSettings } from "@main/store/settings";
 import { PickerHint } from "@renderer/routes/-components/picker-hint";
 import { useHarnessSettings } from "@renderer/routes/-utils/use-harness-settings";
-import { DEFAULT_LIVE_TRACE } from "@shared/activity";
+import { DEFAULT_LIVE_TRACE, DEFAULT_SESSION_NAMING } from "@shared/activity";
 
 interface LaunchableHarness {
 	id: string;
@@ -67,6 +67,7 @@ function SettingsBody({
 	onSave: (patch: Partial<HarnessSettings>) => void;
 }) {
 	const liveTrace = harness.liveTrace ?? DEFAULT_LIVE_TRACE;
+	const naming = harness.naming ?? DEFAULT_SESSION_NAMING;
 
 	return (
 		<div className="divide-y divide-outline">
@@ -101,6 +102,13 @@ function SettingsBody({
 				slot="live-trace"
 				on={liveTrace}
 				onToggle={() => onSave({ liveTrace: !liveTrace })}
+			/>
+			<Setting
+				title="Name every session from its conversation"
+				description="Asks the harness for a short name a few times as a session grows. Off, a card keeps the first thing you typed."
+				slot="naming"
+				on={naming}
+				onToggle={() => onSave({ naming: !naming })}
 			/>
 		</div>
 	);

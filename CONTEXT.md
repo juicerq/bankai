@@ -136,6 +136,14 @@ _Avoid_: Agent ID, Shell ID, native session ID alone
 The promise that reopening Bankai returns Projects and their Shells to their last meaningful arrangement and resumes the Agent sessions that were still live. It covers the Active project, Shell order and selection, and each live Session ref, but not terminal scrollback or unsent input.
 _Avoid_: Workspace, Layout preferences, snapshot
 
+**Session name**:
+The line that says what a Shell is about, and the only part of its card the user reads to find it again. It has one owner at a time: the user, once they have named it by hand, and otherwise whatever source the Harness makes available — a name the agent CLI publishes about its own conversation, or one derived from the conversation. A Shell nobody has named yet falls back to its branch.
+_Avoid_: Title, label, tag, description
+
+**Naming milestone**:
+A point in a Shell's life at which its Session name is worth reconsidering, counted in Shell turns and spaced further apart as the session grows. It exists because a conversation's subject settles late — the opening message is the worst evidence available — while a name that moves every turn stops being a landmark.
+_Avoid_: Refresh, interval, poll, tick
+
 **Agent activity**:
 The observed state of the Agent inside a Shell: Working, Needs attention, or Done unseen. A shell with no recognized agent, or whose finished work was already seen, carries no activity. A project's activity is the most urgent among its shells' — Needs attention over Done unseen over Working.
 _Avoid_: Status, presence, agent state

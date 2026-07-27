@@ -1,11 +1,15 @@
 ---
 title: Which sources can name a session, and which ones are dead
 tags: [activity, terminal, store]
-updated_at: 2026-07-26
+updated_at: 2026-07-27
 created_at: 2026-07-25
 ---
 
-The live source for a Claude session is its transcript, and what can be pulled out of one is in `claude-transcript-format.md`. The rest of the candidates are below; most of them do not work.
+The live source for a Claude session is its transcript, and what can be pulled out of one is in `claude-transcript-format.md`. How the sources are ranked once found is in `session-naming.md`. The rest of the candidates are below; most of them do not work.
+
+## Claude's own session name is the working directory, not the conversation
+
+`~/.claude/sessions/<pid>.json` publishes `name` and `nameSource`, but every interactive session reports `nameSource: "derived"` and a name built from the cwd basename plus a counter — `bankai-2-94`, `app-04`. It identifies nothing the card does not already show. `"user"` appears when the session was started with `claude -n <name>`, and `"auto"` is written by Claude Code's own LLM namer, which only runs for background jobs. See `session-naming.md`.
 
 ## Codex publishes a session index with a ready-made name
 

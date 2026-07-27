@@ -15,6 +15,7 @@ import { ReviewChanges } from "@main/git/ReviewChanges";
 import type { Worktree } from "@main/git/contracts";
 import { worktreeContaining } from "@main/git/Worktrees";
 import { Logger } from "@main/logger";
+import { SessionNamer } from "@main/naming/SessionNamer";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { shellOutputLines } from "@main/terminal/ShellOutputLines";
@@ -422,6 +423,7 @@ class AgentActivityTracker {
 	private traces = new Map<string, ShellTrace>();
 	private waitingFor = new Map<string, string>();
 	private statusSince = new Map<string, number>();
+	private publishedNames = new Map<string, string>();
 	private agentCwds = new Map<string, string>();
 	private readonly dwell = new TraceDwell();
 	private readonly noteSpoolWrite = throttle(() => this.runTick("event"), SPOOL_PASS_MS);
@@ -520,6 +522,7 @@ class AgentActivityTracker {
 			harnessTraces: this.harnessTraces,
 			waitingFor: this.waitingFor,
 			statusSince: this.statusSince,
+			publishedNames: this.publishedNames,
 		});
 	}
 
@@ -559,6 +562,7 @@ class AgentActivityTracker {
 				harnessTraces: new Map(),
 				waitingFor: new Map(),
 				statusSince: new Map(),
+				publishedNames: new Map(),
 			});
 			return;
 		}
@@ -585,6 +589,7 @@ class AgentActivityTracker {
 		const nextStates = new Map<string, AgentActivityState>();
 		const waitingFor = new Map<string, string>();
 		const statusSince = new Map<string, number>();
+		const publishedNames = new Map<string, string>();
 		const bound = new Map<string, BoundStatus>();
 		for (const shell of shells) {
 			const boundPid = bindings.get(shell.sessionId);
@@ -603,6 +608,9 @@ class AgentActivityTracker {
 			}
 			if (presence?.waitingFor) {
 				waitingFor.set(shell.shellId, presence.waitingFor);
+			}
+			if (presence?.publishedName) {
+				publishedNames.set(shell.sessionId, presence.publishedName);
 			}
 
 			const since = clockSince({
@@ -624,7 +632,7 @@ class AgentActivityTracker {
 		} else {
 			this.forgetCompaction();
 		}
-		this.commit({ shellStates: nextStates, owners, worktrees, harnessTraces, waitingFor, statusSince });
+		this.commit({ shellStates: nextStates, owners, worktrees, harnessTraces, waitingFor, statusSince, publishedNames });
 	}
 
 	private prune(live: Set<string>): void {
@@ -776,6 +784,7 @@ class AgentActivityTracker {
 		harnessTraces,
 		waitingFor,
 		statusSince,
+		publishedNames,
 	}: {
 		shellStates: Map<string, AgentActivityState>;
 		owners: Map<string, ShellOwner>;
@@ -783,6 +792,7 @@ class AgentActivityTracker {
 		harnessTraces: Map<string, HarnessTrace>;
 		waitingFor: Map<string, string>;
 		statusSince: Map<string, number>;
+		publishedNames: Map<string, string>;
 	}): void {
 		const previousStates = this.shellStates;
 		const previousWorktrees = this.shellWorktrees;
@@ -811,6 +821,7 @@ class AgentActivityTracker {
 		this.traces = traces;
 		this.waitingFor = waitingFor;
 		this.statusSince = statusSince;
+		this.publishedNames = publishedNames;
 		this.projectSnapshots = nextSnapshots;
 
 		const baselines = turnBaselineShells({
@@ -826,6 +837,8 @@ class AgentActivityTracker {
 			);
 		}
 
+		SessionNamer.forget(new Set([...owners.values()].map((owner) => owner.shellId)));
+
 		for (const sessionId of turnStartShells(previousStates, shellStates)) {
 			const owner = owners.get(sessionId);
 			if (!owner) {
@@ -833,9 +846,13 @@ class AgentActivityTracker {
 			}
 
 			const worktree = worktrees.get(owner.shellId);
-			stampShell({ ...owner, ...(worktree ? { cwd: worktree } : {}) }).catch((err) =>
-				Logger.error("activity:stamp-failed", { ...owner, err: String(err) }),
-			);
+			const publishedName = publishedNames.get(sessionId);
+			stampShell({
+				...owner,
+				...(worktree ? { cwd: worktree } : {}),
+				...(publishedName ? { publishedName } : {}),
+			}).catch((err) => Logger.error("activity:stamp-failed", { ...owner, err: String(err) }));
+			SessionNamer.noteTurn(owner);
 		}
 
 		for (const projectId of new Set([...previous.keys(), ...nextSnapshots.keys()])) {

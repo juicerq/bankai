@@ -5,6 +5,7 @@ import type { AgentPresence, Harness, HarnessCommand } from "@main/activity/Harn
 import { claudeConfigDir } from "@main/activity/claudeConfig";
 import { claudeRead } from "@main/activity/claudeTraceSource";
 import { transcriptTitle } from "@main/activity/claudeTranscript";
+import { claudeProposeName } from "@main/naming/claudeNamer";
 
 const CLAUDE_HARNESS_ID = "claude";
 
@@ -27,6 +28,8 @@ const WAITING_TRACE: Record<string, string> = {
 
 export const WAITING_TRACE_FALLBACK = "Waiting on you";
 
+const PUBLISHED_NAME_SOURCES = new Set(["auto", "user"]);
+
 function presenceStatus(status: string | undefined): AgentPresence["status"] {
 	return (status === undefined ? undefined : PRESENCE_STATUS[status]) ?? "idle";
 }
@@ -39,8 +42,11 @@ const sessionRecordSchema = type({
 	"status?": "string",
 	"statusUpdatedAt?": "number",
 	"waitingFor?": "string",
+	"name?": "string",
+	"nameSource?": "string",
 }).pipe((raw): AgentPresence => {
 	const status = presenceStatus(raw.status);
+	const publishedName = PUBLISHED_NAME_SOURCES.has(raw.nameSource ?? "") ? raw.name?.trim() : undefined;
 
 	return {
 		harness: CLAUDE_HARNESS_ID,
@@ -51,6 +57,7 @@ const sessionRecordSchema = type({
 		status,
 		...(raw.statusUpdatedAt !== undefined && { statusSince: raw.statusUpdatedAt }),
 		...(status === "waiting" && { waitingFor: WAITING_TRACE[raw.waitingFor ?? ""] ?? WAITING_TRACE_FALLBACK }),
+		...(publishedName ? { publishedName } : {}),
 	};
 });
 
@@ -88,6 +95,7 @@ export const ClaudeHarness: Harness = {
 		return { file: "claude", args: ["--resume", ref.sessionId] };
 	},
 	title: transcriptTitle,
+	proposeName: claudeProposeName,
 	read: claudeRead,
 	async discover() {
 		const directory = sessionsDirectory();

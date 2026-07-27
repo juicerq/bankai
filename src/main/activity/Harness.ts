@@ -7,6 +7,7 @@ export interface AgentPresence {
 	status: "working" | "waiting" | "idle";
 	statusSince?: number;
 	waitingFor?: string;
+	publishedName?: string;
 }
 
 export interface HarnessCommand {
@@ -32,5 +33,6 @@ export interface Harness {
 	launch?: () => HarnessCommand;
 	resume?: (ref: { sessionId: string }) => HarnessCommand | null;
 	title?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
+	proposeName?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
 	read?: (ref: { sessionId: string; cwd: string }) => Promise<HarnessReading>;
 }

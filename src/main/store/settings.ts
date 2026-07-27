@@ -1,6 +1,6 @@
 import { type } from "arktype";
 import { Store } from "@main/store/Store";
-import { DEFAULT_LIVE_TRACE } from "@shared/activity";
+import { DEFAULT_LIVE_TRACE, DEFAULT_SESSION_NAMING } from "@shared/activity";
 
 const windowBoundsSchema = type({
 	x: "number",
@@ -26,11 +26,16 @@ export const harnessSchema = type({
 	id: "string",
 	"args?": "string",
 	"liveTrace?": "boolean",
+	"naming?": "boolean",
 });
 export type HarnessSettings = typeof harnessSchema.infer;
 
 export function liveTraceEnabled(harness: HarnessSettings | undefined): boolean {
 	return harness?.liveTrace ?? DEFAULT_LIVE_TRACE;
+}
+
+export function sessionNamingEnabled(harness: HarnessSettings | undefined): boolean {
+	return harness?.naming ?? DEFAULT_SESSION_NAMING;
 }
 
 const settingsContract = type({

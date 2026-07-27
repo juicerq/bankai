@@ -676,6 +676,29 @@ describe("claude session registry parsing", () => {
 		expect(parseSessionRecord("not json")).toBeNull();
 		expect(parseSessionRecord('{"pid":1}')).toBeNull();
 	});
+
+	function publishedNameOf(fields: { name?: string; nameSource?: string }): string | undefined {
+		const busy: object = JSON.parse(BUSY_RECORD);
+
+		return parseSessionRecord(JSON.stringify({ ...busy, ...fields }))?.publishedName;
+	}
+
+	test("a name the session or the user gave it reaches the presence", () => {
+		expect(publishedNameOf({ name: "revisar o sidebar", nameSource: "auto" })).toBe("revisar o sidebar");
+		expect(publishedNameOf({ name: "revisar o sidebar", nameSource: "user" })).toBe("revisar o sidebar");
+	});
+
+	test("a name derived from the working directory never reaches the presence", () => {
+		expect(publishedNameOf({ name: "bankai-2-94", nameSource: "derived" })).toBeUndefined();
+	});
+
+	test("a name with no source behind it never reaches the presence", () => {
+		expect(publishedNameOf({ name: "bankai-2-94" })).toBeUndefined();
+	});
+
+	test("a blank published name is no name at all", () => {
+		expect(publishedNameOf({ name: "   ", nameSource: "auto" })).toBeUndefined();
+	});
 });
 
 describe("claude harness discovery", () => {

@@ -33,10 +33,22 @@ export async function stampShell(input: {
 	projectId: string;
 	shellId: string;
 	cwd?: string;
+	publishedName?: string;
 }): Promise<ContinuityValue> {
 	const shell = await Continuity.findShell(input);
 	const cwd = input.cwd ?? shell?.session?.cwd ?? (await Projects.find(input.projectId)).path;
-	const title = await firstTitle(shell);
+	const published = shell?.titleSource === "user" ? undefined : input.publishedName;
+
+	if (published) {
+		await Continuity.nameShell({
+			projectId: input.projectId,
+			shellId: input.shellId,
+			title: published,
+			source: "published",
+		});
+	}
+
+	const title = published ? null : await firstTitle(shell);
 
 	return await Continuity.touchShell({
 		projectId: input.projectId,

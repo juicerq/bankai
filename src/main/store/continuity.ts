@@ -1,7 +1,7 @@
 import { type } from "arktype";
 import { Logger } from "@main/logger";
 import { Store } from "@main/store/Store";
-import { ContinuityReducers, type ShellAddress, withSelection } from "@shared/continuity-reducers";
+import { ContinuityReducers, type ShellAddress, type ShellName, withSelection } from "@shared/continuity-reducers";
 
 const sessionRefSchema = type({ harness: "string", sessionId: "string", cwd: "string" });
 
@@ -13,6 +13,8 @@ const shellSchema = type({
 	"lastTouchedAt?": "number",
 	"branch?": "string",
 	"title?": "string",
+	"titleSource?": "'user' | 'published' | 'model'",
+	"namings?": "number",
 	"archivedAt?": "number",
 	"plain?": "boolean",
 });
@@ -157,6 +159,9 @@ export const Continuity = {
 
 	renameShell: (input: ShellAddress & { title: string }): Promise<ContinuityValue> =>
 		mutate((current) => ContinuityReducers.renameShell(current, input)),
+
+	nameShell: (input: ShellAddress & ShellName): Promise<ContinuityValue> =>
+		mutate((current) => ContinuityReducers.nameShell(current, input)),
 
 	touchShell: (input: ShellAddress & { branch: string; title?: string }): Promise<ContinuityValue> =>
 		mutate((current) => ContinuityReducers.touchShell(current, { ...input, now: Date.now() })),

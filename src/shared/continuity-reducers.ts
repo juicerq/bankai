@@ -11,6 +11,23 @@ interface Candidate {
 	own: boolean;
 }
 
+type ShellTitleSource = NonNullable<ContinuityShell["titleSource"]>;
+
+export interface ShellName {
+	title: string;
+	source: Exclude<ShellTitleSource, "user">;
+}
+
+const TITLE_RANK: Record<ShellTitleSource, number> = { model: 1, published: 2, user: 3 };
+
+function titleRank(shell: ContinuityShell): number {
+	if (!shell.titleSource) {
+		return 0;
+	}
+
+	return TITLE_RANK[shell.titleSource];
+}
+
 function mapWorkspace(
 	value: ContinuityValue,
 	projectId: string,
@@ -160,7 +177,25 @@ export const ContinuityReducers = {
 		mapShell(value, input, ({ archivedAt: _archivedAt, ...shell }) => ({ ...shell, lastTouchedAt: input.now })),
 
 	renameShell: (value: ContinuityValue, input: ShellAddress & { title: string }): ContinuityValue =>
-		mapShell(value, input, (shell) => ({ ...shell, title: input.title })),
+		mapShell(value, input, (shell) => ({ ...shell, title: input.title, titleSource: "user" })),
+
+	nameShell: (value: ContinuityValue, input: ShellAddress & ShellName): ContinuityValue =>
+		mapShell(value, input, (shell) => {
+			if (TITLE_RANK[input.source] < titleRank(shell)) {
+				return shell;
+			}
+
+			if (shell.title === input.title && shell.titleSource === input.source) {
+				return shell;
+			}
+
+			return {
+				...shell,
+				title: input.title,
+				titleSource: input.source,
+				...(input.source === "model" ? { namings: (shell.namings ?? 0) + 1 } : {}),
+			};
+		}),
 
 	touchShell: (
 		value: ContinuityValue,

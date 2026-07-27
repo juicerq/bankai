@@ -176,6 +176,33 @@ describe("stampShell titles", () => {
 		expect(stamped?.branch).toBe("feat/no-title");
 	});
 
+	it("takes the name the harness publishes over the first message of the transcript", async () => {
+		const cwd = repo("published", "main");
+		const project = await Projects.add(cwd);
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
+		await claudeSession({ projectId: project.id, sessionId: "abc", cwd, intent: "oi" });
+		await stampShell({ projectId: project.id, shellId: "s1", publishedName: "revisar o sidebar" });
+
+		const stamped = await shell(project.id, "s1");
+		expect(stamped?.title).toBe("revisar o sidebar");
+		expect(stamped?.titleSource).toBe("published");
+		expect(stamped?.branch).toBe("main");
+	});
+
+	it("leaves the name the user typed alone and still stamps the branch", async () => {
+		const cwd = repo("hand-named", "feat/mine");
+		const project = await Projects.add(cwd);
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
+		await claudeSession({ projectId: project.id, sessionId: "abc", cwd, intent: "arruma o header" });
+		await Continuity.renameShell({ projectId: project.id, shellId: "s1", title: "psql" });
+		await stampShell({ projectId: project.id, shellId: "s1", publishedName: "revisar o sidebar" });
+
+		const stamped = await shell(project.id, "s1");
+		expect(stamped?.title).toBe("psql");
+		expect(stamped?.titleSource).toBe("user");
+		expect(stamped?.branch).toBe("feat/mine");
+	});
+
 	it("leaves a shell untitled when its harness cannot derive one", async () => {
 		const project = await Projects.add(repo("unknown-harness", "main"));
 		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });

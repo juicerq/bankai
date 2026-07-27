@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import type { ContinuityWorkspace } from "@main/store/continuity";
 
 interface ActivationState {
 	explicitProjectId: string | null;
@@ -17,6 +18,12 @@ function appendUnique(ids: string[], id: string | undefined) {
 	}
 
 	return [...ids, id];
+}
+
+export function restoredResidentProjectIds(workspaces: Pick<ContinuityWorkspace, "projectId" | "shells">[]) {
+	return workspaces
+		.filter((workspace) => workspace.shells.length > 0)
+		.map((workspace) => workspace.projectId);
 }
 
 export function useWorkspaceActivation(availableProjectIds: readonly string[], options: WorkspaceActivationOptions) {

@@ -1,5 +1,8 @@
 import { afterEach, expect, test } from "bun:test";
-import { useWorkspaceActivation } from "@renderer/routes/-utils/use-workspace-activation";
+import {
+	restoredResidentProjectIds,
+	useWorkspaceActivation,
+} from "@renderer/routes/-utils/use-workspace-activation";
 import { act, cleanup, renderHook } from "./testing-library";
 
 afterEach(cleanup);
@@ -148,6 +151,23 @@ test("restored residents intersect the currently available projects", () => {
 
 	expect(result.current.activeProjectId).toBe("b");
 	expect(result.current.residentProjectIds).toEqual(["a"]);
+});
+
+test("a restored workspace whose shells were all closed is not a resident", () => {
+	const workspaces = [
+		{ projectId: "kept", shells: [{ id: "s1", label: "Shell 1", createdAt: 1 }] },
+		{ projectId: "emptied", shells: [] },
+	];
+
+	expect(restoredResidentProjectIds(workspaces)).toEqual(["kept"]);
+});
+
+test("a restored workspace holding only archived shells stays resident", () => {
+	const workspaces = [
+		{ projectId: "filed", shells: [{ id: "s1", label: "Shell 1", createdAt: 1, archivedAt: 2 }] },
+	];
+
+	expect(restoredResidentProjectIds(workspaces)).toEqual(["filed"]);
 });
 
 test("reports every explicit activation through onActivate", () => {

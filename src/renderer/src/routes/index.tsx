@@ -29,7 +29,10 @@ import { useLayoutPreferences } from "@renderer/routes/-utils/use-layout-prefere
 import { useSessionList } from "@renderer/routes/-utils/use-session-list";
 import { useSessionCommands } from "@renderer/routes/-utils/use-session-commands";
 import { useShellResidency } from "@renderer/routes/-utils/use-shell-residency";
-import { useWorkspaceActivation } from "@renderer/routes/-utils/use-workspace-activation";
+import {
+	restoredResidentProjectIds,
+	useWorkspaceActivation,
+} from "@renderer/routes/-utils/use-workspace-activation";
 import { WorkspaceProvider } from "@renderer/routes/-utils/workspace-context";
 import type { ShellTab } from "@renderer/routes/-utils/shell-topology";
 
@@ -120,7 +123,7 @@ function Bankai() {
 		availableProjects.map((project) => project.id),
 		{
 			initialActiveProjectId: continuity.restored.activeProjectId,
-			initialResidentProjectIds: continuity.restored.workspaces.map((workspace) => workspace.projectId),
+			initialResidentProjectIds: restoredResidentProjectIds(continuity.restored.workspaces),
 			onActivate: continuity.activateProject,
 		},
 	);

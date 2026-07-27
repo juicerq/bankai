@@ -50,7 +50,7 @@ export function ProjectWorkspaceHeader({
 			<ProjectWorkspaceHeaderAction
 				className="border-x"
 				label="Open settings"
-				title="Open settings"
+				title="Open settings (Ctrl+X ,)"
 				onClick={onOpenSettings}
 			>
 				<Cog6ToothIcon className="size-4" />

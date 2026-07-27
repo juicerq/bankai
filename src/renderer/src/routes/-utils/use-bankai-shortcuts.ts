@@ -6,6 +6,7 @@ export function useBankaiShortcuts({
 	onToggleFullscreen,
 	onNewShell,
 	onCloseShell,
+	onOpenSettings,
 	onModifierHold,
 	onJumpToRow,
 	onJumpToWaiting,
@@ -13,6 +14,7 @@ export function useBankaiShortcuts({
 	onToggleFullscreen: () => void;
 	onNewShell: (plain: boolean) => void;
 	onCloseShell: () => void;
+	onOpenSettings: () => void;
 	onModifierHold: (held: boolean) => void;
 	onJumpToRow: (index: number) => void;
 	onJumpToWaiting: () => void;
@@ -31,6 +33,9 @@ export function useBankaiShortcuts({
 				}
 				if (event.code === "KeyX") {
 					return onCloseShell;
+				}
+				if (event.code === "Comma") {
+					return onOpenSettings;
 				}
 
 				return;
@@ -95,5 +100,5 @@ export function useBankaiShortcuts({
 			window.removeEventListener("keyup", handleKeyUp, true);
 			window.removeEventListener("blur", handleWindowBlur);
 		};
-	}, [onToggleFullscreen, onNewShell, onCloseShell, onModifierHold, onJumpToRow, onJumpToWaiting]);
+	}, [onToggleFullscreen, onNewShell, onCloseShell, onOpenSettings, onModifierHold, onJumpToRow, onJumpToWaiting]);
 }

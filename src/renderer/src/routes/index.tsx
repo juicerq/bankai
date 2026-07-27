@@ -319,6 +319,7 @@ function Bankai() {
 		onToggleFullscreen: projectRail.toggleFullscreen,
 		onNewShell: requestNewShell,
 		onCloseShell: closeShellHere,
+		onOpenSettings: openSettings,
 		onModifierHold: holdModifier,
 		onJumpToRow: jumpToRow,
 		onJumpToWaiting: jumpToWaiting,

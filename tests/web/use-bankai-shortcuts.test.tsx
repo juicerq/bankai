@@ -11,10 +11,12 @@ function ShortcutHarness() {
 	const [shells, setShells] = useState<string[]>([]);
 	const [modifierHeld, setModifierHeld] = useState(false);
 	const [jumped, setJumped] = useState("");
+	const [settingsOpens, setSettingsOpens] = useState(0);
 	const registerShortcuts = useBankaiShortcuts({
 		onToggleFullscreen: () => setFullscreenToggles((current) => current + 1),
 		onNewShell: () => setShells((current) => [...current, `shell-${current.length + 1}`]),
 		onCloseShell: () => setShells((current) => current.slice(0, -1)),
+		onOpenSettings: () => setSettingsOpens((current) => current + 1),
 		onModifierHold: setModifierHeld,
 		onJumpToRow: (index) => setJumped(`row-${index}`),
 		onJumpToWaiting: () => setJumped("waiting"),
@@ -28,6 +30,7 @@ function ShortcutHarness() {
 			data-shells={shells.join(",")}
 			data-modifier-held={modifierHeld}
 			data-jumped={jumped}
+			data-settings-opens={settingsOpens}
 		/>
 	);
 }
@@ -74,6 +77,25 @@ test("the leader followed by x closes the selected session", () => {
 
 	expect(closePassedThrough).toBe(false);
 	expect(get("shortcut-state").dataset.shells).toBe("");
+});
+
+test("the leader followed by a comma opens settings", () => {
+	render(<ShortcutHarness />);
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	const settingsPassedThrough = fireEvent.keyDown(window, { key: ",", code: "Comma" });
+
+	expect(settingsPassedThrough).toBe(false);
+	expect(get("shortcut-state").dataset.settingsOpens).toBe("1");
+});
+
+test("a comma on its own is typed into the Shell", () => {
+	render(<ShortcutHarness />);
+
+	const typedPassedThrough = fireEvent.keyDown(window, { key: ",", code: "Comma" });
+
+	expect(typedPassedThrough).toBe(true);
+	expect(get("shortcut-state").dataset.settingsOpens).toBe("0");
 });
 
 test("t on its own reaches the Shell instead of opening one", () => {

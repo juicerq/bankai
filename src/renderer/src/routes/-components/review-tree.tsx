@@ -20,15 +20,22 @@ export function ReviewTree({
 	divider,
 	onOpenFile,
 	onToggleFocusFile,
+	onCloseFiles,
 }: {
 	files: FileChange[];
 	focusedPath?: string;
 	divider: ReturnType<typeof useDivider>;
 	onOpenFile: (path: string) => void;
 	onToggleFocusFile: (path: string) => void;
+	onCloseFiles: (paths: string[], closed: boolean) => void;
 }) {
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	const tree = useMemo(() => arrange(build(files)), [files]);
+
+	const toggleDirectory = (node: DirectoryNode) => {
+		setCollapsed((current) => toggledSet(current, node.path));
+		onCloseFiles(filePaths(node), !collapsed.has(node.path));
+	};
 
 	return (
 		<div
@@ -49,7 +56,7 @@ export function ReviewTree({
 							node={row.node}
 							depth={row.depth}
 							collapsed={collapsed.has(row.node.path)}
-							onToggle={(path) => setCollapsed((current) => toggledSet(current, path))}
+							onToggle={toggleDirectory}
 						/>
 					) : (
 						<TreeFileRow
@@ -77,7 +84,7 @@ function TreeDirectoryRow({
 	node: DirectoryNode;
 	depth: number;
 	collapsed: boolean;
-	onToggle: (path: string) => void;
+	onToggle: (node: DirectoryNode) => void;
 }) {
 	const ChevronIcon = collapsed ? ChevronRightIcon : ChevronDownIcon;
 
@@ -87,7 +94,7 @@ function TreeDirectoryRow({
 			className="flex w-full items-center gap-1 py-1 pr-3 text-left text-body text-secondary hover:bg-surface-hover hover:text-primary"
 			style={{ paddingLeft: ROW_PADDING + depth * ROW_INDENT }}
 			aria-expanded={!collapsed}
-			onClick={() => onToggle(node.path)}
+			onClick={() => onToggle(node)}
 		>
 			<ChevronIcon className="size-4 shrink-0" />
 			<span className="truncate">{node.name}</span>
@@ -193,6 +200,10 @@ function collapseChain(node: DirectoryNode): DirectoryNode {
 	}
 
 	return { ...node, children: arrange(node.children) };
+}
+
+function filePaths(node: DirectoryNode): string[] {
+	return node.children.flatMap((child) => (child.kind === "file" ? [child.file.path] : filePaths(child)));
 }
 
 function visibleRows(nodes: TreeNode[], collapsed: ReadonlySet<string>, depth = 0): { node: TreeNode; depth: number }[] {

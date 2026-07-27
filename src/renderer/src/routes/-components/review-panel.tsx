@@ -133,6 +133,7 @@ export function ReviewPanel({
 					divider={treeDivider}
 					onOpenFile={openFromTree}
 					onToggleFocusFile={toggleFocus}
+					onCloseFiles={panel.actions.closeScope}
 				/>
 			)}
 

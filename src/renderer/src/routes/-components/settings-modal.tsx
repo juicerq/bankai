@@ -1,5 +1,5 @@
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
-import { useCallback, useState } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 import type { HarnessSettings } from "@main/store/settings";
 import { PickerHint } from "@renderer/routes/-components/picker-hint";
 import { useHarnessSettings } from "@renderer/routes/-utils/use-harness-settings";
@@ -40,7 +40,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 					<span className="flex-1 text-label text-secondary">SETTINGS</span>
 				</div>
 				{harness && harnesses ? (
-					<HarnessSection harness={harness} harnesses={harnesses} onSave={save} />
+					<SettingsBody harness={harness} harnesses={harnesses} onSave={save} />
 				) : (
 					<p className="px-3 py-6 text-data text-secondary">Reading settings…</p>
 				)}
@@ -57,7 +57,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 	);
 }
 
-function HarnessSection({
+function SettingsBody({
 	harness,
 	harnesses,
 	onSave,
@@ -70,38 +70,15 @@ function HarnessSection({
 
 	return (
 		<>
-			<div className="flex items-start gap-3 border-outline border-b px-3 py-3">
-				<div className="min-w-0 flex-1">
-					<span className="block text-body text-primary">Start a harness in every new shell</span>
-					<span className="mt-1 block text-data text-secondary">
-						Quit it with Ctrl+C twice and the plain shell is right there. Alt+click New shell to skip it up front.
-					</span>
-				</div>
-				<Switch
-					label="Start a harness in every new shell"
-					slot="autostart"
-					on={harness.autostart}
-					onToggle={() => onSave({ autostart: !harness.autostart })}
-				/>
-			</div>
-			<div className="flex items-start gap-3 border-outline border-b px-3 py-3">
-				<div className="min-w-0 flex-1">
-					<span className="block text-body text-primary">Read the trace from the harness, live</span>
-					<span className="mt-1 block text-data text-secondary">
-						Adds a hook to Claude Code so a card names every tool the moment it starts. Off, a card says only Working
-						and Done.
-					</span>
-				</div>
-				<Switch
-					label="Read the trace from the harness, live"
-					slot="live-trace"
-					on={liveTrace}
-					onToggle={() => onSave({ liveTrace: !liveTrace })}
-				/>
-			</div>
-			<div className={harness.autostart ? "" : "opacity-40"}>
-				<span className="block px-3 pt-3 pb-1 text-label text-secondary">HARNESS</span>
-				<div role="radiogroup" aria-label="Harness" className="pb-1">
+			<Setting
+				title="Start a harness in every new shell"
+				description="Quit it with Ctrl+C twice and the plain shell is right there. Alt+click New shell to skip it up front."
+				slot="autostart"
+				on={harness.autostart}
+				onToggle={() => onSave({ autostart: !harness.autostart })}
+			>
+				<span className="block pb-1 text-label text-secondary">HARNESS</span>
+				<div role="radiogroup" aria-label="Harness">
 					{harnesses.map((entry) => (
 						<HarnessRow
 							key={entry.id}
@@ -117,8 +94,48 @@ function HarnessSection({
 					disabled={!harness.autostart}
 					onCommit={(args) => onSave({ args })}
 				/>
-			</div>
+			</Setting>
+			<Setting
+				title="Read the trace from the harness, live"
+				description="Adds a hook to Claude Code so a card names every tool the moment it starts. Off, a card says only Working and Done."
+				slot="live-trace"
+				on={liveTrace}
+				onToggle={() => onSave({ liveTrace: !liveTrace })}
+			/>
 		</>
+	);
+}
+
+function Setting({
+	title,
+	description,
+	slot,
+	on,
+	onToggle,
+	children,
+}: {
+	title: string;
+	description: string;
+	slot: string;
+	on: boolean;
+	onToggle: () => void;
+	children?: ReactNode;
+}) {
+	return (
+		<div className="border-outline border-b px-3 py-3">
+			<div className="flex items-start gap-3">
+				<div className="min-w-0 flex-1">
+					<span className="block text-body text-primary">{title}</span>
+					<span className="mt-1 block text-data text-secondary">{description}</span>
+				</div>
+				<Switch label={title} slot={slot} on={on} onToggle={onToggle} />
+			</div>
+			{children && (
+				<div className={`mt-3 border-l-2 pl-3 ${on ? "border-tertiary" : "border-outline opacity-40"}`}>
+					{children}
+				</div>
+			)}
+		</div>
 	);
 }
 
@@ -141,12 +158,11 @@ function HarnessRow({
 			disabled={disabled}
 			data-component="settings-harness"
 			data-id={harness.id}
-			className={`relative flex w-full items-center gap-2.5 px-3 py-2 text-left ${
+			className={`flex w-full items-center gap-2.5 px-2 py-1.5 text-left ${
 				selected ? "bg-surface-active" : "hover:bg-surface-hover"
 			}`}
 			onClick={onSelect}
 		>
-			{selected && <span className="absolute inset-y-0 left-0 w-0.5 bg-tertiary" aria-hidden="true" />}
 			<span className="min-w-0 flex-1 truncate text-body text-primary">{harness.label}</span>
 			{!harness.available && (
 				<span data-slot="missing" className="shrink-0 text-label text-removed">NOT ON PATH</span>
@@ -173,7 +189,7 @@ function ArgumentsField({
 	};
 
 	return (
-		<div className="border-outline border-t px-3 py-3">
+		<div className="mt-3">
 			<span className="block pb-1.5 text-label text-secondary">EXTRA ARGUMENTS</span>
 			<input
 				data-slot="harness-args"

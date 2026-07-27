@@ -82,12 +82,12 @@ function endedAt(row: SessionRow): number {
 }
 
 function archivedNow(row: SessionRow, now: number): boolean {
-	if (row.activity) {
-		return false;
-	}
-
 	if (row.archivedAt !== undefined) {
 		return true;
+	}
+
+	if (row.activity) {
+		return false;
 	}
 
 	return (row.lastTouchedAt ?? row.createdAt) < now - SESSION_AUTO_ARCHIVE_MS;

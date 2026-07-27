@@ -38,6 +38,7 @@ export function useTerminalSession(options: {
 	resizeDeferred: boolean;
 	resumeOnMount: boolean;
 	onResumeOutcome: (outcome: ResumeOutcome) => void;
+	onFirstOutput: () => void;
 }) {
 	const { projectId, shellId, focusRequest, resizeDeferred, resumeOnMount } = options;
 	const sessionRef = useRef<RendererTerminalSession | null>(null);
@@ -49,6 +50,8 @@ export function useTerminalSession(options: {
 	resumeOnMountRef.current = resumeOnMount;
 	const onResumeOutcomeRef = useRef(options.onResumeOutcome);
 	onResumeOutcomeRef.current = options.onResumeOutcome;
+	const onFirstOutputRef = useRef(options.onFirstOutput);
+	onFirstOutputRef.current = options.onFirstOutput;
 	const registerContainer = useCallback((container: HTMLDivElement | null) => {
 		if (!container) {
 			return;
@@ -62,6 +65,7 @@ export function useTerminalSession(options: {
 				resume: resumeOnMountRef.current,
 				resizeDeferred: resizeDeferredRef.current,
 				onResumeOutcome: (outcome) => onResumeOutcomeRef.current(outcome),
+				onFirstOutput: () => onFirstOutputRef.current(),
 			});
 			sessionRef.current = session;
 			session.setActive(activeRef.current);
@@ -114,6 +118,7 @@ interface RendererTerminalOptions {
 	resume: boolean;
 	resizeDeferred: boolean;
 	onResumeOutcome: (outcome: ResumeOutcome) => void;
+	onFirstOutput: () => void;
 }
 
 export class RendererTerminalSession {
@@ -136,6 +141,7 @@ export class RendererTerminalSession {
 	private resizePending = false;
 	private resizeDeferred: boolean;
 	private resumeAttempt: boolean;
+	private painted = false;
 
 	constructor(
 		private readonly container: HTMLDivElement,
@@ -146,8 +152,14 @@ export class RendererTerminalSession {
 		this.terminal.loadAddon(this.fit);
 		this.terminal.open(container);
 		this.removeDataListener = window.bankaiTerminal.onData((event) => {
-			if (event.sessionId === this.sessionId) {
-				this.terminal.write(event.data);
+			if (event.sessionId !== this.sessionId) {
+				return;
+			}
+
+			this.terminal.write(event.data);
+			if (!this.painted) {
+				this.painted = true;
+				this.options.onFirstOutput();
 			}
 		});
 		this.removeExitListener = window.bankaiTerminal.onExit((event) => {

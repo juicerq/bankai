@@ -3,6 +3,7 @@ import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { TerminalPane } from "@renderer/routes/-components/terminal-pane";
 import { MIN_TERMINAL_WIDTH } from "@renderer/routes/-utils/review-layout";
 import type { useShellTabs } from "@renderer/routes/-utils/use-shell-tabs";
+import { useWorkspaceResidency } from "@renderer/routes/-utils/workspace-context";
 
 export function ProjectWorkspaceShells({
 	project,
@@ -17,12 +18,14 @@ export function ProjectWorkspaceShells({
 	focusRequest: number;
 	resizeDeferred: boolean;
 }) {
+	const residency = useWorkspaceResidency();
+
 	return (
 		<div
 			style={{ minWidth: MIN_TERMINAL_WIDTH, contain: "paint" }}
 			className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-1 overflow-hidden bg-surface-sunken"
 		>
-			{shells.tabs.length === 0 && (
+			{!shells.tabs.some((tab) => residency.resident.has(tab.id)) && (
 				<EmptyState
 					mark="›_"
 					title="No open shells"
@@ -36,14 +39,16 @@ export function ProjectWorkspaceShells({
 					className={`col-start-1 row-start-1 min-h-0 min-w-0 overflow-hidden ${tab.id === shells.activeTabId ? "" : "invisible"}`}
 					key={tab.id}
 				>
-					<TerminalPane
-						projectId={project.id}
-						shellId={tab.id}
-						active={active && tab.id === shells.activeTabId}
-						focusRequest={focusRequest}
-						resizeDeferred={resizeDeferred}
-						resumeOnMount={shells.resumableShellIds.has(tab.id)}
-					/>
+					{residency.resident.has(tab.id) && (
+						<TerminalPane
+							projectId={project.id}
+							shellId={tab.id}
+							active={active && tab.id === shells.activeTabId}
+							focusRequest={focusRequest}
+							resizeDeferred={resizeDeferred}
+							resumeOnMount={residency.resumable.has(tab.id)}
+						/>
+					)}
 				</div>
 			))}
 		</div>

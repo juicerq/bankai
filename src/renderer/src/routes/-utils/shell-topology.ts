@@ -1,14 +1,12 @@
+import type { ContinuityShell } from "@main/store/continuity";
+
 export interface ShellTab {
 	id: string;
 	label: string;
 	plain?: boolean;
 }
 
-export interface RestoredShell {
-	id: string;
-	label: string;
-	session?: { harness: string; sessionId: string };
-}
+export type RestoredShell = Pick<ContinuityShell, "id" | "label">;
 
 export function newShellTab(index: number, plain?: boolean): ShellTab {
 	const tab: ShellTab = { id: crypto.randomUUID(), label: `Shell ${index}` };
@@ -25,7 +23,6 @@ export interface ShellTopology {
 	activeTabId: string | undefined;
 	nextShellNumber: number;
 	defaultShell: ShellTab | undefined;
-	resumableShellIds: Set<string>;
 }
 
 export function initialShellTopology(
@@ -38,9 +35,6 @@ export function initialShellTopology(
 			activeTabId: restoredActiveShellId ?? restoredShells[0]?.id,
 			nextShellNumber: nextShellNumberFrom(restoredShells),
 			defaultShell: undefined,
-			resumableShellIds: new Set(
-				restoredShells.filter((shell) => shell.session).map((shell) => shell.id),
-			),
 		};
 	}
 
@@ -51,7 +45,6 @@ export function initialShellTopology(
 		activeTabId: shell.id,
 		nextShellNumber: 2,
 		defaultShell: shell,
-		resumableShellIds: new Set(),
 	};
 }
 

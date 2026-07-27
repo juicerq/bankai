@@ -53,7 +53,7 @@ export function ReviewHeader({
 							role="status"
 							aria-label="Reading new changes"
 							title="Reading new changes"
-							className="review-refreshing size-[6px] shrink-0 rounded-full bg-secondary"
+							className="pending-pulse size-[6px] shrink-0 rounded-full bg-secondary"
 						/>
 					)}
 					{totals && (

@@ -201,7 +201,7 @@
 	animation: picker-enter 160ms ease-out;
 }
 
-@keyframes review-refreshing-enter {
+@keyframes pending-enter {
 	from {
 		opacity: 0;
 	}
@@ -210,7 +210,7 @@
 	}
 }
 
-@keyframes review-refreshing-pulse {
+@keyframes pending-pulse {
 	0%,
 	100% {
 		opacity: 0.9;
@@ -220,10 +220,10 @@
 	}
 }
 
-.review-refreshing {
+.pending-pulse {
 	animation:
-		review-refreshing-enter 200ms ease-out 1s both,
-		review-refreshing-pulse 1.6s ease-in-out 1.2s infinite;
+		pending-enter 200ms ease-out 1s both,
+		pending-pulse 1.6s ease-in-out 1.2s infinite;
 }
 
 .diff-line-add {

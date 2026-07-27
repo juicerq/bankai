@@ -2,6 +2,7 @@ import { createContext, type ReactNode, use } from "react";
 import type { LayoutSettings } from "@main/store/settings";
 import type { AgentActivities } from "@renderer/routes/-utils/use-agent-activity";
 import type { WorkspaceCommands } from "@renderer/routes/-utils/use-session-commands";
+import type { ShellResidency } from "@renderer/routes/-utils/use-shell-residency";
 import type { ShellTab } from "@renderer/routes/-utils/shell-topology";
 
 interface WorkspaceControl {
@@ -20,19 +21,24 @@ interface WorkspaceControl {
 
 const WorkspaceControlContext = createContext<WorkspaceControl | null>(null);
 const WorkspaceActivityContext = createContext<AgentActivities | null>(null);
+const WorkspaceResidencyContext = createContext<ShellResidency | null>(null);
 
 export function WorkspaceProvider({
 	control,
 	agents,
+	residency,
 	children,
 }: {
 	control: WorkspaceControl;
 	agents: AgentActivities;
+	residency: ShellResidency;
 	children: ReactNode;
 }) {
 	return (
 		<WorkspaceControlContext value={control}>
-			<WorkspaceActivityContext value={agents}>{children}</WorkspaceActivityContext>
+			<WorkspaceActivityContext value={agents}>
+				<WorkspaceResidencyContext value={residency}>{children}</WorkspaceResidencyContext>
+			</WorkspaceActivityContext>
 		</WorkspaceControlContext>
 	);
 }
@@ -53,4 +59,13 @@ export function useWorkspaceAgents() {
 	}
 
 	return agents;
+}
+
+export function useWorkspaceResidency() {
+	const residency = use(WorkspaceResidencyContext);
+	if (!residency) {
+		throw new Error("useWorkspaceResidency needs a WorkspaceProvider above it");
+	}
+
+	return residency;
 }

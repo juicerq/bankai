@@ -103,6 +103,7 @@ async function startSession() {
 		resume: false,
 		resizeDeferred: false,
 		onResumeOutcome: () => {},
+		onFirstOutput: () => {},
 	});
 	await new Promise((resolve) => setTimeout(resolve, 0));
 	await new Promise((resolve) => setTimeout(resolve, 0));

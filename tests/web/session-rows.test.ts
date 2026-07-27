@@ -242,10 +242,10 @@ describe("splitting the open list from the archive", () => {
 		expect(partitionSessions([cold], NOW).archived.map((entry) => entry.shellId)).toEqual(["cold"]);
 	});
 
-	test("activity holds a session open against an explicit archive", () => {
+	test("an explicit archive files a session even while its agent is working", () => {
 		const waiting = row("waiting", { archivedAt: NOW, activity: "needs-attention" });
 
-		expect(partitionSessions([waiting], NOW).open.map((entry) => entry.shellId)).toEqual(["waiting"]);
+		expect(partitionSessions([waiting], NOW).archived.map((entry) => entry.shellId)).toEqual(["waiting"]);
 	});
 
 	test("activity holds a stale session open too", () => {

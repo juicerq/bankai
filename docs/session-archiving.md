@@ -12,7 +12,7 @@ created_at: 2026-07-25
 - `archivedAt` is set — the explicit `Archive` gesture, from the row's hover box or its context menu
 - or it has not been touched for `SESSION_AUTO_ARCHIVE_MS` (3 days), counting from `lastTouchedAt` and falling back to `createdAt`
 
-Activity beats both. A shell with any activity state is held open even if the user filed it, so blocked or running work can never disappear from the list. That is safe precisely because all three states are short-lived (see `agent-activity-lifetime.md`): the hold expires on its own.
+The gesture wins over activity; the 3-day limb does not. `archivedNow` reads `archivedAt` before it looks at activity, so filing a row whose agent is mid-turn files it now instead of appearing to do nothing. The automatic limb still refuses to file a shell with any activity state, so running or blocked work can never leave the list on its own.
 
 Auto-archive is a net, not the mechanism. It exists so an abandoned session eventually leaves without the user doing anything; the intended way out is the explicit gesture.
 
@@ -20,7 +20,7 @@ Auto-archive is a net, not the mechanism. It exists so an abandoned session even
 
 ## Archiving is not closing, and nothing undoes it by accident
 
-Closing tears the PTY down and drops the shell from continuity. Archiving writes a timestamp and nothing else: the terminal stays alive and the session ref survives.
+Closing tears the PTY down and drops the shell from continuity. Archiving writes a timestamp and nothing else *to the store* — but the row leaving the open list also takes its process down, after a grace window. See `shell-residency.md`; the shell record and its session ref survive either way, which is what makes waking possible.
 
 A row leaves the archive only through `Unarchive` — the row's own hover button, left of the cross, or the same item in its context menu. **Selecting an archived row opens it and leaves it archived.** That is deliberate and it is where this diverges from the model it was taken from, which un-settles a thread on any real activity: a glance at a filed session should not refile the list.
 

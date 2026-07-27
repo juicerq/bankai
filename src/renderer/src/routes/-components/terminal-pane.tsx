@@ -25,9 +25,11 @@ export function TerminalPane({
 	resumeOnMount: boolean;
 }) {
 	const [resumeState, setResumeState] = useState<ResumeState>(() => initialResumeState(resumeOnMount));
+	const [painted, setPainted] = useState(false);
 	const handleResumeOutcome = useCallback((outcome: ResumeOutcome) => {
 		setResumeState((state) => nextResumeState(state, outcome));
 	}, []);
+	const handleFirstOutput = useCallback(() => setPainted(true), []);
 	const { registerContainer, registerActivation, registerFocusRequest, registerResizeDeferral, retryResume } =
 		useTerminalSession({
 			projectId,
@@ -36,6 +38,7 @@ export function TerminalPane({
 			resizeDeferred,
 			resumeOnMount,
 			onResumeOutcome: handleResumeOutcome,
+			onFirstOutput: handleFirstOutput,
 		});
 	const handleRetry = useCallback(() => {
 		setResumeState((state) => nextResumeState(state, { kind: "retry" }));
@@ -47,6 +50,7 @@ export function TerminalPane({
 	return (
 		<div className="relative flex size-full flex-col overflow-hidden bg-terminal-background pt-3 pr-0 pl-4">
 			{noticeVariant && <ResumeNotice variant={noticeVariant} reason={resumeState.reason} onRetry={handleRetry} />}
+			{resumeOnMount && !painted && !noticeVariant && <ResumingMark />}
 			<div ref={registerContainer} className="min-h-0 flex-1" />
 			<span ref={registerResizeDeferral} hidden />
 			{active && (
@@ -56,6 +60,18 @@ export function TerminalPane({
 				</>
 			)}
 		</div>
+	);
+}
+
+function ResumingMark() {
+	return (
+		<span
+			data-component="resuming-mark"
+			className="pointer-events-none absolute top-3 left-4 flex items-center gap-2 text-label text-outline-strong"
+		>
+			<span className="pending-pulse size-[6px] shrink-0 rounded-full bg-tertiary" />
+			RESUMING SESSION
+		</span>
 	);
 }
 

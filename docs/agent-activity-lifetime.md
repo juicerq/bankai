@@ -1,7 +1,7 @@
 ---
 title: Why agent activity is a per-turn signal and cannot stand for "this session is alive"
 tags: [activity, ui]
-updated_at: 2026-07-25
+updated_at: 2026-07-26
 created_at: 2026-07-25
 ---
 
@@ -27,7 +27,7 @@ This does not make activity available for cold shells — it is still PTY-derive
 
 The sessions-first sidebar hit this twice. Its first prototype split `ACTIVE` from `IDLE` on `session.activity` being set, and the session being worked in fell into the shelf. The fix removed activity from the partition but left it choosing the row's height, so the session under the cursor still shrank the moment its turn ended — the same mistake, one layer down. Activity now decides paint only: a border colour, a dot, and what the card's trace line says. Placement comes from `createdAt`, and the open/archived split comes from the user (see `session-archiving.md`).
 
-The one thing activity still decides is a veto: a shell with any state cannot be archived, explicitly or automatically. That is safe only because these states are short-lived — a permanent signal used the same way would pin a row open forever.
+The one thing activity still decides is a hold. The 3-day auto-archive will not file a shell with any state, and an explicitly archived shell keeps its process for a grace window after its state began — see `shell-residency.md`. The veto is safe only for the automatic limb because these states are short-lived; `needs-attention` outlives the user reading the row, which is why the process side uses a deadline rather than a veto.
 
 ## There is no per-project aggregate any more
 

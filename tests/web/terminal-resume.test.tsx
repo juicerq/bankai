@@ -1,7 +1,7 @@
 import "./register-dom";
 import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { get, query, slot } from "./dom";
-import { cleanup, fireEvent, render, waitFor } from "./testing-library";
+import { act, cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 class MockAddon {
 	fit() {}
@@ -33,6 +33,7 @@ void mock.module("@renderer/routes/-utils/terminal-style", () => ({ readTerminal
 let resumeOutcomes: ("resolve" | "reject")[] = [];
 let openCalls = 0;
 let resumeCalls = 0;
+let dataListeners: ((event: { sessionId: string; data: string }) => void)[] = [];
 
 window.bankaiTerminal = {
 	open: async () => {
@@ -50,7 +51,13 @@ window.bankaiTerminal = {
 	write() {},
 	resize() {},
 	close() {},
-	onData: () => () => {},
+	onData: (listener) => {
+		dataListeners.push(listener);
+
+		return () => {
+			dataListeners = dataListeners.filter((entry) => entry !== listener);
+		};
+	},
 	onExit: () => () => {},
 	onCommandError: () => () => {},
 };
@@ -115,6 +122,7 @@ beforeEach(() => {
 	resumeOutcomes = [];
 	openCalls = 0;
 	resumeCalls = 0;
+	dataListeners = [];
 });
 
 afterEach(() => {
@@ -162,4 +170,33 @@ test("a shell with no session ref never attempts resume", async () => {
 
 	expect(resumeCalls).toBe(0);
 	expect(query("resume-notice")).toBeNull();
+});
+
+test("a resuming shell is marked until the agent paints its first line", async () => {
+	resumeOutcomes = ["resolve"];
+	renderPane(true);
+
+	await waitFor(() => {
+		expect(resumeCalls).toBe(1);
+	});
+
+	expect(query("resuming-mark")).not.toBeNull();
+
+	await act(async () => {
+		for (const listener of dataListeners) {
+			listener({ sessionId: "resume-1", data: "welcome back" });
+		}
+	});
+
+	expect(query("resuming-mark")).toBeNull();
+});
+
+test("a shell opening fresh is never marked as resuming", async () => {
+	renderPane(false);
+
+	await waitFor(() => {
+		expect(openCalls).toBe(1);
+	});
+
+	expect(query("resuming-mark")).toBeNull();
 });

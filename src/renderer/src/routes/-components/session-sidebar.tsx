@@ -16,7 +16,7 @@ import { ACTIVITY_DOT_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils
 import { elapsedLabel } from "@renderer/routes/-utils/elapsed";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { useMenuDismissal } from "@renderer/routes/-utils/use-menu-dismissal";
-import { useSecondsClock } from "@renderer/routes/-utils/use-seconds-clock";
+import { SECOND_MS, useClock } from "@renderer/routes/-utils/use-clock";
 import type { useSessionList } from "@renderer/routes/-utils/use-session-list";
 
 const ACTIVITY_BORDER_CLASS: Record<AgentActivityState, string> = {
@@ -220,7 +220,7 @@ function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGest
 }
 
 function ElapsedClock({ since }: { since: number }) {
-	const now = useSecondsClock();
+	const now = useClock(SECOND_MS);
 
 	return (
 		<span data-slot="session-elapsed" className="shrink-0 text-outline-strong">

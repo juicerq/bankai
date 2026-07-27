@@ -28,6 +28,7 @@ import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen
 import { useLayoutPreferences } from "@renderer/routes/-utils/use-layout-preferences";
 import { useSessionList } from "@renderer/routes/-utils/use-session-list";
 import { useSessionCommands } from "@renderer/routes/-utils/use-session-commands";
+import { useShellResidency } from "@renderer/routes/-utils/use-shell-residency";
 import { useWorkspaceActivation } from "@renderer/routes/-utils/use-workspace-activation";
 import { WorkspaceProvider } from "@renderer/routes/-utils/workspace-context";
 import type { ShellTab } from "@renderer/routes/-utils/shell-topology";
@@ -123,18 +124,34 @@ function Bankai() {
 			onActivate: continuity.activateProject,
 		},
 	);
+	const allShells = useMemo(
+		() => continuity.restored.workspaces.flatMap((workspace) => workspace.shells),
+		[continuity.restored],
+	);
+	const residency = useShellResidency({
+		shells: allShells,
+		activity: activity.shells,
+		statusSince: activity.statusSince,
+	});
+	const selectShell = useCallback(
+		(projectId: string, shellId: string) => {
+			continuity.selectShell(projectId, shellId);
+			residency.wake(shellId);
+		},
+		[continuity.selectShell, residency.wake],
+	);
 	const commands = useSessionCommands({
 		restored: continuity.restored,
 		onActivateProject: activateProject,
-		onPersistSelection: continuity.selectShell,
+		onPersistSelection: selectShell,
 		onPersistClose: continuity.closeShell,
 	});
 	const handleShellSelect = useCallback(
 		(projectId: string, shellId: string) => {
 			commands.noteSelection(projectId, shellId);
-			continuity.selectShell(projectId, shellId);
+			selectShell(projectId, shellId);
 		},
-		[commands.noteSelection, continuity.selectShell],
+		[commands.noteSelection, selectShell],
 	);
 	const handleShellOpen = useCallback(
 		(projectId: string, shell: ShellTab) => {
@@ -179,9 +196,10 @@ function Bankai() {
 	const archiveSession = useCallback(
 		(projectId: string, shellId: string) => {
 			continuity.archiveShell(projectId, shellId);
+			residency.sleep(shellId);
 			handOverSelection(projectId, shellId);
 		},
-		[continuity.archiveShell, handOverSelection],
+		[continuity.archiveShell, handOverSelection, residency.sleep],
 	);
 	const [pickerOpen, setPickerOpen] = useState(false);
 	const openPicker = useCallback(() => {
@@ -413,7 +431,7 @@ function Bankai() {
 						onAction={openPicker}
 					/>
 				)}
-				<WorkspaceProvider control={control} agents={activity}>
+				<WorkspaceProvider control={control} agents={activity} residency={residency}>
 					{!projects.isError && availableProjects.filter((project) => residentProjectIds.includes(project.id)).map((project) => {
 						const workspace = continuity.restored.workspaces.find((entry) => entry.projectId === project.id);
 

@@ -72,7 +72,6 @@ export function useShellTabs({
 	return {
 		tabs,
 		activeTabId,
-		resumableShellIds: topology.resumableShellIds,
 		registerDefaultShell,
 		selectTab,
 		openTab,

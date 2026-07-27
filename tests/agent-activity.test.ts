@@ -357,16 +357,18 @@ describe("project snapshots", () => {
 		expect(snapshots.get("p1")?.statusSinceByShellId).toEqual({ "shell-a": 1784901075701 });
 	});
 
-	test("the harness status wins over the shell's own output line", () => {
+	test("a shell with an agent in it never shows its own output line", () => {
 		const traces = sessionTraces({
 			compacting: new Set(),
 			harnessTraces: new Map([["shell-a", { label: "Running commands", recordId: "uuid-1" }]]),
 			waitingFor: new Map(),
-			outputLines: new Map([["shell-a", "-7"], ["shell-b", "vite ready in 412 ms"]]),
+			outputLines: new Map([["shell-a", "-7"], ["shell-b", "vite ready in 412 ms"], ["shell-c", "5"]]),
+			agentShells: new Set(["shell-a", "shell-c"]),
 		});
 
 		expect(traces.get("shell-a")).toBe("Running commands");
 		expect(traces.get("shell-b")).toBe("vite ready in 412 ms");
+		expect(traces.has("shell-c")).toBe(false);
 	});
 
 	test("a waiting reason wins over the transcript, which still names the last finished block", () => {
@@ -375,6 +377,7 @@ describe("project snapshots", () => {
 			harnessTraces: new Map([["shell-a", { label: "Running commands", recordId: "uuid-1" }]]),
 			waitingFor: new Map([["shell-a", "Needs permission"]]),
 			outputLines: new Map(),
+			agentShells: new Set(["shell-a"]),
 		});
 
 		expect(traces.get("shell-a")).toBe("Needs permission");
@@ -389,6 +392,7 @@ describe("project snapshots", () => {
 			]),
 			waitingFor: new Map(),
 			outputLines: new Map([["shell-a", "-7"]]),
+			agentShells: new Set(["shell-a", "shell-b"]),
 		});
 
 		expect(traces.get("shell-a")).toBe(COMPACTION_TRACE);

@@ -1,7 +1,7 @@
 ---
 title: Where the "last output line" on a session card comes from
 tags: [terminal, activity]
-updated_at: 2026-07-26
+updated_at: 2026-07-27
 created_at: 2026-07-25
 ---
 
@@ -15,9 +15,11 @@ Control characters are replaced with a **space**, not removed — replacing a ta
 
 `snapshotsByProject` only emits `traceByShellId` for a shell that already has an activity state. Two reasons: an idle shell has nothing worth showing, and gating it stops a chatty idle process (`tail -f`) from churning a continuity push every 1500ms.
 
-## It is the fallback, not the source, for an agent session
+## A shell with an agent in it never shows this line
 
-The session card's trace slot is `traceByShellId`, and `sessionTraces` in `src/main/activity/AgentActivity.ts` fills it from four sources, weakest first: the scraped PTY line, the harness status, what the agent is waiting for, then "Compacting". A shell running Claude reads its status from the transcript; a plain shell has no harness and keeps the scraped line, which is what that source is actually good for.
+The session card's trace slot is `traceByShellId`, and `sessionTraces` in `src/main/activity/AgentActivity.ts` fills it from four sources, weakest first: the scraped PTY line, the harness status, what the agent is waiting for, then "Compacting". The scraped line is **skipped entirely** for any shell bound to an agent, so it is the source for a plain shell and nothing else.
+
+Overriding it was not enough. The harness status is missing for a tick or two in real cases — the first turn of a brand-new session, or any tick where a pasted image fills the 64KB transcript tail — and in exactly those ticks a card with a live agent fell through to raw TUI repaint garbage: a diff line number, half a sentence, a spinner frame. It now shows the branch, like a card with nothing to say, which is at least true. If a harness ever ships without a transcript reader, this is the line to revisit: today "has an agent" and "has a trace reader" are the same shells.
 
 Compaction has to sit on top because it is the one moment the transcript lies by omission — see `agent-trace.md`.
 

@@ -226,8 +226,14 @@ export function sessionTraces(input: {
 	harnessTraces: ReadonlyMap<string, HarnessTrace>;
 	waitingFor: ReadonlyMap<string, string>;
 	outputLines: ReadonlyMap<string, string>;
+	agentShells: ReadonlySet<string>;
 }): Map<string, string> {
-	const traces = new Map(input.outputLines);
+	const traces = new Map<string, string>();
+	for (const [shellId, line] of input.outputLines) {
+		if (!input.agentShells.has(shellId)) {
+			traces.set(shellId, line);
+		}
+	}
 	for (const [shellId, trace] of input.harnessTraces) {
 		traces.set(shellId, trace.label);
 	}
@@ -576,6 +582,18 @@ class AgentActivityTracker {
 		}
 	}
 
+	private agentShells(owners: Map<string, ShellOwner>): Set<string> {
+		const shellIds = new Set<string>();
+		for (const sessionId of this.boundSessions) {
+			const owner = owners.get(sessionId);
+			if (owner) {
+				shellIds.add(owner.shellId);
+			}
+		}
+
+		return shellIds;
+	}
+
 	private pruneScans(present: Map<string, ShellOwner>): void {
 		for (const sessionId of this.outputTail.keys()) {
 			if (!present.has(sessionId)) {
@@ -647,6 +665,7 @@ class AgentActivityTracker {
 				harnessTraces,
 				waitingFor,
 				outputLines: shellOutputLines,
+				agentShells: this.agentShells(owners),
 			}),
 			statusSince,
 		});

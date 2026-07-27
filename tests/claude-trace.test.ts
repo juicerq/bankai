@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "bun:test";
-import { recordTrace, transcriptTrace } from "@main/activity/claudeTrace";
+import { LABEL_CAP, recordTrace, transcriptTrace } from "@main/activity/claudeTrace";
 import { transcriptPath } from "@main/activity/claudeTranscript";
 
 let records = 0;
@@ -13,8 +13,8 @@ function assistantRecord(content: unknown[]): string {
 	return JSON.stringify({ type: "assistant", uuid: `uuid-${records}`, message: { content } });
 }
 
-function toolUse(name: string): string {
-	return assistantRecord([{ type: "tool_use", name, input: {} }]);
+function toolUse(name: string, input?: Record<string, unknown>): string {
+	return assistantRecord([{ type: "tool_use", name, input: input ?? {} }]);
 }
 
 describe("recordTrace", () => {
@@ -27,6 +27,57 @@ describe("recordTrace", () => {
 		expect(recordTrace(toolUse("Subagent"))?.label).toBe("Delegating");
 		expect(recordTrace(toolUse("WebSearch"))?.label).toBe("Searching the web");
 		expect(recordTrace(toolUse("Skill"))?.label).toBe("Loading a skill");
+	});
+
+	it("names what the tool is being used on, not only its family", () => {
+		expect(recordTrace(toolUse("Read", { file_path: "/home/jui/projects/bankai-2/src/main/ipc.ts" }))?.label)
+			.toBe("Reading ipc.ts");
+		expect(recordTrace(toolUse("Edit", { file_path: "/a/b/session-rows.ts" }))?.label).toBe("Editing session-rows.ts");
+		expect(recordTrace(toolUse("mcp__custom-tools__write", { path: "/a/b/paths.ts" }))?.label)
+			.toBe("Editing paths.ts");
+		expect(recordTrace(toolUse("Grep", { pattern: "tool_use" }))?.label).toBe("Grepping tool_use");
+		expect(recordTrace(toolUse("Skill", { skill: "code-standards" }))?.label).toBe("Loading code-standards");
+		expect(recordTrace(toolUse("Agent", { description: "Find the binder" }))?.label)
+			.toBe("Delegating Find the binder");
+		expect(recordTrace(toolUse("WebFetch", { url: "https://arktype.io/docs/intro" }))?.label)
+			.toBe("Fetching arktype.io");
+	});
+
+	it("prefers a command's description, which is written to be read", () => {
+		expect(
+			recordTrace(toolUse("Bash", { command: "git status --porcelain", description: "Inspect the working tree" }))
+				?.label,
+		).toBe("Inspect the working tree");
+	});
+
+	it("cuts an undescribed command at the first shell operator", () => {
+		expect(recordTrace(toolUse("Bash", { command: "bun run check 2>&1 | tail -20" }))?.label).toBe("bun run check");
+		expect(recordTrace(toolUse("Bash", { command: "cd /home/jui/projects/bankai-2 && bun test" }))?.label)
+			.toBe("bun test");
+		expect(recordTrace(toolUse("Bash", { command: "cat > /tmp/probe.mjs <<'EOF'\nbody\nEOF" }))?.label).toBe("cat");
+		expect(recordTrace(toolUse("Bash", { command: "sleep 30" }))?.label).toBe("sleep 30");
+	});
+
+	it("drops a quote that cutting the command left hanging open", () => {
+		expect(recordTrace(toolUse("Bash", { command: 'grep -rn "ozone\\|swiftshader" src' }))?.label).toBe("grep -rn");
+	});
+
+	it("shapes the subject before capping it, so a deep path still shows its file", () => {
+		expect(recordTrace(toolUse("Read", { file_path: `/${"deep/".repeat(30)}claudeTrace.ts` }))?.label)
+			.toBe("Reading claudeTrace.ts");
+	});
+
+	it("caps a subject that would not fit a card", () => {
+		const label = recordTrace(toolUse("WebSearch", { query: "x".repeat(200) }))?.label;
+
+		expect(label).toHaveLength(LABEL_CAP + 1);
+		expect(label?.endsWith("…")).toBe(true);
+	});
+
+	it("keeps the family label when the tool says nothing readable about its subject", () => {
+		expect(recordTrace(toolUse("Read", { limit: 40 }))?.label).toBe("Exploring");
+		expect(recordTrace(toolUse("Bash", { description: "   " }))?.label).toBe("Running commands");
+		expect(recordTrace(toolUse("Bash", { command: ": > /tmp/probe.log" }))?.label).toBe("Running commands");
 	});
 
 	it("reads an MCP tool by its bare name", () => {

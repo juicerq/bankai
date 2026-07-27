@@ -1,7 +1,7 @@
 ---
 title: How the trace line knows what an agent is doing right now
 tags: [activity, terminal]
-updated_at: 2026-07-26
+updated_at: 2026-07-27
 created_at: 2026-07-25
 ---
 
@@ -11,7 +11,13 @@ created_at: 2026-07-25
 
 A `user` record means the turn was just handed back to the agent — a human prompt, or a `tool_result` — and nothing has been written since, so it reads as "Thinking".
 
-The tool name is mapped to a family — `Bash` is "Running commands", `Read`/`Grep`/`Glob`/`Find`/`Ls` are "Exploring", `Edit`/`Write` are "Editing files". An MCP tool arrives as `mcp__<server>__<tool>`, so only the segment after the last `__` is matched. An unmapped tool falls back to its own bare name rather than to nothing, so a tool Claude adds later degrades to a readable label instead of a blank card.
+The label names what the tool is being used **on**, read from the block's `input`: `Editing session-rows.ts`, `Grepping tool_use`, `Loading code-standards`, `Fetching arktype.io`. `TOOL_SUBJECT` holds the verb and which input keys carry the subject; the key itself decides the shape, so `file_path` and `path` are reduced to a basename and `url` to a host without a per-tool rule. An MCP tool arrives as `mcp__<server>__<tool>`, so only the segment after the last `__` is matched.
+
+Two fallbacks sit under that, and both matter. A tool with no subject in its input falls back to a family — `Bash` is "Running commands", `Read`/`Grep`/`Glob`/`Find`/`Ls` are "Exploring", `Edit`/`Write` are "Editing files". A tool in no family falls back to its own bare name, so a tool Claude adds later degrades to a readable label instead of a blank card. Measured over 6638 labels from this machine's transcripts, 1% land on a family label and none on a bare name.
+
+`Bash` is 47% of all tool calls and is the one tool read from two keys. Its `description` wins over its `command`: it is authored to be read, it is present on 90% of calls, and its median length is 29 characters — the command's median is a pipeline that truncates into noise. Without a description the command is cut at the first shell operator, after dropping a leading `cd … &&`, and if that cut leaves a quote hanging open the dangling fragment goes with it (`grep -rn "ozone\|swiftshader" src` reads as `grep -rn`).
+
+The whole label is capped at `LABEL_CAP` **after** shaping, never before: capping a path first and taking its basename second yields a card that says `Reading …`. A subject with no letter or digit in it is not a subject — `: > /tmp/probe.log` cut down to `:` — and falls back to the family, the same readability rule `outputLine` applies to scraped PTY text.
 
 Records the tail must be skipped over, in order of how often they appear: `attachment`, `last-prompt`, `mode`, `ai-title`, `system`, `permission-mode`, `file-history-snapshot`, `file-history-delta`, `queue-operation`, `worktree-state`, `relocated`, `pr-link`. They are ~40% of the lines and none of them describes the agent.
 

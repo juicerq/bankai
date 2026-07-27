@@ -71,7 +71,8 @@ function RailResizeHarness() {
 					open
 					shellCounts={new Map()}
 					onToggle={() => {}}
-					onOpenProject={() => {}}
+					chosenProjectIds={new Set()}
+					onToggleProject={() => {}}
 					onAdd={() => {}}
 					onOpenDirectory={() => {}}
 					onRemove={() => {}}

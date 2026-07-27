@@ -20,12 +20,13 @@ import {
 	RAIL_WIDTH_PROPERTY,
 	resolveRailWidth,
 } from "@renderer/routes/-utils/rail-layout";
-import { type SessionRow, sessionRows } from "@renderer/routes/-utils/session-rows";
+import { sessionRows } from "@renderer/routes/-utils/session-rows";
 import { useAgentActivities } from "@renderer/routes/-utils/use-agent-activity";
 import { useBankaiShortcuts } from "@renderer/routes/-utils/use-bankai-shortcuts";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
 import { useLayoutPreferences } from "@renderer/routes/-utils/use-layout-preferences";
+import { useChosenProjects } from "@renderer/routes/-utils/use-chosen-projects";
 import { useSessionList } from "@renderer/routes/-utils/use-session-list";
 import { useSessions } from "@renderer/routes/-utils/use-sessions";
 import {
@@ -165,7 +166,8 @@ function Bankai() {
 			activity.statusSince,
 		],
 	);
-	const list = useSessionList(rows, Date.now());
+	const chosen = useChosenProjects();
+	const list = useSessionList({ rows, now: Date.now(), projectIds: chosen.projectIds });
 	const [pickerOpen, setPickerOpen] = useState(false);
 	const openPicker = useCallback(() => {
 		setPickerOpen(true);
@@ -302,22 +304,10 @@ function Bankai() {
 		orpc.projects.remove.mutationOptions({
 			onSuccess: async (_, input) => {
 				dropWorkspace(input.projectId);
+				chosen.forget(input.projectId);
 				await reactQueryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
 			},
 		}),
-	);
-	const openProject = useCallback(
-		(projectId: string) => {
-			const belongs = (row: SessionRow) => row.projectId === projectId;
-			const target = list.open.find(belongs) ?? rows.find(belongs);
-			if (target) {
-				selectSession(projectId, target.shellId);
-				return;
-			}
-
-			createShell(projectId);
-		},
-		[createShell, selectSession, rows, list.open],
 	);
 	const shellCounts = useMemo(() => {
 		const counts = new Map<string, number>();
@@ -335,12 +325,15 @@ function Bankai() {
 			<ProjectRailFrame projectRail={projectRail} divider={railDivider} frameRef={railFrameRef} railWidth={railWidth}>
 				<SessionSidebar
 					list={list}
+					projects={availableProjects}
+					chosenProjectIds={chosen.projectIds}
 					selectedShellId={selectedShellId}
 					canCreateShell={availableProjects.length > 0}
 					numbersVisible={numbersVisible}
 					onSelect={selectSession}
 					onCreate={createShell}
 					onRequestShell={requestNewShell}
+					onToggleProject={chosen.toggle}
 					onClose={sessions.closeShell}
 					onArchive={sessions.archiveShell}
 					onUnarchive={sessions.unarchiveShell}
@@ -351,8 +344,9 @@ function Bankai() {
 							loading={projects.isPending}
 							open={projectsOpen}
 							shellCounts={shellCounts}
+							chosenProjectIds={chosen.projectIds}
 							onToggle={toggleProjects}
-							onOpenProject={openProject}
+							onToggleProject={chosen.toggle}
 							onAdd={openPicker}
 							onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
 							onRemove={(projectId) => removeProject.mutate({ projectId })}

@@ -14,19 +14,20 @@ afterEach(cleanup);
 
 function Harness({ shellCounts = new Map<string, number>() }: { shellCounts?: ReadonlyMap<string, number> }) {
 	const [open, setOpen] = useState(false);
-	const [opened, setOpened] = useState("");
+	const [chosen, setChosen] = useState<ReadonlySet<string>>(() => new Set());
 	const [removed, setRemoved] = useState("");
 
 	return (
 		<>
-			<span data-component="footer-state" data-opened={opened} data-removed={removed} />
+			<span data-component="footer-state" data-removed={removed} />
 			<ProjectFooter
 				projects={projects}
 				loading={false}
 				open={open}
 				shellCounts={shellCounts}
+				chosenProjectIds={chosen}
 				onToggle={() => setOpen((current) => !current)}
-				onOpenProject={setOpened}
+				onToggleProject={(projectId) => setChosen(new Set([projectId]))}
 				onAdd={() => {}}
 				onOpenDirectory={() => {}}
 				onRemove={setRemoved}
@@ -64,13 +65,17 @@ test("the section starts closed and opens on the header toggle", () => {
 	expect(rowNames()).toEqual(["alpha", "zulu"]);
 });
 
-test("a project row opens that project", () => {
+test("a project row narrows the sessions instead of opening one", () => {
 	render(<Harness />);
 	fireEvent.click(slot(get("project-footer"), "toggle-projects"));
 
-	fireEvent.click(get("project-row", { projectId: "zulu" }));
+	const row = get("project-row", { projectId: "zulu" });
+	expect(row.getAttribute("aria-pressed")).toBe("false");
 
-	expect(get("footer-state").dataset.opened).toBe("zulu");
+	fireEvent.click(row);
+
+	expect(get("project-row", { projectId: "zulu" }).getAttribute("aria-pressed")).toBe("true");
+	expect(get("project-row", { projectId: "alpha" }).getAttribute("aria-pressed")).toBe("false");
 });
 
 test("a project with no open shells is removed without asking", () => {

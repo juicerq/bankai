@@ -10,8 +10,9 @@ export function ProjectFooter({
 	loading,
 	open,
 	shellCounts,
+	chosenProjectIds,
 	onToggle,
-	onOpenProject,
+	onToggleProject,
 	onAdd,
 	onOpenDirectory,
 	onRemove,
@@ -21,8 +22,9 @@ export function ProjectFooter({
 	loading: boolean;
 	open: boolean;
 	shellCounts: ReadonlyMap<string, number>;
+	chosenProjectIds: ReadonlySet<string>;
 	onToggle: () => void;
-	onOpenProject: (projectId: string) => void;
+	onToggleProject: (projectId: string) => void;
 	onAdd: () => void;
 	onOpenDirectory: (projectId: string) => void;
 	onRemove: (projectId: string) => void;
@@ -80,28 +82,35 @@ export function ProjectFooter({
 			{open && (
 				<nav className="min-h-0 flex-1 overflow-auto pb-1" aria-label="Projects">
 					{loading && <div className="px-3 py-1 text-data text-secondary">Loading workspace...</div>}
-					{sorted.map((project) => (
-						<button
-							key={project.id}
-							type="button"
-							data-component="project-row"
-							data-project-id={project.id}
-							className="group flex h-7 w-full items-center gap-2 border-l-2 border-l-transparent px-3 text-left hover:bg-surface-hover"
-							onClick={() => onOpenProject(project.id)}
-							onContextMenu={(event) => {
-								event.preventDefault();
-								setMenu({ project, x: event.clientX, y: event.clientY });
-								onOverlayChange?.(true, closeMenu);
-							}}
-						>
-							<span className="min-w-0 flex-1 truncate text-body text-secondary group-hover:text-primary">
-								{project.name}
-							</span>
-							<span className="min-w-0 max-w-[55%] shrink truncate text-data text-outline-strong">
-								{project.path}
-							</span>
-						</button>
-					))}
+					{sorted.map((project) => {
+						const chosen = chosenProjectIds.has(project.id);
+
+						return (
+							<button
+								key={project.id}
+								type="button"
+								data-component="project-row"
+								data-project-id={project.id}
+								aria-pressed={chosen}
+								className={`group flex h-7 w-full items-center gap-2 border-l-2 px-3 text-left hover:bg-surface-hover ${
+									chosen ? "border-l-tertiary" : "border-l-transparent"
+								}`}
+								onClick={() => onToggleProject(project.id)}
+								onContextMenu={(event) => {
+									event.preventDefault();
+									setMenu({ project, x: event.clientX, y: event.clientY });
+									onOverlayChange?.(true, closeMenu);
+								}}
+							>
+								<span className="min-w-0 flex-1 truncate text-body text-secondary group-hover:text-primary">
+									{project.name}
+								</span>
+								<span className="min-w-0 max-w-[55%] shrink truncate text-data text-outline-strong">
+									{project.path}
+								</span>
+							</button>
+						);
+					})}
 				</nav>
 			)}
 			{menu && createPortal(

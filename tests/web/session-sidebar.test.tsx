@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
+import type { Project } from "@main/store/projects";
 import type { AgentActivityState } from "@shared/activity";
 import { SessionSidebar } from "@renderer/routes/-components/session-sidebar";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
@@ -9,6 +10,10 @@ import { cleanup, fireEvent, render } from "./testing-library";
 afterEach(cleanup);
 
 const NOW = 1_800_000_000_000;
+
+const DOGAMA: Project = { id: "p2", name: "dogama", path: "/projects/dogama", createdAt: 1 };
+const BANKAI: Project = { id: "p1", name: "bankai", path: "/projects/bankai", createdAt: 2 };
+const PROJECTS = [DOGAMA, BANKAI];
 
 function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 	return {
@@ -38,8 +43,11 @@ function renderSidebar(
 		onUnarchive?: (projectId: string, shellId: string) => void;
 		onRename?: (projectId: string, shellId: string, title: string) => void;
 		onRequestShell?: (plain: boolean) => void;
+		onToggleProject?: (projectId: string) => void;
 		canCreateShell?: boolean;
 		numbersVisible?: boolean;
+		projects?: Project[];
+		chosenProjectIds?: ReadonlySet<string>;
 	} = {},
 ) {
 	function Harness() {
@@ -57,12 +65,15 @@ function renderSidebar(
 					archivedOpen,
 					toggleArchived: () => setArchivedOpen((current) => !current),
 				}}
+				projects={handlers.projects ?? PROJECTS}
+				chosenProjectIds={handlers.chosenProjectIds ?? new Set()}
 				selectedShellId={undefined}
 				canCreateShell={handlers.canCreateShell ?? true}
 				numbersVisible={handlers.numbersVisible ?? false}
 				onSelect={handlers.onSelect ?? (() => {})}
 				onCreate={handlers.onCreate ?? (() => {})}
 				onRequestShell={handlers.onRequestShell ?? (() => {})}
+				onToggleProject={handlers.onToggleProject ?? (() => {})}
 				onClose={handlers.onClose ?? (() => {})}
 				onArchive={handlers.onArchive ?? (() => {})}
 				onUnarchive={handlers.onUnarchive ?? (() => {})}
@@ -172,6 +183,54 @@ test("the header counts the open sessions, not the filed ones", () => {
 	renderSidebar({ open: [row("a"), row("b")], archived: [row("filed", { archivedAt: NOW })] });
 
 	expect(get("session-sidebar").textContent).toContain("SESSIONS 2");
+});
+
+test("a badge per project sits above the list, named and in project order", () => {
+	renderSidebar({ open: [row("s1")] });
+
+	const badges = [...get("project-badges").querySelectorAll<HTMLElement>('[data-component="project-badge"]')];
+
+	expect(badges.map((badge) => badge.textContent)).toEqual(["bankai", "dogama"]);
+	expect(badges.every((badge) => badge.getAttribute("aria-pressed") === "false")).toBe(true);
+});
+
+test("clicking a badge names its project instead of touching the sessions", () => {
+	const toggled: string[] = [];
+	const selected: string[] = [];
+	renderSidebar({ open: [row("s1")] }, {
+		onToggleProject: (projectId) => toggled.push(projectId),
+		onSelect: (projectId, shellId) => selected.push(`${projectId}/${shellId}`),
+	});
+
+	fireEvent.click(get("project-badge", { projectId: "p2" }));
+
+	expect(toggled).toEqual(["p2"]);
+	expect(selected).toEqual([]);
+});
+
+test("a chosen project wears its badge pressed", () => {
+	renderSidebar({ open: [row("s1")] }, { chosenProjectIds: new Set(["p1"]) });
+
+	expect(get("project-badge", { projectId: "p1" }).getAttribute("aria-pressed")).toBe("true");
+	expect(get("project-badge", { projectId: "p2" }).getAttribute("aria-pressed")).toBe("false");
+});
+
+test("a narrowing that hides everything says so instead of leaving a blank rail", () => {
+	renderSidebar({}, { chosenProjectIds: new Set(["p2"]) });
+
+	expect(slot(get("session-sidebar"), "no-sessions").textContent).toContain("No sessions in the projects you picked");
+});
+
+test("an empty list nobody narrowed says nothing at all", () => {
+	renderSidebar({});
+
+	expect(get("session-sidebar").querySelector('[data-slot="no-sessions"]')).toBeNull();
+});
+
+test("a single project has nothing to narrow, so no badges appear", () => {
+	renderSidebar({ open: [row("s1")] }, { projects: [BANKAI] });
+
+	expect(query("project-badges")).toBeNull();
 });
 
 test("an empty archive means no archive section", () => {

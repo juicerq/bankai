@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 function ProjectRailHarness() {
-	const [opened, setOpened] = useState("");
+	const [toggled, setToggled] = useState("");
 	const [focusRequests, setFocusRequests] = useState(0);
 	const projectRail = useFullscreenProjectRail(() => setFocusRequests((current) => current + 1));
 	const [railWidth, setRailWidth] = useState(DEFAULT_RAIL_WIDTH);
@@ -70,7 +70,7 @@ function ProjectRailHarness() {
 			<button type="button" data-component="fullscreen-toggle" onClick={() => projectRail.toggleFullscreen()} />
 			<button type="button" data-component="picker-release" onClick={() => projectRail.setPickerActive(false)} />
 			<span data-component="shell-focus-requests" data-count={focusRequests} />
-			<span data-component="opened-project" data-project-id={opened} />
+			<span data-component="toggled-project" data-project-id={toggled} />
 			<span data-component="rail-width" data-value={railWidth} />
 			<ProjectRailFrame
 				projectRail={projectRail}
@@ -84,7 +84,8 @@ function ProjectRailHarness() {
 					open
 					shellCounts={new Map()}
 					onToggle={() => {}}
-					onOpenProject={setOpened}
+					chosenProjectIds={new Set()}
+					onToggleProject={setToggled}
 					onAdd={() => projectRail.setPickerActive(true)}
 					onOpenDirectory={() => {}}
 					onRemove={() => {}}
@@ -157,7 +158,7 @@ describe("fullscreen Project rail", () => {
 		expect(frame.inert).toBe(true);
 	});
 
-	test("opening a project and focus keep the rail available until interaction leaves it", () => {
+	test("toggling a project badge and focus keep the rail available until interaction leaves it", () => {
 		render(<ProjectRailHarness />);
 		enterFullscreen();
 		revealFromEdge();
@@ -165,7 +166,7 @@ describe("fullscreen Project rail", () => {
 		const frame = get("project-rail-frame");
 		fireEvent.click(get("project-row", { projectId: "dogama" }));
 		expect(frame.dataset.revealed).toBe("true");
-		expect(get("opened-project").dataset.projectId).toBe("dogama");
+		expect(get("toggled-project").dataset.projectId).toBe("dogama");
 
 		const addProject = slot(get("project-footer"), "add-project");
 		fireEvent.focus(addProject);

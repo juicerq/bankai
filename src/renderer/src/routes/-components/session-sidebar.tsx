@@ -8,10 +8,12 @@ import {
 } from "@heroicons/react/24/outline";
 import { type ReactNode, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
+import type { Project } from "@main/store/projects";
 import type { AgentActivityState } from "@shared/activity";
 import { BankaiWordmark } from "@renderer/routes/-components/bankai-wordmark";
 import { ClaudeGlyph } from "@renderer/routes/-components/claude-glyph";
 import { MenuItem } from "@renderer/routes/-components/menu-item";
+import { ProjectBadges } from "@renderer/routes/-components/project-badges";
 import { ACTIVITY_DOT_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import { elapsedLabel } from "@renderer/routes/-utils/elapsed";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
@@ -40,12 +42,15 @@ interface SessionGestures {
 
 export function SessionSidebar({
 	list,
+	projects,
+	chosenProjectIds,
 	selectedShellId,
 	canCreateShell,
 	numbersVisible,
 	onSelect,
 	onCreate,
 	onRequestShell,
+	onToggleProject,
 	onClose,
 	onArchive,
 	onUnarchive,
@@ -53,12 +58,15 @@ export function SessionSidebar({
 	footer,
 }: {
 	list: ReturnType<typeof useSessionList>;
+	projects: Project[];
+	chosenProjectIds: ReadonlySet<string>;
 	selectedShellId: string | undefined;
 	numbersVisible: boolean;
 	canCreateShell: boolean;
 	onSelect: (projectId: string, shellId: string) => void;
 	onCreate: (projectId: string) => void;
 	onRequestShell: (plain: boolean) => void;
+	onToggleProject: (projectId: string) => void;
 	onClose: (projectId: string, shellId: string) => void;
 	onArchive: (projectId: string, shellId: string) => void;
 	onUnarchive: (projectId: string, shellId: string) => void;
@@ -109,7 +117,13 @@ export function SessionSidebar({
 					<PlusIcon className="size-4" aria-hidden="true" />
 				</button>
 			</div>
+			<ProjectBadges projects={projects} chosenProjectIds={chosenProjectIds} onToggle={onToggleProject} />
 			<div className="min-h-0 flex-1 overflow-auto" aria-label="Sessions">
+				{list.open.length === 0 && list.archived.length === 0 && chosenProjectIds.size > 0 && (
+					<p data-slot="no-sessions" className="px-3 py-2 text-secondary text-support">
+						No sessions in the projects you picked.
+					</p>
+				)}
 				{list.open.map((row) => <SessionCard key={row.shellId} row={row} gestures={gestures} />)}
 				{list.archived.length > 0 && (
 					<button

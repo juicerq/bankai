@@ -26,8 +26,10 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 	};
 }
 
-function renderList(rows: SessionRow[]) {
-	return renderHook(() => useSessionList(rows, NOW));
+const EVERY_PROJECT: ReadonlySet<string> = new Set();
+
+function renderList(rows: SessionRow[], projectIds: ReadonlySet<string> = EVERY_PROJECT) {
+	return renderHook(() => useSessionList({ rows, now: NOW, projectIds }));
 }
 
 test("the open list holds every session the user has not filed away", () => {
@@ -38,9 +40,10 @@ test("the open list holds every session the user has not filed away", () => {
 });
 
 test("a reorder of the incoming rows is the only thing that moves the list", () => {
-	const { result, rerender } = renderHook(({ rows }: { rows: SessionRow[] }) => useSessionList(rows, NOW), {
-		initialProps: { rows: [row("a"), row("b")] },
-	});
+	const { result, rerender } = renderHook(
+		({ rows }: { rows: SessionRow[] }) => useSessionList({ rows, now: NOW, projectIds: EVERY_PROJECT }),
+		{ initialProps: { rows: [row("a"), row("b")] } },
+	);
 
 	expect(result.current.open.map((entry) => entry.shellId)).toEqual(["a", "b"]);
 
@@ -89,6 +92,44 @@ test("the keyboard reaches the first waiting session in the open list", () => {
 	const { result } = renderList(rows);
 
 	expect(result.current.waiting?.shellId).toBe("first-wait");
+});
+
+test("chosen projects narrow the list to their union, archive included", () => {
+	const rows = [
+		row("a", { projectId: "p1" }),
+		row("b", { projectId: "p2" }),
+		row("c", { projectId: "p3" }),
+		row("filed", { projectId: "p2", archivedAt: NOW }),
+	];
+	const { result } = renderList(rows, new Set(["p1", "p2"]));
+
+	expect(result.current.open.map((entry) => entry.shellId)).toEqual(["a", "b"]);
+	expect(result.current.archived.map((entry) => entry.shellId)).toEqual(["filed"]);
+});
+
+test("choosing no project at all is what shows every session", () => {
+	const rows = [row("a", { projectId: "p1" }), row("b", { projectId: "p2" })];
+	const { result } = renderList(rows);
+
+	expect(result.current.open.map((entry) => entry.shellId)).toEqual(["a", "b"]);
+});
+
+test("the numbering the keyboard uses walks the narrowed list", () => {
+	const rows = [row("a", { projectId: "p1" }), row("b", { projectId: "p2" }), row("c", { projectId: "p2" })];
+	const { result } = renderList(rows, new Set(["p2"]));
+
+	expect(result.current.numbered.map((entry) => entry.shellId)).toEqual(["b", "c"]);
+});
+
+test("the jump to a waiting session reaches one the chosen projects hide", () => {
+	const rows = [
+		row("visible", { projectId: "p1" }),
+		row("hidden-wait", { projectId: "p2", activity: "needs-attention" }),
+	];
+	const { result } = renderList(rows, new Set(["p1"]));
+
+	expect(result.current.open.map((entry) => entry.shellId)).toEqual(["visible"]);
+	expect(result.current.waiting?.shellId).toBe("hidden-wait");
 });
 
 test("a stale session with nothing waiting leaves the keyboard nowhere to jump", () => {

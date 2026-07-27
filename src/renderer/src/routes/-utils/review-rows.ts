@@ -3,7 +3,7 @@ import { reviewContentNotice } from "@renderer/routes/-utils/review-notice";
 
 export const REVIEW_ROW_HEIGHT = { file: 32, line: 20, notice: 40 } as const;
 export const DIFF_GUTTER_WIDTH = 40;
-export const DIFF_TAB_SIZE = 8;
+export const DIFF_TAB_SIZE = 4;
 
 const DIFF_MARKER_COLUMNS = 2;
 

@@ -119,10 +119,16 @@ export function SessionSidebar({
 			</div>
 			<ProjectBadges projects={projects} chosenProjectIds={chosenProjectIds} onToggle={onToggleProject} />
 			<div className="min-h-0 flex-1 overflow-auto" aria-label="Sessions">
-				{list.open.length === 0 && list.archived.length === 0 && chosenProjectIds.size > 0 && (
-					<p data-slot="no-sessions" className="px-3 py-2 text-secondary text-support">
-						No sessions in the projects you picked.
-					</p>
+				{list.open.length === 0 && list.archived.length === 0 && canCreateShell && (
+					<button
+						type="button"
+						data-slot="start-session"
+						className="flex h-9 w-full items-center gap-2 px-3 text-left text-secondary text-support hover:bg-surface-hover hover:text-primary"
+						onClick={() => onRequestShell(false)}
+					>
+						<PlusIcon className="size-3.5" aria-hidden="true" />
+						Start a session
+					</button>
 				)}
 				{list.open.map((row) => <SessionCard key={row.shellId} row={row} gestures={gestures} />)}
 				{list.archived.length > 0 && (

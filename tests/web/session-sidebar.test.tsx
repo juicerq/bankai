@@ -215,16 +215,25 @@ test("a chosen project wears its badge pressed", () => {
 	expect(get("project-badge", { projectId: "p2" }).getAttribute("aria-pressed")).toBe("false");
 });
 
-test("a narrowing that hides everything says so instead of leaving a blank rail", () => {
-	renderSidebar({}, { chosenProjectIds: new Set(["p2"]) });
+test("an empty list asks for a session without naming a project", () => {
+	let requests = 0;
+	renderSidebar({}, { chosenProjectIds: new Set(["p2"]), onRequestShell: () => (requests += 1) });
 
-	expect(slot(get("session-sidebar"), "no-sessions").textContent).toContain("No sessions in the projects you picked");
+	fireEvent.click(slot(get("session-sidebar"), "start-session"));
+
+	expect(requests).toBe(1);
 });
 
-test("an empty list nobody narrowed says nothing at all", () => {
-	renderSidebar({});
+test("a list with sessions in it asks for nothing", () => {
+	renderSidebar({ open: [row("s1")] });
 
-	expect(get("session-sidebar").querySelector('[data-slot="no-sessions"]')).toBeNull();
+	expect(get("session-sidebar").querySelector('[data-slot="start-session"]')).toBeNull();
+});
+
+test("with no project mounted there is no session to ask for", () => {
+	renderSidebar({}, { canCreateShell: false });
+
+	expect(get("session-sidebar").querySelector('[data-slot="start-session"]')).toBeNull();
 });
 
 test("a single project has nothing to narrow, so no badges appear", () => {

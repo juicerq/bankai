@@ -317,8 +317,8 @@ describe("choosing what the trace slot says", () => {
 		expect(sessionTrace(undefined, "vite ready in 412 ms")).toBeUndefined();
 	});
 
-	test("a working shell with nothing observed falls through", () => {
-		expect(sessionTrace("working")).toBeUndefined();
+	test("a working shell nobody is tracing still says it is working", () => {
+		expect(sessionTrace("working")).toBe("Working");
 	});
 });
 

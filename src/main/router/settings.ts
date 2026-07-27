@@ -1,3 +1,4 @@
+import { AgentActivity } from "@main/activity/AgentActivity";
 import { DEFAULT_HARNESS_SETTINGS, launchableHarnesses } from "@main/activity/harnesses";
 import { applyHookSource } from "@main/activity/HookSource";
 import { base } from "@main/router/_base";
@@ -19,7 +20,9 @@ export const settingsRouter = {
 	getHarness: base.handler(async () => (await Settings.get()).harness ?? DEFAULT_HARNESS_SETTINGS),
 	updateHarness: base.input(harnessSchema).handler(async ({ input }) => {
 		const saved = await Settings.updateHarness(input);
-		await applyHookSource(liveTraceEnabled(saved));
+		const enabled = liveTraceEnabled(saved);
+		AgentActivity.setLiveTrace(enabled);
+		await applyHookSource(enabled);
 
 		return saved;
 	}),

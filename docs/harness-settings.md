@@ -7,7 +7,7 @@ created_at: 2026-07-26
 
 ## Autostart is one global setting, resolved in main
 
-`settings.json` v3 carries `harness: { autostart, id, args?, liveTrace? }` — the last of those installs the live trace source and is documented in `hook-spool.md`. It is absent until the panel is used; `autostartCommandLine` in `src/main/terminal/autostart.ts` falls back to `DEFAULT_HARNESS_SETTINGS` — autostart on, Claude — so a fresh install and every store written before v3 behave the same.
+`settings.json` v3 carries `harness: { autostart, id, args?, liveTrace? }` — the last of those decides whether a card says what the agent is doing at all, and is documented in `hook-spool.md`. It is absent until the panel is used; `autostartCommandLine` in `src/main/terminal/autostart.ts` falls back to `DEFAULT_HARNESS_SETTINGS` — autostart on, Claude — so a fresh install and every store written before v3 behave the same.
 
 Three things produce no command and open a bare shell rather than failing: autostart off, an `id` no registered harness claims, and an unreadable settings store. A terminal that will not open is worse than a terminal without an agent.
 

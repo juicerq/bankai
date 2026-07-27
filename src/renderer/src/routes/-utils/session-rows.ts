@@ -27,6 +27,9 @@ export function sessionTrace(
 	if (activity === "done-unseen") {
 		return "Done";
 	}
+	if (activity === "working") {
+		return observed ?? "Working";
+	}
 
 	return observed;
 }

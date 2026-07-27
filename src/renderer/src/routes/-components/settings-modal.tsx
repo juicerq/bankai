@@ -88,8 +88,8 @@ function HarnessSection({
 				<div className="min-w-0 flex-1">
 					<span className="block text-body text-primary">Read the trace from the harness, live</span>
 					<span className="mt-1 block text-data text-secondary">
-						Adds a hook to Claude Code so a card names every tool the moment it starts. Off, the trace is read from
-						the transcript and lags a few seconds.
+						Adds a hook to Claude Code so a card names every tool the moment it starts. Off, a card says only Working
+						and Done.
 					</span>
 				</div>
 				<Switch

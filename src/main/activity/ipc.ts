@@ -16,7 +16,12 @@ const renderers = new Map<number, RendererWatches>();
 export function setupActivityIpc(): void {
 	AgentActivity.start();
 	Settings.get()
-		.then((settings) => applyHookSource(liveTraceEnabled(settings.harness)))
+		.then((settings) => {
+			const enabled = liveTraceEnabled(settings.harness);
+			AgentActivity.setLiveTrace(enabled);
+
+			return applyHookSource(enabled);
+		})
 		.catch((err) => Logger.error("hook-source:settings-unreadable", { err: String(err) }));
 
 	ipcMain.handle(ACTIVITY_IPC.watch, (event, raw: unknown) => {

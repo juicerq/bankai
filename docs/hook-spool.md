@@ -37,7 +37,11 @@ Nothing is printed to stdout. On `UserPromptSubmit` the harness feeds a hook's s
 
 ## One toggle decides it, and it is on by default
 
-`harness.liveTrace` — `DEFAULT_LIVE_TRACE` in `src/shared/activity.ts` — is applied on startup and on every save of the harness panel. Off uninstalls, on reinstalls; there is no third state, because the transcript is the fallback either way and nothing downstream knows which source it got.
+`harness.liveTrace` — `DEFAULT_LIVE_TRACE` in `src/shared/activity.ts` — is applied on startup and on every save of the harness panel. Off uninstalls the hook, on reinstalls it.
+
+Off is not "fall back to the transcript". It means the card says only **Working** and **Done**, so `AgentActivity` stops calling the harness's `read` altogether, stops scanning PTY output for the compaction notice, and drops any compaction it was holding. A transcript-fed label is seconds stale and names a block that already finished; offering that as the quiet mode would be offering a worse version of the same feature rather than turning the feature off. The reason a shell was handed back to the user still shows — "Needs permission" is a state to act on, not a trace.
+
+"Working" is written by the renderer, not the main process: `sessionTrace` in `src/renderer/src/routes/-utils/session-rows.ts` names the state whenever the shell is working and nothing was observed, the mirror of what it already did for "Done". So a gap in the live source shows the same word as the toggle being off, instead of falling through to the branch name.
 
 ## Spool files are bankai's to clean up, never the script's
 

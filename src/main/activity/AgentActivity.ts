@@ -19,7 +19,7 @@ import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { shellOutputLines } from "@main/terminal/ShellOutputLines";
 import { TerminalSessions } from "@main/terminal/TerminalSessions";
-import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
+import { type AgentActivityState, DEFAULT_LIVE_TRACE, type ProjectActivitySnapshot } from "@shared/activity";
 import { throttle } from "@shared/throttle";
 
 const ACTIVITY_POLL_MS = 1500;
@@ -425,6 +425,7 @@ class AgentActivityTracker {
 	private agentCwds = new Map<string, string>();
 	private readonly dwell = new TraceDwell();
 	private readonly noteSpoolWrite = throttle(() => this.runTick("event"), SPOOL_PASS_MS);
+	private liveTrace = DEFAULT_LIVE_TRACE;
 	private viewed: string | undefined;
 	private timer: ReturnType<typeof setInterval> | undefined;
 	private watcher: FSWatcher | undefined;
@@ -433,8 +434,15 @@ class AgentActivityTracker {
 	private queuedPass: ActivityPass | undefined;
 	private prunedAt = 0;
 
+	setLiveTrace(enabled: boolean): void {
+		this.liveTrace = enabled;
+		if (this.timer) {
+			this.runTick("event");
+		}
+	}
+
 	noteData(sessionId: string, data: string): void {
-		if (!this.boundSessions.has(sessionId)) {
+		if (!this.liveTrace || !this.boundSessions.has(sessionId)) {
 			return;
 		}
 
@@ -570,7 +578,7 @@ class AgentActivityTracker {
 		this.captureSessionRefs(shells, bindings, liveByPid);
 		const [worktrees, readings] = await Promise.all([
 			pass === "full" ? this.observeWorktrees(shells, bindings, liveByPid) : this.shellWorktrees,
-			observeReadings(shells, bindings, liveByPid),
+			this.liveTrace ? observeReadings(shells, bindings, liveByPid) : new Map<string, HarnessReading>(),
 		]);
 		const harnessTraces = readTraces(readings);
 
@@ -730,6 +738,12 @@ class AgentActivityTracker {
 		liveByPid: Map<number, AgentPresence>,
 		readings: Map<string, HarnessReading>,
 	): void {
+		if (!this.liveTrace) {
+			this.compactionNoticed.clear();
+			this.compacting.clear();
+			return;
+		}
+
 		for (const shell of shells) {
 			const boundPid = bindings.get(shell.sessionId);
 			const presence = boundPid === undefined ? undefined : liveByPid.get(boundPid);

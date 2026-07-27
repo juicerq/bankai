@@ -1,16 +1,8 @@
 import { afterEach, expect, test } from "bun:test";
-import type { ContinuityValue } from "@main/store/continuity";
 import { useSessionCommands, type WorkspaceCommands } from "@renderer/routes/-utils/use-session-commands";
 import { act, cleanup, renderHook } from "./testing-library";
 
 afterEach(cleanup);
-
-const RESTORED: ContinuityValue = {
-	workspaces: [
-		{ projectId: "p1", activeShellId: "s1", shells: [{ id: "s1", label: "Shell 1", createdAt: 1 }] },
-		{ projectId: "p2", activeShellId: "s2", shells: [{ id: "s2", label: "Shell 1", createdAt: 2 }] },
-	],
-};
 
 function renderCommands() {
 	const activated: string[] = [];
@@ -18,7 +10,6 @@ function renderCommands() {
 	const closed: string[] = [];
 	const { result } = renderHook(() =>
 		useSessionCommands({
-			restored: RESTORED,
 			onActivateProject: (projectId: string) => activated.push(projectId),
 			onPersistSelection: (projectId: string, shellId: string) => persisted.push(`${projectId}/${shellId}`),
 			onPersistClose: (projectId: string, shellId: string) => closed.push(`${projectId}/${shellId}`),
@@ -31,7 +22,6 @@ function renderCommands() {
 function spyWorkspace() {
 	const calls: string[] = [];
 	const commands: WorkspaceCommands = {
-		selectShell: (shellId) => calls.push(`select:${shellId}`),
 		openShell: (plain) => calls.push(plain ? "open:plain" : "open"),
 		closeShell: (shellId) => calls.push(`close:${shellId}`),
 	};
@@ -39,23 +29,7 @@ function spyWorkspace() {
 	return { calls, commands };
 }
 
-test("the pushed value seeds the selection of every workspace", () => {
-	const { result } = renderCommands();
-
-	expect(result.current.byProject).toEqual({ p1: "s1", p2: "s2" });
-});
-
-test("selecting in an unmounted project persists and activates it", () => {
-	const { result, activated, persisted } = renderCommands();
-
-	act(() => result.current.selectSession("p2", "other"));
-
-	expect(result.current.byProject.p2).toBe("other");
-	expect(persisted).toEqual(["p2/other"]);
-	expect(activated).toEqual(["p2"]);
-});
-
-test("selecting in a mounted project goes through its registered command", () => {
+test("selecting a session persists it whether or not its workspace is mounted", () => {
 	const { result, activated, persisted } = renderCommands();
 	const workspace = spyWorkspace();
 
@@ -64,13 +38,13 @@ test("selecting in a mounted project goes through its registered command", () =>
 	});
 	act(() => result.current.selectSession("p2", "other"));
 
-	expect(workspace.calls).toEqual(["select:other"]);
-	expect(persisted).toEqual([]);
+	expect(workspace.calls).toEqual([]);
+	expect(persisted).toEqual(["p2/other"]);
 	expect(activated).toEqual(["p2"]);
 });
 
 test("an unmounted workspace stops answering commands", () => {
-	const { result, persisted } = renderCommands();
+	const { result, closed } = renderCommands();
 	const workspace = spyWorkspace();
 	let unregister = () => {};
 
@@ -78,18 +52,10 @@ test("an unmounted workspace stops answering commands", () => {
 		unregister = result.current.registerWorkspace("p2", workspace.commands);
 	});
 	act(() => unregister());
-	act(() => result.current.selectSession("p2", "other"));
+	act(() => result.current.closeSession("p2", "s2"));
 
 	expect(workspace.calls).toEqual([]);
-	expect(persisted).toEqual(["p2/other"]);
-});
-
-test("a workspace reports the selection it made itself", () => {
-	const { result } = renderCommands();
-
-	act(() => result.current.noteSelection("p1", "s9"));
-
-	expect(result.current.byProject.p1).toBe("s9");
+	expect(closed).toEqual(["p2/s2"]);
 });
 
 test("creating in a mounted project opens through its command", () => {

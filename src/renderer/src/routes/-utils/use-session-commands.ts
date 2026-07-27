@@ -1,36 +1,19 @@
-import { useCallback, useRef, useState } from "react";
-import type { ContinuityValue } from "@main/store/continuity";
+import { useCallback, useRef } from "react";
 
 export interface WorkspaceCommands {
-	selectShell: (shellId: string) => void;
 	openShell: (plain: boolean) => void;
 	closeShell: (shellId: string) => void;
 }
 
-function seededSelection(continuity: ContinuityValue): Record<string, string> {
-	const seeded: Record<string, string> = {};
-
-	for (const workspace of continuity.workspaces) {
-		if (workspace.activeShellId) {
-			seeded[workspace.projectId] = workspace.activeShellId;
-		}
-	}
-
-	return seeded;
-}
-
 export function useSessionCommands({
-	restored,
 	onActivateProject,
 	onPersistSelection,
 	onPersistClose,
 }: {
-	restored: ContinuityValue;
 	onActivateProject: (projectId: string) => void;
 	onPersistSelection: (projectId: string, shellId: string) => void;
 	onPersistClose: (projectId: string, shellId: string) => void;
 }) {
-	const [byProject, setByProject] = useState(() => seededSelection(restored));
 	const mounted = useRef(new Map<string, WorkspaceCommands>());
 	const queued = useRef(new Map<string, ((commands: WorkspaceCommands) => void)[]>());
 
@@ -50,23 +33,12 @@ export function useSessionCommands({
 		};
 	}, []);
 
-	const noteSelection = useCallback((projectId: string, shellId: string) => {
-		setByProject((current) => ({ ...current, [projectId]: shellId }));
-	}, []);
-
 	const selectSession = useCallback(
 		(projectId: string, shellId: string) => {
-			const commands = mounted.current.get(projectId);
-			if (commands) {
-				commands.selectShell(shellId);
-			} else {
-				noteSelection(projectId, shellId);
-				onPersistSelection(projectId, shellId);
-			}
-
+			onPersistSelection(projectId, shellId);
 			onActivateProject(projectId);
 		},
-		[noteSelection, onActivateProject, onPersistSelection],
+		[onActivateProject, onPersistSelection],
 	);
 
 	const createSession = useCallback(
@@ -100,5 +72,5 @@ export function useSessionCommands({
 		[onPersistClose],
 	);
 
-	return { byProject, registerWorkspace, noteSelection, selectSession, createSession, closeSession };
+	return { registerWorkspace, selectSession, createSession, closeSession };
 }

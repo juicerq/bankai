@@ -1,21 +1,18 @@
 ---
 title: How a session gesture reaches the workspace that owns it
 tags: [ui, continuity, router]
-updated_at: 2026-07-26
+updated_at: 2026-07-27
 created_at: 2026-07-25
 ---
 
-## Every gesture goes through one command channel
+## Only the gestures that touch the tab list go through the command channel
 
-`useSessionCommands` keeps `byProject` seeded from each workspace's persisted `activeShellId`, and each mounted workspace registers `{ selectShell, openShell, closeShell }` under its project id. A gesture on a **mounted** project runs that command, so the workspace's own shell state stays authoritative.
+Each mounted workspace registers `{ openShell, closeShell }` under its project id, and those two gestures on a **mounted** project run that command, because the workspace still owns its tab list. They fall back differently when the project is not mounted:
 
-The three fall back differently when the project is not mounted:
-
-- **select** records the selection optimistically and persists it; the workspace mounting in the same commit reads it through `restoredActiveShellId`
 - **create** has no fallback — it activates the project and queues the open, which drains the moment that workspace registers. This is why creating into a non-resident project reads as "activate, then create"
 - **close** writes straight to continuity; there is no PTY to tear down
 
-Archive is not on this channel. It writes to continuity directly, because no workspace state depends on it.
+Select and archive are not on this channel. They write to continuity directly and every workspace follows the pushed selection (`session-selection.md`), so there is nothing for a mounted workspace to answer.
 
 ## Creating takes the project as an argument, not as a mode
 
@@ -35,4 +32,4 @@ The two overlays do not stack: `requestNewShell` bails while the Project picker 
 
 Clicking a project row does not select the project — it opens its newest **open** session, falling back to its newest archived one, and creating one when it has none. That is the only way in: `activeProjectId` is now a consequence of which session is selected, never a thing the user sets. Adding a project lands inside a session in it for free, because a workspace mounting with no restored shells opens a default shell through `registerDefaultShell`.
 
-Removing a project with open shells asks first, naming the count. Removing the one that owns the selected session moves the selection to the next session in list order; with no projects left the workspace region is empty and the existing `EmptyState` takes over.
+Removing a project with open shells asks first, naming the count. Removing the one that owns the selected session moves the selection through `purgeProject` (`session-selection.md`), so the route hands nothing over; with no projects left the workspace region is empty and the existing `EmptyState` takes over.

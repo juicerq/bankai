@@ -6,6 +6,11 @@ export interface ShellAddress {
 	shellId: string;
 }
 
+interface Candidate {
+	shell: ContinuityShell;
+	own: boolean;
+}
+
 function mapWorkspace(
 	value: ContinuityValue,
 	projectId: string,
@@ -28,14 +33,56 @@ function mapShell(
 	}));
 }
 
-function pinnedIfStale(shell: ContinuityShell, now: number): ContinuityShell {
-	const idleSince = shell.lastTouchedAt ?? shell.createdAt;
+function idleSince(shell: ContinuityShell): number {
+	return shell.lastTouchedAt ?? shell.createdAt;
+}
 
-	if (shell.archivedAt !== undefined || idleSince >= now - SESSION_AUTO_ARCHIVE_MS) {
+function isOpen(shell: ContinuityShell, now: number): boolean {
+	return shell.archivedAt === undefined && idleSince(shell) >= now - SESSION_AUTO_ARCHIVE_MS;
+}
+
+function pinnedIfStale(shell: ContinuityShell, now: number): ContinuityShell {
+	if (shell.archivedAt !== undefined || isOpen(shell, now)) {
 		return shell;
 	}
 
-	return { ...shell, archivedAt: idleSince };
+	return { ...shell, archivedAt: idleSince(shell) };
+}
+
+export function withSelection(value: ContinuityValue, selectedShellId: string | undefined): ContinuityValue {
+	if (!selectedShellId) {
+		const { selectedShellId: _selectedShellId, ...rest } = value;
+
+		return rest;
+	}
+
+	return { ...value, selectedShellId };
+}
+
+function successorOf(value: ContinuityValue, left: ShellAddress & { now: number }): string | undefined {
+	const others = value.workspaces
+		.flatMap((workspace) =>
+			workspace.shells
+				.filter((shell) => shell.id !== left.shellId)
+				.map((shell): Candidate => ({ shell, own: workspace.projectId === left.projectId })),
+		)
+		.sort((first, second) => second.shell.createdAt - first.shell.createdAt || first.shell.id.localeCompare(second.shell.id));
+
+	const preferences = [
+		(candidate: Candidate) => candidate.own && isOpen(candidate.shell, left.now),
+		(candidate: Candidate) => isOpen(candidate.shell, left.now),
+		(candidate: Candidate) => candidate.own,
+	];
+
+	for (const preference of preferences) {
+		const found = others.find(preference);
+
+		if (found) {
+			return found.shell.id;
+		}
+	}
+
+	return others[0]?.shell.id;
 }
 
 export function nextShellNumber(shells: Pick<ContinuityShell, "label">[]): number {
@@ -52,11 +99,6 @@ export function nextShellNumber(shells: Pick<ContinuityShell, "label">[]): numbe
 }
 
 export const ContinuityReducers = {
-	activateProject: (value: ContinuityValue, projectId: string): ContinuityValue => ({
-		...value,
-		activeProjectId: projectId,
-	}),
-
 	openShell: (
 		value: ContinuityValue,
 		input: { projectId: string; shell: Pick<ContinuityShell, "id" | "label" | "plain">; now: number },
@@ -66,55 +108,46 @@ export const ContinuityReducers = {
 			? value
 			: { ...value, workspaces: [...value.workspaces, { projectId: input.projectId, shells: [] }] };
 
-		return mapWorkspace(mounted, input.projectId, (workspace) => ({
+		return mapWorkspace(withSelection(mounted, input.shell.id), input.projectId, (workspace) => ({
 			...workspace,
-			activeShellId: input.shell.id,
 			shells: workspace.shells.some((shell) => shell.id === input.shell.id)
 				? workspace.shells
 				: [...workspace.shells, { ...input.shell, createdAt: input.now }],
 		}));
 	},
 
-	closeShell: (value: ContinuityValue, address: ShellAddress): ContinuityValue =>
-		mapWorkspace(value, address.projectId, (workspace) => {
-			const index = workspace.shells.findIndex((shell) => shell.id === address.shellId);
+	closeShell: (value: ContinuityValue, input: ShellAddress & { now: number }): ContinuityValue => {
+		const closed = mapWorkspace(value, input.projectId, (workspace) => ({
+			...workspace,
+			shells: workspace.shells.filter((shell) => shell.id !== input.shellId),
+		}));
 
-			if (index === -1) {
-				return workspace;
-			}
+		if (value.selectedShellId !== input.shellId) {
+			return closed;
+		}
 
-			const shells = workspace.shells.filter((shell) => shell.id !== address.shellId);
+		return withSelection(closed, successorOf(closed, input));
+	},
 
-			if (workspace.activeShellId !== address.shellId) {
-				return { ...workspace, shells };
-			}
+	selectShell: (value: ContinuityValue, input: ShellAddress & { now: number }): ContinuityValue => {
+		const workspace = value.workspaces.find((entry) => entry.projectId === input.projectId);
 
-			const heir = shells[Math.max(0, index - 1)];
+		if (!workspace?.shells.some((shell) => shell.id === input.shellId)) {
+			return value;
+		}
 
-			if (!heir) {
-				const { activeShellId: _activeShellId, ...rest } = workspace;
+		return mapShell(withSelection(value, input.shellId), input, (shell) => pinnedIfStale(shell, input.now));
+	},
 
-				return { ...rest, shells };
-			}
+	archiveShell: (value: ContinuityValue, input: ShellAddress & { now: number }): ContinuityValue => {
+		const archived = mapShell(value, input, (shell) => ({ ...shell, archivedAt: input.now }));
 
-			return { ...workspace, shells, activeShellId: heir.id };
-		}),
+		if (value.selectedShellId !== input.shellId) {
+			return archived;
+		}
 
-	selectShell: (value: ContinuityValue, input: ShellAddress & { now: number }): ContinuityValue =>
-		mapWorkspace(value, input.projectId, (workspace) =>
-			workspace.shells.some((shell) => shell.id === input.shellId)
-				? {
-					...workspace,
-					activeShellId: input.shellId,
-					shells: workspace.shells.map((shell) =>
-						shell.id === input.shellId ? pinnedIfStale(shell, input.now) : shell,
-					),
-				}
-				: workspace,
-		),
-
-	archiveShell: (value: ContinuityValue, input: ShellAddress & { now: number }): ContinuityValue =>
-		mapShell(value, input, (shell) => ({ ...shell, archivedAt: input.now })),
+		return withSelection(archived, successorOf(archived, input));
+	},
 
 	unarchiveShell: (value: ContinuityValue, input: ShellAddress & { now: number }): ContinuityValue =>
 		mapShell(value, input, ({ archivedAt: _archivedAt, ...shell }) => ({ ...shell, lastTouchedAt: input.now })),
@@ -143,15 +176,19 @@ export const ContinuityReducers = {
 	clearShellSession: (value: ContinuityValue, address: ShellAddress): ContinuityValue =>
 		mapShell(value, address, ({ session: _session, ...shell }) => shell),
 
-	purgeProject: (value: ContinuityValue, projectId: string): ContinuityValue => {
-		const workspaces = value.workspaces.filter((workspace) => workspace.projectId !== projectId);
+	purgeProject: (value: ContinuityValue, input: { projectId: string; now: number }): ContinuityValue => {
+		const purged = {
+			...value,
+			workspaces: value.workspaces.filter((workspace) => workspace.projectId !== input.projectId),
+		};
+		const selected = value.workspaces
+			.find((workspace) => workspace.projectId === input.projectId)
+			?.shells.find((shell) => shell.id === value.selectedShellId);
 
-		if (value.activeProjectId !== projectId) {
-			return { ...value, workspaces };
+		if (!selected) {
+			return purged;
 		}
 
-		const { activeProjectId: _activeProjectId, ...rest } = value;
-
-		return { ...rest, workspaces };
+		return withSelection(purged, successorOf(purged, { ...input, shellId: selected.id }));
 	},
 };

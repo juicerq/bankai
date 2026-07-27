@@ -125,12 +125,3 @@ export function partitionSessions(
 		archived: rows.filter((row) => archivedNow(row, now)).sort(byArchivedRecency),
 	};
 }
-
-export function successorRow(
-	rows: SessionRow[],
-	closed: { projectId: string; shellId: string },
-): SessionRow | undefined {
-	const remaining = rows.filter((row) => row.shellId !== closed.shellId);
-
-	return remaining.find((row) => row.projectId === closed.projectId) ?? remaining[0];
-}

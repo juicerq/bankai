@@ -7,7 +7,6 @@ const EMPTY_CONTINUITY: ContinuityValue = { workspaces: [] };
 
 export function useContinuity() {
 	const { data } = useQuery(orpc.continuity.get.queryOptions());
-	const { mutate: activate } = useMutation(orpc.continuity.activateProject.mutationOptions());
 	const { mutate: open } = useMutation(orpc.continuity.openShell.mutationOptions());
 	const { mutate: close } = useMutation(orpc.continuity.closeShell.mutationOptions());
 	const { mutate: select } = useMutation(orpc.continuity.selectShell.mutationOptions());
@@ -15,7 +14,6 @@ export function useContinuity() {
 	const { mutate: archive } = useMutation(orpc.continuity.archiveShell.mutationOptions());
 	const { mutate: unarchive } = useMutation(orpc.continuity.unarchiveShell.mutationOptions());
 
-	const activateProject = useCallback((projectId: string) => activate({ projectId }), [activate]);
 	const openShell = useCallback(
 		(projectId: string, shell: Pick<ContinuityShell, "id" | "label" | "plain">) => open({ projectId, shell }),
 		[open],
@@ -47,7 +45,6 @@ export function useContinuity() {
 	return {
 		restored: data?.value ?? EMPTY_CONTINUITY,
 		failed: data?.failed ?? false,
-		activateProject,
 		openShell,
 		closeShell,
 		selectShell,

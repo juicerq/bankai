@@ -9,21 +9,20 @@ import {
 export function useShellTabs({
 	projectId,
 	restoredShells,
-	restoredActiveShellId,
+	selectedShellId,
 	onShellOpen,
 	onShellClose,
 	onShellSelect,
 }: {
 	projectId: string;
 	restoredShells: RestoredShell[] | undefined;
-	restoredActiveShellId: string | undefined;
+	selectedShellId: string | undefined;
 	onShellOpen: (projectId: string, shell: ShellTab) => void;
 	onShellClose: (projectId: string, shellId: string) => void;
 	onShellSelect: (projectId: string, shellId: string) => void;
 }) {
-	const [topology] = useState(() => initialShellTopology(restoredShells, restoredActiveShellId));
+	const [topology] = useState(() => initialShellTopology(restoredShells));
 	const [tabs, setTabs] = useState<ShellTab[]>(topology.tabs);
-	const [activeTabId, setActiveTabId] = useState<string | undefined>(topology.activeTabId);
 	const nextShellNumber = useRef(topology.nextShellNumber);
 	const pendingDefaultShell = useRef<ShellTab | undefined>(topology.defaultShell);
 
@@ -46,7 +45,6 @@ export function useShellTabs({
 
 	const selectTab = useCallback(
 		(tabId: string) => {
-			setActiveTabId(tabId);
 			onShellSelect(projectId, tabId);
 		},
 		[onShellSelect, projectId],
@@ -56,22 +54,22 @@ export function useShellTabs({
 		const tab = newShellTab(nextShellNumber.current, plain);
 		nextShellNumber.current += 1;
 		setTabs((current) => [...current, tab]);
-		setActiveTabId(tab.id);
 		onShellOpen(projectId, tab);
 	}, [onShellOpen, projectId]);
 
 	const closeTab = useCallback(
 		(tabId: string) => {
 			setTabs((current) => current.filter((tab) => tab.id !== tabId));
-			setActiveTabId((current) => (current === tabId ? undefined : current));
 			onShellClose(projectId, tabId);
 		},
 		[onShellClose, projectId],
 	);
 
+	const ownsSelection = tabs.some((tab) => tab.id === selectedShellId);
+
 	return {
 		tabs,
-		activeTabId,
+		activeTabId: ownsSelection ? selectedShellId : tabs[0]?.id,
 		registerDefaultShell,
 		selectTab,
 		openTab,

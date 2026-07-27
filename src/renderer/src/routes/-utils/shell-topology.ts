@@ -21,19 +21,14 @@ export function newShellTab(index: number, plain?: boolean): ShellTab {
 
 export interface ShellTopology {
 	tabs: ShellTab[];
-	activeTabId: string | undefined;
 	nextShellNumber: number;
 	defaultShell: ShellTab | undefined;
 }
 
-export function initialShellTopology(
-	restoredShells?: RestoredShell[],
-	restoredActiveShellId?: string,
-): ShellTopology {
+export function initialShellTopology(restoredShells?: RestoredShell[]): ShellTopology {
 	if (restoredShells && restoredShells.length > 0) {
 		return {
 			tabs: restoredShells.map((shell) => ({ id: shell.id, label: shell.label })),
-			activeTabId: restoredActiveShellId ?? restoredShells[0]?.id,
 			nextShellNumber: nextShellNumber(restoredShells),
 			defaultShell: undefined,
 		};
@@ -43,7 +38,6 @@ export function initialShellTopology(
 
 	return {
 		tabs: [shell],
-		activeTabId: shell.id,
 		nextShellNumber: 2,
 		defaultShell: shell,
 	};

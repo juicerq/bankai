@@ -19,7 +19,6 @@ async function stamped(
 
 export const continuityRouter = {
 	get: base.handler(() => Continuity.load()),
-	activateProject: base.input(type({ projectId: "string" })).handler(({ input }) => Continuity.activateProject(input.projectId)),
 	openShell: base
 		.input(type({ projectId: "string", shell: shellInput }))
 		.handler(async ({ input }) => {

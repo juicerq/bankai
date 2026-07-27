@@ -8,7 +8,6 @@ import {
 	sessionRows,
 	sessionSince,
 	sessionTrace,
-	successorRow,
 } from "@renderer/routes/-utils/session-rows";
 
 const PROJECTS = [
@@ -278,24 +277,6 @@ describe("splitting the open list from the archive", () => {
 			"newer",
 			"older",
 		]);
-	});
-});
-
-describe("choosing what takes the closed session's place", () => {
-	test("the nearest remaining session of the same project wins", () => {
-		const rows = [row("closing"), { ...row("newer"), projectId: "p2" }, row("older")];
-
-		expect(successorRow(rows, { projectId: "p1", shellId: "closing" })?.shellId).toBe("older");
-	});
-
-	test("with nothing left in that project the top of the list wins", () => {
-		const rows = [row("closing"), { ...row("elsewhere"), projectId: "p2" }];
-
-		expect(successorRow(rows, { projectId: "p1", shellId: "closing" })?.shellId).toBe("elsewhere");
-	});
-
-	test("closing the last session anywhere leaves no successor", () => {
-		expect(successorRow([row("closing")], { projectId: "p1", shellId: "closing" })).toBeUndefined();
 	});
 });
 

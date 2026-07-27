@@ -19,7 +19,7 @@ import {
 	RAIL_WIDTH_PROPERTY,
 	resolveRailWidth,
 } from "@renderer/routes/-utils/rail-layout";
-import { type SessionRow, sessionRows, successorRow } from "@renderer/routes/-utils/session-rows";
+import { type SessionRow, sessionRows } from "@renderer/routes/-utils/session-rows";
 import { useAgentActivities } from "@renderer/routes/-utils/use-agent-activity";
 import { useBankaiShortcuts } from "@renderer/routes/-utils/use-bankai-shortcuts";
 import { useContinuity } from "@renderer/routes/-utils/use-continuity";
@@ -34,7 +34,6 @@ import {
 	useWorkspaceActivation,
 } from "@renderer/routes/-utils/use-workspace-activation";
 import { WorkspaceProvider } from "@renderer/routes/-utils/workspace-context";
-import type { ShellTab } from "@renderer/routes/-utils/shell-topology";
 
 export const Route = createFileRoute("/")({
 	component: Bankai,
@@ -119,12 +118,19 @@ function Bankai() {
 	});
 	const availableProjects = projects.data || [];
 	const activity = useAgentActivities(availableProjects.map((project) => project.id));
+	const selectedShellId = continuity.restored.selectedShellId;
+	const selectedProjectId = useMemo(
+		() =>
+			continuity.restored.workspaces.find((workspace) =>
+				workspace.shells.some((shell) => shell.id === selectedShellId),
+			)?.projectId,
+		[continuity.restored, selectedShellId],
+	);
 	const { activeProjectId, residentProjectIds, activateProject, dropWorkspace } = useWorkspaceActivation(
 		availableProjects.map((project) => project.id),
 		{
-			initialActiveProjectId: continuity.restored.activeProjectId,
+			activeProjectId: selectedProjectId,
 			initialResidentProjectIds: restoredResidentProjectIds(continuity.restored.workspaces),
-			onActivate: continuity.activateProject,
 		},
 	);
 	const allShells = useMemo(
@@ -144,25 +150,10 @@ function Bankai() {
 		[continuity.selectShell, residency.wake],
 	);
 	const commands = useSessionCommands({
-		restored: continuity.restored,
 		onActivateProject: activateProject,
 		onPersistSelection: selectShell,
 		onPersistClose: continuity.closeShell,
 	});
-	const handleShellSelect = useCallback(
-		(projectId: string, shellId: string) => {
-			commands.noteSelection(projectId, shellId);
-			selectShell(projectId, shellId);
-		},
-		[commands.noteSelection, selectShell],
-	);
-	const handleShellOpen = useCallback(
-		(projectId: string, shell: ShellTab) => {
-			commands.noteSelection(projectId, shell.id);
-			continuity.openShell(projectId, shell);
-		},
-		[commands.noteSelection, continuity.openShell],
-	);
 	const rows = useMemo(
 		() =>
 			sessionRows({
@@ -183,34 +174,12 @@ function Bankai() {
 		],
 	);
 	const sessions = useSessionList(rows, Date.now());
-	const selectedShellId = activeProjectId ? commands.byProject[activeProjectId] : undefined;
-	const handOverSelection = useCallback(
-		(projectId: string, shellId: string) => {
-			if (commands.byProject[projectId] !== shellId) {
-				return;
-			}
-
-			const successor = successorRow(sessions.open, { projectId, shellId });
-			if (successor) {
-				commands.selectSession(successor.projectId, successor.shellId);
-			}
-		},
-		[commands.byProject, commands.selectSession, sessions.open],
-	);
-	const closeSession = useCallback(
-		(projectId: string, shellId: string) => {
-			commands.closeSession(projectId, shellId);
-			handOverSelection(projectId, shellId);
-		},
-		[commands.closeSession, handOverSelection],
-	);
 	const archiveSession = useCallback(
 		(projectId: string, shellId: string) => {
 			continuity.archiveShell(projectId, shellId);
 			residency.sleep(shellId);
-			handOverSelection(projectId, shellId);
 		},
-		[continuity.archiveShell, handOverSelection, residency.sleep],
+		[continuity.archiveShell, residency.sleep],
 	);
 	const [pickerOpen, setPickerOpen] = useState(false);
 	const openPicker = useCallback(() => {
@@ -262,9 +231,9 @@ function Bankai() {
 	);
 	const closeShellHere = useCallback(() => {
 		if (activeProjectId && selectedShellId) {
-			closeSession(activeProjectId, selectedShellId);
+			commands.closeSession(activeProjectId, selectedShellId);
 		}
-	}, [activeProjectId, closeSession, selectedShellId]);
+	}, [activeProjectId, commands.closeSession, selectedShellId]);
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const openSettings = useCallback(() => setSettingsOpen(true), []);
 	const closeSettings = useCallback(() => setSettingsOpen(false), []);
@@ -277,9 +246,9 @@ function Bankai() {
 			onPersistLayout: layout.persist,
 			onReviewOpenChange: handleReviewOpenChange,
 			onTreeOpenChange: handleTreeOpenChange,
-			onShellOpen: handleShellOpen,
+			onShellOpen: continuity.openShell,
 			onShellClose: continuity.closeShell,
-			onShellSelect: handleShellSelect,
+			onShellSelect: selectShell,
 			registerWorkspace: commands.registerWorkspace,
 		}),
 		[
@@ -290,9 +259,9 @@ function Bankai() {
 			openSettings,
 			handleReviewOpenChange,
 			handleTreeOpenChange,
-			handleShellOpen,
+			continuity.openShell,
 			continuity.closeShell,
-			handleShellSelect,
+			selectShell,
 			commands.registerWorkspace,
 		],
 	);
@@ -368,20 +337,6 @@ function Bankai() {
 		},
 		[createShell, commands.selectSession, rows, sessions.open],
 	);
-	const discardProject = useCallback(
-		(projectId: string) => {
-			const successor = activeProjectId === projectId
-				? rows.find((row) => row.projectId !== projectId)
-				: undefined;
-
-			removeProject.mutate({ projectId });
-
-			if (successor) {
-				commands.selectSession(successor.projectId, successor.shellId);
-			}
-		},
-		[activeProjectId, commands.selectSession, removeProject.mutate, rows],
-	);
 	const shellCounts = useMemo(() => {
 		const counts = new Map<string, number>();
 		for (const row of rows) {
@@ -404,7 +359,7 @@ function Bankai() {
 					onSelect={commands.selectSession}
 					onCreate={createShell}
 					onRequestShell={requestNewShell}
-					onClose={closeSession}
+					onClose={commands.closeSession}
 					onArchive={archiveSession}
 					onUnarchive={continuity.unarchiveShell}
 					onRename={continuity.renameShell}
@@ -418,7 +373,7 @@ function Bankai() {
 							onOpenProject={openProject}
 							onAdd={openPicker}
 							onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
-							onRemove={discardProject}
+							onRemove={(projectId) => removeProject.mutate({ projectId })}
 							onOverlayChange={projectRail.setMenuOpen}
 						/>
 					}
@@ -459,7 +414,7 @@ function Bankai() {
 								reviewOpen={reviewOpen}
 								treeOpen={treeOpen}
 								restoredShells={workspace?.shells}
-								restoredActiveShellId={commands.byProject[project.id] ?? workspace?.activeShellId}
+								selectedShellId={selectedShellId}
 							/>
 						);
 					})}

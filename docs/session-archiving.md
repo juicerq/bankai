@@ -1,7 +1,7 @@
 ---
 title: What archiving a session means, from the two ways in to the one way out
 tags: [ui, continuity, activity]
-updated_at: 2026-07-26
+updated_at: 2026-07-27
 created_at: 2026-07-25
 ---
 
@@ -30,4 +30,4 @@ The mirror of that lives in `selectShell`, which pins a window-archived shell be
 
 ## Archiving the selected session moves the selection like closing does
 
-`successorRow` over the **open** list picks the nearest remaining session of the same project, else the top of the list. A successor is never chosen out of the archive.
+Archive, close and project removal all hand the selection over through the same reducer — see `session-selection.md`.

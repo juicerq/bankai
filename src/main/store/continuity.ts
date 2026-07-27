@@ -1,7 +1,7 @@
 import { type } from "arktype";
 import { Logger } from "@main/logger";
 import { Store } from "@main/store/Store";
-import { ContinuityReducers, type ShellAddress } from "@shared/continuity-reducers";
+import { ContinuityReducers, type ShellAddress, withSelection } from "@shared/continuity-reducers";
 
 const sessionRefSchema = type({ harness: "string", sessionId: "string", cwd: "string" });
 
@@ -19,12 +19,11 @@ const shellSchema = type({
 
 const workspaceSchema = type({
 	projectId: "string",
-	"activeShellId?": "string",
 	shells: shellSchema.array(),
 });
 
 const continuitySchema = type({
-	"activeProjectId?": "string",
+	"selectedShellId?": "string",
 	workspaces: workspaceSchema.array(),
 });
 
@@ -62,7 +61,7 @@ const shellsWithoutCreatedAtSchema = type({
 			"title?": "string",
 		}).array(),
 	}).array(),
-}).pipe((legacy): ContinuityValue => ({
+}).pipe((legacy) => ({
 	...legacy,
 	workspaces: legacy.workspaces.map((workspace) => ({
 		...workspace,
@@ -70,15 +69,32 @@ const shellsWithoutCreatedAtSchema = type({
 	})),
 }));
 
+const selectionPerWorkspaceSchema = type({
+	"activeProjectId?": "string",
+	workspaces: type({
+		projectId: "string",
+		"activeShellId?": "string",
+		shells: shellSchema.array(),
+	}).array(),
+}).pipe((legacy): ContinuityValue =>
+	withSelection(
+		{
+			workspaces: legacy.workspaces.map(({ activeShellId: _activeShellId, ...workspace }) => workspace),
+		},
+		legacy.workspaces.find((workspace) => workspace.projectId === legacy.activeProjectId)?.activeShellId,
+	),
+);
+
 const store = new Store({
 	name: "continuity",
-	version: 5,
+	version: 6,
 	contract: continuitySchema,
 	migrators: {
 		1: (raw) => shellsWithoutCwdSchema.assert(raw),
 		2: (raw) => raw,
 		3: (raw) => raw,
 		4: (raw) => shellsWithoutCreatedAtSchema.assert(raw),
+		5: (raw) => selectionPerWorkspaceSchema.assert(raw),
 	},
 	seed: (): ContinuityValue => ({ workspaces: [] }),
 });
@@ -121,9 +137,6 @@ export const Continuity = {
 		};
 	},
 
-	activateProject: (projectId: string): Promise<ContinuityValue> =>
-		mutate((current) => ContinuityReducers.activateProject(current, projectId)),
-
 	openShell: (input: {
 		projectId: string;
 		shell: Pick<ContinuityShell, "id" | "label" | "plain">;
@@ -131,7 +144,7 @@ export const Continuity = {
 		mutate((current) => ContinuityReducers.openShell(current, { ...input, now: Date.now() })),
 
 	closeShell: (input: ShellAddress): Promise<ContinuityValue> =>
-		mutate((current) => ContinuityReducers.closeShell(current, input)),
+		mutate((current) => ContinuityReducers.closeShell(current, { ...input, now: Date.now() })),
 
 	selectShell: (input: ShellAddress): Promise<ContinuityValue> =>
 		mutate((current) => ContinuityReducers.selectShell(current, { ...input, now: Date.now() })),
@@ -162,5 +175,5 @@ export const Continuity = {
 	},
 
 	purgeProject: (projectId: string): Promise<ContinuityValue> =>
-		mutate((current) => ContinuityReducers.purgeProject(current, projectId)),
+		mutate((current) => ContinuityReducers.purgeProject(current, { projectId, now: Date.now() })),
 };

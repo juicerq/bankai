@@ -20,19 +20,31 @@ test("empty list has no active project and no residents", () => {
 	expect(result.current.residentProjectIds).toEqual([]);
 });
 
-test("first available project is the implicit active fallback", () => {
+test("first available project is the fallback while nothing is selected", () => {
 	const { result } = renderActivation(["a", "b"]);
 
 	expect(result.current.activeProjectId).toBe("a");
 	expect(result.current.residentProjectIds).toEqual(["a"]);
 });
 
-test("activation keeps the outgoing workspace resident", () => {
-	const { result } = renderActivation(["a", "b"]);
-
-	act(() => result.current.activateProject("b"));
+test("the project owning the selected session is the active one", () => {
+	const { result } = renderHook(() => useWorkspaceActivation(["a", "b"], { activeProjectId: "b" }));
 
 	expect(result.current.activeProjectId).toBe("b");
+	expect(result.current.residentProjectIds).toEqual(["b"]);
+});
+
+test("activation keeps a workspace resident after the selection leaves it", () => {
+	const initialProps: { active: string | undefined } = { active: "a" };
+	const { result, rerender } = renderHook(
+		({ active }: { active: string | undefined }) =>
+			useWorkspaceActivation(["a", "b"], { activeProjectId: active }),
+		{ initialProps },
+	);
+
+	act(() => result.current.activateProject("a"));
+	rerender({ active: "b" });
+
 	expect(result.current.residentProjectIds).toEqual(["a", "b"]);
 });
 
@@ -45,77 +57,35 @@ test("re-activation does not duplicate residency", () => {
 	expect(result.current.residentProjectIds).toEqual(["a", "b"]);
 });
 
-test("reorder preserves residency and follows available order", () => {
+test("residency follows the order of the available projects", () => {
 	const { result, rerender } = renderActivation(["a", "b"]);
 
+	act(() => result.current.activateProject("a"));
 	act(() => result.current.activateProject("b"));
 	rerender({ available: ["b", "a"] });
 
-	expect(result.current.activeProjectId).toBe("b");
 	expect(result.current.residentProjectIds).toEqual(["b", "a"]);
 });
 
-test("implicit fallback is not retained across a reorder before any activation", () => {
-	const { result, rerender } = renderActivation(["a", "b"]);
-
-	rerender({ available: ["b", "a"] });
-
-	expect(result.current.activeProjectId).toBe("b");
-	expect(result.current.residentProjectIds).toEqual(["b"]);
-});
-
-test("activating a not-yet-available id reports it active and withholds its workspace", () => {
+test("activating a not-yet-available id withholds its workspace until it arrives", () => {
 	const { result, rerender } = renderActivation(["a", "b"]);
 
 	act(() => result.current.activateProject("c"));
 
-	expect(result.current.activeProjectId).toBe("c");
 	expect(result.current.residentProjectIds).toEqual(["a"]);
 
 	rerender({ available: ["a", "b", "c"] });
 
-	expect(result.current.activeProjectId).toBe("c");
 	expect(result.current.residentProjectIds).toEqual(["a", "c"]);
 });
 
-test("explicit active id that disappears does not fall back and returns resident", () => {
-	const { result, rerender } = renderActivation(["a", "b"]);
-
-	act(() => result.current.activateProject("b"));
-	rerender({ available: ["a"] });
-
-	expect(result.current.activeProjectId).toBe("b");
-	expect(result.current.residentProjectIds).toEqual(["a"]);
-
-	rerender({ available: ["a", "b"] });
-
-	expect(result.current.activeProjectId).toBe("b");
-	expect(result.current.residentProjectIds).toEqual(["a", "b"]);
-});
-
-test("dropping an inactive resident keeps the active project", () => {
+test("dropping a resident removes its workspace", () => {
 	const { result } = renderActivation(["a", "b"]);
 
 	act(() => result.current.activateProject("b"));
-	act(() => result.current.dropWorkspace("a"));
+	act(() => result.current.dropWorkspace("b"));
 
-	expect(result.current.activeProjectId).toBe("b");
-	expect(result.current.residentProjectIds).toEqual(["b"]);
-});
-
-test("dropping the explicit active id falls back through the currently supplied list", () => {
-	const { result, rerender } = renderActivation(["a", "b"]);
-
-	act(() => result.current.activateProject("a"));
-	act(() => result.current.dropWorkspace("a"));
-
-	expect(result.current.activeProjectId).toBe("a");
 	expect(result.current.residentProjectIds).toEqual(["a"]);
-
-	rerender({ available: ["b"] });
-
-	expect(result.current.activeProjectId).toBe("b");
-	expect(result.current.residentProjectIds).toEqual(["b"]);
 });
 
 test("dropping the last project empties activation once the list updates", () => {
@@ -129,27 +99,11 @@ test("dropping the last project empties activation once the list updates", () =>
 	expect(result.current.residentProjectIds).toEqual([]);
 });
 
-test("initializes the explicit active and residents from restored continuity", () => {
+test("initializes residents from restored continuity, intersected with what is available", () => {
 	const { result } = renderHook(() =>
-		useWorkspaceActivation(["a", "b", "c"], {
-			initialActiveProjectId: "b",
-			initialResidentProjectIds: ["a", "b"],
-		}),
+		useWorkspaceActivation(["a", "c"], { activeProjectId: "a", initialResidentProjectIds: ["a", "b"] }),
 	);
 
-	expect(result.current.activeProjectId).toBe("b");
-	expect(result.current.residentProjectIds).toEqual(["a", "b"]);
-});
-
-test("restored residents intersect the currently available projects", () => {
-	const { result } = renderHook(() =>
-		useWorkspaceActivation(["a"], {
-			initialActiveProjectId: "b",
-			initialResidentProjectIds: ["a", "b"],
-		}),
-	);
-
-	expect(result.current.activeProjectId).toBe("b");
 	expect(result.current.residentProjectIds).toEqual(["a"]);
 });
 
@@ -168,16 +122,4 @@ test("a restored workspace holding only archived shells stays resident", () => {
 	];
 
 	expect(restoredResidentProjectIds(workspaces)).toEqual(["filed"]);
-});
-
-test("reports every explicit activation through onActivate", () => {
-	const activated: string[] = [];
-	const { result } = renderHook(() =>
-		useWorkspaceActivation(["a", "b"], { onActivate: (id) => activated.push(id) }),
-	);
-
-	act(() => result.current.activateProject("b"));
-	act(() => result.current.activateProject("a"));
-
-	expect(activated).toEqual(["b", "a"]);
 });

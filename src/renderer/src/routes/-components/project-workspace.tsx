@@ -20,7 +20,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	reviewOpen,
 	treeOpen,
 	restoredShells,
-	restoredActiveShellId,
+	selectedShellId,
 }: {
 	project: Project;
 	active: boolean;
@@ -31,13 +31,13 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	reviewOpen: boolean;
 	treeOpen: boolean;
 	restoredShells: RestoredShell[] | undefined;
-	restoredActiveShellId: string | undefined;
+	selectedShellId: string | undefined;
 }) {
 	const control = useWorkspaceControl();
 	const shells = useShellTabs({
 		projectId: project.id,
 		restoredShells,
-		restoredActiveShellId,
+		selectedShellId,
 		onShellOpen: control.onShellOpen,
 		onShellClose: control.onShellClose,
 		onShellSelect: control.onShellSelect,
@@ -60,8 +60,8 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		onToggleReview: handleToggleReview,
 	});
 	const commands = useMemo(
-		() => ({ selectShell: shells.selectTab, openShell: shells.openTab, closeShell: shells.closeTab }),
-		[shells.selectTab, shells.openTab, shells.closeTab],
+		() => ({ openShell: shells.openTab, closeShell: shells.closeTab }),
+		[shells.openTab, shells.closeTab],
 	);
 	const registerWorkspace = useCallback(
 		(node: HTMLElement | null) => {

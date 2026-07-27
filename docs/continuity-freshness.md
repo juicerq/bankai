@@ -1,7 +1,7 @@
 ---
 title: How the renderer's continuity value stays true
 tags: [continuity, store, ipc, ui]
-updated_at: 2026-07-25
+updated_at: 2026-07-27
 created_at: 2026-07-25
 ---
 
@@ -23,9 +23,9 @@ These call sites mutate the continuity store with no renderer mutation behind th
 - `src/main/terminal/TerminalSessions.ts` — `clearShellSession`
 - `src/main/router/projects.ts` — `purgeProject`
 
-## Shell state ownership is split on purpose
+## Only the tab list is still owned twice
 
-`useShellTabs` stays the optimistic owner for the mounted project — it binds the PTY and must answer instantly — while cross-project surfaces read the pushed value. In steady state they agree; the transient is a surface trailing one round-trip when a tab opens. Collapsing the two into one source puts a round-trip in the path of opening a tab.
+`useShellTabs` remains the optimistic owner of the **tab list** for a mounted project — it binds the PTY and must answer instantly — while cross-project surfaces read the pushed value. Which tab is active is no longer part of that split: it is derived from the pushed `selectedShellId` (`session-selection.md`), so selecting a tab trails the round-trip until the mutations write their projected value into the cache.
 
 ## There is no second window
 

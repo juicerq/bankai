@@ -1,15 +1,9 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import type { ContinuityWorkspace } from "@main/store/continuity";
 
-interface ActivationState {
-	explicitProjectId: string | null;
-	residentProjectIds: string[];
-}
-
 interface WorkspaceActivationOptions {
-	initialActiveProjectId?: string;
+	activeProjectId?: string;
 	initialResidentProjectIds?: readonly string[];
-	onActivate?: (projectId: string) => void;
 }
 
 function appendUnique(ids: string[], id: string | undefined) {
@@ -27,35 +21,20 @@ export function restoredResidentProjectIds(workspaces: Pick<ContinuityWorkspace,
 }
 
 export function useWorkspaceActivation(availableProjectIds: readonly string[], options: WorkspaceActivationOptions) {
-	const [state, setState] = useState<ActivationState>(() => ({
-		explicitProjectId: options.initialActiveProjectId ?? null,
-		residentProjectIds: [...(options.initialResidentProjectIds ?? [])],
-	}));
-	const availableRef = useRef(availableProjectIds);
-	availableRef.current = availableProjectIds;
-	const onActivateRef = useRef(options.onActivate);
-	onActivateRef.current = options.onActivate;
+	const [residentProjectIds, setResidentProjectIds] = useState<string[]>(() => [
+		...(options.initialResidentProjectIds ?? []),
+	]);
 
 	const activateProject = useCallback((projectId: string) => {
-		onActivateRef.current?.(projectId);
-		setState((current) => ({
-			explicitProjectId: projectId,
-			residentProjectIds: appendUnique(
-				appendUnique(current.residentProjectIds, current.explicitProjectId ?? availableRef.current[0]),
-				projectId,
-			),
-		}));
+		setResidentProjectIds((current) => appendUnique(current, projectId));
 	}, []);
 
 	const dropWorkspace = useCallback((projectId: string) => {
-		setState((current) => ({
-			explicitProjectId: current.explicitProjectId === projectId ? null : current.explicitProjectId,
-			residentProjectIds: current.residentProjectIds.filter((id) => id !== projectId),
-		}));
+		setResidentProjectIds((current) => current.filter((id) => id !== projectId));
 	}, []);
 
-	const activeProjectId = state.explicitProjectId ?? availableProjectIds[0];
-	const residentIds = appendUnique(state.residentProjectIds, activeProjectId);
+	const activeProjectId = options.activeProjectId ?? availableProjectIds[0];
+	const residentIds = appendUnique(residentProjectIds, activeProjectId);
 
 	return {
 		activeProjectId,

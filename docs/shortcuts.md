@@ -1,7 +1,7 @@
 ---
 title: Why the always-focused terminal constrains every shortcut
 tags: [ui, terminal]
-updated_at: 2026-07-25
+updated_at: 2026-07-27
 created_at: 2026-07-25
 ---
 
@@ -27,6 +27,10 @@ A time threshold before drawing was considered as a fix and rejected: invisible 
 
 - The window is created with `frame: false` (`src/main/index.ts`) and nothing calls `setApplicationMenu`, so there is no native menu bar for `Alt` to focus. In a framed Electron window this would not hold.
 - `Alt+Digit` is already claimed by the app today, so rebinding it steals nothing new from the shell.
+
+## The leader's letters mean the panel; punctuation means the app
+
+After `Ctrl+X` the letters name what they open — `f` fullscreen, `t` a shell, `x` closes one, `r` the review panel. Settings took `,` instead of a letter because every editor the user already has open binds preferences to a comma, so it is the one chord guessed correctly without reading anything. It also keeps a letter free for a panel, which is what letters are for here.
 
 ## Only the 60% base layer is available
 

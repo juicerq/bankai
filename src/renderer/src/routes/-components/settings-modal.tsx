@@ -69,7 +69,7 @@ function SettingsBody({
 	const liveTrace = harness.liveTrace ?? DEFAULT_LIVE_TRACE;
 
 	return (
-		<>
+		<div className="divide-y divide-outline">
 			<Setting
 				title="Start a harness in every new shell"
 				description="Quit it with Ctrl+C twice and the plain shell is right there. Alt+click New shell to skip it up front."
@@ -102,7 +102,7 @@ function SettingsBody({
 				on={liveTrace}
 				onToggle={() => onSave({ liveTrace: !liveTrace })}
 			/>
-		</>
+		</div>
 	);
 }
 
@@ -122,7 +122,7 @@ function Setting({
 	children?: ReactNode;
 }) {
 	return (
-		<div className="border-outline border-b px-3 py-3">
+		<div className="px-3 py-3">
 			<div className="flex items-start gap-3">
 				<div className="min-w-0 flex-1">
 					<span className="block text-body text-primary">{title}</span>

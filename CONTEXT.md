@@ -20,6 +20,10 @@ _Avoid_: Tab, view, pane
 The left edge region that lists mounted projects and lets the user manage or activate one.
 _Avoid_: Sidebar
 
+**Project badges**:
+The row above the session list that narrows it to chosen Projects. Each badge toggles its own Project and they accumulate; with none active every session is listed. The Project rail's footer rows toggle the same set. It never changes the Selected session, and it is forgotten when Bankai closes.
+_Avoid_: Filter, chips, tabs, segmented control
+
 **Project picker**:
 The overlay that mounts a Project, built around one editable path: typing narrows the directory it names, Enter opens the highlighted directory, and Ctrl+Enter mounts whatever the path currently reads. The system dialog stays behind it as an escape hatch.
 _Avoid_: File picker, directory dialog, file browser, modal
@@ -43,6 +47,10 @@ _Avoid_: Panel sizes, UI state
 **Shell**:
 One live terminal session running inside a project.
 _Avoid_: Terminal, tab, session, PTY
+
+**Selected session**:
+The one Shell the Workspace shows and every session gesture acts on. Exactly one exists across all mounted Projects, and the Active project is a consequence of which session is selected rather than something set on its own.
+_Avoid_: Active shell, current tab, focused session, active session
 
 **Review**:
 The read-only reading of a project's current git changes.

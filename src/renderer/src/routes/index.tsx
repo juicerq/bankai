@@ -229,7 +229,7 @@ function Bankai() {
 			onPersistLayout: layout.persist,
 			onReviewOpenChange: handleReviewOpenChange,
 			onTreeOpenChange: handleTreeOpenChange,
-			onOpenShell: createShell,
+			onRequestShell: requestNewShell,
 		}),
 		[
 			layout.initial.diffWidth,
@@ -239,7 +239,7 @@ function Bankai() {
 			openSettings,
 			handleReviewOpenChange,
 			handleTreeOpenChange,
-			createShell,
+			requestNewShell,
 		],
 	);
 	const [numbersVisible, setNumbersVisible] = useState(false);

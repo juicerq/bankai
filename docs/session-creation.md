@@ -7,7 +7,7 @@ created_at: 2026-07-27
 
 ## Creating takes the project as an argument, not as a mode
 
-The header `+` and `Ctrl+X T` both run `requestNewShell`, which opens the **Shell picker** whenever more than one project is mounted and creates immediately when only one is. Neither reads the Active project: the target used to be whichever project owned the selected session, so creating into another one meant going there first and only then pressing `+`. `Ctrl+X T` then `Enter` reproduces the old gesture exactly, because the picker opens highlighting the current project.
+The header `+`, `Ctrl+X T`, the empty session list and the empty workspace all run `requestNewShell`, which opens the **Shell picker** whenever more than one project is mounted and creates immediately when only one is. The two empty states name no project on purpose: the one place a project is chosen is the picker. Neither reads the Active project: the target used to be whichever project owned the selected session, so creating into another one meant going there first and only then pressing `+`. `Ctrl+X T` then `Enter` reproduces the old gesture exactly, because the picker opens highlighting the current project.
 
 Creating writes straight to continuity, so a project whose workspace is not mounted needs nothing special — the new shell is in the store before the workspace exists, and the workspace mounts because the Active project follows the selection (`session-selection.md`).
 

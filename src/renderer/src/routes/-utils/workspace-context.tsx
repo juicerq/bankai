@@ -11,7 +11,7 @@ interface WorkspaceControl {
 	onPersistLayout: (patch: LayoutSettings) => void;
 	onReviewOpenChange: (open: boolean) => void;
 	onTreeOpenChange: (open: boolean) => void;
-	onOpenShell: (projectId: string) => void;
+	onRequestShell: (plain: boolean) => void;
 }
 
 const WorkspaceControlContext = createContext<WorkspaceControl | null>(null);

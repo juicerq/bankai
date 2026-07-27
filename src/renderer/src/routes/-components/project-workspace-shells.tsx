@@ -9,7 +9,7 @@ export function ProjectWorkspaceShells({
 	project,
 	shells,
 	activeShellId,
-	onOpenShell,
+	onRequestShell,
 	active,
 	focusRequest,
 	resizeDeferred,
@@ -17,7 +17,7 @@ export function ProjectWorkspaceShells({
 	project: Project;
 	shells: ContinuityShell[];
 	activeShellId: string | undefined;
-	onOpenShell: (projectId: string) => void;
+	onRequestShell: (plain: boolean) => void;
 	active: boolean;
 	focusRequest: number;
 	resizeDeferred: boolean;
@@ -33,9 +33,9 @@ export function ProjectWorkspaceShells({
 				<EmptyState
 					mark="›_"
 					title="No open shells"
-					description={`Start a shell in ${project.name} to continue.`}
+					description="Start a shell to continue."
 					actionLabel="New shell"
-					onAction={() => onOpenShell(project.id)}
+					onAction={() => onRequestShell(false)}
 				/>
 			)}
 			{shells.filter((shell) => !residency.asleep.has(shell.id)).map((shell) => (

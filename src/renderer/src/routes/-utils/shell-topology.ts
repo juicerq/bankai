@@ -1,4 +1,5 @@
 import type { ContinuityShell } from "@main/store/continuity";
+import { nextShellNumber } from "@shared/continuity-reducers";
 
 export interface ShellTab {
 	id: string;
@@ -33,7 +34,7 @@ export function initialShellTopology(
 		return {
 			tabs: restoredShells.map((shell) => ({ id: shell.id, label: shell.label })),
 			activeTabId: restoredActiveShellId ?? restoredShells[0]?.id,
-			nextShellNumber: nextShellNumberFrom(restoredShells),
+			nextShellNumber: nextShellNumber(restoredShells),
 			defaultShell: undefined,
 		};
 	}
@@ -46,17 +47,4 @@ export function initialShellTopology(
 		nextShellNumber: 2,
 		defaultShell: shell,
 	};
-}
-
-function nextShellNumberFrom(shells: { label: string }[]): number {
-	const numbers = shells
-		.map((shell) => /^Shell (\d+)$/.exec(shell.label))
-		.filter((match) => match !== null)
-		.map((match) => Number(match[1]));
-
-	if (numbers.length === 0) {
-		return 1;
-	}
-
-	return Math.max(...numbers) + 1;
 }

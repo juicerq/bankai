@@ -1,8 +1,8 @@
 import { createReadStream } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { type } from "arktype";
+import { claudeConfigDir } from "@main/activity/claudeConfig";
 import { Logger } from "@main/logger";
 
 const TITLE_LIMIT = 120;
@@ -75,10 +75,9 @@ export function recordIntent(raw: string): string | null {
 }
 
 export function transcriptPath(ref: { sessionId: string; cwd: string }): string {
-	const config = process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude");
 	const slug = ref.cwd.replaceAll("/", "-").replaceAll(".", "-");
 
-	return join(config, "projects", slug, `${ref.sessionId}.jsonl`);
+	return join(claudeConfigDir(), "projects", slug, `${ref.sessionId}.jsonl`);
 }
 
 export async function transcriptTitle(ref: { sessionId: string; cwd: string }): Promise<string | null> {

@@ -2,10 +2,15 @@ import type { AgentPresence, Harness } from "@main/activity/Harness";
 import { ClaudeHarness } from "@main/activity/claude";
 import { Logger } from "@main/logger";
 import type { HarnessSettings } from "@main/store/settings";
+import { DEFAULT_LIVE_TRACE } from "@shared/activity";
 
 const harnesses: Harness[] = [ClaudeHarness];
 
-export const DEFAULT_HARNESS_SETTINGS: HarnessSettings = { autostart: true, id: ClaudeHarness.id };
+export const DEFAULT_HARNESS_SETTINGS: HarnessSettings = {
+	autostart: true,
+	id: ClaudeHarness.id,
+	liveTrace: DEFAULT_LIVE_TRACE,
+};
 
 export function launchableHarnesses(): { id: string; label: string; file: string }[] {
 	return harnesses.flatMap((harness) => {

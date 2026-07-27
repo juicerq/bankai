@@ -1,6 +1,7 @@
 import { DEFAULT_HARNESS_SETTINGS, launchableHarnesses } from "@main/activity/harnesses";
+import { applyHookSource } from "@main/activity/HookSource";
 import { base } from "@main/router/_base";
-import { harnessSchema, layoutSchema, Settings } from "@main/store/settings";
+import { harnessSchema, layoutSchema, liveTraceEnabled, Settings } from "@main/store/settings";
 import { harnessAvailable } from "@main/terminal/harnessAvailability";
 
 export const settingsRouter = {
@@ -16,5 +17,10 @@ export const settingsRouter = {
 		)
 	),
 	getHarness: base.handler(async () => (await Settings.get()).harness ?? DEFAULT_HARNESS_SETTINGS),
-	updateHarness: base.input(harnessSchema).handler(({ input }) => Settings.updateHarness(input)),
+	updateHarness: base.input(harnessSchema).handler(async ({ input }) => {
+		const saved = await Settings.updateHarness(input);
+		await applyHookSource(liveTraceEnabled(saved));
+
+		return saved;
+	}),
 };

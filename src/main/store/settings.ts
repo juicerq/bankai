@@ -1,5 +1,6 @@
 import { type } from "arktype";
 import { Store } from "@main/store/Store";
+import { DEFAULT_LIVE_TRACE } from "@shared/activity";
 
 const windowBoundsSchema = type({
 	x: "number",
@@ -20,8 +21,17 @@ export const layoutSchema = type({
 });
 export type LayoutSettings = typeof layoutSchema.infer;
 
-export const harnessSchema = type({ autostart: "boolean", id: "string", "args?": "string" });
+export const harnessSchema = type({
+	autostart: "boolean",
+	id: "string",
+	"args?": "string",
+	"liveTrace?": "boolean",
+});
 export type HarnessSettings = typeof harnessSchema.infer;
+
+export function liveTraceEnabled(harness: HarnessSettings | undefined): boolean {
+	return harness?.liveTrace ?? DEFAULT_LIVE_TRACE;
+}
 
 const settingsContract = type({
 	"windowBounds?": windowBoundsSchema,

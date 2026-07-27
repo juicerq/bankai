@@ -1,7 +1,9 @@
 import { type } from "arktype";
 import { ipcMain, type WebContents } from "electron";
 import { AgentActivity } from "@main/activity/AgentActivity";
+import { applyHookSource } from "@main/activity/HookSource";
 import { Logger } from "@main/logger";
+import { liveTraceEnabled, Settings } from "@main/store/settings";
 import { ACTIVITY_IPC, type ActivityChangedEvent } from "@shared/activity";
 
 const watchSchema = type({ projectId: "string" });
@@ -13,6 +15,9 @@ const renderers = new Map<number, RendererWatches>();
 
 export function setupActivityIpc(): void {
 	AgentActivity.start();
+	Settings.get()
+		.then((settings) => applyHookSource(liveTraceEnabled(settings.harness)))
+		.catch((err) => Logger.error("hook-source:settings-unreadable", { err: String(err) }));
 
 	ipcMain.handle(ACTIVITY_IPC.watch, (event, raw: unknown) => {
 		const { projectId } = watchSchema.assert(raw);

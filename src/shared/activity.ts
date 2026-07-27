@@ -7,6 +7,8 @@ export const ACTIVITY_IPC = {
 
 export type AgentActivityState = "working" | "needs-attention" | "done-unseen";
 
+export const DEFAULT_LIVE_TRACE = true;
+
 const AGGREGATE_PRIORITY: AgentActivityState[] = ["needs-attention", "done-unseen", "working"];
 
 export function aggregateActivity(states: AgentActivityState[]): AgentActivityState | null {

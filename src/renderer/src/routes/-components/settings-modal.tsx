@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import type { HarnessSettings } from "@main/store/settings";
 import { PickerHint } from "@renderer/routes/-components/picker-hint";
 import { useHarnessSettings } from "@renderer/routes/-utils/use-harness-settings";
+import { DEFAULT_LIVE_TRACE } from "@shared/activity";
 
 interface LaunchableHarness {
 	id: string;
@@ -65,6 +66,8 @@ function HarnessSection({
 	harnesses: LaunchableHarness[];
 	onSave: (patch: Partial<HarnessSettings>) => void;
 }) {
+	const liveTrace = harness.liveTrace ?? DEFAULT_LIVE_TRACE;
+
 	return (
 		<>
 			<div className="flex items-start gap-3 border-outline border-b px-3 py-3">
@@ -76,8 +79,24 @@ function HarnessSection({
 				</div>
 				<Switch
 					label="Start a harness in every new shell"
+					slot="autostart"
 					on={harness.autostart}
 					onToggle={() => onSave({ autostart: !harness.autostart })}
+				/>
+			</div>
+			<div className="flex items-start gap-3 border-outline border-b px-3 py-3">
+				<div className="min-w-0 flex-1">
+					<span className="block text-body text-primary">Read the trace from the harness, live</span>
+					<span className="mt-1 block text-data text-secondary">
+						Adds a hook to Claude Code so a card names every tool the moment it starts. Off, the trace is read from
+						the transcript and lags a few seconds.
+					</span>
+				</div>
+				<Switch
+					label="Read the trace from the harness, live"
+					slot="live-trace"
+					on={liveTrace}
+					onToggle={() => onSave({ liveTrace: !liveTrace })}
 				/>
 			</div>
 			<div className={harness.autostart ? "" : "opacity-40"}>
@@ -178,14 +197,14 @@ function ArgumentsField({
 	);
 }
 
-function Switch({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
+function Switch({ label, slot, on, onToggle }: { label: string; slot: string; on: boolean; onToggle: () => void }) {
 	return (
 		<button
 			type="button"
 			role="switch"
 			aria-checked={on}
 			aria-label={label}
-			data-slot="autostart"
+			data-slot={slot}
 			className={`flex h-4 w-7 shrink-0 items-center border p-[2px] ${
 				on ? "border-tertiary justify-end" : "border-outline-strong justify-start"
 			}`}

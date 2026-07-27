@@ -133,9 +133,27 @@ const BLOCK_TRACE: Record<string, string> = {
 
 const THINKING_TRACE = "Thinking";
 
-const traceRecordSchema = type({ type: "'assistant'", "uuid?": "string", message: { content: "unknown[]" } });
+const traceRecordSchema = type({
+	type: "'assistant'",
+	"uuid?": "string",
+	"timestamp?": "string",
+	message: { content: "unknown[]" },
+});
 
-const turnedRecordSchema = type({ type: "'user'", "uuid?": "string" });
+const turnedRecordSchema = type({ type: "'user'", "uuid?": "string", "timestamp?": "string" });
+
+function recordSince(timestamp: string | undefined): { since?: number } {
+	if (!timestamp) {
+		return {};
+	}
+
+	const since = Date.parse(timestamp);
+	if (Number.isNaN(since)) {
+		return {};
+	}
+
+	return { since };
+}
 
 const traceBlockSchema = type({
 	type: "string",
@@ -176,7 +194,7 @@ export function recordTrace(raw: string): HarnessTrace | null {
 
 	const turned = turnedRecordSchema(value);
 	if (!(turned instanceof type.errors)) {
-		return { label: THINKING_TRACE, recordId: turned.uuid ?? THINKING_TRACE };
+		return { label: THINKING_TRACE, recordId: turned.uuid ?? THINKING_TRACE, ...recordSince(turned.timestamp) };
 	}
 
 	const record = traceRecordSchema(value);
@@ -192,7 +210,7 @@ export function recordTrace(raw: string): HarnessTrace | null {
 
 		const label = blockTrace(block);
 		if (label) {
-			return { label, recordId: record.uuid ?? label };
+			return { label, recordId: record.uuid ?? label, ...recordSince(record.timestamp) };
 		}
 	}
 

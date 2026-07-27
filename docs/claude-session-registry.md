@@ -33,6 +33,8 @@ Observed values: `permission prompt`, `dialog open`, `input needed`, `sandbox re
 
 ## `statusUpdatedAt` is an exact turn clock
 
-Measured on this machine: it lands 12ms after a prompt is submitted, and a status transition is written to disk 70–90ms after it happens. That is two to three orders of magnitude tighter than the transcript's visibility lag (see `agent-trace.md`), which is why the session card's elapsed clock is keyed to it and not to anything transcript-derived.
+Measured on this machine: it lands 12ms after a prompt is submitted, and a status transition is written to disk 70–90ms after it happens. That is two to three orders of magnitude tighter than the transcript's visibility lag (see `agent-trace.md`), which is why every question about the *turn* is keyed to it: when the residency grace starts counting, and how long a card has said "Done" or "Needs permission".
 
-It restarts on every status edge, including `busy → shell → busy`. A clock keyed straight to it would reset to "0s" each time an agent ran a command mid-turn. `clockSince` in `src/main/activity/AgentActivity.ts` therefore holds the stamp it already had while the *card's* state is unchanged, and only adopts a new one when the card's state actually changes — so the number answers "how long has this card said this", which is what a reader of the card is asking.
+It restarts on every status edge, including `busy → shell → busy`. A clock keyed straight to it would reset to "0s" each time an agent ran a command mid-turn. `clockSince` in `src/main/activity/AgentActivity.ts` therefore holds the stamp it already had while the *card's* state is unchanged, and only adopts a new one when the card's state actually changes — so the number answers "how long has this card been in this state".
+
+What it cannot answer is how long the agent has been doing the thing the trace names, because a turn holds many traces. Keying the card's elapsed clock to it printed `Thinking · 1m` over a thought that was six seconds old. That number now comes from the trace itself — see `agent-trace.md`.

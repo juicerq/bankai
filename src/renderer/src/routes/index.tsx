@@ -167,9 +167,17 @@ function Bankai() {
 				projects: availableProjects,
 				shellActivity: activity.shells,
 				traces: activity.traces,
+				traceSince: activity.traceSince,
 				statusSince: activity.statusSince,
 			}),
-		[continuity.restored, availableProjects, activity.shells, activity.traces, activity.statusSince],
+		[
+			continuity.restored,
+			availableProjects,
+			activity.shells,
+			activity.traces,
+			activity.traceSince,
+			activity.statusSince,
+		],
 	);
 	const sessions = useSessionList(rows, Date.now());
 	const selectedShellId = activeProjectId ? commands.byProject[activeProjectId] : undefined;

@@ -23,7 +23,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		archivedAt: undefined,
 		activity: undefined,
 		trace: undefined,
-		statusSince: undefined,
+		traceSince: undefined,
 		...patch,
 	};
 }
@@ -133,14 +133,24 @@ test("the output line takes the trace slot while the agent is running", () => {
 	expect(trace.className).toContain("text-tertiary");
 });
 
-test("a running session says how long it has been in that state", () => {
+test("a running session says how long it has been doing the thing the trace names", () => {
 	renderSidebar({
 		open: [
-			row("s1", { activity: "working", trace: "Thinking", statusSince: Date.now() - 74_000 }),
+			row("s1", { activity: "working", trace: "Thinking", traceSince: Date.now() - 74_000 }),
 		],
 	});
 
 	expect(slot(sessionRow("s1"), "session-elapsed").textContent).toContain("1m");
+});
+
+test("a trace stamped ahead of the clock reads as zero, never as a negative", () => {
+	renderSidebar({
+		open: [
+			row("s1", { activity: "working", trace: "Thinking", traceSince: Date.now() + 5000 }),
+		],
+	});
+
+	expect(slot(sessionRow("s1"), "session-elapsed").textContent).toContain("0s");
 });
 
 test("a session the harness gave no clock for shows the verb alone", () => {

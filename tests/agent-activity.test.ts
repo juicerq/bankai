@@ -8,10 +8,12 @@ import {
 	nextShellActivity,
 	nextShellWorktrees,
 	sessionTraces,
+	type ShellTrace,
 	snapshotsByProject,
 	turnBaselineShells,
 	turnStartShells,
 } from "@main/activity/AgentActivity";
+import type { HarnessTrace } from "@main/activity/Harness";
 import { ClaudeHarness, parseSessionRecord, WAITING_TRACE_FALLBACK } from "@main/activity/claude";
 import { COMPACTION_TRACE, matchesCompactionNotice } from "@main/activity/compaction";
 import { procFs } from "@main/activity/procFs";
@@ -252,6 +254,7 @@ describe("project snapshots", () => {
 			shells: { "shell-a": "working", "shell-b": "needs-attention" },
 			worktreeByShellId: {},
 			traceByShellId: {},
+			traceSinceByShellId: {},
 			statusSinceByShellId: {},
 		});
 	});
@@ -270,6 +273,7 @@ describe("project snapshots", () => {
 			shells: { "shell-c": "done-unseen" },
 			worktreeByShellId: {},
 			traceByShellId: {},
+			traceSinceByShellId: {},
 			statusSinceByShellId: {},
 		});
 	});
@@ -300,6 +304,7 @@ describe("project snapshots", () => {
 			shells: { "shell-a": "working" },
 			worktreeByShellId: { "shell-a": "/tmp/repo-slug" },
 			traceByShellId: {},
+			traceSinceByShellId: {},
 			statusSinceByShellId: {},
 		});
 	});
@@ -329,6 +334,7 @@ describe("project snapshots", () => {
 			shells: {},
 			worktreeByShellId: { "shell-c": "/tmp/repo-slug" },
 			traceByShellId: {},
+			traceSinceByShellId: {},
 			statusSinceByShellId: {},
 		});
 	});
@@ -338,11 +344,29 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map(),
-			traces: new Map([["shell-a", "Running bun run check"], ["shell-b", "vite ready in 412 ms"]]),
+			traces: new Map([
+				["shell-a", { label: "Running bun run check" }],
+				["shell-b", { label: "vite ready in 412 ms" }],
+			]),
 			statusSince: new Map(),
 		});
 
 		expect(snapshots.get("p1")?.traceByShellId).toEqual({ "shell-a": "Running bun run check" });
+	});
+
+	test("the moment the trace became true rides along beside its label", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: states({ "session-a": "working" }),
+			owners,
+			worktrees: new Map(),
+			traces: new Map([
+				["shell-a", { label: "Thinking", since: 1784901075701 }],
+				["shell-b", { label: "Thinking", since: 1784901169072 }],
+			]),
+			statusSince: new Map(),
+		});
+
+		expect(snapshots.get("p1")?.traceSinceByShellId).toEqual({ "shell-a": 1784901075701 });
 	});
 
 	test("the moment the status changed rides along for a shell that has activity", () => {
@@ -357,50 +381,130 @@ describe("project snapshots", () => {
 		expect(snapshots.get("p1")?.statusSinceByShellId).toEqual({ "shell-a": 1784901075701 });
 	});
 
+	test("no bound shells means no snapshots at all", () => {
+		expect(snapshotsByProject({ shellStates: new Map(), owners, worktrees: new Map(), traces: new Map(), statusSince: new Map() }).size).toBe(0);
+	});
+});
+
+describe("what a card says and since when", () => {
+	const TICK = 1784901180000;
+
+	function traced(input: {
+		compacting?: string[];
+		harnessTraces?: [string, HarnessTrace][];
+		waitingFor?: [string, string][];
+		statusSince?: [string, number][];
+		outputLines?: [string, string][];
+		agentShells?: string[];
+		held?: [string, ShellTrace][];
+		now?: number;
+	}) {
+		return sessionTraces({
+			compacting: new Set(input.compacting ?? []),
+			harnessTraces: new Map(input.harnessTraces ?? []),
+			waitingFor: new Map(input.waitingFor ?? []),
+			statusSince: new Map(input.statusSince ?? []),
+			outputLines: new Map(input.outputLines ?? []),
+			agentShells: new Set(input.agentShells ?? []),
+			held: new Map(input.held ?? []),
+			now: input.now ?? TICK,
+		});
+	}
+
 	test("a shell with an agent in it never shows its own output line", () => {
-		const traces = sessionTraces({
-			compacting: new Set(),
-			harnessTraces: new Map([["shell-a", { label: "Running commands", recordId: "uuid-1" }]]),
-			waitingFor: new Map(),
-			outputLines: new Map([["shell-a", "-7"], ["shell-b", "vite ready in 412 ms"], ["shell-c", "5"]]),
-			agentShells: new Set(["shell-a", "shell-c"]),
+		const traces = traced({
+			harnessTraces: [["shell-a", { label: "Running commands", recordId: "uuid-1" }]],
+			outputLines: [["shell-a", "-7"], ["shell-b", "vite ready in 412 ms"], ["shell-c", "5"]],
+			agentShells: ["shell-a", "shell-c"],
 		});
 
-		expect(traces.get("shell-a")).toBe("Running commands");
-		expect(traces.get("shell-b")).toBe("vite ready in 412 ms");
+		expect(traces.get("shell-a")?.label).toBe("Running commands");
+		expect(traces.get("shell-b")?.label).toBe("vite ready in 412 ms");
 		expect(traces.has("shell-c")).toBe(false);
 	});
 
 	test("a waiting reason wins over the transcript, which still names the last finished block", () => {
-		const traces = sessionTraces({
-			compacting: new Set(),
-			harnessTraces: new Map([["shell-a", { label: "Running commands", recordId: "uuid-1" }]]),
-			waitingFor: new Map([["shell-a", "Needs permission"]]),
-			outputLines: new Map(),
-			agentShells: new Set(["shell-a"]),
+		const traces = traced({
+			harnessTraces: [["shell-a", { label: "Running commands", recordId: "uuid-1" }]],
+			waitingFor: [["shell-a", "Needs permission"]],
+			agentShells: ["shell-a"],
 		});
 
-		expect(traces.get("shell-a")).toBe("Needs permission");
+		expect(traces.get("shell-a")?.label).toBe("Needs permission");
 	});
 
 	test("compacting wins over the transcript, which is frozen while it runs", () => {
-		const traces = sessionTraces({
-			compacting: new Set(["shell-a"]),
-			harnessTraces: new Map([
+		const traces = traced({
+			compacting: ["shell-a"],
+			harnessTraces: [
 				["shell-a", { label: "Running commands", recordId: "uuid-1" }],
 				["shell-b", { label: "Thinking", recordId: "uuid-2" }],
-			]),
-			waitingFor: new Map(),
-			outputLines: new Map([["shell-a", "-7"]]),
-			agentShells: new Set(["shell-a", "shell-b"]),
+			],
+			outputLines: [["shell-a", "-7"]],
+			agentShells: ["shell-a", "shell-b"],
 		});
 
-		expect(traces.get("shell-a")).toBe(COMPACTION_TRACE);
-		expect(traces.get("shell-b")).toBe("Thinking");
+		expect(traces.get("shell-a")?.label).toBe(COMPACTION_TRACE);
+		expect(traces.get("shell-b")?.label).toBe("Thinking");
 	});
 
-	test("no bound shells means no snapshots at all", () => {
-		expect(snapshotsByProject({ shellStates: new Map(), owners, worktrees: new Map(), traces: new Map(), statusSince: new Map() }).size).toBe(0);
+	test("a label seen for the first time counts from the record that produced it", () => {
+		const traces = traced({
+			harnessTraces: [["shell-a", { label: "Thinking", recordId: "uuid-1", since: TICK - 4000 }]],
+			agentShells: ["shell-a"],
+		});
+
+		expect(traces.get("shell-a")).toEqual({ label: "Thinking", since: TICK - 4000 });
+	});
+
+	test("a record with no timestamp counts from the tick that observed it", () => {
+		const traces = traced({
+			harnessTraces: [["shell-a", { label: "Thinking", recordId: "uuid-1" }]],
+			agentShells: ["shell-a"],
+		});
+
+		expect(traces.get("shell-a")).toEqual({ label: "Thinking", since: TICK });
+	});
+
+	test("a new record carrying the same label does not restart the count", () => {
+		const traces = traced({
+			harnessTraces: [["shell-a", { label: "Thinking", recordId: "uuid-2", since: TICK - 1000 }]],
+			agentShells: ["shell-a"],
+			held: [["shell-a", { label: "Thinking", since: TICK - 44_000 }]],
+		});
+
+		expect(traces.get("shell-a")).toEqual({ label: "Thinking", since: TICK - 44_000 });
+	});
+
+	test("a label that changed adopts its own record's moment", () => {
+		const traces = traced({
+			harnessTraces: [["shell-a", { label: "Editing claudeTrace.ts", recordId: "uuid-3", since: TICK - 3000 }]],
+			agentShells: ["shell-a"],
+			held: [["shell-a", { label: "Thinking", since: TICK - 44_000 }]],
+		});
+
+		expect(traces.get("shell-a")).toEqual({ label: "Editing claudeTrace.ts", since: TICK - 3000 });
+	});
+
+	test("a session waiting on you counts from the moment it started waiting", () => {
+		const traces = traced({
+			harnessTraces: [["shell-a", { label: "Running commands", recordId: "uuid-1", since: TICK - 9000 }]],
+			waitingFor: [["shell-a", "Needs permission"]],
+			statusSince: [["shell-a", TICK - 2000]],
+			agentShells: ["shell-a"],
+		});
+
+		expect(traces.get("shell-a")).toEqual({ label: "Needs permission", since: TICK - 2000 });
+	});
+
+	test("compacting has no record behind it and counts from the tick that noticed", () => {
+		const traces = traced({
+			compacting: ["shell-a"],
+			harnessTraces: [["shell-a", { label: "Running commands", recordId: "uuid-1", since: TICK - 90_000 }]],
+			agentShells: ["shell-a"],
+		});
+
+		expect(traces.get("shell-a")).toEqual({ label: COMPACTION_TRACE, since: TICK });
 	});
 });
 

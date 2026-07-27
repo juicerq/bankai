@@ -27,7 +27,23 @@ A pasted image writes an `attachment` record that can exceed the whole 64KB wind
 
 A record is written when its block **completes**. There is no record for "a block is being produced". So while the agent thinks, the newest record is whatever finished before it — which is why a card built only from the transcript said "Writing" for the whole of a thinking phase: the last thing written was the previous turn's reply. Reading `user` records closes that particular hole, but the structure remains: the transcript can only ever name a finished block.
 
-It is also late. Measured on this machine, a record becomes visible on disk after its own timestamp by 0.24s at p50, consistently 3.2–3.3s for an `assistant` record whose block is a `tool_use`, and 8.09s at the worst sample. So a trace is not a clock and must never be used as one — see `claude-session-registry.md` for the source that is.
+It is also late. Measured on this machine, a record becomes visible on disk after its own timestamp by 0.24s at p50, consistently 3.2–3.3s for an `assistant` record whose block is a `tool_use`, and 8.09s at the worst sample. So the moment bankai *reads* a record says nothing about when the agent did it; only the record's own `timestamp` does. For the live state of the session — is it alive, is it waiting — the registry is the source, not this file: see `claude-session-registry.md`.
+
+## The number beside the label counts from the record that produced the label
+
+`recordTrace` carries the record's own `timestamp` out as `since`, and `sessionTraces` in `src/main/activity/AgentActivity.ts` anchors the card's elapsed clock to it. Anchoring on the observation instead would hide the whole read delay above: a `tool_use` seen 3s late would render `0s` and count from there.
+
+The anchor moves when the **label** changes, never when the record does. The same label legitimately spans several records — `Thinking` is produced first by the `tool_result` record and then by the `thinking` block written after it — and restarting on each one understated one measured thought by 43s. The cost is that two consecutive `Bash` calls with no readable subject both read `Running commands` and count as one span; that is the intended reading, since the label is what the number measures.
+
+Three labels have no record behind them and keep their own anchor: a waiting reason counts from the registry's status edge, `Compacting` from the tick that scraped the notice, and `Done` from the end of the turn (`sessionSince` in `session-rows.ts` picks the status stamp for `done-unseen`). A record whose timestamp is missing or unparseable still yields a trace and falls back to the observing tick — no record on this machine has ever needed it, across 38509 sampled.
+
+## "Thinking" is the label for a block being streamed, not only for a thinking block
+
+Because a record lands when its block finishes, the whole time the model spends *streaming* the next `tool_use` is time whose newest record is still the previous `tool_result` — and that reads as "Thinking". Measured over 120 recent transcripts, 9520 such spans totalling 74738s: 59% of that time the next record really is a `thinking` block, 11% the turn was already over and the session idle, and ~24% the model was composing a tool call. That last slice is short at the median — `Bash` 2.5s, `Edit` 3.9s, `Read` 1.8s — and only bites on a large `Write` (p50 8.7s, p90 19.2s) or a long batch. A rule reading the transcript alone cannot shrink it; only a source that leads the log can, and the harness spinner is the candidate: it carries a `thinking with high effort` suffix while a thinking block streams and drops it otherwise.
+
+## A parallel tool batch reaches the transcript fully serialized
+
+The model emits N `tool_use` blocks in one message and the tools run concurrently, but the file gets `tool_use A, tool_result A, tool_use B, tool_result B, …` — one result per `user` record, never two, verified over 9706 result records. Every parallel batch on this machine writes in that shape. So the transcript never shows "A returned while B is still running": there is no outstanding-tool state to read out of it, and a rule that tries to track unresolved `tool_use` ids to correct the label finds nothing to correct.
 
 ## The transcript goes silent for the whole of a compaction
 

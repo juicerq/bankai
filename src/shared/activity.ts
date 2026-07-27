@@ -23,6 +23,7 @@ export interface ProjectActivitySnapshot {
 	shells: Record<string, AgentActivityState>;
 	worktreeByShellId: Record<string, string>;
 	traceByShellId: Record<string, string>;
+	traceSinceByShellId: Record<string, number>;
 	statusSinceByShellId: Record<string, number>;
 }
 

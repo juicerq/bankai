@@ -213,7 +213,7 @@ function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGest
 				}`}
 			>
 				<span className="min-w-0 truncate">{row.trace ?? row.branch}</span>
-				{row.activity && row.statusSince ? <ElapsedClock since={row.statusSince} /> : null}
+				{row.activity && row.traceSince ? <ElapsedClock since={row.traceSince} /> : null}
 			</span>
 		</SessionEntry>
 	);

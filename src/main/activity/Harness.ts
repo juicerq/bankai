@@ -17,6 +17,7 @@ export interface HarnessCommand {
 export interface HarnessTrace {
 	label: string;
 	recordId: string;
+	since?: number;
 }
 
 export interface Harness {

@@ -6,6 +6,7 @@ import {
 	partitionSessions,
 	type SessionRow,
 	sessionRows,
+	sessionSince,
 	sessionTrace,
 	successorRow,
 } from "@renderer/routes/-utils/session-rows";
@@ -27,6 +28,7 @@ function rowsOf(
 		projects: PROJECTS,
 		shellActivity: new Map(Object.entries(activity)),
 		traces: new Map(Object.entries(traces)),
+		traceSince: new Map(),
 		statusSince: new Map(),
 	});
 }
@@ -204,7 +206,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		archivedAt: undefined,
 		activity: undefined,
 		trace: undefined,
-		statusSince: undefined,
+		traceSince: undefined,
 		...patch,
 	};
 }
@@ -317,5 +319,27 @@ describe("choosing what the trace slot says", () => {
 
 	test("a working shell with nothing observed falls through", () => {
 		expect(sessionTrace("working")).toBeUndefined();
+	});
+});
+
+describe("choosing what the clock beside the trace counts from", () => {
+	test("a working agent counts from the trace, not from the turn it opened", () => {
+		expect(sessionSince({ activity: "working", traceSince: NOW - 6000, statusSince: NOW - 93_000 }))
+			.toBe(NOW - 6000);
+	});
+
+	test("a finished agent counts from the end of its turn", () => {
+		expect(sessionSince({ activity: "done-unseen", traceSince: NOW - 6000, statusSince: NOW - 1000 }))
+			.toBe(NOW - 1000);
+	});
+
+	test("a trace with no moment of its own falls back to the harness clock", () => {
+		expect(sessionSince({ activity: "working", traceSince: undefined, statusSince: NOW - 93_000 }))
+			.toBe(NOW - 93_000);
+	});
+
+	test("no activity means no clock", () => {
+		expect(sessionSince({ activity: undefined, traceSince: NOW - 6000, statusSince: NOW - 93_000 }))
+			.toBeUndefined();
 	});
 });

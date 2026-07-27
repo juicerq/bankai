@@ -221,30 +221,52 @@ function shellOwners(shells: { sessionId: string; projectId: string; shellId: st
 	);
 }
 
+export interface ShellTrace {
+	label: string;
+	since?: number;
+}
+
+function anchored(held: ShellTrace | undefined, next: ShellTrace): ShellTrace {
+	if (held?.label !== next.label || held.since === undefined) {
+		return next;
+	}
+
+	return { label: next.label, since: held.since };
+}
+
 export function sessionTraces(input: {
 	compacting: ReadonlySet<string>;
 	harnessTraces: ReadonlyMap<string, HarnessTrace>;
 	waitingFor: ReadonlyMap<string, string>;
+	statusSince: ReadonlyMap<string, number>;
 	outputLines: ReadonlyMap<string, string>;
 	agentShells: ReadonlySet<string>;
-}): Map<string, string> {
-	const traces = new Map<string, string>();
+	held: ReadonlyMap<string, ShellTrace>;
+	now: number;
+}): Map<string, ShellTrace> {
+	const traces = new Map<string, ShellTrace>();
 	for (const [shellId, line] of input.outputLines) {
 		if (!input.agentShells.has(shellId)) {
-			traces.set(shellId, line);
+			traces.set(shellId, { label: line });
 		}
 	}
 	for (const [shellId, trace] of input.harnessTraces) {
-		traces.set(shellId, trace.label);
+		traces.set(shellId, { label: trace.label, since: trace.since ?? input.now });
 	}
 	for (const [shellId, reason] of input.waitingFor) {
-		traces.set(shellId, reason);
+		const since = input.statusSince.get(shellId);
+		traces.set(shellId, { label: reason, ...(since !== undefined && { since }) });
 	}
 	for (const shellId of input.compacting) {
-		traces.set(shellId, COMPACTION_TRACE);
+		traces.set(shellId, { label: COMPACTION_TRACE, since: input.now });
 	}
 
-	return traces;
+	const anchoredTraces = new Map<string, ShellTrace>();
+	for (const [shellId, trace] of traces) {
+		anchoredTraces.set(shellId, anchored(input.held.get(shellId), trace));
+	}
+
+	return anchoredTraces;
 }
 
 export function snapshotsByProject({
@@ -257,7 +279,7 @@ export function snapshotsByProject({
 	shellStates: Map<string, AgentActivityState>;
 	owners: Map<string, ShellOwner>;
 	worktrees: Map<string, string>;
-	traces: ReadonlyMap<string, string>;
+	traces: ReadonlyMap<string, ShellTrace>;
 	statusSince: ReadonlyMap<string, number>;
 }): Map<string, ProjectActivitySnapshot> {
 	const projectIds = new Set<string>();
@@ -291,11 +313,15 @@ export function snapshotsByProject({
 	for (const projectId of projectIds) {
 		const shells = shellsByProject.get(projectId) ?? {};
 		const traceByShellId: Record<string, string> = {};
+		const traceSinceByShellId: Record<string, number> = {};
 		const statusSinceByShellId: Record<string, number> = {};
 		for (const shellId of Object.keys(shells)) {
 			const trace = traces.get(shellId);
 			if (trace) {
-				traceByShellId[shellId] = trace;
+				traceByShellId[shellId] = trace.label;
+			}
+			if (trace?.since) {
+				traceSinceByShellId[shellId] = trace.since;
 			}
 
 			const since = statusSince.get(shellId);
@@ -308,6 +334,7 @@ export function snapshotsByProject({
 			shells,
 			worktreeByShellId: worktreesByProject.get(projectId) ?? {},
 			traceByShellId,
+			traceSinceByShellId,
 			statusSinceByShellId,
 		});
 	}
@@ -337,12 +364,15 @@ function sameSnapshot(
 	if (!sameRecord(before?.statusSinceByShellId ?? {}, after?.statusSinceByShellId ?? {})) {
 		return false;
 	}
+	if (!sameRecord(before?.traceSinceByShellId ?? {}, after?.traceSinceByShellId ?? {})) {
+		return false;
+	}
 
 	return sameRecord(before?.traceByShellId ?? {}, after?.traceByShellId ?? {});
 }
 
 function emptySnapshot(): ProjectActivitySnapshot {
-	return { shells: {}, worktreeByShellId: {}, traceByShellId: {}, statusSinceByShellId: {} };
+	return { shells: {}, worktreeByShellId: {}, traceByShellId: {}, traceSinceByShellId: {}, statusSinceByShellId: {} };
 }
 
 type ActivityListener = (snapshot: ProjectActivitySnapshot) => void;
@@ -358,6 +388,7 @@ class AgentActivityTracker {
 	private sessionRefs = new Map<string, SessionRef>();
 	private shellWorktrees = new Map<string, string>();
 	private harnessTraces = new Map<string, HarnessTrace>();
+	private traces = new Map<string, ShellTrace>();
 	private waitingFor = new Map<string, string>();
 	private statusSince = new Map<string, number>();
 	private agentCwds = new Map<string, string>();
@@ -656,22 +687,21 @@ class AgentActivityTracker {
 		const previousStates = this.shellStates;
 		const previousWorktrees = this.shellWorktrees;
 		const previous = this.projectSnapshots;
-		const nextSnapshots = snapshotsByProject({
-			shellStates,
-			owners,
-			worktrees,
-			traces: sessionTraces({
-				compacting: new Set(this.compacting.keys()),
-				harnessTraces,
-				waitingFor,
-				outputLines: shellOutputLines,
-				agentShells: this.agentShells(owners),
-			}),
+		const traces = sessionTraces({
+			compacting: new Set(this.compacting.keys()),
+			harnessTraces,
+			waitingFor,
 			statusSince,
+			outputLines: shellOutputLines,
+			agentShells: this.agentShells(owners),
+			held: this.traces,
+			now: Date.now(),
 		});
+		const nextSnapshots = snapshotsByProject({ shellStates, owners, worktrees, traces, statusSince });
 		this.shellStates = shellStates;
 		this.shellWorktrees = worktrees;
 		this.harnessTraces = harnessTraces;
+		this.traces = traces;
 		this.waitingFor = waitingFor;
 		this.statusSince = statusSince;
 		this.projectSnapshots = nextSnapshots;

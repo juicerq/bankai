@@ -7,10 +7,15 @@ import { transcriptPath } from "@main/activity/claudeTranscript";
 
 let records = 0;
 
-function assistantRecord(content: unknown[]): string {
+function assistantRecord(content: unknown[], timestamp?: string): string {
 	records += 1;
 
-	return JSON.stringify({ type: "assistant", uuid: `uuid-${records}`, message: { content } });
+	return JSON.stringify({
+		type: "assistant",
+		uuid: `uuid-${records}`,
+		...(timestamp !== undefined && { timestamp }),
+		message: { content },
+	});
 }
 
 function toolUse(name: string, input?: Record<string, unknown>): string {
@@ -101,6 +106,24 @@ describe("recordTrace", () => {
 		expect(recordTrace(JSON.stringify({ type: "assistant", message: { content: [{ type: "text" }] } }))).toEqual({
 			label: "Writing",
 			recordId: "Writing",
+		});
+	});
+
+	it("carries the moment the record it read was written", () => {
+		const written = "2026-07-27T14:22:31.907Z";
+
+		expect(recordTrace(assistantRecord([{ type: "tool_use", name: "Bash" }], written))?.since)
+			.toBe(Date.parse(written));
+		expect(
+			recordTrace(JSON.stringify({ type: "user", uuid: "u-1", timestamp: written, message: { content: [] } }))?.since,
+		).toBe(Date.parse(written));
+	});
+
+	it("still names the agent when the record's moment is missing or unreadable", () => {
+		expect(recordTrace(assistantRecord([{ type: "thinking", thinking: "hmm" }]))?.since).toBeUndefined();
+		expect(recordTrace(assistantRecord([{ type: "thinking", thinking: "hmm" }], "ontem à tarde"))).toEqual({
+			label: "Thinking",
+			recordId: expect.stringMatching(/^uuid-\d+$/),
 		});
 	});
 

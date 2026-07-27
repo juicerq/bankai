@@ -131,7 +131,7 @@ const BLOCK_TRACE: Record<string, string> = {
 	text: "Writing",
 };
 
-const THINKING_TRACE = "Thinking";
+export const THINKING_TRACE = "Thinking";
 
 const traceRecordSchema = type({
 	type: "'assistant'",
@@ -161,7 +161,7 @@ const traceBlockSchema = type({
 	"input?": "Record<string, unknown>",
 });
 
-function toolTrace(name: string, input: Record<string, unknown> | undefined): string {
+export function toolTrace(name: string, input: Record<string, unknown> | undefined): string {
 	const bare = name.split("__").at(-1) ?? name;
 	const family = bare.toLowerCase();
 	const subject = input && toolSubject(family, input);

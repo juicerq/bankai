@@ -1,9 +1,9 @@
 import { readFile, readdir } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { type } from "arktype";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/activity/Harness";
-import { transcriptTrace } from "@main/activity/claudeTrace";
+import { claudeConfigDir } from "@main/activity/claudeConfig";
+import { claudeTrace } from "@main/activity/claudeTraceSource";
 import { transcriptTitle } from "@main/activity/claudeTranscript";
 
 const CLAUDE_HARNESS_ID = "claude";
@@ -71,8 +71,7 @@ export function parseSessionRecord(raw: string): AgentPresence | null {
 }
 
 function sessionsDirectory(): string {
-	const config = process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude");
-	return join(config, "sessions");
+	return join(claudeConfigDir(), "sessions");
 }
 
 export const ClaudeHarness: Harness = {
@@ -89,7 +88,7 @@ export const ClaudeHarness: Harness = {
 		return { file: "claude", args: ["--resume", ref.sessionId] };
 	},
 	title: transcriptTitle,
-	trace: transcriptTrace,
+	trace: claudeTrace,
 	async discover() {
 		const directory = sessionsDirectory();
 		const files = await readdir(directory).catch((): string[] => []);

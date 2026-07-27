@@ -15,7 +15,8 @@ import {
 import { ClaudeHarness, parseSessionRecord, WAITING_TRACE_FALLBACK } from "@main/activity/claude";
 import { COMPACTION_TRACE, matchesCompactionNotice } from "@main/activity/compaction";
 import { procFs } from "@main/activity/procFs";
-import { bindShells, childrenByParent, type ChildrenOf } from "@main/activity/SessionBinder";
+import { bindShells, type ParentOf } from "@main/activity/SessionBinder";
+import { shellArgs } from "@main/terminal/commandLine";
 import { aggregateActivity, type AgentActivityState } from "@shared/activity";
 
 const BUSY_RECORD =
@@ -400,112 +401,111 @@ describe("project snapshots", () => {
 });
 
 describe("shell to agent binding", () => {
-	function tree(edges: [number, number[]][] = []): ChildrenOf {
-		const children = new Map(edges);
+	function chain(edges: [number, number][] = []): ParentOf {
+		const parents = new Map(edges);
 
-		return (pid) => Promise.resolve(children.get(pid) ?? []);
+		return (pid) => Promise.resolve(parents.get(pid) ?? null);
 	}
 
-	test("binds a shell whose foreground group is the live agent pid", async () => {
+	test("binds an agent the shell launched itself", async () => {
 		const bindings = await bindShells(
-			[{ sessionId: "shell-a", pid: 100, foreground: 200 }],
-			new Set([200]),
-			tree(),
+			[{ sessionId: "shell-a", pid: 100 }],
+			[200],
+			chain([[200, 100]]),
 		);
 		expect(bindings.get("shell-a")).toBe(200);
 	});
 
-	test("walks the process tree to reach an agent below the foreground group", async () => {
+	test("binds an agent sitting further down the shell's tree", async () => {
 		const bindings = await bindShells(
-			[{ sessionId: "shell-a", pid: 100, foreground: 200 }],
-			new Set([300]),
-			tree([[200, [250]], [250, [300]]]),
+			[{ sessionId: "shell-a", pid: 100 }],
+			[300],
+			chain([[300, 250], [250, 100]]),
 		);
 		expect(bindings.get("shell-a")).toBe(300);
 	});
 
-	test("binds a directly spawned agent that leads its own tty session", async () => {
+	test("does not bind a shell with no agent under it, nor an agent outside every shell", async () => {
 		const bindings = await bindShells(
-			[{ sessionId: "shell-a", pid: 100, foreground: 100 }],
-			new Set([100]),
-			tree(),
-		);
-		expect(bindings.get("shell-a")).toBe(100);
-	});
-
-	test("does not bind a shell sitting at its own prompt or with a dead agent", async () => {
-		const bindings = await bindShells(
-			[
-				{ sessionId: "prompt", pid: 100, foreground: 100 },
-				{ sessionId: "no-tty", pid: 101, foreground: null },
-				{ sessionId: "no-agent", pid: 102, foreground: 500 },
-			],
-			new Set([300]),
-			tree(),
+			[{ sessionId: "empty", pid: 100 }],
+			[300],
+			chain([[300, 900], [900, 1]]),
 		);
 		expect(bindings.size).toBe(0);
 	});
 
-	test("stops walking a process tree that cycles back on itself", async () => {
+	test("prefers the agent nearest the shell over one nested below it", async () => {
 		const bindings = await bindShells(
-			[{ sessionId: "shell-a", pid: 100, foreground: 200 }],
-			new Set([999]),
-			tree([[200, [250]], [250, [200, 250]]]),
+			[{ sessionId: "shell-a", pid: 100 }],
+			[400, 200],
+			chain([[200, 100], [400, 300], [300, 200]]),
+		);
+		expect(bindings.get("shell-a")).toBe(200);
+	});
+
+	test("gives each shell the agent under it", async () => {
+		const bindings = await bindShells(
+			[{ sessionId: "shell-a", pid: 100 }, { sessionId: "shell-b", pid: 101 }],
+			[200, 201],
+			chain([[200, 100], [201, 101]]),
+		);
+		expect(bindings).toEqual(new Map([["shell-a", 200], ["shell-b", 201]]));
+	});
+
+	test("stops walking a parent chain that cycles back on itself", async () => {
+		const bindings = await bindShells(
+			[{ sessionId: "shell-a", pid: 100 }],
+			[200],
+			chain([[200, 250], [250, 200]]),
 		);
 		expect(bindings.size).toBe(0);
 	});
 
-	test("reaches an agent spawned from a sibling branch of the tree", async () => {
+	test("stops at init rather than binding pid 1", async () => {
 		const bindings = await bindShells(
-			[{ sessionId: "shell-a", pid: 100, foreground: 200 }],
-			new Set([400]),
-			tree([[200, [250, 260]], [260, [400]]]),
+			[{ sessionId: "init", pid: 1 }],
+			[200],
+			chain([[200, 1]]),
 		);
-		expect(bindings.get("shell-a")).toBe(400);
+		expect(bindings.size).toBe(0);
 	});
 });
 
-describe.if(process.platform === "linux")("proc children traversal", () => {
-	test("reports the live child of a real process", async () => {
-		expect(await procFs.supportsChildren()).toBe(true);
+describe.if(process.platform === "linux")("binding against real processes", () => {
+	test("walks up from a live pid to the process that spawned it", async () => {
+		const parent = await procFs.parent(process.pid);
+		if (parent === null) {
+			throw new Error("this test process has no parent to bind to");
+		}
 
-		const parent = Bun.spawn(["sh", "-c", "sleep 30; true"], { stdout: "ignore", stderr: "ignore" });
+		const bindings = await bindShells([{ sessionId: "shell-a", pid: parent }], [process.pid], procFs.parent);
+		expect(bindings).toEqual(new Map([["shell-a", process.pid]]));
+	});
+
+	test("reports no parent for a pid that does not exist", async () => {
+		expect(await procFs.parent(0x7f_ff_ff_ff)).toBeNull();
+	});
+
+	test("binds a harness launched the way a pane launches it", async () => {
+		const shell = "/bin/sh";
+		const pane = Bun.spawn([shell, ...shellArgs(shell, "sleep 30")], {
+			stdin: "ignore",
+			stdout: "ignore",
+			stderr: "ignore",
+		});
 		try {
-			await Bun.sleep(150);
-			const children = await procFs.children(parent.pid);
-			expect(children.length).toBe(1);
-			expect(children[0]).toBeGreaterThan(0);
-			expect(children[0]).not.toBe(parent.pid);
+			await Bun.sleep(300);
+			const listed = await new Response(Bun.spawn(["pgrep", "-P", String(pane.pid)]).stdout).text();
+			const harness = Number(listed.trim().split("\n")[0]);
+			expect(harness).toBeGreaterThan(0);
+
+			const bindings = await bindShells([{ sessionId: "pane", pid: pane.pid }], [harness], procFs.parent);
+			expect(bindings).toEqual(new Map([["pane", harness]]));
 		} finally {
-			parent.kill();
-			await parent.exited;
+			Bun.spawnSync(["pkill", "-9", "-P", String(pane.pid)]);
+			pane.kill("SIGKILL");
+			await pane.exited;
 		}
-	});
-
-	test("agrees with the parent-pid walk on every live process", async () => {
-		const byParent = await childrenByParent();
-		expect(byParent.size).toBeGreaterThan(0);
-
-		const disagreements: { parent: number; missing: number }[] = [];
-		for (const [parent, expected] of byParent) {
-			if (parent <= 0) {
-				continue;
-			}
-
-			const reported = new Set(await procFs.children(parent));
-			for (const child of expected.filter((pid) => !reported.has(pid))) {
-				const stillAlive = (await procFs.parent(child)) === parent;
-				if (stillAlive) {
-					disagreements.push({ parent, missing: child });
-				}
-			}
-		}
-
-		expect(disagreements).toEqual([]);
-	});
-
-	test("reports no children for a pid that does not exist", async () => {
-		expect(await procFs.children(0x7f_ff_ff_ff)).toEqual([]);
 	});
 });
 

@@ -16,6 +16,8 @@ Nothing spawns `claude` as the PTY's root process any more. Two things follow fr
 - quitting the agent with Ctrl+C twice leaves the shell running, so the pane becomes a plain terminal instead of printing `[process exited 0]`
 - the command is resolved by the user's own interactive shell, so a `claude` installed by a version manager configured in `.zshrc` is found. Spawning it directly resolved against the Electron process env, which inherits from the desktop session and not from any rc file.
 
+The harness is a **child** of the pid `TerminalSessions` records, and it is in the shell's own process group — the shell starts it without job control, so the tty's foreground pgid is the shell's pid, not the harness's. Anything that identifies the agent from process state depends on the first fact and must not depend on the second; `agent-binding.md` records what that cost once.
+
 Arguments are quoted by `shellCommandLine` in `src/main/terminal/commandLine.ts`, and so is the shell path in the `exec`. Anything outside `[A-Za-z0-9_@%+=:,./-]` is single-quoted, because the shell parses this string and a bare `;` would be syntax.
 
 ## Do not type the command into the PTY — the tty echoes it twice

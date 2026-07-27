@@ -1,7 +1,7 @@
 ---
 title: What the Claude session registry publishes about a live session
 tags: [activity]
-updated_at: 2026-07-26
+updated_at: 2026-07-27
 created_at: 2026-07-26
 ---
 
@@ -10,6 +10,14 @@ created_at: 2026-07-26
 Claude Code writes `~/.claude/sessions/<pid>.json` for each running session and rewrites it whenever the session's state changes. It is the only live-state source the harness exposes passively; everything else bankai reads (the transcript, the PTY) is a log of what already finished.
 
 `src/main/activity/claude.ts` is the boundary that normalizes it. The fields that carry anything on a real interactive session are `pid`, `sessionId`, `cwd`, `procStart`, `status`, `statusUpdatedAt` and `waitingFor`. `state`, `detail`, `tempo`, `jobId` and `agent` were null in all 11 live interactive session files sampled on this machine — do not build on them.
+
+## A headless run publishes a file too, and it says `interactive`
+
+`claude -p` writes its own `<pid>.json`. Measured on version 2.1.220: `kind` is `"interactive"` there as well, so `kind` cannot tell a real session from a headless one — `entrypoint` can (`"cli"` against `"sdk-cli"`), and nothing in bankai filters on it, because an unversioned enum that silently gains a value would cost every session rather than one.
+
+What that record does **not** carry is `status`. `presenceStatus` maps a missing status to `idle`, so a headless run bound to a pane would read as a finished turn. The defence is in the binder, not here: the nearest agent to the shell wins, and a headless run spawned by an agent's Bash tool is always further away. See `agent-binding.md`.
+
+The file disappears when the process exits, and a file left behind by a killed process is caught by the `procStart` check in `AgentActivity`.
 
 ## The status vocabulary is four words
 

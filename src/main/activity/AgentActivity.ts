@@ -1,6 +1,6 @@
 import { COMPACTION_SCAN_WINDOW, COMPACTION_TRACE, matchesCompactionNotice } from "@main/activity/compaction";
 import type { AgentPresence, HarnessTrace } from "@main/activity/Harness";
-import { bindShells, childrenReader, type ChildrenOf } from "@main/activity/SessionBinder";
+import { bindShells } from "@main/activity/SessionBinder";
 import { discoverAgents, harnessTrace } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
 import { reconcileSessionRefs, type SessionRef } from "@main/activity/SessionRefs";
@@ -20,8 +20,6 @@ import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activi
 const ACTIVITY_POLL_MS = 1500;
 
 const OUTPUT_TAIL = 64;
-
-const childless: ChildrenOf = () => Promise.resolve([]);
 
 type BoundStatus = "working" | "waiting" | "idle";
 
@@ -466,18 +464,7 @@ class AgentActivityTracker {
 				liveByPid.set(presence.pid, presence);
 			}
 		}));
-		const livePids = new Set(liveByPid.keys());
-
-		const foregrounds = await Promise.all(shells.map(async (shell) => ({
-			sessionId: shell.sessionId,
-			pid: shell.pid,
-			foreground: await procFs.foreground(shell.pid),
-		})));
-		const needsWalk = foregrounds.some(
-			(shell) => shell.foreground !== null && shell.foreground !== shell.pid && !livePids.has(shell.foreground),
-		);
-		const childrenOf: ChildrenOf = needsWalk ? await childrenReader() : childless;
-		const bindings = await bindShells(foregrounds, livePids, childrenOf);
+		const bindings = await bindShells(shells, liveByPid.keys(), procFs.parent);
 		this.boundSessions = new Set(bindings.keys());
 		this.pruneScans(owners);
 

@@ -1,3 +1,4 @@
+import { useCallback, useRef, useState } from "react";
 import { PairingQr } from "@renderer/routes/-components/pairing-qr";
 import { Setting } from "@renderer/routes/-components/settings-controls";
 import { useMobileAccess } from "@renderer/routes/-utils/use-mobile-access";
@@ -42,9 +43,27 @@ export function MobileAccessSetting() {
 }
 
 function Pairing({ url, onRegenerate }: { url: string; onRegenerate: () => void }) {
+	const [enlarged, setEnlarged] = useState(false);
+	const trigger = useRef<HTMLButtonElement>(null);
+	const close = () => {
+		setEnlarged(false);
+		trigger.current?.focus();
+	};
+
 	return (
 		<div className="flex items-start gap-3">
-			<PairingQr url={url} className="size-[104px] shrink-0 border border-outline-strong" />
+			<button
+				type="button"
+				data-slot="enlarge-qr"
+				ref={trigger}
+				aria-haspopup="dialog"
+				className="group flex shrink-0 flex-col items-center gap-1.5"
+				onClick={() => setEnlarged(true)}
+			>
+				<PairingQr url={url} className="size-[104px] border border-outline-strong group-hover:border-tertiary" />
+				<span className="text-label text-tertiary group-hover:text-secondary">ENLARGE</span>
+			</button>
+			{enlarged && <EnlargedQr url={url} onClose={close} />}
 			<div className="flex min-w-0 flex-1 flex-col items-start gap-2">
 				<span className="block text-label text-secondary">PAIRING LINK</span>
 				<span data-slot="pairing-url" className="block select-all break-all text-data text-primary">{url}</span>
@@ -60,6 +79,34 @@ function Pairing({ url, onRegenerate }: { url: string; onRegenerate: () => void 
 					A new token drops every paired phone back to the pairing screen.
 				</span>
 			</div>
+		</div>
+	);
+}
+
+function EnlargedQr({ url, onClose }: { url: string; onClose: () => void }) {
+	const takeFocus = useCallback((element: HTMLDivElement | null) => element?.focus(), []);
+
+	return (
+		<div
+			data-slot="enlarged-qr"
+			role="dialog"
+			aria-modal="true"
+			aria-label="Pairing QR code"
+			tabIndex={-1}
+			ref={takeFocus}
+			className="picker-backdrop fixed inset-0 z-50 flex items-center justify-center bg-surface-sunken/90 outline-none"
+			onPointerDown={(event) => {
+				event.stopPropagation();
+				onClose();
+			}}
+			onKeyDown={(event) => {
+				if (event.key === "Escape") {
+					event.stopPropagation();
+					onClose();
+				}
+			}}
+		>
+			<PairingQr url={url} className="size-[min(82vw,82vh)] border border-outline-strong" />
 		</div>
 	);
 }

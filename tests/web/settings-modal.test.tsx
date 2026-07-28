@@ -186,6 +186,24 @@ test("shows the pairing link and its QR once Tailscale names the machine", async
 	expect(slot(modal, "mobile-access").getAttribute("aria-checked")).toBe("false");
 });
 
+test("the QR enlarges to a dialog and Escape closes only the enlargement", async () => {
+	const modal = await loadedModal();
+	await waitFor(() => {
+		expect(slot(modal, "pairing-url")).not.toBeNull();
+	});
+
+	fireEvent.click(slot(modal, "enlarge-qr"));
+
+	const enlarged = slot(modal, "enlarged-qr");
+	expect(enlarged.getAttribute("role")).toBe("dialog");
+	expect(enlarged.querySelector('[data-slot="pairing-qr"]')).not.toBeNull();
+
+	fireEvent.keyDown(enlarged, { key: "Escape" });
+
+	expect(modal.querySelector('[data-slot="enlarged-qr"]')).toBeNull();
+	expect(onClose).not.toHaveBeenCalled();
+});
+
 test("turning mobile access on asks tailscale to serve the app", async () => {
 	const modal = await loadedModal();
 	await waitFor(() => {

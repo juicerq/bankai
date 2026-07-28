@@ -3,6 +3,7 @@ import { os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { type } from "arktype";
 import type { ContinuityValue } from "@main/store/continuity";
+import type { MobileAccess } from "@main/tailscale/access";
 import type { HarnessSettings } from "@main/store/settings";
 import { SERVER_DEFAULT_PORT, SERVER_RPC_PREFIX } from "@shared/server";
 
@@ -110,6 +111,26 @@ function requireHarness() {
 	return currentHarness;
 }
 
+export interface MobileTransport {
+	access: MobileAccess;
+	exposeCalls: boolean[];
+	regenerations: number;
+}
+
+let currentMobile: MobileTransport | undefined;
+
+export function setMobileTransport(transport: MobileTransport) {
+	currentMobile = transport;
+}
+
+function requireMobile() {
+	if (!currentMobile) {
+		throw new Error("No mobile transport is installed");
+	}
+
+	return currentMobile;
+}
+
 export interface ContinuityTransport {
 	value: ContinuityValue;
 	calls: { procedure: string; input: unknown }[];
@@ -164,6 +185,23 @@ const router = {
 
 				return input;
 			}),
+	},
+	mobile: {
+		getAccess: os.handler(() => requireMobile().access),
+		setExposed: os.input(type({ enabled: "boolean" })).handler(({ input }) => {
+			const transport = requireMobile();
+			transport.exposeCalls.push(input.enabled);
+			transport.access = { ...transport.access, exposed: input.enabled };
+
+			return transport.access;
+		}),
+		regenerateToken: os.handler(() => {
+			const transport = requireMobile();
+			transport.regenerations += 1;
+			transport.access = { ...transport.access, url: `${transport.access.url}-again` };
+
+			return transport.access;
+		}),
 	},
 	review: {
 		worktrees: os.handler(({ input }) => requireTransport().request("worktrees", input)),

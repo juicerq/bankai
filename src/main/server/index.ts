@@ -8,8 +8,8 @@ import { router } from "@main/router";
 import { authorizeRequest } from "@main/server/auth";
 import { type RendererBundle, readRendererBundle, resolveBundleAsset } from "@main/server/bundle";
 import { listenLoopback } from "@main/server/listen";
+import { openServerReach, serverReach } from "@main/server/reach";
 import { attachStreamServer } from "@main/server/stream";
-import { Settings } from "@main/store/settings";
 import { SERVER_RPC_PREFIX, type ServerReach } from "@shared/server";
 
 const CORS_HEADERS = { "access-control-allow-origin": "*" };
@@ -27,13 +27,13 @@ const rpc = new RPCHandler(router, {
 });
 
 export async function startLoopbackServer(): Promise<ServerReach> {
-	const reach = await Settings.ensureServer();
+	const reach = await openServerReach();
 	const bundle = process.env.ELECTRON_RENDERER_URL
 		? undefined
 		: await readRendererBundle(join(import.meta.dirname, "../renderer"));
 
 	const server = createServer((req, res) => {
-		route(req, res, reach.token, bundle).catch((err) => {
+		route(req, res, bundle).catch((err) => {
 			Logger.error("server:request-failed", { err: String(err), url: req.url });
 
 			if (!res.headersSent) {
@@ -44,7 +44,7 @@ export async function startLoopbackServer(): Promise<ServerReach> {
 		});
 	});
 
-	attachStreamServer(server, reach.token);
+	attachStreamServer(server);
 
 	await listenLoopback(server, reach.port);
 
@@ -56,7 +56,6 @@ export async function startLoopbackServer(): Promise<ServerReach> {
 async function route(
 	req: IncomingMessage,
 	res: ServerResponse,
-	token: string,
 	bundle: RendererBundle | undefined,
 ): Promise<void> {
 	if (!req.url?.startsWith(SERVER_RPC_PREFIX)) {
@@ -64,7 +63,7 @@ async function route(
 		return;
 	}
 
-	if (req.method !== "OPTIONS" && !authorizeRequest(req.headers.authorization, token)) {
+	if (req.method !== "OPTIONS" && !authorizeRequest(req.headers.authorization, serverReach().token)) {
 		res.writeHead(401, CORS_HEADERS).end();
 		return;
 	}

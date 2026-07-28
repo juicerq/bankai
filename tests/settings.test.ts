@@ -97,4 +97,15 @@ describe("settings server", () => {
 
 		expect(await Settings.ensureServer()).toEqual({ port: 5000, token: "kept" });
 	});
+
+	it("mints a new token on regeneration and keeps the configured port", async () => {
+		await Settings.update({ server: { token: "revoked", port: 5000 } });
+
+		const regenerated = await Settings.regenerateServerToken();
+
+		expect(regenerated.port).toBe(5000);
+		expect(regenerated.token).toHaveLength(SERVER_TOKEN_BYTES * 2);
+		expect(regenerated.token).not.toBe("revoked");
+		expect(await Settings.ensureServer()).toEqual(regenerated);
+	});
 });

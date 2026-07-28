@@ -1,12 +1,23 @@
-import { type HarnessTransport, setHarnessTransport } from "./orpc-transport";
+import {
+	type HarnessTransport,
+	type MobileTransport,
+	setHarnessTransport,
+	setMobileTransport,
+} from "./orpc-transport";
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettingsModal } from "@renderer/routes/-components/settings-modal";
+import { TAILSCALE_OPERATOR_REMEDY } from "@main/tailscale/access";
+import { pairingUrl } from "@shared/server";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render, waitFor } from "./testing-library";
 
+const MOBILE_HOST = "cachyos.tail74b3f3.ts.net";
+const PAIRING_URL = pairingUrl({ host: MOBILE_HOST, token: "a".repeat(64) });
+
 const onClose = jest.fn();
 let transport: HarnessTransport;
+let mobile: MobileTransport;
 
 function renderModal() {
 	const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
@@ -38,6 +49,17 @@ beforeEach(() => {
 		updates: [],
 	};
 	setHarnessTransport(transport);
+	mobile = {
+		access: {
+			host: MOBILE_HOST,
+			url: PAIRING_URL,
+			exposed: false,
+			problem: undefined,
+		},
+		exposeCalls: [],
+		regenerations: 0,
+	};
+	setMobileTransport(mobile);
 });
 
 afterEach(() => {
@@ -152,4 +174,62 @@ test("keeps typed arguments when the blur that saves them races the next change"
 		expect(transport.updates).toHaveLength(2);
 	});
 	expect(transport.updates.at(-1)).toEqual({ autostart: false, id: "claude", args: "--model opus" });
+});
+
+test("shows the pairing link and its QR once Tailscale names the machine", async () => {
+	const modal = await loadedModal();
+
+	await waitFor(() => {
+		expect(slot(modal, "pairing-url").textContent).toBe(PAIRING_URL);
+	});
+	expect(slot(modal, "pairing-qr").tagName.toLowerCase()).toBe("svg");
+	expect(slot(modal, "mobile-access").getAttribute("aria-checked")).toBe("false");
+});
+
+test("turning mobile access on asks tailscale to serve the app", async () => {
+	const modal = await loadedModal();
+	await waitFor(() => {
+		expect(slot(modal, "pairing-url")).not.toBeNull();
+	});
+
+	fireEvent.click(slot(modal, "mobile-access"));
+
+	await waitFor(() => {
+		expect(slot(get("settings-modal"), "mobile-access").getAttribute("aria-checked")).toBe("true");
+	});
+	expect(mobile.exposeCalls).toEqual([true]);
+});
+
+test("regenerating the token replaces the pairing link", async () => {
+	const modal = await loadedModal();
+	await waitFor(() => {
+		expect(slot(modal, "pairing-url")).not.toBeNull();
+	});
+	const before = slot(modal, "pairing-url").textContent;
+
+	fireEvent.click(slot(modal, "regenerate-token"));
+
+	await waitFor(() => {
+		expect(slot(get("settings-modal"), "pairing-url").textContent).not.toBe(before);
+	});
+	expect(mobile.regenerations).toBe(1);
+});
+
+test("says so plainly when Tailscale names no machine instead of showing a broken QR", async () => {
+	mobile.access = { host: undefined, url: undefined, exposed: false, problem: undefined };
+	const modal = await loadedModal();
+
+	await waitFor(() => {
+		expect(slot(modal, "no-tailscale").textContent).toContain("MagicDNS");
+	});
+	expect(modal.querySelector('[data-slot="pairing-qr"]')).toBeNull();
+});
+
+test("surfaces the operator remedy when tailscale refuses the change", async () => {
+	mobile.access = { ...mobile.access, problem: TAILSCALE_OPERATOR_REMEDY };
+	const modal = await loadedModal();
+
+	await waitFor(() => {
+		expect(slot(modal, "mobile-access-problem").textContent).toContain("sudo tailscale set --operator=$USER");
+	});
 });

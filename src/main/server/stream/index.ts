@@ -3,6 +3,7 @@ import { app } from "electron";
 import { type RawData, WebSocketServer } from "ws";
 import { Logger } from "@main/logger";
 import { authorizeUpgrade } from "@main/server/auth";
+import { serverReach } from "@main/server/reach";
 import { handleActivityMessage } from "@main/server/stream/activity";
 import { StreamConnection } from "@main/server/stream/connection";
 import { handleContinuityMessage } from "@main/server/stream/continuity";
@@ -24,11 +25,11 @@ const CHANNEL_HANDLERS: Record<
 	},
 };
 
-export function attachStreamServer(server: Server, token: string): void {
+export function attachStreamServer(server: Server): void {
 	const sockets = new WebSocketServer({ noServer: true });
 
 	server.on("upgrade", (request, socket, head) => {
-		if (!authorizeUpgrade(request.url, token)) {
+		if (!authorizeUpgrade(request.url, serverReach().token)) {
 			Logger.warn("stream:upgrade-rejected");
 			socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
 			socket.destroy();

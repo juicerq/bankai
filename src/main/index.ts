@@ -3,6 +3,7 @@ import { startAgentActivity } from "@main/activity/start";
 import { GitProcess } from "@main/git/GitProcess";
 import { Logger } from "@main/logger";
 import { startLoopbackServer } from "@main/server";
+import { serverReach } from "@main/server/reach";
 import { markStartup, scheduleStartupReport } from "@main/startup";
 import { resolveInstanceIdentity } from "@main/store/paths";
 import { type SettingsValue, Settings } from "@main/store/settings";
@@ -120,8 +121,8 @@ async function createWindow() {
 async function start() {
 	markStartup("app-ready");
 	try {
-		const reach = await startLoopbackServer();
-		ipcMain.handle(AUTH_IPC.getToken, () => reach);
+		await startLoopbackServer();
+		ipcMain.handle(AUTH_IPC.getToken, () => serverReach());
 		markStartup("server-ready");
 
 		startAgentActivity();

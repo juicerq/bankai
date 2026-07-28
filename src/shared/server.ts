@@ -5,6 +5,11 @@ export const SERVER_STREAM_PATH = "/stream";
 export const SERVER_STREAM_TOKEN_PARAM = "token";
 export const SERVER_TOKEN_BYTES = 32;
 export const SERVER_TOKEN_STORAGE_KEY = "bankai.token";
+export const SERVER_PAIRING_FRAGMENT_KEY = "token";
+
+export function pairingUrl({ host, token }: { host: string; token: string }): string {
+	return `https://${host}/#${SERVER_PAIRING_FRAGMENT_KEY}=${token}`;
+}
 
 export const AUTH_IPC = {
 	getToken: "auth:get-token",

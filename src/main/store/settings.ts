@@ -80,7 +80,7 @@ export const Settings = {
 	},
 	ensureServer: async (): Promise<ServerReach> => {
 		const current = await store.read();
-		const server = current.server ?? { token: randomBytes(SERVER_TOKEN_BYTES).toString("hex") };
+		const server = current.server ?? { token: mintServerToken() };
 
 		if (!current.server) {
 			await store.mutate((value) => ({ ...value, server }));
@@ -88,4 +88,20 @@ export const Settings = {
 
 		return { port: server.port ?? SERVER_DEFAULT_PORT, token: server.token };
 	},
+	regenerateServerToken: async (): Promise<ServerReach> => {
+		const next = await store.mutate((current) => ({
+			...current,
+			server: { ...current.server, token: mintServerToken() },
+		}));
+
+		if (!next.server) {
+			throw new Error("The regenerated server token was not stored");
+		}
+
+		return { port: next.server.port ?? SERVER_DEFAULT_PORT, token: next.server.token };
+	},
 };
+
+function mintServerToken(): string {
+	return randomBytes(SERVER_TOKEN_BYTES).toString("hex");
+}

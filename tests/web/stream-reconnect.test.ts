@@ -1,12 +1,16 @@
 import "./register-dom";
 import { streamTransport } from "./stream-transport";
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
 import { queryClient } from "@renderer/lib/query-client";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { reconnectDelay, StreamSocket } from "@renderer/lib/stream/socket";
 import { streamStatus } from "@renderer/lib/stream/status";
 
 const PROBE_KEY = ["stream-reconnect-probe"];
+
+const releaseTransport = streamTransport.borrow();
+
+afterAll(releaseTransport);
 
 streamTransport.handle("review", "watch", () => new Promise(() => {}));
 

@@ -1,3 +1,4 @@
+import { pairable, probeUnpaired } from "@renderer/lib/pairing";
 import { reach } from "@renderer/lib/reach";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { type StreamStatus, streamStatus } from "@renderer/lib/stream/status";
@@ -77,7 +78,7 @@ export class StreamSocket {
 	}
 
 	readonly retry = (): void => {
-		if (this.status === "outdated") {
+		if (this.halted) {
 			return;
 		}
 
@@ -86,6 +87,18 @@ export class StreamSocket {
 		this.attempt = 0;
 		this.connect();
 	};
+
+	readonly unpair = (): void => {
+		if (!pairable() || this.halted) {
+			return;
+		}
+
+		this.halt("unpaired");
+	};
+
+	private get halted(): boolean {
+		return this.status === "outdated" || this.status === "unpaired";
+	}
 
 	private emit(envelope: StreamEnvelope): void {
 		const data = JSON.stringify(envelope);
@@ -101,7 +114,7 @@ export class StreamSocket {
 	}
 
 	private connect(): void {
-		if (this.socket || this.connecting || this.retryTimer !== undefined || this.status === "outdated") {
+		if (this.socket || this.connecting || this.retryTimer !== undefined || this.halted) {
 			return;
 		}
 
@@ -123,7 +136,7 @@ export class StreamSocket {
 
 	private handshake(version: string): void {
 		if (this.serverVersion && this.serverVersion !== version) {
-			this.outdate();
+			this.halt("outdated");
 
 			return;
 		}
@@ -145,8 +158,10 @@ export class StreamSocket {
 		}
 	}
 
-	private outdate(): void {
-		this.setStatus("outdated");
+	private halt(status: StreamStatus): void {
+		clearTimeout(this.retryTimer);
+		this.retryTimer = undefined;
+		this.setStatus(status);
 		const socket = this.socket;
 		this.socket = undefined;
 		this.connecting = false;
@@ -165,7 +180,7 @@ export class StreamSocket {
 			request.reject(error);
 		}
 
-		if (this.status === "outdated") {
+		if (this.halted) {
 			return;
 		}
 
@@ -175,6 +190,16 @@ export class StreamSocket {
 			this.connect();
 		}, reconnectDelay(this.attempt));
 		this.attempt += 1;
+
+		if (pairable()) {
+			this.checkPairing().catch((err) => console.error("Failed to check the Bankai pairing", err));
+		}
+	}
+
+	private async checkPairing(): Promise<void> {
+		if (await probeUnpaired(await reach())) {
+			this.unpair();
+		}
 	}
 
 	private setStatus(status: StreamStatus): void {
@@ -228,7 +253,7 @@ function helloVersion(payload: unknown): StreamHello["version"] {
 }
 
 async function streamUrl(): Promise<string> {
-	const { origin, token } = await reach;
+	const { origin, token } = await reach();
 	const url = new URL(SERVER_STREAM_PATH, origin);
 	url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
 

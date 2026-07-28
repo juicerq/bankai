@@ -1,12 +1,18 @@
+import { claimPairingToken } from "@renderer/lib/pairing";
 import { SERVER_HOST, SERVER_TOKEN_STORAGE_KEY } from "@shared/server";
 
-async function resolveReach(): Promise<{ origin: string; token: string | undefined }> {
+export interface Reach {
+	origin: string;
+	token: string | undefined;
+}
+
+async function resolveReach(): Promise<Reach> {
 	const bridge = window.bankaiAuth;
 
 	if (!bridge) {
 		return {
 			origin: window.location.origin,
-			token: localStorage.getItem(SERVER_TOKEN_STORAGE_KEY) ?? undefined,
+			token: claimPairingToken() ?? localStorage.getItem(SERVER_TOKEN_STORAGE_KEY) ?? undefined,
 		};
 	}
 
@@ -15,4 +21,14 @@ async function resolveReach(): Promise<{ origin: string; token: string | undefin
 	return { origin: `http://${SERVER_HOST}:${port}`, token };
 }
 
-export const reach = resolveReach();
+let current = resolveReach();
+
+export function reach(): Promise<Reach> {
+	return current;
+}
+
+export function refreshReach(): Promise<Reach> {
+	current = resolveReach();
+
+	return current;
+}

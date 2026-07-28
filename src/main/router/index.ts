@@ -1,5 +1,6 @@
 import { continuityRouter } from "@main/router/continuity";
 import { loggerRouter } from "@main/router/logger";
+import { mobileRouter } from "@main/router/mobile";
 import { projectsRouter } from "@main/router/projects";
 import { reviewRouter } from "@main/router/review";
 import { settingsRouter } from "@main/router/settings";
@@ -7,6 +8,7 @@ import { settingsRouter } from "@main/router/settings";
 export const router = {
 	continuity: continuityRouter,
 	logger: loggerRouter,
+	mobile: mobileRouter,
 	projects: projectsRouter,
 	review: reviewRouter,
 	settings: settingsRouter,

@@ -1,4 +1,4 @@
-export type StreamStatus = "connecting" | "open" | "reconnecting" | "outdated";
+export type StreamStatus = "connecting" | "open" | "reconnecting" | "outdated" | "unpaired";
 
 class StreamStatusStore {
 	private status: StreamStatus = "connecting";

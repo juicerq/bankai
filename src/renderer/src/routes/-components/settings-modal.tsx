@@ -1,7 +1,9 @@
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
-import { type ReactNode, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import type { HarnessSettings } from "@main/store/settings";
 import { PickerHint } from "@renderer/routes/-components/picker-hint";
+import { Setting } from "@renderer/routes/-components/settings-controls";
+import { MobileAccessSetting } from "@renderer/routes/-components/settings-mobile-access";
 import { useHarnessSettings } from "@renderer/routes/-utils/use-harness-settings";
 import { DEFAULT_LIVE_TRACE, DEFAULT_SESSION_NAMING } from "@shared/activity";
 
@@ -110,39 +112,7 @@ function SettingsBody({
 				on={naming}
 				onToggle={() => onSave({ naming: !naming })}
 			/>
-		</div>
-	);
-}
-
-function Setting({
-	title,
-	description,
-	slot,
-	on,
-	onToggle,
-	children,
-}: {
-	title: string;
-	description: string;
-	slot: string;
-	on: boolean;
-	onToggle: () => void;
-	children?: ReactNode;
-}) {
-	return (
-		<div className="px-3 py-3">
-			<div className="flex items-start gap-3">
-				<div className="min-w-0 flex-1">
-					<span className="block text-body text-primary">{title}</span>
-					<span className="mt-1 block text-data text-secondary">{description}</span>
-				</div>
-				<Switch label={title} slot={slot} on={on} onToggle={onToggle} />
-			</div>
-			{children && (
-				<div className={`mt-3 border-l-2 pl-3 ${on ? "border-tertiary" : "border-outline opacity-40"}`}>
-					{children}
-				</div>
-			)}
+			<MobileAccessSetting />
 		</div>
 	);
 }
@@ -218,23 +188,5 @@ function ArgumentsField({
 			/>
 			<span className="mt-1.5 block text-data text-secondary">Appended to every launch and resume of this harness.</span>
 		</div>
-	);
-}
-
-function Switch({ label, slot, on, onToggle }: { label: string; slot: string; on: boolean; onToggle: () => void }) {
-	return (
-		<button
-			type="button"
-			role="switch"
-			aria-checked={on}
-			aria-label={label}
-			data-slot={slot}
-			className={`flex h-4 w-7 shrink-0 items-center border p-[2px] ${
-				on ? "border-tertiary justify-end" : "border-outline-strong justify-start"
-			}`}
-			onClick={onToggle}
-		>
-			<span className={`size-2.5 ${on ? "bg-tertiary" : "bg-outline-strong"}`} aria-hidden="true" />
-		</button>
 	);
 }

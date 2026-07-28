@@ -84,6 +84,14 @@ class StreamTransport {
 		this.socket?.close();
 	}
 
+	borrow(): () => void {
+		const held = this.socket;
+
+		return () => {
+			this.socket = held;
+		};
+	}
+
 	hold(socket: FakeWebSocket) {
 		this.socket = socket;
 		this.connections += 1;

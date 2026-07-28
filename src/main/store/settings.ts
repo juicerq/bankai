@@ -45,6 +45,20 @@ const serverSchema = type({
 	"port?": "number",
 });
 
+export function serverPort(stored: number | undefined): number {
+	const fromEnv = process.env.SERVER_PORT;
+	if (!fromEnv) {
+		return stored ?? SERVER_DEFAULT_PORT;
+	}
+
+	const port = Number(fromEnv);
+	if (!Number.isInteger(port) || port < 1 || port > 65535) {
+		throw new Error(`SERVER_PORT must be a port number between 1 and 65535, got "${fromEnv}"`);
+	}
+
+	return port;
+}
+
 const vapidSchema = type({
 	publicKey: "string",
 	privateKey: "string",
@@ -94,7 +108,7 @@ export const Settings = {
 			await store.mutate((value) => ({ ...value, server }));
 		}
 
-		return { port: server.port ?? SERVER_DEFAULT_PORT, token: server.token };
+		return { port: serverPort(server.port), token: server.token };
 	},
 	regenerateServerToken: async (): Promise<ServerReach> => {
 		const next = await store.mutate((current) => ({
@@ -106,7 +120,7 @@ export const Settings = {
 			throw new Error("The regenerated server token was not stored");
 		}
 
-		return { port: next.server.port ?? SERVER_DEFAULT_PORT, token: next.server.token };
+		return { port: serverPort(next.server.port), token: next.server.token };
 	},
 	ensureVapid: async (mint: () => VapidKeys): Promise<VapidKeys> => {
 		const current = await store.read();

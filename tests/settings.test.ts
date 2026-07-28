@@ -1,7 +1,7 @@
 import { statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "bun:test";
-import { Settings } from "@main/store/settings";
+import { afterEach, describe, expect, it } from "bun:test";
+import { Settings, serverPort } from "@main/store/settings";
 import { SERVER_DEFAULT_PORT, SERVER_TOKEN_BYTES } from "@shared/server";
 import { assertDefined } from "./utils/assertions";
 
@@ -81,6 +81,22 @@ describe("settings harness", () => {
 });
 
 describe("settings server", () => {
+	afterEach(() => {
+		delete process.env.SERVER_PORT;
+	});
+
+	it("lets the environment move the port off the stored one, and refuses a value that is not a port", () => {
+		expect(serverPort(5000)).toBe(5000);
+
+		process.env.SERVER_PORT = "4700";
+
+		expect(serverPort(5000)).toBe(4700);
+
+		process.env.SERVER_PORT = "nope";
+
+		expect(() => serverPort(5000)).toThrow("SERVER_PORT");
+	});
+
 	it("generates the token once and keeps it across calls", async () => {
 		const first = await Settings.ensureServer();
 		const second = await Settings.ensureServer();

@@ -3,6 +3,9 @@ import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, externalizeDepsPlugin } from "electron-vite";
+import { SERVER_DEFAULT_PORT } from "./src/shared/server";
+
+const serverPort = process.env.SERVER_PORT ?? String(SERVER_DEFAULT_PORT);
 
 const aliasNode = {
 	"@main": resolve(import.meta.dirname, "./src/main"),
@@ -55,8 +58,8 @@ export default defineConfig({
 			strictPort: true,
 			allowedHosts: [".ts.net"],
 			proxy: {
-				"/rpc": "http://127.0.0.1:4696",
-				"/stream": { target: "ws://127.0.0.1:4696", ws: true },
+				"/rpc": `http://127.0.0.1:${serverPort}`,
+				"/stream": { target: `ws://127.0.0.1:${serverPort}`, ws: true },
 			},
 		},
 	},

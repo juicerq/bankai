@@ -1,7 +1,7 @@
 import { open } from "node:fs/promises";
 import { type } from "arktype";
 import type { HarnessTrace } from "@main/activity/Harness";
-import { transcriptPath } from "@main/activity/claudeTranscript";
+import { locateTranscript } from "@main/activity/claudeTranscript";
 import { Logger } from "@main/logger";
 
 const TRACE_TAIL_BYTES = 64 * 1024;
@@ -239,7 +239,7 @@ function missingFile(err: unknown): boolean {
 }
 
 export async function transcriptTrace(ref: { sessionId: string; cwd: string }): Promise<HarnessTrace | null> {
-	const path = transcriptPath(ref);
+	const path = await locateTranscript(ref);
 	const tail = await readTail(path).catch((err: unknown) => {
 		if (!missingFile(err)) {
 			Logger.warn("claude:trace-unreadable", { path, err: String(err) });

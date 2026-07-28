@@ -1,3 +1,4 @@
+import { AgentActivity } from "@main/activity/AgentActivity";
 import { transcriptPath } from "@main/activity/claudeTranscript";
 import { ConversationTail } from "@main/activity/conversationTail";
 import { Logger } from "@main/logger";
@@ -118,6 +119,7 @@ export function handleConversationMessage(connection: StreamConnection, message:
 			watches.get(shellId)?.stop();
 			const watch = new ConversationWatch(connection, shellId);
 			watches.set(shellId, watch);
+			AgentActivity.markShellViewed(shellId);
 
 			return watch.start();
 		}

@@ -30,6 +30,7 @@ import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen
 import { useLayoutPreferences } from "@renderer/routes/-utils/use-layout-preferences";
 import { useChosenProjects } from "@renderer/routes/-utils/use-chosen-projects";
 import { useSessionList } from "@renderer/routes/-utils/use-session-list";
+import { useShellFocus } from "@renderer/routes/-utils/use-shell-focus";
 import { useSessions } from "@renderer/routes/-utils/use-sessions";
 import {
 	restoredResidentProjectIds,
@@ -137,6 +138,8 @@ function Bankai() {
 		() => workspaces.find((workspace) => workspace.shells.some((shell) => shell.id === selectedShellId))?.projectId,
 		[workspaces, selectedShellId],
 	);
+
+	useShellFocus(selectedShellId);
 	const { activeProjectId, residentProjectIds, activateProject, dropWorkspace } = useWorkspaceActivation(
 		availableProjects.map((project) => project.id),
 		{

@@ -27,7 +27,7 @@ import { ReviewChanges } from "@main/git/ReviewChanges";
 import { worktreeContaining } from "@main/git/Worktrees";
 import { Logger } from "@main/logger";
 import { SessionNamer } from "@main/naming/SessionNamer";
-import { pushNeedsAttention, pushTurnDone } from "@main/push/notifyAttention";
+import { mobileTurnShells, pushNeedsAttention, pushTurnDone } from "@main/push/notifyAttention";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { shellOutputLines } from "@main/terminal/ShellOutputLines";
@@ -783,7 +783,7 @@ class AgentActivityTracker {
 			const next = nextShellActivity(
 				previous,
 				status,
-				shell.sessionId === this.viewed,
+				shell.sessionId === this.viewed && !mobileTurnShells.has(shell.shellId),
 			);
 			if (next !== undefined) {
 				nextStates.set(shell.sessionId, next);

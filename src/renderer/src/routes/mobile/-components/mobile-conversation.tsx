@@ -5,7 +5,7 @@ import { ACTIVITY_DOT_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { MobileAttention } from "@renderer/routes/mobile/-components/mobile-attention";
 import { MobileAgentNotice, MobileComposer } from "@renderer/routes/mobile/-components/mobile-composer";
-import { MobileConversationBlock } from "@renderer/routes/mobile/-components/mobile-conversation-block";
+import { MobileConversationBlocks } from "@renderer/routes/mobile/-components/mobile-conversation-block";
 import type { ConversationView } from "@renderer/routes/mobile/-utils/use-conversation";
 import { useStickToBottom } from "@renderer/routes/mobile/-utils/use-stick-to-bottom";
 
@@ -81,9 +81,7 @@ export function MobileConversation({
 							BEGINNING OF THIS CONVERSATION
 						</p>
 					)}
-					{conversation.blocks.map((block) => (
-						<MobileConversationBlock key={block.id} block={block} onOpenAgent={onOpenAgent} />
-					))}
+					<MobileConversationBlocks blocks={conversation.blocks} onOpenAgent={onOpenAgent} />
 					{conversation.blocks.length === 0 && !conversation.loading && (
 						<p data-slot="empty" className="px-4 py-8 text-center text-secondary text-support">
 							{emptyNotice(agent, row)}
@@ -132,20 +130,27 @@ function MobileConversationHeader({
 			>
 				<ChevronLeftIcon className="size-4" aria-hidden="true" />
 			</button>
-			<div className="flex min-w-0 flex-1 flex-col">
+			<div className="flex min-w-0 flex-1 flex-col pr-2">
 				<span data-slot="title" className="truncate text-body text-primary">{title ?? "Session"}</span>
-				{row && <span className="truncate text-data text-secondary">{row.projectName}</span>}
+				{row && (
+					<span data-slot="meta" className="flex min-w-0 items-center gap-2 text-data">
+						{row.activity && (
+							<span
+								data-slot="activity"
+								className={`flex min-w-0 flex-1 items-center gap-1 ${ACTIVITY_TEXT_CLASS[row.activity]}`}
+							>
+								<span
+									aria-hidden="true"
+									className={`size-1.5 shrink-0 rounded-full ${ACTIVITY_DOT_CLASS[row.activity]}`}
+								/>
+								<span className="min-w-0 truncate">{row.trace}</span>
+								{row.traceSince ? <ElapsedClock since={row.traceSince} /> : null}
+							</span>
+						)}
+						<span className="max-w-1/3 shrink-0 truncate text-secondary">{row.projectName}</span>
+					</span>
+				)}
 			</div>
-			{row?.activity && (
-				<span
-					data-slot="activity"
-					className={`mr-1 flex min-w-0 max-w-[45%] items-baseline gap-1 text-data ${ACTIVITY_TEXT_CLASS[row.activity]}`}
-				>
-					<span aria-hidden="true" className={`size-1.5 self-center rounded-full ${ACTIVITY_DOT_CLASS[row.activity]}`} />
-					<span className="min-w-0 truncate">{row.trace}</span>
-					{row.traceSince ? <ElapsedClock since={row.traceSince} /> : null}
-				</span>
-			)}
 		</header>
 	);
 }

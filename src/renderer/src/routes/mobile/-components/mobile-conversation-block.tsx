@@ -2,17 +2,47 @@ import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import type { ConversationBlock, ConversationEdit, ConversationToolState } from "@shared/conversation";
 
+type ToolBlock = Extract<ConversationBlock, { kind: "tool" }>;
+
+type ConversationRun =
+	| { kind: "tools"; id: string; tools: ToolBlock[] }
+	| { kind: "single"; id: string; block: Exclude<ConversationBlock, { kind: "tool" }> };
+
 const TOOL_DOT_CLASS: Record<ConversationToolState, string> = {
-	running: "pending-pulse bg-tertiary",
-	done: "bg-outline-strong",
-	failed: "bg-removed",
+	running: "pending-pulse size-2 border border-tertiary bg-surface",
+	done: "size-1.5 bg-outline-strong",
+	failed: "size-1.5 bg-removed",
 };
 
 const TOOL_TEXT_CLASS: Record<ConversationToolState, string> = {
-	running: "text-secondary",
+	running: "text-primary",
 	done: "text-secondary",
 	failed: "text-removed",
 };
+
+function conversationRuns(blocks: ConversationBlock[]): ConversationRun[] {
+	const runs: ConversationRun[] = [];
+
+	for (const block of blocks) {
+		const last = runs.at(-1);
+
+		if (block.kind !== "tool") {
+			runs.push({ kind: "single", id: block.id, block });
+
+			continue;
+		}
+
+		if (last?.kind === "tools") {
+			last.tools.push(block);
+
+			continue;
+		}
+
+		runs.push({ kind: "tools", id: block.id, tools: [block] });
+	}
+
+	return runs;
+}
 
 function EditCounts({ edit }: { edit: ConversationEdit }) {
 	return (
@@ -47,27 +77,23 @@ function ThinkingBlock({ text }: { text: string }) {
 	);
 }
 
-function ToolBlock({
+function ToolStep({
 	block,
 	onOpenAgent,
 }: {
-	block: Extract<ConversationBlock, { kind: "tool" }>;
+	block: ToolBlock;
 	onOpenAgent: ((toolUseId: string) => void) | undefined;
 }) {
 	const inside = (
 		<>
-			<span
-				data-slot="tool-dot"
-				aria-hidden="true"
-				className={`size-1.5 shrink-0 rounded-full ${TOOL_DOT_CLASS[block.state]}`}
-			/>
+			<span aria-hidden="true" className="flex w-2 shrink-0 justify-center">
+				<span data-slot="tool-dot" className={`shrink-0 self-center rounded-full ${TOOL_DOT_CLASS[block.state]}`} />
+			</span>
 			<span className="min-w-0 truncate">{block.label}</span>
 			{block.edit && <EditCounts edit={block.edit} />}
 		</>
 	);
-	const shape = `mx-4 flex items-center gap-2 border-outline border-l pl-2 text-left text-support ${
-		TOOL_TEXT_CLASS[block.state]
-	}`;
+	const shape = `relative flex items-center gap-2 text-left text-support ${TOOL_TEXT_CLASS[block.state]}`;
 
 	if (!block.agent || !onOpenAgent) {
 		return (
@@ -93,22 +119,50 @@ function ToolBlock({
 	);
 }
 
-export function MobileConversationBlock({
-	block,
+function ToolTimeline({
+	tools,
 	onOpenAgent,
 }: {
-	block: ConversationBlock;
+	tools: ToolBlock[];
+	onOpenAgent: ((toolUseId: string) => void) | undefined;
+}) {
+	return (
+		<div data-component="tool-timeline" className="relative flex flex-col gap-2 px-4">
+			<span aria-hidden="true" className="absolute inset-y-2 left-4 flex w-2 justify-center">
+				<span className="w-px bg-outline" />
+			</span>
+			{tools.map((tool) => <ToolStep key={tool.id} block={tool} onOpenAgent={onOpenAgent} />)}
+		</div>
+	);
+}
+
+export function MobileConversationBlocks({
+	blocks,
+	onOpenAgent,
+}: {
+	blocks: ConversationBlock[];
 	onOpenAgent?: (toolUseId: string) => void;
 }) {
+	return (
+		<>
+			{conversationRuns(blocks).map((run) =>
+				run.kind === "tools"
+					? <ToolTimeline key={run.id} tools={run.tools} onOpenAgent={onOpenAgent} />
+					: <MobileConversationBlock key={run.id} block={run.block} />
+			)}
+		</>
+	);
+}
+
+function MobileConversationBlock({ block }: { block: Exclude<ConversationBlock, { kind: "tool" }> }) {
 	if (block.kind === "user") {
 		return (
 			<div
 				data-component="conversation-block"
 				data-kind="user"
-				className="mx-3 flex gap-2 border-l-2 border-l-tertiary bg-surface-raised px-3 py-2"
+				className="mx-4 border-l-2 border-l-tertiary bg-surface-raised px-3 py-2"
 			>
-				<span aria-hidden="true" className="shrink-0 text-terminal text-tertiary">❯</span>
-				<span className="min-w-0 whitespace-pre-wrap break-words text-primary text-terminal">{block.text}</span>
+				<span className="whitespace-pre-wrap break-words text-primary text-terminal">{block.text}</span>
 			</div>
 		);
 	}
@@ -127,10 +181,6 @@ export function MobileConversationBlock({
 
 	if (block.kind === "thinking") {
 		return <ThinkingBlock text={block.text} />;
-	}
-
-	if (block.kind === "tool") {
-		return <ToolBlock block={block} onOpenAgent={onOpenAgent} />;
 	}
 
 	if (block.kind === "compacted") {

@@ -177,6 +177,22 @@ test("a running tool pulses and a failed one turns red", () => {
 	expect(block(1).className).toContain("text-removed");
 });
 
+test("consecutive steps hang off one rail, and a message breaks it into two", () => {
+	renderConversation({
+		conversation: view([
+			{ kind: "tool", id: "t1", label: "Reading upload.ts", state: "done" },
+			{ kind: "tool", id: "t2", label: "Editing upload.ts", state: "done" },
+			{ kind: "agent", id: "m1", text: "Pronto." },
+			{ kind: "tool", id: "t3", label: "Running tests", state: "running" },
+		]),
+	});
+	const rails = [...document.querySelectorAll<HTMLElement>('[data-component="tool-timeline"]')];
+
+	expect(rails).toHaveLength(2);
+	expect(rails[0]?.querySelectorAll('[data-component="conversation-block"]')).toHaveLength(2);
+	expect(blocks().map((block) => block.dataset.kind)).toEqual(["tool", "tool", "agent", "tool"]);
+});
+
 test("an edit says how many lines it moved, beside the file it moved them in", () => {
 	renderConversation({
 		conversation: view([

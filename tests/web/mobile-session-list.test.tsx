@@ -176,17 +176,6 @@ test("a chosen badge reads as pressed", () => {
 	expect(badges().map((badge) => badge.getAttribute("aria-pressed"))).toEqual(["false", "true"]);
 });
 
-test("a badge dot carries the aggregate state of its project", () => {
-	renderList([row("s1")], {
-		projectActivity: new Map<string, AgentActivityState>([["p2", "needs-attention"]]),
-	});
-
-	expect(badge("p1").dataset.activity).toBeUndefined();
-	expect(slot(badge("p1"), "project-dot").className).toContain("bg-outline-strong");
-	expect(badge("p2").dataset.activity).toBe("needs-attention");
-	expect(slot(badge("p2"), "project-dot").className).toContain("bg-terminal-blue");
-});
-
 test("a single project has nothing to narrow, so no strip", () => {
 	renderList([row("s1")], { projects: [BANKAI] });
 

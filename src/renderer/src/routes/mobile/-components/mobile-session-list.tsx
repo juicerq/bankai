@@ -52,7 +52,6 @@ export function MobileSessionList({
 			<MobilePushBanner />
 			<MobileProjectStrip
 				projects={projects}
-				projectActivity={projectActivity}
 				chosenProjectIds={chosenProjectIds}
 				onToggleProject={onToggleProject}
 			/>

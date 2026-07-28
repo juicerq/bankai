@@ -29,6 +29,20 @@ Several families of block reach the transcript as `type: "user"` records without
 
 Filtering those and taking the first remaining message yields, over 150 recent transcripts: 81% usable intent, 7% junk too short to identify anything (`oi`, `concordo.`), 11% no user message at all. This filter is a **list, not a rule** — it is third-party format, so a new block type degrades the result silently rather than failing.
 
+## Reasoning is its own block, and one message can hold two of them
+
+Over the transcripts on this machine every `{type: "thinking"}` block carries exactly `{signature, thinking, type}` — `thinking` is the text, `signature` is opaque and useless to a reader. An assistant record holds at most two of them, and consecutive records can share one `message.id`, so a reader that keys reasoning by `message.id` has to append rather than replace (this is what `ConversationParser` does, same as it does for agent text).
+
+## How many lines an edit moved is only in `toolUseResult`, and its shape depends on the tool
+
+The `tool_result` block itself carries the tool's stdout, never the diff. The sibling `toolUseResult` field on the same `user` record carries it, in three shapes:
+
+- an `Edit` result has **no** `type` field and carries `filePath`, `oldString`, `newString` and a real `structuredPatch`
+- `type: "update"` (MultiEdit and friends) also carries a real `structuredPatch`
+- `type: "create"` (a `Write` of a new file) always carries an **empty** `structuredPatch` plus the whole `content`
+
+So counting `+`/`-` lines in the patch is right for the first two and yields `0/0` for a creation; the honest count there is the line count of `content`. Anything else — a Bash result, a Read result — validates against neither and simply has no counts.
+
 ## Resuming appends to the same file, and no transcript points at another
 
 Measured on 2.1.220, both headless (`claude -p --resume <id>`) and through the TUI: resuming a session appends to `<sessionId>.jsonl` and creates no second file. One file therefore holds a whole conversation, and reading it from byte zero reaches the real beginning of it.

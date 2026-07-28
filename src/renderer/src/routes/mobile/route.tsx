@@ -7,6 +7,7 @@ import { useChosenProjects } from "@renderer/routes/-utils/use-chosen-projects";
 import { useSessionRows } from "@renderer/routes/-utils/use-session-rows";
 import { useSessions } from "@renderer/routes/-utils/use-sessions";
 import { MobileSurfaceProvider } from "@renderer/routes/mobile/-utils/mobile-surface-context";
+import { useVisualViewport } from "@renderer/routes/mobile/-utils/use-visual-viewport";
 
 export const Route = createFileRoute("/mobile")({ component: MobileSurface });
 
@@ -16,6 +17,7 @@ function MobileSurface() {
 	const activity = useAgentActivities(availableProjects.map((project) => project.id));
 	const sessions = useSessions();
 	const chosen = useChosenProjects();
+	const viewport = useVisualViewport();
 	const rows = useSessionRows({ continuity: sessions.continuity, projects: availableProjects, activity });
 	const surface = useMemo(
 		() => ({
@@ -42,7 +44,9 @@ function MobileSurface() {
 
 	return (
 		<MobileSurfaceProvider surface={surface}>
-			<Outlet />
+			<div ref={viewport} data-component="mobile-surface" className="fixed inset-x-0 top-0 h-dvh">
+				<Outlet />
+			</div>
 		</MobileSurfaceProvider>
 	);
 }

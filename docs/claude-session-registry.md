@@ -19,6 +19,15 @@ What that record does **not** carry is `status`. `presenceStatus` maps a missing
 
 The file disappears when the process exits, and a file left behind by a killed process is caught by the `procStart` check in `AgentActivity`.
 
+## Two states publish no file at all
+
+Measured on 2026-07-27 by driving the TUI through a PTY:
+
+- **The trust dialog.** While "Do you trust the files in this folder?" is open, no `<pid>.json` exists — the file appears ~680ms *after* acceptance, already `idle`. A live process with no registry file is the one state with no oracle. Trust is inherited by subdirectories of any folder with `hasTrustDialogAccepted` in `~/.claude.json`, so a project mounted through the desktop never shows this again.
+- **A child of another agent.** A `claude` spawned with `CLAUDE_CODE_CHILD_SESSION` in its env writes no registry file and no transcript. Bankai's PTYs are spawned from the app, not from an agent, so this never bites production — it bites any test harness that spawns `claude` from inside an agent session without scrubbing `CLAUDE*`/`ANTHROPIC*`/`AI_AGENT` from the env.
+
+The file is also keyed by content, not just name: `cwd` inside the JSON locates a session when the pid is not known, and the binary removes the file on SIGHUP.
+
 ## The status vocabulary is four words
 
 `busy`, `shell`, `idle`, `waiting`. `shell` is an agent inside a `!`-command or a bash tool it is blocked on; it is still the agent's turn, so bankai maps both `busy` and `shell` to `working`. Collapsing `shell` into `idle` would flip the card to "Done" mid-turn.

@@ -17,6 +17,7 @@ describe("clampLayout", () => {
 			treeWidth: DEFAULT_TREE_WIDTH,
 			fullscreen: false,
 			reviewOpen: true,
+			reviewExpanded: false,
 			treeOpen: true,
 			projectsOpen: false,
 		});
@@ -42,6 +43,7 @@ describe("clampLayout", () => {
 				treeWidth: 240,
 				fullscreen: true,
 				reviewOpen: false,
+				reviewExpanded: true,
 				treeOpen: false,
 				projectsOpen: true,
 			}),
@@ -51,6 +53,7 @@ describe("clampLayout", () => {
 			treeWidth: 240,
 			fullscreen: true,
 			reviewOpen: false,
+			reviewExpanded: true,
 			treeOpen: false,
 			projectsOpen: true,
 		});

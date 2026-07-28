@@ -9,6 +9,7 @@ import {
 	REVIEW_SEPARATOR_WIDTH,
 	REVIEW_TREE_WIDTH_PROPERTY,
 	REVIEW_TREE_WIDTH_VALUE,
+	expandReviewDiff,
 	redistributeReviewTree,
 	squeezeReviewDiff,
 } from "@renderer/routes/-utils/review-layout";
@@ -18,11 +19,13 @@ export function useReviewGeometry({
 	initialDiffWidth,
 	initialTreeWidth,
 	treeOpen,
+	expanded,
 	onPersistLayout,
 }: {
 	initialDiffWidth: number;
 	initialTreeWidth: number;
 	treeOpen: boolean;
+	expanded: boolean;
 	onPersistLayout: (patch: LayoutSettings) => void;
 }) {
 	const [diffWidth, setDiffWidth] = useState(initialDiffWidth);
@@ -34,14 +37,20 @@ export function useReviewGeometry({
 	const maxDiffWidth = rowWidth === undefined
 		? Number.POSITIVE_INFINITY
 		: Math.max(MIN_DIFF_WIDTH, rowWidth - MIN_TERMINAL_WIDTH - treeReserve);
-	const renderedDiffWidth = Math.min(Math.max(diffWidth, MIN_DIFF_WIDTH), maxDiffWidth);
-	const treeCeiling = rowWidth === undefined
-		? treeWidth
-		: Math.min(treeWidth, Math.max(MIN_TREE_WIDTH, rowWidth - renderedDiffWidth - MIN_TERMINAL_WIDTH));
-	const renderedTreeWidth = treeOpen ? treeCeiling : 0;
+	// The docked pair is what the row reserves, expanded or not: the panel lays
+	// itself over the shells, so growing it must never cost the terminal columns.
+	const dockedDiffWidth = Math.min(Math.max(diffWidth, MIN_DIFF_WIDTH), maxDiffWidth);
+	const fitTree = (reserved: number) =>
+		rowWidth === undefined ? treeWidth : Math.min(treeWidth, Math.max(MIN_TREE_WIDTH, rowWidth - reserved));
+	const dockedTreeWidth = treeOpen ? fitTree(dockedDiffWidth + MIN_TERMINAL_WIDTH) : 0;
+	const treeReserved = expanded ? MIN_DIFF_WIDTH : dockedDiffWidth + MIN_TERMINAL_WIDTH;
+	const renderedTreeWidth = treeOpen ? fitTree(treeReserved) : 0;
+	const renderedDiffWidth = expanded && rowWidth !== undefined
+		? expandReviewDiff({ rowWidth, treeWidth: renderedTreeWidth, minDiff: MIN_DIFF_WIDTH })
+		: dockedDiffWidth;
 	const maxTreeWidth = rowWidth === undefined
 		? Number.POSITIVE_INFINITY
-		: Math.max(MIN_TREE_WIDTH, rowWidth - renderedDiffWidth - MIN_TERMINAL_WIDTH);
+		: Math.max(MIN_TREE_WIDTH, rowWidth - treeReserved);
 
 	const rowRef = useCallback(
 		(element: HTMLDivElement | null) => {
@@ -116,6 +125,13 @@ export function useReviewGeometry({
 				],
 				commit: () => {
 					setTreeWidth(tree);
+					// Expanded, the diff only fills what the tree leaves behind, so writing
+					// that width down would overwrite the width the panel docks back to.
+					if (expanded) {
+						onPersistLayout({ treeWidth: tree });
+						return;
+					}
+
 					setDiffWidth(diff);
 					onPersistLayout({ diffWidth: diff, treeWidth: tree });
 				},
@@ -128,7 +144,7 @@ export function useReviewGeometry({
 		diffDivider,
 		treeDivider,
 		resizing: diffDivider.resizing,
-		reviewWidth: REVIEW_SEPARATOR_WIDTH + renderedDiffWidth + renderedTreeWidth,
+		dockedWidth: REVIEW_SEPARATOR_WIDTH + dockedDiffWidth + dockedTreeWidth,
 		liveReviewWidth: `calc(${REVIEW_DIFF_WIDTH_VALUE} + ${REVIEW_TREE_WIDTH_VALUE} + ${REVIEW_SEPARATOR_WIDTH}px)`,
 	};
 }

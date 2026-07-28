@@ -18,6 +18,7 @@ export const layoutSchema = type({
 	"treeWidth?": "number",
 	"fullscreen?": "boolean",
 	"reviewOpen?": "boolean",
+	"reviewExpanded?": "boolean",
 	"treeOpen?": "boolean",
 	"projectsOpen?": "boolean",
 });

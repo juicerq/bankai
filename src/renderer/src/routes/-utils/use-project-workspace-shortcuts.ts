@@ -5,9 +5,11 @@ const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
 export function useProjectWorkspaceShortcuts({
 	active,
 	onToggleReview,
+	onToggleReviewExpanded,
 }: {
 	active: boolean;
 	onToggleReview: () => void;
+	onToggleReviewExpanded: () => void;
 }) {
 	return useCallback(() => {
 		let leaderArmed = false;
@@ -21,6 +23,10 @@ export function useProjectWorkspaceShortcuts({
 				leaderArmed = false;
 				if (event.code === "KeyR") {
 					return onToggleReview;
+				}
+
+				if (event.code === "KeyE") {
+					return onToggleReviewExpanded;
 				}
 
 				return;
@@ -59,5 +65,5 @@ export function useProjectWorkspaceShortcuts({
 			window.removeEventListener("keydown", handleKeyDown, true);
 			window.removeEventListener("blur", handleWindowBlur);
 		};
-	}, [active, onToggleReview]);
+	}, [active, onToggleReview, onToggleReviewExpanded]);
 }

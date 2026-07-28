@@ -252,6 +252,12 @@ then narrows the tree down to 120px, while growing restores the tree to its
 preferred width before the diff widens again. The tree remains above 120px, the
 diff above 280px, and the terminal above 360px.
 
+Expanded, the Review leaves the chassis instead of stretching it: it lays itself
+over the terminal up to the rail, keeps the width it docks at reserved in the row,
+and drops its outer divider for as long as it covers. A single shadow off its left
+edge is what says it is a layer rather than a wider column. In focus mode the rail
+is gone too, so the same gesture reaches the window's edge.
+
 Padding and gaps are strictly 4, 8, 12, 16, 20, 24 — Tailwind's `1`–`6`. The
 default density is tight: 12px is the standard padding, and anything looser has
 to earn it. This is a tool for people who keep it open all day; air spent on

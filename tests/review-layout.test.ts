@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
-import { redistributeReviewTree, squeezeReviewDiff } from "@renderer/routes/-utils/review-layout";
+import {
+	expandReviewDiff,
+	redistributeReviewTree,
+	REVIEW_SEPARATOR_WIDTH,
+	squeezeReviewDiff,
+} from "@renderer/routes/-utils/review-layout";
 
 test("squeezes the tree once the diff floors", () => {
 	expect(squeezeReviewDiff({ proposed: 180, minDiff: 280, maxDiff: 1340, treeOpen: true, minTree: 120, treeWidth: 300 })).toEqual({
@@ -27,6 +32,14 @@ test("keeps the tree var at zero while the tree is closed", () => {
 		diff: 280,
 		tree: 0,
 	});
+});
+
+test("expanded, the diff takes the whole row the tree leaves behind", () => {
+	expect(expandReviewDiff({ rowWidth: 1600, treeWidth: 200, minDiff: 280 })).toBe(1400 - REVIEW_SEPARATOR_WIDTH);
+});
+
+test("expanded, the diff still refuses to go under its minimum", () => {
+	expect(expandReviewDiff({ rowWidth: 380, treeWidth: 200, minDiff: 280 })).toBe(280);
 });
 
 test("redistributes a fixed Review width between tree and diff", () => {

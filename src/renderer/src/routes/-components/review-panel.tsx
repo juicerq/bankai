@@ -24,12 +24,16 @@ export function ReviewPanel({
 	shells,
 	treeOpen,
 	treeDivider,
+	expanded,
+	onToggleExpanded,
 }: {
 	project: Project;
 	shellId?: string;
 	shells: ContinuityShell[];
 	treeOpen: boolean;
 	treeDivider: ReturnType<typeof useDivider>;
+	expanded: boolean;
+	onToggleExpanded: () => void;
 }) {
 	const { onTreeOpenChange } = useWorkspaceControl();
 	const agents = useWorkspaceAgents();
@@ -145,8 +149,10 @@ export function ReviewPanel({
 					totals={files.length > 0 ? currentSnapshot?.totals : undefined}
 					refreshing={refreshing}
 					treeOpen={treeOpen}
+					expanded={expanded}
 					onSelectMode={panel.actions.selectMode}
 					onTreeOpenChange={onTreeOpenChange}
+					onToggleExpanded={onToggleExpanded}
 					filesClosed={filesClosed}
 					onToggleAllFiles={() => panel.actions.closeScope(files.map((file) => file.path), !filesClosed)}
 				/>

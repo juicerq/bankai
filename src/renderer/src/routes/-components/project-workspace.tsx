@@ -4,7 +4,7 @@ import type { Project } from "@main/store/projects";
 import { ProjectWorkspaceHeader } from "@renderer/routes/-components/project-workspace-header";
 import { ProjectWorkspaceShells } from "@renderer/routes/-components/project-workspace-shells";
 import { ReviewPanel } from "@renderer/routes/-components/review-panel";
-import { ReviewPanelFrame } from "@renderer/routes/-components/review-panel-frame";
+import { ReviewPanelFrame, type ReviewPanelMotion } from "@renderer/routes/-components/review-panel-frame";
 import { useProjectWorkspaceShortcuts } from "@renderer/routes/-utils/use-project-workspace-shortcuts";
 import { useReviewGeometry } from "@renderer/routes/-utils/use-review-geometry";
 import { useWorkspaceControl } from "@renderer/routes/-utils/workspace-context";
@@ -17,6 +17,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	fullscreenAnimating,
 	railResizing,
 	reviewOpen,
+	reviewExpanded,
 	treeOpen,
 	shells,
 	selectedShellId,
@@ -28,6 +29,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	fullscreenAnimating: boolean;
 	railResizing: boolean;
 	reviewOpen: boolean;
+	reviewExpanded: boolean;
 	treeOpen: boolean;
 	shells: ContinuityShell[];
 	selectedShellId: string | undefined;
@@ -40,18 +42,40 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		initialDiffWidth: control.initialDiffWidth,
 		initialTreeWidth: control.initialTreeWidth,
 		treeOpen,
+		expanded: reviewExpanded,
 		onPersistLayout: control.onPersistLayout,
 	});
-	const [reviewAnimating, setReviewAnimating] = useState(false);
+	const [motion, setMotion] = useState<ReviewPanelMotion>();
+	const startMotion = useCallback((kind: ReviewPanelMotion) => {
+		setMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : kind);
+	}, []);
 
 	const handleToggleReview = useCallback(() => {
-		setReviewAnimating(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+		startMotion("open");
+		// A panel that closes while expanded has to dock on the way out, or it would
+		// stay laid over the shells with nothing left to animate it back.
+		if (reviewOpen && reviewExpanded) {
+			control.onReviewExpandedChange(false);
+		}
+
 		control.onReviewOpenChange(!reviewOpen);
-	}, [control.onReviewOpenChange, reviewOpen]);
+	}, [control.onReviewExpandedChange, control.onReviewOpenChange, reviewExpanded, reviewOpen, startMotion]);
+
+	const handleToggleReviewExpanded = useCallback(() => {
+		startMotion("expand");
+		if (!reviewOpen) {
+			control.onReviewOpenChange(true);
+			control.onReviewExpandedChange(true);
+			return;
+		}
+
+		control.onReviewExpandedChange(!reviewExpanded);
+	}, [control.onReviewExpandedChange, control.onReviewOpenChange, reviewExpanded, reviewOpen, startMotion]);
 
 	const registerWorkspaceShortcuts = useProjectWorkspaceShortcuts({
 		active,
 		onToggleReview: handleToggleReview,
+		onToggleReviewExpanded: handleToggleReviewExpanded,
 	});
 
 	return (
@@ -80,15 +104,16 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					onRequestShell={control.onRequestShell}
 					active={active}
 					focusRequest={shellFocusRequest}
-					resizeDeferred={fullscreenAnimating || reviewAnimating || geometry.resizing || railResizing}
+					resizeDeferred={fullscreenAnimating || motion !== undefined || geometry.resizing || railResizing}
 				/>
 				<ReviewPanelFrame
 					open={reviewOpen}
-					animate={reviewAnimating}
-					width={geometry.reviewWidth}
+					expanded={reviewExpanded}
+					motion={motion}
+					width={geometry.dockedWidth}
 					liveWidth={geometry.liveReviewWidth}
 					divider={geometry.diffDivider}
-					onMotionEnd={() => setReviewAnimating(false)}
+					onMotionEnd={() => setMotion(undefined)}
 				>
 					<ReviewPanel
 						project={project}
@@ -96,6 +121,8 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 						shells={shells}
 						treeOpen={treeOpen}
 						treeDivider={geometry.treeDivider}
+						expanded={reviewExpanded}
+						onToggleExpanded={handleToggleReviewExpanded}
 					/>
 				</ReviewPanelFrame>
 			</div>

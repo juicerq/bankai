@@ -76,6 +76,14 @@ function Bankai() {
 		},
 		[layout.persist],
 	);
+	const [reviewExpanded, setReviewExpanded] = useState(layout.initial.reviewExpanded);
+	const handleReviewExpandedChange = useCallback(
+		(expanded: boolean) => {
+			setReviewExpanded(expanded);
+			layout.persist({ reviewExpanded: expanded });
+		},
+		[layout.persist],
+	);
 	const [projectsOpen, setProjectsOpen] = useState(layout.initial.projectsOpen);
 	const toggleProjects = useCallback(() => {
 		setProjectsOpen(!projectsOpen);
@@ -224,6 +232,7 @@ function Bankai() {
 			onOpenSettings: openSettings,
 			onPersistLayout: layout.persist,
 			onReviewOpenChange: handleReviewOpenChange,
+			onReviewExpandedChange: handleReviewExpandedChange,
 			onTreeOpenChange: handleTreeOpenChange,
 			onRequestShell: requestNewShell,
 		}),
@@ -233,6 +242,7 @@ function Bankai() {
 			layout.persist,
 			projectRail.toggleFullscreen,
 			openSettings,
+			handleReviewExpandedChange,
 			handleReviewOpenChange,
 			handleTreeOpenChange,
 			requestNewShell,
@@ -383,6 +393,7 @@ function Bankai() {
 								fullscreenAnimating={projectRail.animating}
 								railResizing={railDivider.resizing}
 								reviewOpen={reviewOpen}
+								reviewExpanded={reviewExpanded}
 								treeOpen={treeOpen}
 								shells={workspace?.shells ?? NO_SHELLS}
 								selectedShellId={selectedShellId}

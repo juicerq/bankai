@@ -25,6 +25,10 @@ export function squeezeReviewDiff(input: {
 	return { diff, tree };
 }
 
+export function expandReviewDiff(input: { rowWidth: number; treeWidth: number; minDiff: number }): number {
+	return Math.max(input.minDiff, input.rowWidth - input.treeWidth - REVIEW_SEPARATOR_WIDTH);
+}
+
 export function redistributeReviewTree(input: {
 	proposed: number;
 	total: number;

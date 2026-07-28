@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { ReviewPanelFrame } from "@renderer/routes/-components/review-panel-frame";
 import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-utils/layout-motion";
 import type { useDivider } from "@renderer/routes/-utils/use-divider";
-import { get } from "./dom";
+import { get, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
 afterEach(cleanup);
@@ -26,7 +26,8 @@ test("publishes the shared layout motion contract while open", () => {
 	render(
 		<ReviewPanelFrame
 			open
-			animate
+			expanded={false}
+			motion="open"
 			width={811}
 			liveWidth="811px"
 			divider={divider}
@@ -50,7 +51,8 @@ test("suppresses the open/close motion while the panel is being resized", () => 
 	render(
 		<ReviewPanelFrame
 			open
-			animate
+			expanded={false}
+			motion="open"
 			width={811}
 			liveWidth="811px"
 			divider={{ ...divider, resizing: true }}
@@ -68,7 +70,8 @@ test("becomes inert when closed and owns the end of its width motion", () => {
 	render(
 		<ReviewPanelFrame
 			open={false}
-			animate
+			expanded={false}
+			motion="open"
 			width={811}
 			liveWidth="811px"
 			divider={divider}
@@ -93,5 +96,107 @@ test("becomes inert when closed and owns the end of its width motion", () => {
 	const widthTransition = new Event("transitionend", { bubbles: true });
 	Object.defineProperty(widthTransition, "propertyName", { value: "width" });
 	fireEvent(frame, widthTransition);
+	expect(motionEnds).toBe(1);
+});
+
+test("expanded, the panel holds its docked place in the row and lays the surface over it", () => {
+	render(
+		<ReviewPanelFrame
+			open
+			expanded
+			motion={undefined}
+			width={811}
+			liveWidth="1400px"
+			divider={divider}
+			onMotionEnd={() => {}}
+		>
+			<div data-component="review-content" />
+		</ReviewPanelFrame>,
+	);
+
+	const frame = get("review-panel-frame");
+
+	expect(frame.dataset.expanded).toBe("true");
+	expect(frame.dataset.covering).toBe("true");
+	expect(frame.style.width).toBe("811px");
+	expect(get("review-panel-surface").style.width).toBe("1400px");
+});
+
+test("keeps the surface clipped while the panel merely opens", () => {
+	render(
+		<ReviewPanelFrame
+			open
+			expanded={false}
+			motion="open"
+			width={811}
+			liveWidth="811px"
+			divider={divider}
+			onMotionEnd={() => {}}
+		>
+			<div data-component="review-content" />
+		</ReviewPanelFrame>,
+	);
+
+	expect(get("review-panel-frame").dataset.covering).toBe("false");
+});
+
+test("uncovers the shells as soon as the panel starts docking back", () => {
+	render(
+		<ReviewPanelFrame
+			open
+			expanded={false}
+			motion="expand"
+			width={811}
+			liveWidth="811px"
+			divider={divider}
+			onMotionEnd={() => {}}
+		>
+			<div data-component="review-content" />
+		</ReviewPanelFrame>,
+	);
+
+	expect(get("review-panel-frame").dataset.covering).toBe("true");
+});
+
+test("drops the resize handle while the panel is expanded", () => {
+	render(
+		<ReviewPanelFrame
+			open
+			expanded
+			motion={undefined}
+			width={811}
+			liveWidth="1400px"
+			divider={divider}
+			onMotionEnd={() => {}}
+		>
+			<div data-component="review-content" />
+		</ReviewPanelFrame>,
+	);
+
+	expect(() => slot(get("review-panel-frame"), "resize")).toThrow();
+});
+
+test("ends the expand motion from the surface that carries it", () => {
+	let motionEnds = 0;
+	render(
+		<ReviewPanelFrame
+			open
+			expanded
+			motion="expand"
+			width={811}
+			liveWidth="1400px"
+			divider={divider}
+			onMotionEnd={() => {
+				motionEnds += 1;
+			}}
+		>
+			<div data-component="review-content" />
+		</ReviewPanelFrame>,
+	);
+
+	const widthTransition = new Event("transitionend", { bubbles: true });
+	Object.defineProperty(widthTransition, "propertyName", { value: "width" });
+	fireEvent(get("review-panel-surface"), widthTransition);
+
 	expect(motionEnds).toBe(1);
 });

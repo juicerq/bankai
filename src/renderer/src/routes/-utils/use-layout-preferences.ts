@@ -16,6 +16,7 @@ export interface LayoutPreferences {
 	treeWidth: number;
 	fullscreen: boolean;
 	reviewOpen: boolean;
+	reviewExpanded: boolean;
 	treeOpen: boolean;
 	projectsOpen: boolean;
 }
@@ -27,6 +28,7 @@ export function clampLayout(stored: LayoutSettings | null): LayoutPreferences {
 		treeWidth: Math.max(MIN_TREE_WIDTH, stored?.treeWidth ?? DEFAULT_TREE_WIDTH),
 		fullscreen: stored?.fullscreen ?? false,
 		reviewOpen: stored?.reviewOpen ?? true,
+		reviewExpanded: stored?.reviewExpanded ?? false,
 		treeOpen: stored?.treeOpen ?? true,
 		projectsOpen: stored?.projectsOpen ?? false,
 	};

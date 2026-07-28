@@ -8,9 +8,11 @@ afterEach(cleanup);
 
 function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 	const [reviewOpen, setReviewOpen] = useState(true);
+	const [reviewExpanded, setReviewExpanded] = useState(false);
 	const registerShortcuts = useProjectWorkspaceShortcuts({
 		active,
 		onToggleReview: () => setReviewOpen((open) => !open),
+		onToggleReviewExpanded: () => setReviewExpanded((expanded) => !expanded),
 	});
 
 	return (
@@ -18,6 +20,7 @@ function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 			ref={registerShortcuts}
 			data-component="workspace-shortcut-state"
 			data-review-open={reviewOpen}
+			data-review-expanded={reviewExpanded}
 		/>
 	);
 }
@@ -35,6 +38,25 @@ test("the leader followed by r toggles review without reaching the Shell", () =>
 	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
 	fireEvent.keyDown(window, { key: "r", code: "KeyR" });
 	expect(get("workspace-shortcut-state").dataset.reviewOpen).toBe("true");
+});
+
+test("the leader followed by e expands the review panel", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	const expandPassedThrough = fireEvent.keyDown(window, { key: "e", code: "KeyE" });
+
+	expect(expandPassedThrough).toBe(false);
+	expect(get("workspace-shortcut-state").dataset.reviewExpanded).toBe("true");
+});
+
+test("e on its own reaches the Shell instead of expanding review", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	const typedPassedThrough = fireEvent.keyDown(window, { key: "e", code: "KeyE" });
+
+	expect(typedPassedThrough).toBe(true);
+	expect(get("workspace-shortcut-state").dataset.reviewExpanded).toBe("false");
 });
 
 test("r on its own reaches the Shell instead of toggling review", () => {

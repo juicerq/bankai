@@ -7,6 +7,7 @@ arch=('x86_64')
 url="https://github.com/juicerq/bankai-2"
 license=('MIT')
 depends=('gtk3' 'nss' 'alsa-lib' 'libxss' 'libnotify' 'hicolor-icon-theme' 'git')
+makedepends=('imagemagick')
 provides=('bankai')
 conflicts=('bankai')
 options=('!strip' '!debug')
@@ -33,8 +34,12 @@ package() {
 	install -d "$pkgdir/usr/bin"
 	ln -s /opt/bankai/bankai "$pkgdir/usr/bin/bankai"
 
-	install -Dm644 "$srcdir/squashfs-root/usr/share/icons/hicolor/1024x1024/apps/bankai.png" \
-		"$pkgdir/usr/share/icons/hicolor/1024x1024/apps/bankai.png"
+	for size in 128 256 512; do
+		magick "$srcdir/squashfs-root/usr/share/icons/hicolor/1024x1024/apps/bankai.png" \
+			-resize "${size}x${size}" "$srcdir/bankai-$size.png"
+		install -Dm644 "$srcdir/bankai-$size.png" \
+			"$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/bankai.png"
+	done
 
 	install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/bankai.desktop" <<-EOF
 		[Desktop Entry]

@@ -11,6 +11,10 @@ created_at: 2026-07-26
 
 `chrome-sandbox` is installed setuid root (4755), so the packaged app runs with the Chromium sandbox on. Running the binary straight out of `pkg/` for a smoke test needs `--no-sandbox` because the file is not root-owned there yet.
 
+## The AppImage's only icon sits in a size hicolor does not index
+
+`electron-builder` puts a single `bankai.png` in the AppImage, at 1024x1024, and `hicolor`'s `index.theme` stops at 512x512. Installing that file under `hicolor/1024x1024/apps/` therefore creates a directory outside the theme index, and no desktop resolves `Icon=bankai` from it: the menu entry shows the generic placeholder even though the icon cache was refreshed and every path is readable. The recipe resizes the source into 128, 256 and 512 with `imagemagick`, which is a `makedepends` and has to be installed in the `aur` job's container too — `makepkg --nodeps` there skips the dependency check, so a missing `magick` would only surface as a failing `package()`.
+
 ## Every directory extracted from the AppImage comes out 0700
 
 `--appimage-extract` writes `squashfs-root` and every directory under it with mode 0700, and `cp -a` carries that into `$pkgdir`. Files land readable (0644/0755), directories do not, so a package built without a correction ships `/opt/bankai`, `locales/` and `resources/` traversable only by root. The desktop entry then fails with "could not find the program 'bankai'" — the symlink in `/usr/bin` resolves into a directory the user cannot enter — and fixing only the top directory moves the failure to `resources/app.asar`. `find "$pkgdir/opt/bankai" -type d -exec chmod 755 {} +` corrects it without touching a single file mode, which a recursive `chmod` would. Every AUR release from 0.2.27 to 0.2.32 shipped with this defect.

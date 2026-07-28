@@ -11,15 +11,17 @@ created_at: 2026-07-28
 
 ## Dev on the phone goes through vite, not the loopback bundle
 
-The renderer dev server is pinned to `127.0.0.1:4697` (`electron.vite.config.ts`, `strictPort`) and proxies `/rpc` (HTTP) and `/stream` (WebSocket) to the loopback server on 4696. Point tailscale at vite instead of the app's own target:
+The renderer dev server is pinned to `127.0.0.1:4697` (`electron.vite.config.ts`, `strictPort`) and proxies `/rpc` (HTTP) and `/stream` (WebSocket) to the loopback server on 4696. The Mobile access toggle points tailscale at vite by itself: `serveProxyTarget` prefers `ELECTRON_RENDERER_URL` — set by electron-vite only while the dev server owns the renderer — over the loopback port, and the exposure read uses the same target, so the toggle reflects the state it wrote.
+
+The phone then gets HMR and the real oRPC/stream through one origin. The pairing QR stays valid — its URL carries only host and token, never a port.
+
+The equivalent by hand, if the toggle is not involved:
 
 ```sh
 tailscale serve --bg --https=443 http://127.0.0.1:4697
 ```
 
-The phone then gets HMR and the real oRPC/stream through one origin. The pairing QR stays valid — its URL carries only host and token, never a port.
-
-Toggling Mobile access in the app rewrites the serve config back to 4696 (the packaged path), so re-run the command above after touching the toggle in dev. Port 5173 is left alone on purpose: something else on this machine squats it.
+Port 5173 is left alone on purpose: something else on this machine squats it.
 
 ## A phone left open through a CSS edit needs a reload, not a bug report
 

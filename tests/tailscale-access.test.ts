@@ -82,6 +82,23 @@ describe("serve command", () => {
 		]);
 	});
 
+	it("proxies to the renderer dev server while one is running", () => {
+		process.env.ELECTRON_RENDERER_URL = "http://127.0.0.1:4697/";
+
+		try {
+			expect(serveArgs({ enabled: true, port: SERVER_DEFAULT_PORT })).toEqual([
+				"serve",
+				"--bg",
+				"--https=443",
+				"http://127.0.0.1:4697",
+			]);
+			expect(serveExposes(serveStatus(4697), SERVER_DEFAULT_PORT)).toBe(true);
+			expect(serveExposes(serveStatus(SERVER_DEFAULT_PORT), SERVER_DEFAULT_PORT)).toBe(false);
+		} finally {
+			delete process.env.ELECTRON_RENDERER_URL;
+		}
+	});
+
 	it("turns the 443 handler off", () => {
 		expect(serveArgs({ enabled: false, port: SERVER_DEFAULT_PORT })).toEqual([
 			"serve",

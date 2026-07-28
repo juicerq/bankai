@@ -39,6 +39,11 @@ export function magicDnsHost(raw: string): string | undefined {
 }
 
 export function serveProxyTarget(port: number): string {
+	const renderer = process.env.ELECTRON_RENDERER_URL;
+	if (renderer) {
+		return new URL(renderer).origin;
+	}
+
 	return `http://${SERVER_HOST}:${port}`;
 }
 

@@ -8,6 +8,7 @@ import { installLoggerBridge } from "@renderer/lib/logger-bridge";
 import { installReviewPrewarm } from "@renderer/lib/prewarm-reviews";
 import { queryClient } from "@renderer/lib/query-client";
 import { router } from "@renderer/lib/router";
+import { installServiceWorker } from "@renderer/lib/service-worker";
 import { installStartupTiming, markStartup } from "@renderer/lib/startup";
 import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-utils/review-scope";
 import "@renderer/styles.css";
@@ -18,6 +19,7 @@ installStartupTiming({ queryClient });
 installLoggerBridge();
 installContinuityPush({ queryClient });
 installReviewPrewarm({ queryClient, mode: DEFAULT_REVIEW_MODE });
+installServiceWorker();
 markStartup("installed");
 
 const rootElement = document.querySelector("#root");

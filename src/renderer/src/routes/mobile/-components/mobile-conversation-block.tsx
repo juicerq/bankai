@@ -1,4 +1,5 @@
-import type { ConversationBlock, ConversationToolState } from "@shared/conversation";
+import { useState } from "react";
+import type { ConversationBlock, ConversationEdit, ConversationToolState } from "@shared/conversation";
 
 const TOOL_DOT_CLASS: Record<ConversationToolState, string> = {
 	running: "pending-pulse bg-tertiary",
@@ -11,6 +12,39 @@ const TOOL_TEXT_CLASS: Record<ConversationToolState, string> = {
 	done: "text-secondary",
 	failed: "text-removed",
 };
+
+function EditCounts({ edit }: { edit: ConversationEdit }) {
+	return (
+		<span data-slot="edit" className="ml-auto shrink-0 tabular-nums">
+			<span className="text-added">+{edit.added}</span>
+			<span className="text-removed"> −{edit.removed}</span>
+		</span>
+	);
+}
+
+function ThinkingBlock({ text }: { text: string }) {
+	const [open, setOpen] = useState(false);
+
+	return (
+		<button
+			type="button"
+			data-component="conversation-block"
+			data-kind="thinking"
+			data-open={String(open)}
+			aria-expanded={open}
+			onClick={() => setOpen(!open)}
+			className="mx-4 flex flex-col items-start gap-1 border-outline border-l pl-2 text-left text-secondary text-support"
+		>
+			<span data-slot="thinking-mark" className="text-label text-outline-strong">THINKING</span>
+			<span
+				data-slot="thinking-text"
+				className={`min-w-0 whitespace-pre-wrap break-words ${open ? "" : "line-clamp-1"}`}
+			>
+				{text}
+			</span>
+		</button>
+	);
+}
 
 export function MobileConversationBlock({ block }: { block: ConversationBlock }) {
 	if (block.kind === "user") {
@@ -38,6 +72,10 @@ export function MobileConversationBlock({ block }: { block: ConversationBlock })
 		);
 	}
 
+	if (block.kind === "thinking") {
+		return <ThinkingBlock text={block.text} />;
+	}
+
 	if (block.kind === "tool") {
 		return (
 			<div
@@ -54,6 +92,7 @@ export function MobileConversationBlock({ block }: { block: ConversationBlock })
 					className={`size-1.5 shrink-0 rounded-full ${TOOL_DOT_CLASS[block.state]}`}
 				/>
 				<span className="min-w-0 truncate">{block.label}</span>
+				{block.edit && <EditCounts edit={block.edit} />}
 			</div>
 		);
 	}

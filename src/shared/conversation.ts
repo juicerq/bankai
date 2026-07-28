@@ -1,9 +1,15 @@
 export type ConversationToolState = "running" | "done" | "failed";
 
+export interface ConversationEdit {
+	added: number;
+	removed: number;
+}
+
 export type ConversationBlock =
 	| { kind: "user"; id: string; text: string }
 	| { kind: "agent"; id: string; text: string }
-	| { kind: "tool"; id: string; label: string; state: ConversationToolState }
+	| { kind: "thinking"; id: string; text: string }
+	| { kind: "tool"; id: string; label: string; state: ConversationToolState; edit?: ConversationEdit }
 	| { kind: "compacted"; id: string }
 	| { kind: "interrupted"; id: string };
 

@@ -173,6 +173,32 @@ test("a running tool pulses and a failed one turns red", () => {
 	expect(block(1).className).toContain("text-removed");
 });
 
+test("an edit says how many lines it moved, beside the file it moved them in", () => {
+	renderConversation({
+		conversation: view([
+			{ kind: "tool", id: "t1", label: "Editing upload.ts", state: "done", edit: { added: 12, removed: 3 } },
+		]),
+	});
+
+	expect(slot(block(0), "edit").textContent).toContain("+12");
+	expect(slot(block(0), "edit").textContent).toContain("3");
+	expect(block(0).textContent).toContain("Editing upload.ts");
+});
+
+test("the reasoning arrives folded and opens where it sits", () => {
+	renderConversation({
+		conversation: view([{ kind: "thinking", id: "th1", text: "o upload não tem retry\nnem backoff" }]),
+	});
+
+	expect(block(0).dataset.kind).toBe("thinking");
+	expect(slot(block(0), "thinking-text").className).toContain("line-clamp-1");
+
+	fireEvent.click(block(0));
+
+	expect(slot(block(0), "thinking-text").className).not.toContain("line-clamp-1");
+	expect(slot(block(0), "thinking-text").textContent).toContain("nem backoff");
+});
+
 test("a compaction and an interruption read as markers, not as messages", () => {
 	renderConversation({
 		conversation: view([{ kind: "compacted", id: "c1" }, { kind: "interrupted", id: "i1" }]),

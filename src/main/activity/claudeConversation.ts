@@ -1,7 +1,7 @@
 import { type } from "arktype";
 import { toolTrace } from "@main/activity/claudeTrace";
 import { noisyText } from "@main/activity/claudeTranscript";
-import type { ConversationBlock } from "@shared/conversation";
+import type { ConversationBlock, ConversationEdit } from "@shared/conversation";
 
 export const CONVERSATION_LINE_LIMIT = 128 * 1024;
 
@@ -15,6 +15,7 @@ const userRecordSchema = type({
 	"uuid?": "string",
 	"isMeta?": "boolean",
 	"isCompactSummary?": "boolean",
+	"toolUseResult?": "unknown",
 	message: { content: "string | unknown[]" },
 });
 
@@ -31,6 +32,43 @@ const aiTitleSchema = type({ type: "'ai-title'", aiTitle: "string" });
 const customTitleSchema = type({ type: "'custom-title'", customTitle: "string" });
 
 const textBlockSchema = type({ type: "'text'", text: "string" });
+
+const thinkingBlockSchema = type({ type: "'thinking'", thinking: "string" });
+
+const editResultSchema = type({
+	filePath: "string",
+	"structuredPatch?": type({ lines: "string[]" }).array(),
+	"content?": "string",
+});
+
+function editOf(value: unknown): ConversationEdit | undefined {
+	const result = editResultSchema(value);
+	if (result instanceof type.errors) {
+		return undefined;
+	}
+
+	let added = 0;
+	let removed = 0;
+
+	for (const hunk of result.structuredPatch ?? []) {
+		for (const line of hunk.lines) {
+			if (line.startsWith("+")) {
+				added += 1;
+			}
+
+			if (line.startsWith("-")) {
+				removed += 1;
+			}
+		}
+	}
+
+	const written = result.content?.trimEnd();
+	if (added === 0 && removed === 0 && written) {
+		return { added: written.split("\n").length, removed: 0 };
+	}
+
+	return { added, removed };
+}
 
 const imageBlockSchema = type({ type: "'image'" });
 
@@ -85,6 +123,7 @@ export class ConversationParser {
 	title: string | undefined;
 	private sequence = 0;
 	private readonly agentText = new Map<string, string>();
+	private readonly thoughts = new Map<string, string>();
 	private readonly toolLabels = new Map<string, string>();
 
 	consume(line: string): ConversationBlock[] {
@@ -137,6 +176,19 @@ export class ConversationParser {
 				continue;
 			}
 
+			const thought = thinkingBlockSchema(entry);
+			if (!(thought instanceof type.errors)) {
+				const id = `thinking-${record.message.id ?? this.blockId(record.uuid)}`;
+				const thinking = [this.thoughts.get(id), thought.thinking].filter((part) => !!part?.trim()).join("\n");
+				this.thoughts.set(id, thinking);
+
+				if (thinking.trim()) {
+					blocks.push({ kind: "thinking", id, text: thinking.trim() });
+				}
+
+				continue;
+			}
+
 			const text = textBlockSchema(entry);
 			if (text instanceof type.errors) {
 				continue;
@@ -167,11 +219,12 @@ export class ConversationParser {
 
 		const settled: ConversationBlock[] = [];
 		const texts: string[] = [];
+		const edit = editOf(record.toolUseResult);
 
 		for (const entry of record.message.content) {
 			const result = toolResultBlockSchema(entry);
 			if (!(result instanceof type.errors)) {
-				const updated = this.settleTool(result);
+				const updated = this.settleTool(result, edit);
 				if (updated) {
 					settled.push(updated);
 				}
@@ -211,12 +264,26 @@ export class ConversationParser {
 		return [{ kind: "user", id, text: said }];
 	}
 
-	private settleTool(result: typeof toolResultBlockSchema.infer): ConversationBlock | undefined {
+	private settleTool(
+		result: typeof toolResultBlockSchema.infer,
+		edit: ConversationEdit | undefined,
+	): ConversationBlock | undefined {
 		const label = this.toolLabels.get(result.tool_use_id);
 		if (label === undefined) {
 			return undefined;
 		}
 
-		return { kind: "tool", id: result.tool_use_id, label, state: result.is_error ? "failed" : "done" };
+		const settled = {
+			kind: "tool",
+			id: result.tool_use_id,
+			label,
+			state: result.is_error ? "failed" : "done",
+		} satisfies ConversationBlock;
+
+		if (!edit) {
+			return settled;
+		}
+
+		return { ...settled, edit };
 	}
 }

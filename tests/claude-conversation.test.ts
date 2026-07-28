@@ -81,8 +81,27 @@ describe("what the phone reads out of an assistant record", () => {
 		]);
 	});
 
-	it("ignores thinking, which is not part of phase one", () => {
-		expect(parse([assistantRecord("msg_1", [{ type: "thinking", thinking: "hmm" }])]).blocks).toEqual([]);
+	it("keeps the reasoning as its own block, apart from what the agent said", () => {
+		const blocks = parse([
+			assistantRecord("msg_1", [
+				{ type: "thinking", thinking: "o upload não tem retry", signature: "sig" },
+				{ type: "text", text: "Vou olhar o upload." },
+			]),
+		]).blocks;
+
+		expect(blocks).toEqual([
+			{ kind: "thinking", id: "thinking-msg_1", text: "o upload não tem retry" },
+			{ kind: "agent", id: "msg_1", text: "Vou olhar o upload." },
+		]);
+	});
+
+	it("grows the reasoning of one message from the chunks that share its id", () => {
+		const blocks = parse([
+			assistantRecord("msg_1", [{ type: "thinking", thinking: "primeiro", signature: "s1" }], "a1"),
+			assistantRecord("msg_1", [{ type: "thinking", thinking: "depois", signature: "s2" }], "a2"),
+		]).blocks;
+
+		expect(blocks.at(-1)).toEqual({ kind: "thinking", id: "thinking-msg_1", text: "primeiro\ndepois" });
 	});
 
 	it("labels a tool call the way the desktop trace labels it", () => {
@@ -122,6 +141,59 @@ describe("how a tool call is answered", () => {
 			id: "toolu_1",
 			label: "Rodar os testes",
 			state: "failed",
+		});
+	});
+
+	it("counts the lines an edit changed, without carrying the patch", () => {
+		const edit = assistantRecord("msg_2", [
+			{ type: "tool_use", id: "toolu_2", name: "Edit", input: { file_path: "/app/src/upload.ts" } },
+		]);
+		const answer = userRecord([{ type: "tool_result", tool_use_id: "toolu_2", content: "ok" }], {
+			toolUseResult: {
+				filePath: "/app/src/upload.ts",
+				structuredPatch: [
+					{ oldStart: 5, oldLines: 6, newStart: 5, newLines: 7, lines: [" import x", "+const retry = 3", "-const retry = 0"] },
+					{ oldStart: 30, oldLines: 2, newStart: 31, newLines: 2, lines: ["+await sleep(retry)"] },
+				],
+			},
+		});
+
+		expect(parse([edit, answer]).blocks.at(-1)).toEqual({
+			kind: "tool",
+			id: "toolu_2",
+			label: "Editing upload.ts",
+			state: "done",
+			edit: { added: 2, removed: 1 },
+		});
+	});
+
+	it("counts a file written from nothing by what was written into it", () => {
+		const write = assistantRecord("msg_2", [
+			{ type: "tool_use", id: "toolu_2", name: "Write", input: { file_path: "/app/src/retry.ts" } },
+		]);
+		const answer = userRecord([{ type: "tool_result", tool_use_id: "toolu_2", content: "ok" }], {
+			toolUseResult: { type: "create", filePath: "/app/src/retry.ts", structuredPatch: [], content: "uma\nduas\n" },
+		});
+
+		expect(parse([write, answer]).blocks.at(-1)).toEqual({
+			kind: "tool",
+			id: "toolu_2",
+			label: "Editing retry.ts",
+			state: "done",
+			edit: { added: 2, removed: 0 },
+		});
+	});
+
+	it("settles a tool whose answer carries no patch as a plain row", () => {
+		const answer = userRecord([{ type: "tool_result", tool_use_id: "toolu_1", content: "ok" }], {
+			toolUseResult: { stdout: "tudo verde", stderr: "" },
+		});
+
+		expect(parse([call, answer]).blocks.at(-1)).toEqual({
+			kind: "tool",
+			id: "toolu_1",
+			label: "Rodar os testes",
+			state: "done",
 		});
 	});
 

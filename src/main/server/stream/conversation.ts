@@ -1,12 +1,18 @@
 import { AgentActivity } from "@main/activity/AgentActivity";
 import { transcriptPath } from "@main/activity/claudeTranscript";
 import { CONVERSATION_BACKFILL_BYTES, ConversationTail } from "@main/activity/conversationTail";
+import { subagentTranscriptPath } from "@main/activity/subagentTranscript";
 import { Logger } from "@main/logger";
 import type { StreamConnection } from "@main/server/stream/connection";
 import { releaseWatch, replaceWatch } from "@main/server/stream/connectionWatches";
 import { ConversationSchemas } from "@main/server/stream/messages";
 import { Continuity, type ContinuitySessionRef, type ContinuityValue } from "@main/store/continuity";
-import type { ConversationAppendedEvent, ConversationResetEvent, ConversationSnapshot } from "@shared/conversation";
+import type {
+	ConversationAddress,
+	ConversationAppendedEvent,
+	ConversationResetEvent,
+	ConversationSnapshot,
+} from "@shared/conversation";
 import type { StreamEnvelope } from "@shared/stream";
 
 const EMPTY_CONVERSATION: ConversationSnapshot = { blocks: [], startOffset: 0, atStart: true };
@@ -15,8 +21,12 @@ const CONVERSATION_HISTORY_STEPS = 4;
 
 const conversationWatches = new Map<string, ConversationWatch>();
 
-function watchKey(connection: StreamConnection, shellId: string): string {
-	return `${connection.id} ${shellId}`;
+function addressKey(address: ConversationAddress): string {
+	return `${address.shellId} ${address.agent ?? ""}`;
+}
+
+function watchKey(connection: StreamConnection, address: ConversationAddress): string {
+	return `${connection.id} ${addressKey(address)}`;
 }
 
 function shellSession(value: ContinuityValue, shellId: string): ContinuitySessionRef | undefined {
@@ -44,7 +54,7 @@ class ConversationWatch {
 
 	constructor(
 		private readonly connection: StreamConnection,
-		private readonly shellId: string,
+		private readonly address: ConversationAddress,
 	) {}
 
 	async start(): Promise<ConversationSnapshot> {
@@ -55,7 +65,7 @@ class ConversationWatch {
 			return EMPTY_CONVERSATION;
 		}
 
-		this.session = shellSession(value, this.shellId);
+		this.session = shellSession(value, this.address.shellId);
 		const snapshot = await this.open(generation);
 
 		if (generation !== this.generation) {
@@ -92,11 +102,11 @@ class ConversationWatch {
 		}
 
 		if (!snapshot.atStart && snapshot.blocks[0]?.id === known) {
-			Logger.warn("conversation:history-exhausted", { shellId: this.shellId, before });
+			Logger.warn("conversation:history-exhausted", { ...this.address, before });
 		}
 
 		this.connection.send("conversation", "reset", {
-			shellId: this.shellId,
+			...this.address,
 			...snapshot,
 		} satisfies ConversationResetEvent);
 	}
@@ -110,15 +120,13 @@ class ConversationWatch {
 	}
 
 	private resolve(value: ContinuityValue): void {
-		const session = shellSession(value, this.shellId);
+		const session = shellSession(value, this.address.shellId);
 		if (sameSession(this.session, session)) {
 			return;
 		}
 
 		this.session = session;
-		this.restart().catch((err) =>
-			Logger.warn("conversation:restart-failed", { shellId: this.shellId, err: String(err) }),
-		);
+		this.restart().catch((err) => Logger.warn("conversation:restart-failed", { ...this.address, err: String(err) }));
 	}
 
 	private async restart(): Promise<void> {
@@ -133,7 +141,7 @@ class ConversationWatch {
 		}
 
 		this.connection.send("conversation", "reset", {
-			shellId: this.shellId,
+			...this.address,
 			...snapshot,
 		} satisfies ConversationResetEvent);
 	}
@@ -144,9 +152,17 @@ class ConversationWatch {
 			return EMPTY_CONVERSATION;
 		}
 
-		const tail = new ConversationTail(transcriptPath(session), (event) =>
+		const path = this.address.agent
+			? await subagentTranscriptPath(session, this.address.agent)
+			: transcriptPath(session);
+
+		if (!path || generation !== this.generation) {
+			return EMPTY_CONVERSATION;
+		}
+
+		const tail = new ConversationTail(path, (event) =>
 			this.connection.send("conversation", "appended", {
-				shellId: this.shellId,
+				...this.address,
 				...event,
 			} satisfies ConversationAppendedEvent),
 		);
@@ -168,18 +184,18 @@ class ConversationWatch {
 
 export function handleConversationMessage(connection: StreamConnection, message: StreamEnvelope): unknown {
 	if (message.type === "history") {
-		const { shellId, before } = ConversationSchemas.history.assert(message.payload);
+		const { before, ...address } = ConversationSchemas.history.assert(message.payload);
 
-		return conversationWatches.get(watchKey(connection, shellId))?.history(before);
+		return conversationWatches.get(watchKey(connection, address))?.history(before);
 	}
 
-	const { shellId } = ConversationSchemas.shell.assert(message.payload);
-	const key = watchKey(connection, shellId);
+	const address = ConversationSchemas.shell.assert(message.payload);
+	const key = watchKey(connection, address);
 
 	switch (message.type) {
 		case "subscribe": {
-			const watch = new ConversationWatch(connection, shellId);
-			replaceWatch({ connection, channel: "conversation", key: shellId }, () => {
+			const watch = new ConversationWatch(connection, address);
+			replaceWatch({ connection, channel: "conversation", key: addressKey(address) }, () => {
 				watch.stop();
 
 				if (conversationWatches.get(key) === watch) {
@@ -187,12 +203,12 @@ export function handleConversationMessage(connection: StreamConnection, message:
 				}
 			});
 			conversationWatches.set(key, watch);
-			AgentActivity.markShellViewed(shellId);
+			AgentActivity.markShellViewed(address.shellId);
 
 			return watch.start();
 		}
 		case "unsubscribe":
-			releaseWatch({ connection, channel: "conversation", key: shellId });
+			releaseWatch({ connection, channel: "conversation", key: addressKey(address) });
 
 			return undefined;
 		default:

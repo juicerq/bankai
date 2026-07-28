@@ -114,6 +114,17 @@ describe("what the phone reads out of an assistant record", () => {
 		).toEqual([{ kind: "tool", id: "toolu_1", label: "Reading upload.ts", state: "running" }]);
 	});
 
+	it("marks a call that spawned a subagent as one you can open", () => {
+		const call = assistantRecord("msg_1", [
+			{ type: "tool_use", id: "toolu_1", name: "Agent", input: { name: "explorer", description: "Ler o parser" } },
+		]);
+		const answer = userRecord([{ type: "tool_result", tool_use_id: "toolu_1", content: "ok" }]);
+		const blocks = parse([call, answer]).blocks;
+
+		expect(blocks[0]).toMatchObject({ kind: "tool", id: "toolu_1", state: "running", agent: true });
+		expect(blocks.at(-1)).toMatchObject({ kind: "tool", id: "toolu_1", state: "done", agent: true });
+	});
+
 	it("leaves a tool without an answer running", () => {
 		expect(
 			parse([assistantRecord("msg_1", [{ type: "tool_use", id: "toolu_1", name: "Bash", input: {} }])]).blocks,

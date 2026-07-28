@@ -1,3 +1,4 @@
+import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import type { ConversationBlock, ConversationEdit, ConversationToolState } from "@shared/conversation";
 
@@ -46,7 +47,59 @@ function ThinkingBlock({ text }: { text: string }) {
 	);
 }
 
-export function MobileConversationBlock({ block }: { block: ConversationBlock }) {
+function ToolBlock({
+	block,
+	onOpenAgent,
+}: {
+	block: Extract<ConversationBlock, { kind: "tool" }>;
+	onOpenAgent: ((toolUseId: string) => void) | undefined;
+}) {
+	const inside = (
+		<>
+			<span
+				data-slot="tool-dot"
+				aria-hidden="true"
+				className={`size-1.5 shrink-0 rounded-full ${TOOL_DOT_CLASS[block.state]}`}
+			/>
+			<span className="min-w-0 truncate">{block.label}</span>
+			{block.edit && <EditCounts edit={block.edit} />}
+		</>
+	);
+	const shape = `mx-4 flex items-center gap-2 border-outline border-l pl-2 text-left text-support ${
+		TOOL_TEXT_CLASS[block.state]
+	}`;
+
+	if (!block.agent || !onOpenAgent) {
+		return (
+			<div data-component="conversation-block" data-kind="tool" data-state={block.state} className={shape}>
+				{inside}
+			</div>
+		);
+	}
+
+	return (
+		<button
+			type="button"
+			data-component="conversation-block"
+			data-kind="tool"
+			data-state={block.state}
+			data-slot="open-agent"
+			onClick={() => onOpenAgent(block.id)}
+			className={`${shape} active:text-primary`}
+		>
+			{inside}
+			<ChevronRightIcon className={`size-3 shrink-0 ${block.edit ? "ml-1" : "ml-auto"}`} aria-hidden="true" />
+		</button>
+	);
+}
+
+export function MobileConversationBlock({
+	block,
+	onOpenAgent,
+}: {
+	block: ConversationBlock;
+	onOpenAgent?: (toolUseId: string) => void;
+}) {
 	if (block.kind === "user") {
 		return (
 			<div
@@ -77,24 +130,7 @@ export function MobileConversationBlock({ block }: { block: ConversationBlock })
 	}
 
 	if (block.kind === "tool") {
-		return (
-			<div
-				data-component="conversation-block"
-				data-kind="tool"
-				data-state={block.state}
-				className={`mx-4 flex items-center gap-2 border-outline border-l pl-2 text-support ${
-					TOOL_TEXT_CLASS[block.state]
-				}`}
-			>
-				<span
-					data-slot="tool-dot"
-					aria-hidden="true"
-					className={`size-1.5 shrink-0 rounded-full ${TOOL_DOT_CLASS[block.state]}`}
-				/>
-				<span className="min-w-0 truncate">{block.label}</span>
-				{block.edit && <EditCounts edit={block.edit} />}
-			</div>
-		);
+		return <ToolBlock block={block} onOpenAgent={onOpenAgent} />;
 	}
 
 	if (block.kind === "compacted") {

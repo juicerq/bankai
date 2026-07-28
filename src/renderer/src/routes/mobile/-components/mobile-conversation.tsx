@@ -15,15 +15,31 @@ export interface MobileConversationSession {
 	onKey: (key: TerminalKey) => Promise<void>;
 }
 
+function emptyNotice(agent: string | undefined, row: SessionRow | undefined): string {
+	if (agent) {
+		return "This subagent left no transcript to read.";
+	}
+
+	if (row) {
+		return "Nothing to read here yet.";
+	}
+
+	return "This session is no longer open.";
+}
+
 export function MobileConversation({
 	shellId,
 	session,
+	agent,
 	conversation,
+	onOpenAgent,
 	onBack,
 }: {
 	shellId: string;
 	session: MobileConversationSession | undefined;
+	agent?: string;
 	conversation: ConversationView;
+	onOpenAgent?: (toolUseId: string) => void;
 	onBack: () => void;
 }) {
 	const scroll = useStickToBottom();
@@ -47,7 +63,7 @@ export function MobileConversation({
 			data-shell-id={shellId}
 			className="flex h-full flex-col bg-surface"
 		>
-			<MobileConversationHeader row={row} title={conversation.title ?? row?.title} onBack={onBack} />
+			<MobileConversationHeader row={row} title={conversation.title ?? agent ?? row?.title} onBack={onBack} />
 			<div
 				ref={scroll.ref}
 				data-slot="scroll"
@@ -65,10 +81,12 @@ export function MobileConversation({
 							BEGINNING OF THIS CONVERSATION
 						</p>
 					)}
-					{conversation.blocks.map((block) => <MobileConversationBlock key={block.id} block={block} />)}
+					{conversation.blocks.map((block) => (
+						<MobileConversationBlock key={block.id} block={block} onOpenAgent={onOpenAgent} />
+					))}
 					{conversation.blocks.length === 0 && !conversation.loading && (
 						<p data-slot="empty" className="px-4 py-8 text-center text-secondary text-support">
-							{row ? "Nothing to read here yet." : "This session is no longer open."}
+							{emptyNotice(agent, row)}
 						</p>
 					)}
 				</div>

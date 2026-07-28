@@ -1,7 +1,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { conversationStream } from "@renderer/lib/stream/conversation";
 import { streamResync } from "@renderer/lib/stream/resync";
-import { type ConversationBlock, mergeConversationBlocks } from "@shared/conversation";
+import { type ConversationAddress, type ConversationBlock, mergeConversationBlocks } from "@shared/conversation";
 
 export interface ConversationView {
 	blocks: ConversationBlock[];
@@ -12,8 +12,8 @@ export interface ConversationView {
 	loadOlder: () => Promise<void>;
 }
 
-export function useConversation(shellId: string): ConversationView {
-	const observer = useMemo(() => new ConversationObserver(shellId), [shellId]);
+export function useConversation(shellId: string, agent?: string): ConversationView {
+	const observer = useMemo(() => new ConversationObserver(agent ? { shellId, agent } : { shellId }), [shellId, agent]);
 
 	return useSyncExternalStore(observer.subscribe, observer.getSnapshot);
 }
@@ -29,7 +29,7 @@ class ConversationObserver {
 		}
 
 		this.set({ ...this.view, loadingOlder: true });
-		this.older = conversationStream.history(this.shellId, this.cursor);
+		this.older = conversationStream.history(this.address, this.cursor);
 
 		try {
 			await this.older;
@@ -48,7 +48,7 @@ class ConversationObserver {
 		loadOlder: this.loadOlder,
 	};
 
-	constructor(private readonly shellId: string) {}
+	constructor(private readonly address: ConversationAddress) {}
 
 	readonly getSnapshot = () => this.view;
 
@@ -56,7 +56,7 @@ class ConversationObserver {
 		this.notify = notify;
 
 		const stopAppended = conversationStream.onAppended((event) => {
-			if (event.shellId !== this.shellId) {
+			if (!this.addressed(event)) {
 				return;
 			}
 
@@ -67,7 +67,7 @@ class ConversationObserver {
 			});
 		});
 		const stopReset = conversationStream.onReset((event) => {
-			if (event.shellId !== this.shellId) {
+			if (!this.addressed(event)) {
 				return;
 			}
 
@@ -89,12 +89,16 @@ class ConversationObserver {
 			stopReset();
 			stopResync();
 			this.notify = undefined;
-			conversationStream.unsubscribe(this.shellId);
+			conversationStream.unsubscribe(this.address);
 		};
 	};
 
+	private addressed(event: ConversationAddress): boolean {
+		return event.shellId === this.address.shellId && event.agent === this.address.agent;
+	}
+
 	private async load() {
-		const snapshot = await conversationStream.subscribe(this.shellId);
+		const snapshot = await conversationStream.subscribe(this.address);
 
 		this.cursor = snapshot.startOffset;
 		this.set({

@@ -34,10 +34,11 @@ export const ActivitySchemas = {
 	focusShell: type({ "shellId?": "string" }),
 };
 
+const conversationAddress = type({ shellId: "string", "agent?": "string" });
+
 export const ConversationSchemas = {
-	shell: type({ shellId: "string" }),
-	history: type({
-		shellId: "string",
+	shell: conversationAddress,
+	history: conversationAddress.and({
 		before: type("number").narrow((value) => Number.isInteger(value) && value >= 0),
 	}),
 };

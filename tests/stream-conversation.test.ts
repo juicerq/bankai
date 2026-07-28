@@ -77,14 +77,37 @@ function resets(sent: StreamEnvelope[]) {
 	return sent.filter((envelope) => envelope.type === "reset").map((envelope) => resetSchema.assert(envelope.payload));
 }
 
-async function subscribe(connection: StreamConnection) {
+async function subscribe(connection: StreamConnection, agent?: string) {
 	return snapshotSchema.assert(
 		await handleConversationMessage(connection, {
 			channel: "conversation",
 			type: "subscribe",
-			payload: { shellId: "s1" },
+			payload: agent ? { shellId: "s1", agent } : { shellId: "s1" },
 		}),
 	);
+}
+
+function writeSubagent(file: string, meta: Record<string, string>, lines: string[]): void {
+	const directory = join(transcriptPath(SESSION), "..", SESSION.sessionId, "subagents");
+	mkdirSync(directory, { recursive: true });
+	writeFileSync(join(directory, `${file}.meta.json`), JSON.stringify(meta));
+	writeFileSync(join(directory, `${file}.jsonl`), lines.map((line) => `${line}\n`).join(""));
+}
+
+function agentCallLine(toolUseId: string): string {
+	return JSON.stringify({
+		type: "assistant",
+		uuid: `a-${toolUseId}`,
+		message: {
+			id: `msg-${toolUseId}`,
+			content: [{
+				type: "tool_use",
+				id: toolUseId,
+				name: "Agent",
+				input: { name: "explorer", description: "Ler o parser" },
+			}],
+		},
+	});
 }
 
 async function history(connection: StreamConnection, before: number): Promise<void> {
@@ -153,6 +176,61 @@ test("a cursor that no longer matches the watch is dropped instead of re-read", 
 	expect(resets(sent)).toEqual([]);
 
 	handleConversationMessage(connection, { channel: "conversation", type: "unsubscribe", payload: { shellId: "s1" } });
+});
+
+test("a subagent named by its tool use id is read from its own transcript", async () => {
+	writeTranscript([agentCallLine("toolu_a"), userLine("u1", "primeiro")]);
+	writeSubagent("agent-aexplorer-1", { toolUseId: "toolu_a" }, [userLine("sub1", "dentro do subagente")]);
+	writeShell();
+	const { connection } = connected();
+
+	const snapshot = await subscribe(connection, "toolu_a");
+
+	expect(snapshot.blocks.map((block) => block.id)).toEqual(["sub1"]);
+
+	handleConversationMessage(connection, {
+		channel: "conversation",
+		type: "unsubscribe",
+		payload: { shellId: "s1", agent: "toolu_a" },
+	});
+});
+
+test("a sidecar that only knows the agent's name is matched by the call that spawned it", async () => {
+	writeTranscript([agentCallLine("toolu_a"), userLine("u1", "primeiro")]);
+	writeSubagent("agent-aexplorer-1", { name: "explorer", description: "Ler o parser" }, [
+		userLine("sub1", "dentro do subagente"),
+	]);
+	writeSubagent("agent-aother-2", { name: "reviewer", description: "Outra coisa" }, [userLine("sub2", "outro")]);
+	writeShell();
+	const { connection } = connected();
+
+	const snapshot = await subscribe(connection, "toolu_a");
+
+	expect(snapshot.blocks.map((block) => block.id)).toEqual(["sub1"]);
+});
+
+test("a subagent whose transcript is nowhere reads as an empty conversation", async () => {
+	writeTranscript([agentCallLine("toolu_a"), userLine("u1", "primeiro")]);
+	writeShell();
+	const { connection } = connected();
+
+	const snapshot = await subscribe(connection, "toolu_a");
+
+	expect(snapshot.blocks).toEqual([]);
+	expect(snapshot.atStart).toBe(true);
+});
+
+test("the shell's own conversation is not disturbed by a subagent watched next to it", async () => {
+	writeTranscript([agentCallLine("toolu_a"), userLine("u1", "primeiro")]);
+	writeSubagent("agent-aexplorer-1", { toolUseId: "toolu_a" }, [userLine("sub1", "dentro do subagente")]);
+	writeShell();
+	const { connection } = connected();
+
+	const shell = await subscribe(connection);
+	const agent = await subscribe(connection, "toolu_a");
+
+	expect(shell.blocks.map((block) => block.id)).toEqual(["toolu_a", "u1"]);
+	expect(agent.blocks.map((block) => block.id)).toEqual(["sub1"]);
 });
 
 test("a shell nobody subscribed to has no history to give", async () => {

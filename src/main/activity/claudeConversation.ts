@@ -5,6 +5,8 @@ import type { ConversationBlock, ConversationEdit } from "@shared/conversation";
 
 export const CONVERSATION_LINE_LIMIT = 128 * 1024;
 
+export const AGENT_TOOL_NAMES = new Set(["agent", "task"]);
+
 const IMAGE_PLACEHOLDER = "[image]";
 const INTERRUPTION_PREFIX = "[Request interrupted";
 
@@ -125,6 +127,7 @@ export class ConversationParser {
 	private readonly agentText = new Map<string, string>();
 	private readonly thoughts = new Map<string, string>();
 	private readonly toolLabels = new Map<string, string>();
+	private readonly agentTools = new Set<string>();
 
 	consume(line: string): ConversationBlock[] {
 		this.sequence += 1;
@@ -171,6 +174,14 @@ export class ConversationParser {
 			if (!(tool instanceof type.errors)) {
 				const label = toolTrace(tool.name, tool.input);
 				this.toolLabels.set(tool.id, label);
+
+				if (AGENT_TOOL_NAMES.has(tool.name.toLowerCase())) {
+					this.agentTools.add(tool.id);
+					blocks.push({ kind: "tool", id: tool.id, label, state: "running", agent: true });
+
+					continue;
+				}
+
 				blocks.push({ kind: "tool", id: tool.id, label, state: "running" });
 
 				continue;
@@ -278,6 +289,7 @@ export class ConversationParser {
 			id: result.tool_use_id,
 			label,
 			state: result.is_error ? "failed" : "done",
+			...(this.agentTools.has(result.tool_use_id) ? { agent: true } : {}),
 		} satisfies ConversationBlock;
 
 		if (!edit) {

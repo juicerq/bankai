@@ -25,6 +25,7 @@ function MobileConversationRoute() {
 				onKey: (key) => terminalStream.key(row.projectId, shellId, key),
 			}}
 			conversation={conversation}
+			onOpenAgent={(toolUseId) => navigate({ to: "/mobile/$shellId/$agentId", params: { shellId, agentId: toolUseId } })}
 			onBack={() => navigate({ to: "/mobile" })}
 		/>
 	);

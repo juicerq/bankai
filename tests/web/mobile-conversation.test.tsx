@@ -67,9 +67,11 @@ function view(blocks: ConversationBlock[], patch: Partial<ConversationView> = {}
 
 interface ConversationOptions {
 	row?: SessionRow | undefined;
+	agent?: string;
 	conversation?: ConversationView;
 	onSend?: (text: string) => Promise<void>;
 	onKey?: (key: TerminalKey) => Promise<void>;
+	onOpenAgent?: (toolUseId: string) => void;
 	onBack?: () => void;
 }
 
@@ -84,7 +86,9 @@ function element(options: ConversationOptions) {
 		<MobileConversation
 			shellId="s1"
 			session={session}
+			agent={options.agent}
 			conversation={options.conversation ?? view([])}
+			onOpenAgent={options.onOpenAgent}
 			onBack={options.onBack ?? (() => {})}
 		/>
 	);
@@ -197,6 +201,32 @@ test("the reasoning arrives folded and opens where it sits", () => {
 
 	expect(slot(block(0), "thinking-text").className).not.toContain("line-clamp-1");
 	expect(slot(block(0), "thinking-text").textContent).toContain("nem backoff");
+});
+
+test("a call that spawned a subagent opens it, while an ordinary tool stays put", () => {
+	const opened: string[] = [];
+	renderConversation({
+		conversation: view([
+			{ kind: "tool", id: "t1", label: "Reading upload.ts", state: "done" },
+			{ kind: "tool", id: "toolu_a", label: "Exploring the parser", state: "running", agent: true },
+		]),
+		onOpenAgent: (toolUseId) => opened.push(toolUseId),
+	});
+
+	expect(block(0).tagName).toBe("DIV");
+	expect(block(1).tagName).toBe("BUTTON");
+
+	fireEvent.click(block(1));
+
+	expect(opened).toEqual(["toolu_a"]);
+});
+
+test("a subagent with nothing on disk says so instead of pretending to be a session", () => {
+	renderConversation({ agent: "Subagent", row: undefined });
+
+	expect(slot(get("mobile-conversation"), "title").textContent).toBe("Subagent");
+	expect(slot(get("mobile-conversation"), "empty").textContent).toContain("left no transcript");
+	expect(query("mobile-composer")).toBeNull();
 });
 
 test("a compaction and an interruption read as markers, not as messages", () => {

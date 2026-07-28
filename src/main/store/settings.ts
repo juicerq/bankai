@@ -44,6 +44,7 @@ export function sessionNamingEnabled(harness: HarnessSettings | undefined): bool
 const serverSchema = type({
 	token: "string",
 	"port?": "number",
+	"tailnet?": "boolean",
 });
 
 export function serverPort(stored: number | undefined): number {
@@ -122,6 +123,16 @@ export const Settings = {
 		}
 
 		return { port: serverPort(next.server.port), token: next.server.token };
+	},
+	tailnetAccess: async (): Promise<boolean> => !!(await store.read()).server?.tailnet,
+	setTailnetAccess: async (tailnet: boolean): Promise<void> => {
+		await store.mutate((current) => {
+			if (!current.server) {
+				throw new Error("The server has no stored token to attach tailnet access to");
+			}
+
+			return { ...current, server: { ...current.server, tailnet } };
+		});
 	},
 	ensureVapid: async (mint: () => VapidKeys): Promise<VapidKeys> => {
 		const current = await store.read();

@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import { describe, expect, it } from "bun:test";
 import { authorizeRequest, authorizeUpgrade } from "@main/server/auth";
-import { listenLoopback } from "@main/server/listen";
+import { listenOn } from "@main/server/listen";
 import { SERVER_HOST, SERVER_STREAM_PATH, SERVER_TOKEN_BYTES } from "@shared/server";
 
 const token = "a".repeat(SERVER_TOKEN_BYTES * 2);
@@ -59,7 +59,7 @@ function boundAddress(server: Server) {
 describe("loopback listen", () => {
 	it("binds the loopback interface only", async () => {
 		const server = createServer();
-		await listenLoopback(server, 0);
+		await listenOn(server, { port: 0, host: SERVER_HOST });
 
 		expect(boundAddress(server).address).toBe(SERVER_HOST);
 
@@ -68,12 +68,12 @@ describe("loopback listen", () => {
 
 	it("fails with the busy port named instead of moving to another one", async () => {
 		const taken = createServer();
-		await listenLoopback(taken, 0);
+		await listenOn(taken, { port: 0, host: SERVER_HOST });
 
 		const { port } = boundAddress(taken);
 		const second = createServer();
 
-		const failure = await listenLoopback(second, port).catch((err) => String(err));
+		const failure = await listenOn(second, { port, host: SERVER_HOST }).catch((err) => String(err));
 
 		expect(failure).toInclude(`port ${port}`);
 		expect(second.listening).toBe(false);

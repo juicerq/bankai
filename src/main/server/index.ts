@@ -1,4 +1,4 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/node";
@@ -7,10 +7,10 @@ import { Logger } from "@main/logger";
 import { router } from "@main/router";
 import { authorizeRequest } from "@main/server/auth";
 import { type RendererBundle, readRendererBundle, resolveBundleAsset } from "@main/server/bundle";
-import { listenLoopback } from "@main/server/listen";
+import { listenOn } from "@main/server/listen";
 import { openServerReach, serverReach } from "@main/server/reach";
 import { attachStreamServer } from "@main/server/stream";
-import { SERVER_RPC_PREFIX, type ServerReach } from "@shared/server";
+import { SERVER_HOST, SERVER_RPC_PREFIX, type ServerReach } from "@shared/server";
 
 const CORS_HEADERS = { "access-control-allow-origin": "*" };
 
@@ -26,12 +26,9 @@ const rpc = new RPCHandler(router, {
 	],
 });
 
-export async function startLoopbackServer(): Promise<ServerReach> {
-	const reach = await openServerReach();
-	const bundle = process.env.ELECTRON_RENDERER_URL
-		? undefined
-		: await readRendererBundle(join(import.meta.dirname, "../renderer"));
+let bundle: RendererBundle | undefined;
 
+export function createBankaiServer(): Server {
 	const server = createServer((req, res) => {
 		route(req, res, bundle).catch((err) => {
 			Logger.error("server:request-failed", { err: String(err), url: req.url });
@@ -46,9 +43,19 @@ export async function startLoopbackServer(): Promise<ServerReach> {
 
 	attachStreamServer(server);
 
-	await listenLoopback(server, reach.port);
-
 	server.on("error", (err) => Logger.error("server:error", { err: String(err) }));
+
+	return server;
+}
+
+export async function startLoopbackServer(): Promise<ServerReach> {
+	const reach = await openServerReach();
+
+	if (!process.env.ELECTRON_RENDERER_URL) {
+		bundle = await readRendererBundle(join(import.meta.dirname, "../renderer"));
+	}
+
+	await listenOn(createBankaiServer(), { port: reach.port, host: SERVER_HOST });
 
 	return reach;
 }

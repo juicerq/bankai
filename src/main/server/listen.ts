@@ -1,13 +1,12 @@
 import type { Server } from "node:http";
-import { SERVER_HOST } from "@shared/server";
 
-export function listenLoopback(server: Server, port: number): Promise<void> {
+export function listenOn(server: Server, { port, host }: { port: number; host: string }): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const fail = (err: NodeJS.ErrnoException) => {
 			if (err.code === "EADDRINUSE") {
 				reject(
 					new Error(
-						`Bankai cannot start: port ${port} on ${SERVER_HOST} is already in use. Free it or change the server port in settings.`,
+						`Bankai cannot start: port ${port} on ${host} is already in use. Free it or change the server port in settings.`,
 					),
 				);
 				return;
@@ -17,7 +16,7 @@ export function listenLoopback(server: Server, port: number): Promise<void> {
 		};
 
 		server.once("error", fail);
-		server.listen(port, SERVER_HOST, () => {
+		server.listen(port, host, () => {
 			server.removeListener("error", fail);
 			resolve();
 		});

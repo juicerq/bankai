@@ -7,6 +7,7 @@ import { serverReach } from "@main/server/reach";
 import { markStartup, scheduleStartupReport } from "@main/startup";
 import { resolveInstanceIdentity } from "@main/store/paths";
 import { type SettingsValue, Settings } from "@main/store/settings";
+import { restoreTailnetAccess } from "@main/tailscale/mobileAccess";
 import { setupUpdateIpc } from "@main/update/ipc";
 import { publishMaximizedState, setupWindowIpc } from "@main/window/ipc";
 import { AUTH_IPC } from "@shared/server";
@@ -125,6 +126,10 @@ async function start() {
 		await startLoopbackServer();
 		ipcMain.handle(AUTH_IPC.getToken, () => serverReach());
 		markStartup("server-ready");
+
+		restoreTailnetAccess().catch((err) => {
+			Logger.warn("tailscale:tailnet-restore-failed", { err: String(err) });
+		});
 
 		startAgentActivity();
 		setupWindowIpc();

@@ -9,7 +9,15 @@ export function pushPermission(): PushPermission {
 		return "unsupported";
 	}
 
+	if (!window.isSecureContext) {
+		return "unsupported";
+	}
+
 	return Notification.permission;
+}
+
+export function pushBlockedByOrigin(): boolean {
+	return isBrowserClient() && !window.isSecureContext;
 }
 
 export function installPushSync(): void {

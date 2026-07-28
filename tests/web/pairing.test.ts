@@ -63,7 +63,7 @@ afterEach(async () => {
 });
 
 test("claims the token from the pairing fragment and wipes it from the address bar", () => {
-	location.hash = new URL(pairingUrl({ host: "cachyos.tail74b3f3.ts.net", token: TOKEN })).hash;
+	location.hash = new URL(pairingUrl({ origin: "https://cachyos.tail74b3f3.ts.net", token: TOKEN })).hash;
 
 	expect(claimPairingToken()).toBe(TOKEN);
 	expect(localStorage.getItem(SERVER_TOKEN_STORAGE_KEY)).toBe(TOKEN);

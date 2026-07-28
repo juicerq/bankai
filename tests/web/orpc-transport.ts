@@ -114,6 +114,7 @@ function requireHarness() {
 export interface MobileTransport {
 	access: MobileAccess;
 	exposeCalls: boolean[];
+	tailnetCalls: boolean[];
 	regenerations: number;
 }
 
@@ -211,6 +212,13 @@ const router = {
 			const transport = requireMobile();
 			transport.exposeCalls.push(input.enabled);
 			transport.access = { ...transport.access, exposed: input.enabled };
+
+			return transport.access;
+		}),
+		setTailnetOpen: os.input(type({ open: "boolean" })).handler(({ input }) => {
+			const transport = requireMobile();
+			transport.tailnetCalls.push(input.open);
+			transport.access = { ...transport.access, tailnetOpen: input.open };
 
 			return transport.access;
 		}),

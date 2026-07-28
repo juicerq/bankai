@@ -10,3 +10,5 @@ declare global {
 
 GlobalRegistrator.register();
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });

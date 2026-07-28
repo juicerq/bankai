@@ -1,10 +1,26 @@
 import { useState } from "react";
-import { enablePushNotifications, type PushPermission, pushPermission } from "@renderer/lib/push";
+import {
+	enablePushNotifications,
+	pushBlockedByOrigin,
+	type PushPermission,
+	pushPermission,
+} from "@renderer/lib/push";
 import { problemText } from "@renderer/routes/-utils/problem-text";
 
 export function MobilePushBanner() {
 	const [permission, setPermission] = useState<PushPermission>(pushPermission);
 	const [problem, setProblem] = useState<string>();
+
+	if (pushBlockedByOrigin()) {
+		return (
+			<div data-component="mobile-push-banner" className="shrink-0 border-b border-outline">
+				<p data-slot="insecure" className="px-4 py-2.5 text-secondary text-support">
+					No notifications on this address — it has no certificate. Open Bankai through the Tailscale HTTPS
+					address to get them.
+				</p>
+			</div>
+		);
+	}
 
 	if (permission !== "default") {
 		return null;

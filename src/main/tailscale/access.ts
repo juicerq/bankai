@@ -1,22 +1,21 @@
 import { type, type Type } from "arktype";
-import { Logger } from "@main/logger";
-import { serverReach } from "@main/server/reach";
-import { tailscale } from "@main/tailscale/run";
-import { pairingUrl, SERVER_HOST } from "@shared/server";
+import { SERVER_HOST } from "@shared/server";
 
 const TAILSCALE_SERVE_PORT = 443;
 
 export const TAILSCALE_OPERATOR_REMEDY =
 	"Tailscale refused the change. Run `sudo tailscale set --operator=$USER` once in a terminal, then try again.";
 
-const TAILSCALE_MISSING_REMEDY = "Tailscale is not answering on this machine. Start it and try again.";
+export const TAILSCALE_MISSING_REMEDY = "Tailscale is not answering on this machine. Start it and try again.";
 
 const TAILSCALE_HTTPS_CAPABILITY = "https";
 
 export const TAILSCALE_HTTPS_REMEDY =
 	"This tailnet does not issue HTTPS certificates yet, and the phone needs them. Enable HTTPS Certificates at login.tailscale.com/admin/dns, then reopen Settings.";
 
-const statusSchema = type({ "Self?": { "DNSName?": "string", "CapMap?": { "[string]": "unknown" } } });
+const statusSchema = type({
+	"Self?": { "DNSName?": "string", "CapMap?": { "[string]": "unknown" }, "TailscaleIPs?": "string[]" },
+});
 
 const serveStatusSchema = type({
 	"Web?": { "[string]": { "Handlers?": { "[string]": { "Proxy?": "string" } } } },
@@ -26,6 +25,8 @@ export interface MobileAccess {
 	host: string | undefined;
 	url: string | undefined;
 	exposed: boolean;
+	tailnetUrl: string | undefined;
+	tailnetOpen: boolean;
 	problem?: string;
 }
 
@@ -45,6 +46,10 @@ export function magicDnsHost(raw: string): string | undefined {
 	const name = statusSelf(raw)?.DNSName?.replace(/\.$/, "");
 
 	return name || undefined;
+}
+
+export function tailnetAddress(raw: string): string | undefined {
+	return statusSelf(raw)?.TailscaleIPs?.find((address) => !address.includes(":"));
 }
 
 export function httpsProblem(raw: string): string | undefined {
@@ -96,49 +101,4 @@ export function serveProblem(stderr: string): string {
 	}
 
 	return stderr.split("\n").find((line) => line.trim().length > 0)?.trim() ?? TAILSCALE_MISSING_REMEDY;
-}
-
-export async function mobileAccess(): Promise<MobileAccess> {
-	const { port, token } = serverReach();
-	const [status, serve] = await Promise.all([
-		tailscale(["status", "--json"]),
-		tailscale(["serve", "status", "--json"]),
-	]);
-	const host = magicDnsHost(status.stdout);
-	const access = {
-		host,
-		url: host ? pairingUrl({ host, token }) : undefined,
-		exposed: serveExposes(serve.stdout, port),
-	};
-	const problem = httpsProblem(status.stdout);
-
-	if (!problem) {
-		return access;
-	}
-
-	return { ...access, problem };
-}
-
-export async function setMobileAccess(enabled: boolean): Promise<MobileAccess> {
-	const { port } = serverReach();
-	if (enabled) {
-		const current = await mobileAccess();
-
-		if (current.problem) {
-			return current;
-		}
-	}
-
-	const result = await tailscale(serveArgs({ enabled, port }));
-
-	if (result.failed) {
-		Logger.warn("tailscale:serve-failed", { enabled, err: result.stderr });
-	}
-
-	const access = await mobileAccess();
-	if (access.exposed === enabled) {
-		return access;
-	}
-
-	return { ...access, problem: serveProblem(result.stderr) };
 }

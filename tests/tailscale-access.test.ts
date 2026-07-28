@@ -6,6 +6,7 @@ import {
 	serveExposes,
 	serveProblem,
 	serveProxyTarget,
+	tailnetAddress,
 	TAILSCALE_HTTPS_REMEDY,
 	TAILSCALE_OPERATOR_REMEDY,
 } from "@main/tailscale/access";
@@ -73,6 +74,24 @@ describe("https certificates", () => {
 	it("stays quiet when tailscale itself is not answering", () => {
 		expect(httpsProblem("")).toBeUndefined();
 		expect(httpsProblem(JSON.stringify({ BackendState: "Stopped" }))).toBeUndefined();
+	});
+});
+
+describe("tailnet address", () => {
+	it("takes the IPv4 address the node answers on", () => {
+		const status = JSON.stringify({ Self: { TailscaleIPs: ["100.105.249.8", "fd7a:115c:a1e0::d201:f909"] } });
+
+		expect(tailnetAddress(status)).toBe("100.105.249.8");
+	});
+
+	it("skips a node that only has an IPv6 address", () => {
+		expect(tailnetAddress(JSON.stringify({ Self: { TailscaleIPs: ["fd7a:115c:a1e0::d201:f909"] } })))
+			.toBeUndefined();
+	});
+
+	it("has no address when tailscale answered nothing", () => {
+		expect(tailnetAddress("")).toBeUndefined();
+		expect(tailnetAddress(JSON.stringify({ BackendState: "Stopped" }))).toBeUndefined();
 	});
 });
 

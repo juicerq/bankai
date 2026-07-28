@@ -81,7 +81,7 @@ test("a device whose browser cannot read a QR is sent to the desktop with nothin
 test("a phone that can read a QR scans it without leaving the app", async () => {
 	camera();
 	streamStatus.set("unpaired");
-	reads = [pairingUrl({ host: PHONE_HOST, token: TOKEN })];
+	reads = [pairingUrl({ origin: `https://${PHONE_HOST}`, token: TOKEN })];
 	render(<PairingScreen />);
 
 	fireEvent.click(slot(get("pairing-screen"), "scan"));
@@ -93,7 +93,7 @@ test("a phone that can read a QR scans it without leaving the app", async () => 
 test("a code that carries no key keeps the camera reading and says so", async () => {
 	camera();
 	streamStatus.set("unpaired");
-	reads = ["https://example.com/not-a-key", pairingUrl({ host: PHONE_HOST, token: TOKEN })];
+	reads = ["https://example.com/not-a-key", pairingUrl({ origin: `https://${PHONE_HOST}`, token: TOKEN })];
 	render(<PairingScreen />);
 
 	fireEvent.click(slot(get("pairing-screen"), "scan"));

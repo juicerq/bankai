@@ -7,13 +7,14 @@ import {
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettingsModal } from "@renderer/routes/-components/settings-modal";
-import { TAILSCALE_OPERATOR_REMEDY } from "@main/tailscale/access";
+import { TAILSCALE_HTTPS_REMEDY, TAILSCALE_OPERATOR_REMEDY } from "@main/tailscale/access";
 import { pairingUrl } from "@shared/server";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 const MOBILE_HOST = "cachyos.tail74b3f3.ts.net";
-const PAIRING_URL = pairingUrl({ host: MOBILE_HOST, token: "a".repeat(64) });
+const PAIRING_URL = pairingUrl({ origin: `https://${MOBILE_HOST}`, token: "a".repeat(64) });
+const TAILNET_URL = pairingUrl({ origin: "http://100.105.249.8:4696", token: "a".repeat(64) });
 
 const onClose = jest.fn();
 let transport: HarnessTransport;
@@ -54,9 +55,12 @@ beforeEach(() => {
 			host: MOBILE_HOST,
 			url: PAIRING_URL,
 			exposed: false,
+			tailnetUrl: TAILNET_URL,
+			tailnetOpen: false,
 			problem: undefined,
 		},
 		exposeCalls: [],
+		tailnetCalls: [],
 		regenerations: 0,
 	};
 	setMobileTransport(mobile);
@@ -234,7 +238,14 @@ test("regenerating the token replaces the pairing link", async () => {
 });
 
 test("says so plainly when Tailscale names no machine instead of showing a broken QR", async () => {
-	mobile.access = { host: undefined, url: undefined, exposed: false, problem: undefined };
+	mobile.access = {
+		host: undefined,
+		url: undefined,
+		exposed: false,
+		tailnetUrl: undefined,
+		tailnetOpen: false,
+		problem: undefined,
+	};
 	const modal = await loadedModal();
 
 	await waitFor(() => {
@@ -250,4 +261,38 @@ test("surfaces the operator remedy when tailscale refuses the change", async () 
 	await waitFor(() => {
 		expect(slot(modal, "mobile-access-problem").textContent).toContain("sudo tailscale set --operator=$USER");
 	});
+});
+
+test("offers the tailnet address as a way out when the tailnet issues no certificate", async () => {
+	mobile.access = { ...mobile.access, problem: TAILSCALE_HTTPS_REMEDY };
+	const modal = await loadedModal();
+
+	await waitFor(() => {
+		expect(slot(modal, "toggle-tailnet").textContent).toBe("OPEN ANYWAY");
+	});
+
+	fireEvent.click(slot(modal, "toggle-tailnet"));
+
+	await waitFor(() => {
+		expect(mobile.tailnetCalls).toEqual([true]);
+	});
+});
+
+test("hides the tailnet way out while HTTPS is working", async () => {
+	const modal = await loadedModal();
+
+	await waitFor(() => {
+		expect(slot(modal, "pairing-url").textContent).toBe(PAIRING_URL);
+	});
+	expect(modal.querySelector('[data-slot="toggle-tailnet"]')).toBeNull();
+});
+
+test("pairs against the tailnet address while it is the only way in", async () => {
+	mobile.access = { ...mobile.access, problem: TAILSCALE_HTTPS_REMEDY, tailnetOpen: true };
+	const modal = await loadedModal();
+
+	await waitFor(() => {
+		expect(slot(modal, "pairing-url").textContent).toBe(TAILNET_URL);
+	});
+	expect(slot(modal, "toggle-tailnet").textContent).toBe("CLOSE");
 });

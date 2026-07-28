@@ -60,6 +60,15 @@ export class ShellProcesses {
 		});
 	}
 
+	shellOf(sessionId: string): ShellRef | undefined {
+		const session = this.sessions.get(sessionId);
+		if (!session) {
+			return undefined;
+		}
+
+		return { projectId: session.projectId, shellId: session.shellId };
+	}
+
 	find(ref: ShellRef): string | undefined {
 		for (const [sessionId, session] of this.sessions) {
 			if (!session.closing && session.projectId === ref.projectId && session.shellId === ref.shellId) {

@@ -1,5 +1,6 @@
 import { AgentActivity } from "@main/activity/AgentActivity";
 import { Logger } from "@main/logger";
+import { mobileTurnShells } from "@main/push/notifyAttention";
 import type { StreamConnection } from "@main/server/stream/connection";
 import { TerminalSchemas } from "@main/server/stream/messages";
 import { bracketedPaste, TERMINAL_KEY_BYTES } from "@main/terminal/input";
@@ -29,6 +30,11 @@ export async function handleTerminalMessage(
 
 			return run(connection, "write", input.sessionId, () => {
 				shellProcesses.write(input.sessionId, input.data);
+
+				const ref = shellProcesses.shellOf(input.sessionId);
+				if (ref) {
+					mobileTurnShells.delete(ref.shellId);
+				}
 			});
 		}
 		case "resize": {
@@ -61,12 +67,14 @@ export async function handleTerminalMessage(
 
 			shellProcesses.write(sessionId, bracketedPaste(input.text));
 			shellProcesses.write(sessionId, "\r");
+			mobileTurnShells.add(input.shellId);
 
 			return undefined;
 		}
 		case "key": {
 			const input = TerminalSchemas.key.assert(message.payload);
 			shellProcesses.write(liveSession(input), TERMINAL_KEY_BYTES[input.key]);
+			mobileTurnShells.add(input.shellId);
 
 			return undefined;
 		}

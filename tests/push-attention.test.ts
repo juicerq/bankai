@@ -11,6 +11,12 @@ import {
 	PUSH_DONE_BODY,
 	subscriptionGone,
 } from "@main/push/attention";
+import { mobileTurnShells, pushNeedsAttention, pushTurnDone } from "@main/push/notifyAttention";
+import type { PushSender } from "@main/push/webPush";
+import { StreamConnection } from "@main/server/stream/connection";
+import { handleTerminalMessage } from "@main/server/stream/terminal";
+import { PushSubscriptions } from "@main/store/push";
+import { shellProcesses } from "@main/terminal/ShellProcesses";
 
 const SHELL_ID = "shell-a";
 
@@ -155,5 +161,86 @@ describe("shell focus", () => {
 		desk.close();
 
 		expect(shellFocused("focus-shared")).toBe(true);
+	});
+});
+
+describe("a turn asked from the phone notifies the phone", () => {
+	const WATCHER = { id: "watch-desktop", onClose: () => {} };
+
+	function sender() {
+		const sent: unknown[] = [];
+		const send: PushSender = async ({ payload }) => {
+			sent.push(payload);
+
+			return "sent";
+		};
+
+		return { sent, send };
+	}
+
+	async function subscribe(): Promise<void> {
+		await PushSubscriptions.save({ endpoint: "https://push.test/phone", keys: { p256dh: "p", auth: "a" } });
+	}
+
+	const OWNER = { projectId: "project-a", shellId: "shell-phone" };
+
+	test("a watched shell still pushes done when the phone asked for the turn, once", async () => {
+		await subscribe();
+		focusShell(WATCHER, OWNER.shellId);
+		const { sent, send } = sender();
+
+		mobileTurnShells.add(OWNER.shellId);
+		await pushTurnDone(OWNER, send);
+
+		expect(sent).toHaveLength(1);
+
+		await pushTurnDone(OWNER, send);
+
+		expect(sent).toHaveLength(1);
+		focusShell(WATCHER);
+	});
+
+	test("a watched shell keeps swallowing the push of a desktop-started turn", async () => {
+		await subscribe();
+		focusShell(WATCHER, OWNER.shellId);
+		const { sent, send } = sender();
+
+		await pushTurnDone(OWNER, send);
+
+		expect(sent).toHaveLength(0);
+		focusShell(WATCHER);
+	});
+
+	test("needs-attention reaches the phone mid-turn without spending the claim", async () => {
+		await subscribe();
+		focusShell(WATCHER, OWNER.shellId);
+		const { sent, send } = sender();
+
+		mobileTurnShells.add(OWNER.shellId);
+		await pushNeedsAttention(OWNER, send);
+
+		expect(sent).toHaveLength(1);
+		expect(mobileTurnShells.has(OWNER.shellId)).toBe(true);
+		mobileTurnShells.delete(OWNER.shellId);
+		focusShell(WATCHER);
+	});
+
+	test("typing on the desktop takes the turn back from the phone", async () => {
+		const sessionId = "term-mobile-turn";
+		shellProcesses.register({
+			...OWNER,
+			sessionId,
+			process: { pid: 4242, write: () => {}, resize: () => {}, kill: () => {} },
+		});
+
+		mobileTurnShells.add(OWNER.shellId);
+		await handleTerminalMessage(new StreamConnection({ readyState: 1, send: () => {} }), {
+			channel: "terminal",
+			type: "write",
+			payload: { sessionId, data: "ls" },
+		});
+
+		expect(mobileTurnShells.has(OWNER.shellId)).toBe(false);
+		shellProcesses.close(sessionId);
 	});
 });

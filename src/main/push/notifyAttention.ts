@@ -6,6 +6,8 @@ import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import type { ShellAttention } from "@shared/activity";
 
+export const mobileTurnShells = new Set<string>();
+
 export async function pushNeedsAttention(
 	input: {
 		projectId: string;
@@ -14,7 +16,7 @@ export async function pushNeedsAttention(
 	},
 	send: PushSender = sendWebPush,
 ): Promise<void> {
-	if (shellFocused(input.shellId)) {
+	if (!mobileTurnShells.has(input.shellId) && shellFocused(input.shellId)) {
 		return;
 	}
 
@@ -36,7 +38,9 @@ export async function pushTurnDone(
 	input: { projectId: string; shellId: string },
 	send: PushSender = sendWebPush,
 ): Promise<void> {
-	if (shellFocused(input.shellId)) {
+	const mobileTurn = mobileTurnShells.delete(input.shellId);
+
+	if (!mobileTurn && shellFocused(input.shellId)) {
 		return;
 	}
 

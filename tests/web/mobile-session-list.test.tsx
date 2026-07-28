@@ -40,6 +40,7 @@ function renderList(
 		chosenProjectIds?: ReadonlySet<string>;
 		onToggleProject?: (projectId: string) => void;
 		onOpen?: (shellId: string) => void;
+		onCreate?: (projectId: string) => Promise<void>;
 	} = {},
 ) {
 	return render(
@@ -50,6 +51,7 @@ function renderList(
 			chosenProjectIds={options.chosenProjectIds ?? new Set()}
 			onToggleProject={options.onToggleProject ?? (() => {})}
 			onOpen={options.onOpen ?? (() => {})}
+			onCreate={options.onCreate ?? (async () => {})}
 		/>,
 	);
 }

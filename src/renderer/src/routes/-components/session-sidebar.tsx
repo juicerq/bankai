@@ -214,7 +214,7 @@ function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGest
 			<span className="flex w-full items-center gap-2">
 				<span className="min-w-0 flex-1 truncate text-data text-secondary">{row.projectName}</span>
 				{row.harness === "claude"
-					? <ClaudeGlyph />
+					? <ClaudeGlyph active={row.shellId === gestures.selectedShellId} />
 					: row.harness && (
 						<span className="shrink-0 border border-outline px-1 text-data text-outline-strong uppercase">
 							{row.harness}
@@ -289,7 +289,7 @@ function SessionEntry({
 						{children}
 					</button>
 				)}
-			{number !== undefined && (
+			{number !== undefined && !selected && (
 				<span
 					data-slot="session-number"
 					className="absolute top-0 right-0 flex h-7 w-7 items-center justify-center bg-tertiary text-data text-surface"

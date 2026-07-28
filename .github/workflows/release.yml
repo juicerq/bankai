@@ -54,7 +54,7 @@ jobs:
     steps:
       - name: Provide packaging tools
         run: |
-          pacman -Sy --noconfirm --needed git openssh pacman-contrib imagemagick
+          pacman -Syu --noconfirm --needed git openssh pacman-contrib imagemagick
           useradd -m builder
 
       - uses: actions/checkout@v4

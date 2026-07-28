@@ -12,11 +12,11 @@ const RAYS = [
 	{ angle: 315, d: DIAGONAL_RAY },
 ];
 
-export function ClaudeGlyph() {
+export function ClaudeGlyph({ active }: { active: boolean }) {
 	return (
 		<svg
 			viewBox="-12 -12 24 24"
-			className="size-3.5 shrink-0 fill-outline-strong"
+			className={`size-3.5 shrink-0 ${active ? "fill-tertiary" : "fill-outline-strong"}`}
 			aria-label="Claude"
 			role="img"
 		>

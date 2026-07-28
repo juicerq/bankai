@@ -175,3 +175,31 @@ _Avoid_: Full-file view, preview, expand, open file, source view, modal
 **Update button**:
 The Workspace header control, left of the Focus mode toggle, that appears only once a new version is downloaded and waiting. It names that version on its face rather than behind a hover, so it reads as an offer and not as a state. Clicking it restarts Bankai into that version; ignoring it changes nothing, since the version also applies whenever the app is closed.
 _Avoid_: Update notification, toast, restart banner, upgrade prompt
+
+**Mobile surface**:
+The phone-sized presentation of Bankai a browser receives: the session list and its Conversations. It is the only surface a browser gets, regardless of screen size.
+_Avoid_: Mobile app, responsive view, mobile mode
+
+**Conversation**:
+The reading of one Shell's Agent session as exchanged messages — the user's prompts, the agent's replies, and its tool activity — with the Composer beneath it.
+_Avoid_: Chat, thread, transcript view, messages screen
+
+**Composer**:
+The fixed input area at the bottom of a Conversation that sends the user's next prompt to the Agent. While the Agent is Working it offers Stop instead of send; without a Live agent session it is disabled.
+_Avoid_: Input, message box, prompt field, text bar
+
+**Attention card**:
+The labelled prompt shown above the Composer while a Shell Needs attention, naming what the Agent is asking and offering the discrete responses. When nothing fresh names the request, the Keypad stands in.
+_Avoid_: Permission dialog, approval buttons, action sheet
+
+**Keypad**:
+The generic row of terminal keys the Mobile surface offers whenever a Shell Needs attention, able to answer any prompt the Attention card cannot name.
+_Avoid_: Shortcut bar, button row, fallback buttons
+
+**Pairing**:
+The act that grants a phone access to Bankai: scanning the QR from the desktop settings, which carries the address and the token in one gesture. Losing or regenerating the token returns every phone to the pairing screen.
+_Avoid_: Login, sign in, setup, connect
+
+**Mobile access**:
+The desktop setting that exposes Bankai to the user's tailnet so phones can reach it. Off by default; turning it off unexposes without touching running work.
+_Avoid_: Server toggle, remote mode, sharing

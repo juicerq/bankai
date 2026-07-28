@@ -23,6 +23,10 @@ tailscale serve --bg --https=443 http://127.0.0.1:4697
 
 Port 5173 is left alone on purpose: something else on this machine squats it.
 
+## The plain tailnet listener forwards to vite instead of refusing
+
+The tailnet listener answers on the loopback server's own port, so in dev it used to hand the phone the "only when packaged" notice while the HTTPS path worked fine through vite. It now takes the same way out: with no bundle read and `ELECTRON_RENDERER_URL` set, the renderer route fetches from vite and pipes the response back, so `http://100.x:<port>` shows the app. HMR does not survive the hop — vite's client aims its socket at the page origin, which is the loopback server, not vite — so a code change needs a manual reload there.
+
 ## A phone left open through a CSS edit needs a reload, not a bug report
 
 Editing a component that adds Tailwind classes makes vite push an `hmr update /src/styles.css` to every open client. On a phone that has been sitting on the page, that half-applied stylesheet can leave the surface with scrollbars on both axes, as if the layout broke. It is the page's state, not the code: loading the same dev URL fresh renders at exactly the viewport width. Reload before chasing it.

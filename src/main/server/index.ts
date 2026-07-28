@@ -66,7 +66,7 @@ async function route(
 	bundle: RendererBundle | undefined,
 ): Promise<void> {
 	if (!req.url?.startsWith(SERVER_RPC_PREFIX)) {
-		serveBundle(req.url ?? "/", res, bundle);
+		await serveRenderer(req.url ?? "/", res, bundle);
 		return;
 	}
 
@@ -82,11 +82,13 @@ async function route(
 	}
 }
 
-function serveBundle(url: string, res: ServerResponse, bundle: RendererBundle | undefined): void {
+async function serveRenderer(
+	url: string,
+	res: ServerResponse,
+	bundle: RendererBundle | undefined,
+): Promise<void> {
 	if (!bundle) {
-		res
-			.writeHead(503, { ...CORS_HEADERS, "content-type": "text/plain; charset=utf-8" })
-			.end(DEV_BUNDLE_NOTICE);
+		await serveDevRenderer(url, res);
 		return;
 	}
 
@@ -105,4 +107,26 @@ function serveBundle(url: string, res: ServerResponse, bundle: RendererBundle | 
 			"cache-control": asset.cacheControl,
 		})
 		.end(asset.body);
+}
+
+async function serveDevRenderer(url: string, res: ServerResponse): Promise<void> {
+	const renderer = process.env.ELECTRON_RENDERER_URL;
+
+	if (!renderer) {
+		res
+			.writeHead(503, { ...CORS_HEADERS, "content-type": "text/plain; charset=utf-8" })
+			.end(DEV_BUNDLE_NOTICE);
+		return;
+	}
+
+	const upstream = await fetch(new URL(url, renderer));
+	const body = Buffer.from(await upstream.arrayBuffer());
+
+	res
+		.writeHead(upstream.status, {
+			...CORS_HEADERS,
+			"content-type": upstream.headers.get("content-type") ?? "text/plain; charset=utf-8",
+			"content-length": body.byteLength,
+		})
+		.end(body);
 }

@@ -316,7 +316,6 @@ function Bankai() {
 
 	return (
 		<main ref={registerShortcuts} className="relative flex h-full bg-surface">
-			<WindowControls fullscreen={projectRail.fullscreen} topBand={topBand} />
 			{sessions.failed && <ContinuityFailedNotice />}
 			<ProjectRailFrame projectRail={projectRail} divider={railDivider} frameRef={railFrameRef} railWidth={railWidth}>
 				<SessionSidebar
@@ -392,6 +391,7 @@ function Bankai() {
 					})}
 				</WorkspaceProvider>
 			</section>
+			<WindowControls fullscreen={projectRail.fullscreen} topBand={topBand} />
 			{shellPickerOpen && (
 				<ShellPicker
 					projects={availableProjects}

@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import type { TerminalKey } from "@main/terminal/input";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import { AGENT_START_MS } from "@renderer/routes/mobile/-components/mobile-composer";
 import { MobileConversation } from "@renderer/routes/mobile/-components/mobile-conversation";
 import type { ConversationView } from "@renderer/routes/mobile/-utils/use-conversation";
 import type { ConversationBlock } from "@shared/conversation";
@@ -301,10 +302,17 @@ test("a double tap on stop interrupts the turn once", async () => {
 });
 
 test("a shell whose agent ended sends the user back to the desktop", () => {
-	renderConversation({ row: row({ harness: undefined }) });
+	renderConversation({ row: row({ harness: undefined, createdAt: Date.now() - 2 * AGENT_START_MS }) });
 
 	expect(composer().dataset.state).toBe("ended");
 	expect(composer().textContent).toContain("Agent ended — resume from the desktop");
+});
+
+test("a session opened the moment it was created waits for the agent instead of burying it", () => {
+	renderConversation({ row: row({ harness: undefined, createdAt: Date.now() }) });
+
+	expect(composer().dataset.state).toBe("starting");
+	expect(composer().textContent).toContain("Starting the agent");
 });
 
 test("a session that left the list says so once, with nothing left to type into", () => {

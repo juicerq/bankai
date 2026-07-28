@@ -1,17 +1,35 @@
 import { ArrowUpIcon, StopIcon } from "@heroicons/react/24/outline";
 import { useRef, useState } from "react";
 import { problemText } from "@renderer/routes/-utils/problem-text";
+import { SECOND_MS, useClock } from "@renderer/routes/-utils/use-clock";
 
 const SAFE_BOTTOM_CLASS = "pb-[calc(8px+env(safe-area-inset-bottom))]";
 
+const NOTICE_CLASS =
+	`shrink-0 border-outline border-t bg-surface-raised px-4 py-3 text-center text-secondary text-support ${SAFE_BOTTOM_CLASS}`;
+
+export const AGENT_START_MS = 10_000;
+
+export function MobileAgentNotice({ since }: { since: number }) {
+	const starting = useClock(SECOND_MS) - since < AGENT_START_MS;
+
+	return (
+		<p
+			data-component="mobile-composer"
+			data-state={starting ? "starting" : "ended"}
+			className={NOTICE_CLASS}
+		>
+			{starting ? "Starting the agent…" : "Agent ended — resume from the desktop"}
+		</p>
+	);
+}
+
 export function MobileComposer({
 	working,
-	live,
 	onSend,
 	onStop,
 }: {
 	working: boolean;
-	live: boolean;
 	onSend: (text: string) => Promise<void>;
 	onStop: () => Promise<void>;
 }) {
@@ -19,18 +37,6 @@ export function MobileComposer({
 	const [written, setWritten] = useState(false);
 	const [problem, setProblem] = useState<string>();
 	const [busy, setBusy] = useState(false);
-
-	if (!live) {
-		return (
-			<p
-				data-component="mobile-composer"
-				data-state="ended"
-				className={`shrink-0 border-outline border-t bg-surface-raised px-4 py-3 text-center text-secondary text-support ${SAFE_BOTTOM_CLASS}`}
-			>
-				Agent ended — resume from the desktop
-			</p>
-		);
-	}
 
 	const handleSend = async () => {
 		const text = input.current?.value.trim();

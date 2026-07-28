@@ -4,7 +4,7 @@ import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
 import { ACTIVITY_DOT_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { MobileAttention } from "@renderer/routes/mobile/-components/mobile-attention";
-import { MobileComposer } from "@renderer/routes/mobile/-components/mobile-composer";
+import { MobileAgentNotice, MobileComposer } from "@renderer/routes/mobile/-components/mobile-composer";
 import { MobileConversationBlock } from "@renderer/routes/mobile/-components/mobile-conversation-block";
 import type { ConversationView } from "@renderer/routes/mobile/-utils/use-conversation";
 import { useStickToBottom } from "@renderer/routes/mobile/-utils/use-stick-to-bottom";
@@ -64,14 +64,15 @@ export function MobileConversation({
 					onKey={session.onKey}
 				/>
 			)}
-			{session && (
-				<MobileComposer
-					working={session.row.activity === "working"}
-					live={!!session.row.harness}
-					onSend={session.onSend}
-					onStop={() => session.onKey("escape")}
-				/>
-			)}
+			{session && (session.row.harness
+				? (
+					<MobileComposer
+						working={session.row.activity === "working"}
+						onSend={session.onSend}
+						onStop={() => session.onKey("escape")}
+					/>
+				)
+				: <MobileAgentNotice since={session.row.createdAt} />)}
 		</div>
 	);
 }

@@ -1,6 +1,7 @@
 import "./register-dom";
 import { streamTransport } from "./stream-transport";
 import { afterEach, expect, mock, test } from "bun:test";
+import { streamResync } from "@renderer/lib/stream/resync";
 import type { TerminalAttached } from "@shared/terminal";
 
 const webglInstances: MockWebglAddon[] = [];
@@ -235,6 +236,20 @@ test("unmounting detaches the connection and leaves the process running", async 
 
 	expect(streamTransport.payloads("terminal", "detach")).toEqual([{ sessionId: "session-1" }]);
 	expect(streamTransport.payloads("terminal", "close")).toEqual([]);
+});
+
+test("a reconnect reattaches the shell and repaints its scrollback", async () => {
+	const session = await startSession();
+	attached = { sessionId: "session-1", replay: "restored output" };
+
+	await streamResync.run();
+
+	expect(streamTransport.payloads("terminal", "open")).toHaveLength(2);
+	expect(streamTransport.payloads("terminal", "detach")).toEqual([]);
+	expect(lastTerminal().resets).toBe(1);
+	expect(lastTerminal().writes).toEqual(["restored output"]);
+
+	session.dispose();
 });
 
 test("retrying a failed resume closes the shell it replaces", async () => {

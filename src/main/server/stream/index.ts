@@ -1,4 +1,5 @@
 import type { Server } from "node:http";
+import { app } from "electron";
 import { type RawData, WebSocketServer } from "ws";
 import { Logger } from "@main/logger";
 import { authorizeUpgrade } from "@main/server/auth";
@@ -8,7 +9,7 @@ import { handleContinuityMessage } from "@main/server/stream/continuity";
 import { streamEnvelopeSchema } from "@main/server/stream/messages";
 import { handleReviewMessage } from "@main/server/stream/review";
 import { detachTerminalConnection, handleTerminalMessage } from "@main/server/stream/terminal";
-import type { StreamChannel, StreamEnvelope } from "@shared/stream";
+import { STREAM_HELLO, type StreamChannel, type StreamEnvelope, type StreamHello } from "@shared/stream";
 
 const CHANNEL_HANDLERS: Record<
 	StreamChannel,
@@ -18,6 +19,9 @@ const CHANNEL_HANDLERS: Record<
 	activity: handleActivityMessage,
 	review: handleReviewMessage,
 	continuity: handleContinuityMessage,
+	system: () => {
+		throw new Error("The system channel only carries server announcements");
+	},
 };
 
 export function attachStreamServer(server: Server, token: string): void {
@@ -35,6 +39,7 @@ export function attachStreamServer(server: Server, token: string): void {
 		sockets.handleUpgrade(request, socket, head, (accepted) => {
 			const connection = new StreamConnection(accepted);
 
+			connection.send("system", STREAM_HELLO, { version: app.getVersion() } satisfies StreamHello);
 			accepted.on("message", (data) => {
 				receive(connection, textOf(data));
 			});

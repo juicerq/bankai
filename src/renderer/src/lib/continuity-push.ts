@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { orpc } from "@renderer/lib/api";
 import { continuityStream } from "@renderer/lib/stream/continuity";
+import { streamResync } from "@renderer/lib/stream/resync";
 
 export function installContinuityPush({ queryClient }: { queryClient: QueryClient }) {
 	const { queryKey } = orpc.continuity.get.queryOptions();
@@ -11,8 +12,12 @@ export function installContinuityPush({ queryClient }: { queryClient: QueryClien
 			failed: previous?.failed ?? false,
 		}));
 	});
+	const stopResync = streamResync.register("watch", () => continuityStream.subscribe());
 
 	continuityStream.subscribe();
 
-	return stopListening;
+	return () => {
+		stopListening();
+		stopResync();
+	};
 }

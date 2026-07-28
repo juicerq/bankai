@@ -1,5 +1,8 @@
 import "./register-dom";
-import { STREAM_REJECT, STREAM_REPLY, type StreamChannel, type StreamEnvelope } from "@shared/stream";
+import { SERVER_DEFAULT_PORT } from "@shared/server";
+import { STREAM_HELLO, STREAM_REJECT, STREAM_REPLY, type StreamChannel, type StreamEnvelope } from "@shared/stream";
+
+const STREAM_TEST_VERSION = "0.0.0-test";
 
 type StreamListener = (event: { data?: string }) => void;
 
@@ -19,6 +22,7 @@ class FakeWebSocket {
 		queueMicrotask(() => {
 			this.readyState = FakeWebSocket.OPEN;
 			this.dispatch("open", {});
+			this.deliver({ channel: "system", type: STREAM_HELLO, payload: { version: streamTransport.version } });
 		});
 	}
 
@@ -51,6 +55,8 @@ class FakeWebSocket {
 
 class StreamTransport {
 	readonly calls: StreamEnvelope[] = [];
+	version = STREAM_TEST_VERSION;
+	connections = 0;
 	private readonly handlers = new Map<string, TransportHandler>();
 	private socket: FakeWebSocket | undefined;
 
@@ -66,6 +72,8 @@ class StreamTransport {
 
 	reset() {
 		this.calls.length = 0;
+		this.connections = 0;
+		this.version = STREAM_TEST_VERSION;
 	}
 
 	push(channel: StreamChannel, type: string, payload?: unknown) {
@@ -78,6 +86,7 @@ class StreamTransport {
 
 	hold(socket: FakeWebSocket) {
 		this.socket = socket;
+		this.connections += 1;
 	}
 
 	receive(envelope: StreamEnvelope) {
@@ -116,5 +125,9 @@ class StreamTransport {
 }
 
 export const streamTransport = new StreamTransport();
+
+window.bankaiAuth ??= {
+	getToken: () => Promise.resolve({ port: SERVER_DEFAULT_PORT, token: "stream-token" }),
+};
 
 Object.defineProperty(globalThis, "WebSocket", { value: FakeWebSocket });

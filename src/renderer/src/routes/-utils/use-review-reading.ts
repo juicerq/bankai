@@ -2,6 +2,7 @@ import { keepPreviousData, type QueryClient, useQueries, useQuery, useQueryClien
 import { useMemo, useRef, useSyncExternalStore } from "react";
 import type { FileChange, FullFile, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/contracts";
 import { orpc } from "@renderer/lib/api";
+import { streamResync } from "@renderer/lib/stream/resync";
 import { reviewStream } from "@renderer/lib/stream/review";
 
 const PENDING = { status: "pending" } as const;
@@ -207,6 +208,7 @@ function useReviewWatch(projectId: string, worktree: string) {
 class ReviewQueryObserver {
 	private state: ReviewWatchState = PENDING;
 	private generation = 0;
+	private watching = false;
 
 	constructor(
 		private readonly watched: { projectId: string; worktree: string },
@@ -216,49 +218,57 @@ class ReviewQueryObserver {
 	readonly getSnapshot = () => this.state;
 
 	readonly subscribe = (notify: () => void) => {
-		const generation = ++this.generation;
-		let watching = false;
 		this.state = PENDING;
 		const stopListening = reviewStream.onChanged((event) => {
 			if (event.projectId === this.watched.projectId) {
 				this.refresh().catch((err) => console.error("Failed to refresh review changes", err));
 			}
 		});
+		const stopResync = streamResync.register("watch", () => this.watch(notify));
 
-		reviewStream.watch(this.watched)
-			.then(async () => {
-				watching = true;
-				if (generation !== this.generation) {
-					reviewStream.unwatch(this.watched);
-					return;
-				}
-
-				await this.refresh();
-				if (generation !== this.generation) {
-					return;
-				}
-
-				this.state = { status: "ready" };
-				notify();
-			})
-			.catch((err) => {
-				if (generation !== this.generation) {
-					return;
-				}
-
-				this.state = { status: "error", error: String(err) };
-				notify();
-			});
+		this.watch(notify).catch((err) => console.error("Failed to watch review changes", err));
 
 		return () => {
 			this.generation += 1;
 			this.state = PENDING;
 			stopListening();
-			if (watching) {
+			stopResync();
+			if (this.watching) {
+				this.watching = false;
 				reviewStream.unwatch(this.watched);
 			}
 		};
 	};
+
+	private async watch(notify: () => void) {
+		const generation = ++this.generation;
+
+		try {
+			await reviewStream.watch(this.watched);
+		} catch (err) {
+			if (generation === this.generation) {
+				this.state = { status: "error", error: String(err) };
+				notify();
+			}
+
+			return;
+		}
+
+		this.watching = true;
+		if (generation !== this.generation) {
+			reviewStream.unwatch(this.watched);
+
+			return;
+		}
+
+		await this.refresh();
+		if (generation !== this.generation) {
+			return;
+		}
+
+		this.state = { status: "ready" };
+		notify();
+	}
 
 	private async refresh() {
 		const input = { projectId: this.watched.projectId };

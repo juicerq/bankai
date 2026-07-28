@@ -1,5 +1,6 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { activityStream } from "@renderer/lib/stream/activity";
+import { streamResync } from "@renderer/lib/stream/resync";
 import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
 
 export interface AgentActivities {
@@ -65,21 +66,25 @@ class AgentActivityObserver {
 				this.set(event.projectId, event);
 			}
 		});
+		const stopResync = streamResync.register("watch", () => this.watchProjects());
 
-		for (const projectId of this.projectIds) {
-			activityStream.watch(projectId)
-				.then((snapshot) => this.set(projectId, snapshot))
-				.catch((err) => console.error("Failed to watch agent activity", err));
-		}
+		this.watchProjects().catch((err) => console.error("Failed to watch agent activity", err));
 
 		return () => {
 			stopListening();
+			stopResync();
 			this.notify = undefined;
 			for (const projectId of this.projectIds) {
 				activityStream.unwatch(projectId);
 			}
 		};
 	};
+
+	private async watchProjects() {
+		await Promise.all(this.projectIds.map(async (projectId) => {
+			this.set(projectId, await activityStream.watch(projectId));
+		}));
+	}
 
 	private set(projectId: string, snapshot: ProjectActivitySnapshot) {
 		this.snapshot = {

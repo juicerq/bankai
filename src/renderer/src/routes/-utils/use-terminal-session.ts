@@ -3,6 +3,7 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { type IDisposable, type ITerminalOptions, Terminal } from "@xterm/xterm";
 import { useCallback, useRef } from "react";
 import { activityStream } from "@renderer/lib/stream/activity";
+import { streamResync } from "@renderer/lib/stream/resync";
 import { terminalStream } from "@renderer/lib/stream/terminal";
 import type { ResumeOutcome } from "@renderer/routes/-utils/resume-state";
 import { readTerminalStyle } from "@renderer/routes/-utils/terminal-style";
@@ -132,6 +133,7 @@ export class RendererTerminalSession {
 	private readonly removeDataListener;
 	private readonly removeExitListener;
 	private readonly removeCommandErrorListener;
+	private readonly stopResync;
 	private sessionId: string | undefined;
 	private lastCols: number | undefined;
 	private lastRows: number | undefined;
@@ -173,6 +175,7 @@ export class RendererTerminalSession {
 				terminalStream.write(this.sessionId, data);
 			}
 		});
+		this.stopResync = streamResync.register("terminal", () => this.reattach());
 		this.resizeProcess = throttle(() => this.syncProcessDimensions(), TERMINAL_RESIZE_THROTTLE_MS);
 		this.resizeObserver = new ResizeObserver(() => this.handleContainerResize());
 		this.resizeObserver.observe(container);
@@ -191,6 +194,17 @@ export class RendererTerminalSession {
 		}
 		this.resumeAttempt = true;
 		this.start().catch((err) => this.fail("Failed to resume shell", err));
+	}
+
+	private async reattach() {
+		if (this.disposed) {
+			return;
+		}
+
+		this.lifecycle += 1;
+		this.sessionId = undefined;
+		this.resumeAttempt = false;
+		await this.start().catch((err) => this.fail("Failed to reattach shell", err));
 	}
 
 	setActive(active: boolean) {
@@ -248,6 +262,7 @@ export class RendererTerminalSession {
 		this.removeDataListener();
 		this.removeExitListener();
 		this.removeCommandErrorListener();
+		this.stopResync();
 		if (this.sessionId) {
 			terminalStream.detach(this.sessionId);
 		}

@@ -61,6 +61,7 @@ function renderSidebar(
 					open,
 					archived,
 					numbered: [...open, ...(archivedOpen ? archived : [])].slice(0, 9),
+					openProjectIds: new Set(open.map((entry) => entry.projectId)),
 					waiting: open.find((entry) => entry.activity === "needs-attention"),
 					archivedOpen,
 					toggleArchived: () => setArchivedOpen((current) => !current),
@@ -88,6 +89,14 @@ function renderSidebar(
 
 function sessionRow(shellId: string) {
 	return get("session-row", { shellId });
+}
+
+function badges() {
+	return [...get("project-badges").querySelectorAll<HTMLElement>('[data-component="project-badge"]')];
+}
+
+function badgeNames() {
+	return badges().map((badge) => badge.textContent);
 }
 
 function menuItems() {
@@ -186,25 +195,41 @@ test("the header counts the open sessions, not the filed ones", () => {
 });
 
 test("a badge per project sits above the list, named and in project order", () => {
-	renderSidebar({ open: [row("s1")] });
+	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] });
 
-	const badges = [...get("project-badges").querySelectorAll<HTMLElement>('[data-component="project-badge"]')];
-
-	expect(badges.map((badge) => badge.textContent)).toEqual(["bankai", "dogama"]);
-	expect(badges.every((badge) => badge.getAttribute("aria-pressed") === "false")).toBe(true);
+	expect(badgeNames()).toEqual(["bankai", "dogama"]);
+	expect(badges().every((badge) => badge.getAttribute("aria-pressed") === "false")).toBe(true);
 });
 
 test("the badges sit on one scrolling line", () => {
-	renderSidebar({ open: [row("s1")] });
+	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] });
 
 	expect(get("project-badges").className).toContain("overflow-x-auto");
 	expect(get("project-badges").className).not.toContain("flex-wrap");
 });
 
+test("a project with nothing but archived sessions loses its badge", () => {
+	renderSidebar({
+		open: [row("s1")],
+		archived: [row("s2", { projectId: "p2", projectName: "dogama", archivedAt: NOW })],
+	});
+
+	expect(query("project-badges")).toBeNull();
+});
+
+test("a chosen project keeps its badge after its last session is archived", () => {
+	renderSidebar({
+		open: [row("s1")],
+		archived: [row("s2", { projectId: "p2", projectName: "dogama", archivedAt: NOW })],
+	}, { chosenProjectIds: new Set(["p2"]) });
+
+	expect(badgeNames()).toEqual(["bankai", "dogama"]);
+});
+
 test("clicking a badge names its project instead of touching the sessions", () => {
 	const toggled: string[] = [];
 	const selected: string[] = [];
-	renderSidebar({ open: [row("s1")] }, {
+	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] }, {
 		onToggleProject: (projectId) => toggled.push(projectId),
 		onSelect: (projectId, shellId) => selected.push(`${projectId}/${shellId}`),
 	});
@@ -216,7 +241,9 @@ test("clicking a badge names its project instead of touching the sessions", () =
 });
 
 test("a chosen project wears its badge pressed", () => {
-	renderSidebar({ open: [row("s1")] }, { chosenProjectIds: new Set(["p1"]) });
+	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] }, {
+		chosenProjectIds: new Set(["p1"]),
+	});
 
 	expect(get("project-badge", { projectId: "p1" }).getAttribute("aria-pressed")).toBe("true");
 	expect(get("project-badge", { projectId: "p2" }).getAttribute("aria-pressed")).toBe("false");

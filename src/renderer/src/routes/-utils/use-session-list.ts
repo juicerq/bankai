@@ -24,6 +24,7 @@ export function useSessionList({
 		open,
 		archived,
 		numbered,
+		openProjectIds: new Set(sections.open.map((row) => row.projectId)),
 		waiting: sections.open.find((row) => row.activity === "needs-attention"),
 		archivedOpen,
 		toggleArchived,

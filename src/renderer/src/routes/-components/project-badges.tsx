@@ -2,18 +2,22 @@ import type { Project } from "@main/store/projects";
 
 export function ProjectBadges({
 	projects,
+	openProjectIds,
 	chosenProjectIds,
 	onToggle,
 }: {
 	projects: Project[];
+	openProjectIds: ReadonlySet<string>;
 	chosenProjectIds: ReadonlySet<string>;
 	onToggle: (projectId: string) => void;
 }) {
-	if (projects.length < 2) {
+	const listed = projects
+		.filter((project) => openProjectIds.has(project.id) || chosenProjectIds.has(project.id))
+		.sort((left, right) => left.name.localeCompare(right.name));
+
+	if (listed.length < 2) {
 		return null;
 	}
-
-	const sorted = [...projects].sort((left, right) => left.name.localeCompare(right.name));
 
 	return (
 		<div
@@ -22,7 +26,7 @@ export function ProjectBadges({
 			aria-label="Narrow sessions to projects"
 			className="badge-strip flex shrink-0 gap-1 overflow-x-auto border-b border-outline px-3 py-1.5"
 		>
-			{sorted.map((project) => {
+			{listed.map((project) => {
 				const chosen = chosenProjectIds.has(project.id);
 
 				return (

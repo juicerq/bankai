@@ -117,7 +117,12 @@ export function SessionSidebar({
 					<PlusIcon className="size-4" aria-hidden="true" />
 				</button>
 			</div>
-			<ProjectBadges projects={projects} chosenProjectIds={chosenProjectIds} onToggle={onToggleProject} />
+			<ProjectBadges
+				projects={projects}
+				openProjectIds={list.openProjectIds}
+				chosenProjectIds={chosenProjectIds}
+				onToggle={onToggleProject}
+			/>
 			<div className="min-h-0 flex-1 overflow-auto" aria-label="Sessions">
 				{list.open.length === 0 && list.archived.length === 0 && canCreateShell && (
 					<button

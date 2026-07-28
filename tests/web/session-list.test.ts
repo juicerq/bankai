@@ -39,6 +39,16 @@ test("the open list holds every session the user has not filed away", () => {
 	expect(result.current.archived.map((entry) => entry.shellId)).toEqual(["filed"]);
 });
 
+test("the projects with a badge are the ones holding an open session, narrowing aside", () => {
+	const { result } = renderList([
+		row("a"),
+		row("b", { projectId: "p2", projectName: "dogama" }),
+		row("filed", { projectId: "p3", projectName: "gaita", archivedAt: NOW }),
+	], new Set(["p1"]));
+
+	expect([...result.current.openProjectIds]).toEqual(["p1", "p2"]);
+});
+
 test("a reorder of the incoming rows is the only thing that moves the list", () => {
 	const { result, rerender } = renderHook(
 		({ rows }: { rows: SessionRow[] }) => useSessionList({ rows, now: NOW, projectIds: EVERY_PROJECT }),

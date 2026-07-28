@@ -194,6 +194,13 @@ test("a badge per project sits above the list, named and in project order", () =
 	expect(badges.every((badge) => badge.getAttribute("aria-pressed") === "false")).toBe(true);
 });
 
+test("the badges sit on one scrolling line", () => {
+	renderSidebar({ open: [row("s1")] });
+
+	expect(get("project-badges").className).toContain("overflow-x-auto");
+	expect(get("project-badges").className).not.toContain("flex-wrap");
+});
+
 test("clicking a badge names its project instead of touching the sessions", () => {
 	const toggled: string[] = [];
 	const selected: string[] = [];

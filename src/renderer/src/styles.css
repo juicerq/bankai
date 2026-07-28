@@ -137,6 +137,14 @@
 	}
 }
 
+.badge-strip {
+	scrollbar-width: none;
+}
+
+.badge-strip::-webkit-scrollbar {
+	display: none;
+}
+
 .xterm {
 	height: 100%;
 }

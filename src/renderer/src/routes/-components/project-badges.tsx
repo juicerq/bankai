@@ -20,7 +20,7 @@ export function ProjectBadges({
 			data-component="project-badges"
 			role="group"
 			aria-label="Narrow sessions to projects"
-			className="flex max-h-20 shrink-0 flex-wrap gap-1 overflow-auto border-b border-outline px-3 py-1.5"
+			className="badge-strip flex shrink-0 gap-1 overflow-x-auto border-b border-outline px-3 py-1.5"
 		>
 			{sorted.map((project) => {
 				const chosen = chosenProjectIds.has(project.id);
@@ -33,7 +33,7 @@ export function ProjectBadges({
 						data-project-id={project.id}
 						aria-pressed={chosen}
 						title={project.path}
-						className={`flex h-5 max-w-full items-center border px-1.5 text-label uppercase ${
+						className={`flex h-5 max-w-32 shrink-0 items-center border px-1.5 text-label uppercase ${
 							chosen
 								? "border-tertiary bg-tertiary text-surface"
 								: "border-outline text-secondary hover:border-outline-strong hover:text-primary"

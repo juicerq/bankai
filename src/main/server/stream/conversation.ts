@@ -1,5 +1,5 @@
 import { AgentActivity } from "@main/activity/AgentActivity";
-import { transcriptPath } from "@main/activity/claudeTranscript";
+import { locateTranscript } from "@main/activity/claudeTranscript";
 import { CONVERSATION_BACKFILL_BYTES, ConversationTail } from "@main/activity/conversationTail";
 import { subagentTranscriptPath } from "@main/activity/subagentTranscript";
 import { Logger } from "@main/logger";
@@ -154,7 +154,7 @@ class ConversationWatch {
 
 		const path = this.address.agent
 			? await subagentTranscriptPath(session, this.address.agent)
-			: transcriptPath(session);
+			: await locateTranscript(session);
 
 		if (!path || generation !== this.generation) {
 			return EMPTY_CONVERSATION;

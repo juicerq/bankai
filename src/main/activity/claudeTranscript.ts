@@ -1,4 +1,5 @@
 import { createReadStream } from "node:fs";
+import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { type } from "arktype";
@@ -88,8 +89,51 @@ export function transcriptPath(ref: { sessionId: string; cwd: string }): string 
 	return join(claudeConfigDir(), "projects", slug, `${ref.sessionId}.jsonl`);
 }
 
+const locatedTranscripts = new Map<string, string>();
+
+async function fileExists(path: string): Promise<boolean> {
+	return await stat(path).then((info) => info.isFile()).catch(() => false);
+}
+
+export async function locateTranscript(ref: { sessionId: string; cwd: string }): Promise<string> {
+	const candidate = transcriptPath(ref);
+
+	if (await fileExists(candidate)) {
+		return candidate;
+	}
+
+	const cached = locatedTranscripts.get(ref.sessionId);
+
+	if (cached && (await fileExists(cached))) {
+		return cached;
+	}
+
+	const projects = join(claudeConfigDir(), "projects");
+	const folders = await readdir(projects).catch((): string[] => []);
+	const matches = await Promise.all(
+		folders.map(async (folder) => {
+			const path = join(projects, folder, `${ref.sessionId}.jsonl`);
+
+			if (await fileExists(path)) {
+				return path;
+			}
+
+			return null;
+		}),
+	);
+	const found = matches.find((path) => path !== null);
+
+	if (!found) {
+		return candidate;
+	}
+
+	locatedTranscripts.set(ref.sessionId, found);
+
+	return found;
+}
+
 async function* transcriptIntents(ref: { sessionId: string; cwd: string }, limit: number): AsyncGenerator<string> {
-	const path = transcriptPath(ref);
+	const path = await locateTranscript(ref);
 	const stream = createReadStream(path, { encoding: "utf8" });
 	const lines = createInterface({ input: stream, crlfDelay: Number.POSITIVE_INFINITY });
 

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "bun:test";
-import { recordIntent, transcriptPath, transcriptTitle } from "@main/activity/claudeTranscript";
+import { locateTranscript, recordIntent, transcriptPath, transcriptTitle } from "@main/activity/claudeTranscript";
 
 function userRecord(content: unknown, extra: Record<string, unknown> = {}): string {
 	return JSON.stringify({ type: "user", message: { content }, ...extra });
@@ -131,5 +131,55 @@ describe("transcriptTitle", () => {
 		process.env.CLAUDE_CONFIG_DIR = join(tmpdir(), "claude-config-missing-xyz");
 
 		expect(await transcriptTitle(REF)).toBeNull();
+	});
+});
+
+describe("locateTranscript", () => {
+	let configDir: string | undefined;
+
+	afterEach(() => {
+		if (configDir) {
+			rmSync(configDir, { recursive: true, force: true });
+			configDir = undefined;
+		}
+		delete process.env.CLAUDE_CONFIG_DIR;
+	});
+
+	function write(ref: { sessionId: string; cwd: string }, lines: string[]): string {
+		const path = transcriptPath(ref);
+		mkdirSync(join(path, ".."), { recursive: true });
+		writeFileSync(path, `${lines.join("\n")}\n`);
+
+		return path;
+	}
+
+	function freshConfigDir(): void {
+		configDir = mkdtempSync(join(tmpdir(), "claude-config-"));
+		process.env.CLAUDE_CONFIG_DIR = configDir;
+	}
+
+	it("returns the cwd-derived path when the transcript lives there", async () => {
+		freshConfigDir();
+		const ref = { sessionId: "11f0838a-5ef9-40a6-bdef-706514079823", cwd: "/home/jui/projects/bankai-2" };
+		const path = write(ref, [userRecord("oi")]);
+
+		expect(await locateTranscript(ref)).toBe(path);
+	});
+
+	it("finds the origin transcript of a session that entered a worktree", async () => {
+		freshConfigDir();
+		const sessionId = "22f0838a-5ef9-40a6-bdef-706514079823";
+		const origin = write({ sessionId, cwd: "/home/jui/dogama/app" }, [userRecord("conserta o bug")]);
+		const moved = { sessionId, cwd: "/tmp/claude-worktrees/app/fix-bug" };
+
+		expect(await locateTranscript(moved)).toBe(origin);
+		expect(await transcriptTitle(moved)).toBe("conserta o bug");
+	});
+
+	it("falls back to the cwd-derived path when no transcript exists anywhere", async () => {
+		freshConfigDir();
+		const ref = { sessionId: "33f0838a-5ef9-40a6-bdef-706514079823", cwd: "/tmp/claude-worktrees/app/fix-bug" };
+
+		expect(await locateTranscript(ref)).toBe(transcriptPath(ref));
 	});
 });

@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { doneEntryShells } from "@main/activity/AgentActivity";
 import { focusShell, shellFocused } from "@main/activity/ShellFocus";
+import type { AgentActivityState } from "@shared/activity";
 import {
 	attentionPushPayload,
+	donePushPayload,
 	PUSH_BODY_MAX_LENGTH,
 	PUSH_DEFAULT_BODY,
 	PUSH_DEFAULT_TITLE,
+	PUSH_DONE_BODY,
 	subscriptionGone,
 } from "@main/push/attention";
 
@@ -52,6 +56,41 @@ describe("attention push payload", () => {
 		});
 
 		expect(payload.body).toBe("Permission required — rm -rf out");
+	});
+});
+
+describe("done push payload", () => {
+	test("the finished session is named, and the project it belongs to rides in the body", () => {
+		expect(donePushPayload({ shellId: SHELL_ID, title: "Rewrite the parser", project: "bankai" })).toEqual({
+			title: "Rewrite the parser",
+			body: `${PUSH_DONE_BODY} in bankai`,
+			data: { shellId: SHELL_ID },
+		});
+	});
+
+	test("a session whose project is unknown still says it is done", () => {
+		expect(donePushPayload({ shellId: SHELL_ID, project: " " }).body).toBe(PUSH_DONE_BODY);
+	});
+
+	test("done and needs attention collapse on the phone because both carry the same shell", () => {
+		expect(donePushPayload({ shellId: SHELL_ID }).data).toEqual(attentionPushPayload({ shellId: SHELL_ID }).data);
+	});
+});
+
+describe("the turns that are worth a notification", () => {
+	const working = new Map<string, AgentActivityState>([["s1", "working"]]);
+	const done = new Map<string, AgentActivityState>([["s1", "done-unseen"]]);
+
+	test("a turn that just finished is the one that notifies", () => {
+		expect(doneEntryShells(working, done)).toEqual(["s1"]);
+	});
+
+	test("a session that was already done does not notify again", () => {
+		expect(doneEntryShells(done, done)).toEqual([]);
+	});
+
+	test("a session that went back to work does not notify", () => {
+		expect(doneEntryShells(done, working)).toEqual([]);
 	});
 });
 

@@ -27,7 +27,7 @@ import { ReviewChanges } from "@main/git/ReviewChanges";
 import { worktreeContaining } from "@main/git/Worktrees";
 import { Logger } from "@main/logger";
 import { SessionNamer } from "@main/naming/SessionNamer";
-import { pushNeedsAttention } from "@main/push/notifyAttention";
+import { pushNeedsAttention, pushTurnDone } from "@main/push/notifyAttention";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { shellOutputLines } from "@main/terminal/ShellOutputLines";
@@ -172,6 +172,21 @@ export function attentionEntryShells(
 	}
 
 	return entered;
+}
+
+export function doneEntryShells(
+	before: ReadonlyMap<string, AgentActivityState>,
+	after: ReadonlyMap<string, AgentActivityState>,
+): string[] {
+	const finished: string[] = [];
+
+	for (const [sessionId, state] of after) {
+		if (state === "done-unseen" && before.get(sessionId) !== "done-unseen") {
+			finished.push(sessionId);
+		}
+	}
+
+	return finished;
 }
 
 export interface ShellOwner {
@@ -1094,6 +1109,15 @@ class AgentActivityTracker {
 			pushNeedsAttention({ ...owner, ...(needsAttention ? { attention: needsAttention } : {}) }).catch((err) =>
 				Logger.error("push:attention-failed", { ...owner, err: String(err) })
 			);
+		}
+
+		for (const sessionId of doneEntryShells(previousStates, shellStates)) {
+			const owner = owners.get(sessionId);
+			if (!owner) {
+				continue;
+			}
+
+			pushTurnDone(owner).catch((err) => Logger.error("push:done-failed", { ...owner, err: String(err) }));
 		}
 
 		for (const projectId of new Set([

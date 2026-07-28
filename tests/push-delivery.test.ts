@@ -1,7 +1,12 @@
 import { expect, test } from "bun:test";
 import { focusShell } from "@main/activity/ShellFocus";
-import { attentionPushPayload } from "@main/push/attention";
-import { pushNeedsAttention } from "@main/push/notifyAttention";
+import {
+	type AttentionPushPayload,
+	attentionPushPayload,
+	PUSH_DEFAULT_TITLE,
+	PUSH_DONE_BODY,
+} from "@main/push/attention";
+import { pushNeedsAttention, pushTurnDone } from "@main/push/notifyAttention";
 import { deliverAttentionPush } from "@main/push/deliver";
 import type { PushDelivery, PushSender } from "@main/push/webPush";
 import {
@@ -21,13 +26,15 @@ function subscription(endpoint: string): PushSubscription {
 
 function sender(outcomes: Record<string, PushDelivery> = {}) {
 	const sent: PushSubscription[] = [];
-	const send: PushSender = async ({ subscription: target }) => {
+	const payloads: AttentionPushPayload[] = [];
+	const send: PushSender = async ({ subscription: target, payload }) => {
 		sent.push(target);
+		payloads.push(payload);
 
 		return outcomes[target.endpoint] ?? "sent";
 	};
 
-	return { send, sent };
+	return { send, sent, payloads };
 }
 
 test("a phone that re-syncs keeps a single subscription for its endpoint", async () => {
@@ -81,6 +88,34 @@ test("a shell someone is already looking at sends nothing", async () => {
 	focusShell({ id: "watcher", onClose: (cleanup) => cleanups.push(cleanup) }, "shell-watched");
 
 	await pushNeedsAttention({ projectId: "p1", shellId: "shell-watched" }, send);
+
+	expect(sent).toEqual([]);
+
+	for (const cleanup of cleanups) {
+		cleanup();
+	}
+});
+
+test("a session that finished with nobody looking reaches the phone", async () => {
+	await PushSubscriptions.save(subscription("https://push.example/idle"));
+	const { send, payloads } = sender();
+
+	await pushTurnDone({ projectId: "p1", shellId: "shell-finished" }, send);
+
+	expect(payloads).toEqual([{
+		title: PUSH_DEFAULT_TITLE,
+		body: PUSH_DONE_BODY,
+		data: { shellId: "shell-finished" },
+	}]);
+});
+
+test("a session that finished under someone's eyes sends nothing", async () => {
+	await PushSubscriptions.save(subscription("https://push.example/seen"));
+	const cleanups: (() => void)[] = [];
+	const { send, sent } = sender();
+	focusShell({ id: "reader", onClose: (cleanup) => cleanups.push(cleanup) }, "shell-read");
+
+	await pushTurnDone({ projectId: "p1", shellId: "shell-read" }, send);
 
 	expect(sent).toEqual([]);
 

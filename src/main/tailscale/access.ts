@@ -11,7 +11,12 @@ export const TAILSCALE_OPERATOR_REMEDY =
 
 const TAILSCALE_MISSING_REMEDY = "Tailscale is not answering on this machine. Start it and try again.";
 
-const statusSchema = type({ "Self?": { "DNSName?": "string" } });
+const TAILSCALE_HTTPS_CAPABILITY = "https";
+
+export const TAILSCALE_HTTPS_REMEDY =
+	"This tailnet does not issue HTTPS certificates yet, and the phone needs them. Enable HTTPS Certificates at login.tailscale.com/admin/dns, then reopen Settings.";
+
+const statusSchema = type({ "Self?": { "DNSName?": "string", "CapMap?": { "[string]": "unknown" } } });
 
 const serveStatusSchema = type({
 	"Web?": { "[string]": { "Handlers?": { "[string]": { "Proxy?": "string" } } } },
@@ -32,10 +37,27 @@ function readJson<Schema extends Type>(raw: string, schema: Schema): Schema["inf
 	}
 }
 
+function statusSelf(raw: string) {
+	return readJson(raw, statusSchema)?.Self;
+}
+
 export function magicDnsHost(raw: string): string | undefined {
-	const name = readJson(raw, statusSchema)?.Self?.DNSName?.replace(/\.$/, "");
+	const name = statusSelf(raw)?.DNSName?.replace(/\.$/, "");
 
 	return name || undefined;
+}
+
+export function httpsProblem(raw: string): string | undefined {
+	const self = statusSelf(raw);
+	if (!self?.DNSName) {
+		return undefined;
+	}
+
+	if (self.CapMap && TAILSCALE_HTTPS_CAPABILITY in self.CapMap) {
+		return undefined;
+	}
+
+	return TAILSCALE_HTTPS_REMEDY;
 }
 
 export function serveProxyTarget(port: number): string {
@@ -83,16 +105,30 @@ export async function mobileAccess(): Promise<MobileAccess> {
 		tailscale(["serve", "status", "--json"]),
 	]);
 	const host = magicDnsHost(status.stdout);
-
-	return {
+	const access = {
 		host,
 		url: host ? pairingUrl({ host, token }) : undefined,
 		exposed: serveExposes(serve.stdout, port),
 	};
+	const problem = httpsProblem(status.stdout);
+
+	if (!problem) {
+		return access;
+	}
+
+	return { ...access, problem };
 }
 
 export async function setMobileAccess(enabled: boolean): Promise<MobileAccess> {
 	const { port } = serverReach();
+	if (enabled) {
+		const current = await mobileAccess();
+
+		if (current.problem) {
+			return current;
+		}
+	}
+
 	const result = await tailscale(serveArgs({ enabled, port }));
 
 	if (result.failed) {

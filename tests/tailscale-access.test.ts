@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
+	httpsProblem,
 	magicDnsHost,
 	serveArgs,
 	serveExposes,
 	serveProblem,
 	serveProxyTarget,
+	TAILSCALE_HTTPS_REMEDY,
 	TAILSCALE_OPERATOR_REMEDY,
 } from "@main/tailscale/access";
 import { SERVER_DEFAULT_PORT } from "@shared/server";
@@ -42,6 +44,35 @@ describe("magic dns host", () => {
 	it("has no host when tailscale answered nothing at all", () => {
 		expect(magicDnsHost("")).toBeUndefined();
 		expect(magicDnsHost("failed to connect to local tailscaled")).toBeUndefined();
+	});
+});
+
+describe("https certificates", () => {
+	function status(capabilities: string[]): string {
+		return JSON.stringify({
+			Self: {
+				DNSName: "cachyos.tail74b3f3.ts.net.",
+				CapMap: Object.fromEntries(capabilities.map((capability) => [capability, null])),
+			},
+		});
+	}
+
+	it("says nothing when the tailnet issues certificates", () => {
+		expect(httpsProblem(status(["https", "https://tailscale.com/cap/is-admin"]))).toBeUndefined();
+	});
+
+	it("names the admin page when the capability is missing", () => {
+		expect(httpsProblem(status(["https://tailscale.com/cap/is-admin"]))).toBe(TAILSCALE_HTTPS_REMEDY);
+	});
+
+	it("names the admin page when the node reports no capabilities at all", () => {
+		expect(httpsProblem(JSON.stringify({ Self: { DNSName: "cachyos.tail74b3f3.ts.net." } })))
+			.toBe(TAILSCALE_HTTPS_REMEDY);
+	});
+
+	it("stays quiet when tailscale itself is not answering", () => {
+		expect(httpsProblem("")).toBeUndefined();
+		expect(httpsProblem(JSON.stringify({ BackendState: "Stopped" }))).toBeUndefined();
 	});
 });
 

@@ -9,6 +9,8 @@ created_at: 2026-07-25
 
 `~/.claude/projects/<slug>/<sessionId>.jsonl`, where the slug is the session's `cwd` with every `/` and `.` replaced by `-`: `/home/jui/app/.claude-worktrees/x` becomes `-home-jui-app--claude-worktrees-x`. Verified against every project folder on this machine. A missing folder or file is not an error — it just means no title.
 
+The `cwd` in that rule is the one the session **started** with. A session that enters a worktree mid-conversation (`EnterWorktree`) republishes its registry record with the worktree as `cwd`, but the transcript never moves — verified on real sessions whose record said `/tmp/claude-worktrees/app/<branch>` while the transcript sat under the origin project's folder. A path derived from the live `cwd` therefore reads as an empty transcript for exactly these sessions. `locateTranscript` in `src/main/activity/claudeTranscript.ts` is the resolver that survives this: candidate path first, then a scan of the project folders for the `sessionId`, cached per session; every transcript consumer goes through it.
+
 ## Claude writes no summary record any more
 
 `"type":"summary"` does not appear in a single one of the 1230 transcripts under `~/.claude/projects/` on this machine. Whatever version wrote that record, it is not the one in use. Anything that wants a one-line description of a Claude session has to derive it from the messages.

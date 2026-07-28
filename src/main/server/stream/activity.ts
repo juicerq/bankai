@@ -1,4 +1,5 @@
 import { AgentActivity } from "@main/activity/AgentActivity";
+import { focusShell } from "@main/activity/ShellFocus";
 import type { StreamConnection } from "@main/server/stream/connection";
 import { ActivitySchemas } from "@main/server/stream/messages";
 import type { ActivityChangedEvent } from "@shared/activity";
@@ -50,10 +51,17 @@ export function handleActivityMessage(connection: StreamConnection, message: Str
 			AgentActivity.markViewed(ActivitySchemas.viewed.assert(message.payload).sessionId);
 
 			return undefined;
-		case "viewed-shell":
-			AgentActivity.markShellViewed(ActivitySchemas.viewedShell.assert(message.payload).shellId);
+		case "focus-shell": {
+			const { shellId } = ActivitySchemas.focusShell.assert(message.payload);
+
+			focusShell(connection, shellId);
+
+			if (shellId) {
+				AgentActivity.markShellViewed(shellId);
+			}
 
 			return undefined;
+		}
 		default:
 			throw new Error(`Unknown activity message "${message.type}"`);
 	}

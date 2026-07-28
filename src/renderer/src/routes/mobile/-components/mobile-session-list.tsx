@@ -3,6 +3,7 @@ import type { AgentActivityState } from "@shared/activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { MobileNewShell } from "@renderer/routes/mobile/-components/mobile-new-shell";
 import { MobileProjectStrip } from "@renderer/routes/mobile/-components/mobile-project-strip";
+import { MobilePushBanner } from "@renderer/routes/mobile/-components/mobile-push-banner";
 import { MobileSessionCard } from "@renderer/routes/mobile/-components/mobile-session-card";
 
 export function MobileSessionList({
@@ -33,6 +34,7 @@ export function MobileSessionList({
 					<MobileNewShell projects={projects} projectActivity={projectActivity} onCreate={onCreate} />
 				</div>
 			</header>
+			<MobilePushBanner />
 			<MobileProjectStrip
 				projects={projects}
 				projectActivity={projectActivity}

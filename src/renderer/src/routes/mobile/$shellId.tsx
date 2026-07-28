@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { terminalStream } from "@renderer/lib/stream/terminal";
 import { MobileConversation } from "@renderer/routes/mobile/-components/mobile-conversation";
 import { useConversation } from "@renderer/routes/mobile/-utils/use-conversation";
-import { useMarkViewed } from "@renderer/routes/mobile/-utils/use-mark-viewed";
+import { useShellFocus } from "@renderer/routes/mobile/-utils/use-shell-focus";
 import { useMobileSurface } from "@renderer/routes/mobile/-utils/mobile-surface-context";
 
 export const Route = createFileRoute("/mobile/$shellId")({ component: MobileConversationRoute });
@@ -14,7 +14,7 @@ function MobileConversationRoute() {
 	const row = rows.find((entry) => entry.shellId === shellId);
 	const conversation = useConversation(shellId);
 
-	useMarkViewed(shellId);
+	useShellFocus(shellId);
 
 	return (
 		<MobileConversation

@@ -150,6 +150,25 @@ function requireContinuity() {
 	return currentContinuity;
 }
 
+export interface PushTransport {
+	publicKey: string;
+	subscriptions: { endpoint: string; keys: { p256dh: string; auth: string } }[];
+}
+
+let currentPush: PushTransport | undefined;
+
+export function setPushTransport(transport: PushTransport) {
+	currentPush = transport;
+}
+
+function requirePush() {
+	if (!currentPush) {
+		throw new Error("No push transport is installed");
+	}
+
+	return currentPush;
+}
+
 function recordContinuity(procedure: string) {
 	return os.handler(({ input }) => {
 		const transport = requireContinuity();
@@ -212,6 +231,14 @@ const router = {
 	},
 	projects: {
 		browse: os.input(type({ path: "string" })).handler(({ input }) => requireBrowse()(input.path)),
+	},
+	push: {
+		getPublicKey: os.handler(() => requirePush().publicKey),
+		subscribe: os
+			.input(type({ endpoint: "string", keys: { p256dh: "string", auth: "string" } }))
+			.handler(({ input }) => {
+				requirePush().subscriptions.push(input);
+			}),
 	},
 };
 

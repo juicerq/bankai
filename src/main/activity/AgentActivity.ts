@@ -27,6 +27,7 @@ import { ReviewChanges } from "@main/git/ReviewChanges";
 import { worktreeContaining } from "@main/git/Worktrees";
 import { Logger } from "@main/logger";
 import { SessionNamer } from "@main/naming/SessionNamer";
+import { pushNeedsAttention } from "@main/push/notifyAttention";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { shellOutputLines } from "@main/terminal/ShellOutputLines";
@@ -156,6 +157,21 @@ export function turnStartShells(
 	}
 
 	return started;
+}
+
+export function attentionEntryShells(
+	before: ReadonlyMap<string, AgentActivityState>,
+	after: ReadonlyMap<string, AgentActivityState>,
+): string[] {
+	const entered: string[] = [];
+
+	for (const [sessionId, state] of after) {
+		if (state === "needs-attention" && before.get(sessionId) !== "needs-attention") {
+			entered.push(sessionId);
+		}
+	}
+
+	return entered;
 }
 
 export interface ShellOwner {
@@ -1062,6 +1078,17 @@ class AgentActivityTracker {
 				Logger.error("activity:stamp-failed", { ...owner, err: String(err) }),
 			);
 			SessionNamer.noteTurn(owner);
+		}
+
+		for (const sessionId of attentionEntryShells(previousStates, shellStates)) {
+			const owner = owners.get(sessionId);
+			if (!owner) {
+				continue;
+			}
+
+			pushNeedsAttention({ ...owner, attention: attention.get(owner.shellId) }).catch((err) =>
+				Logger.error("push:attention-failed", { ...owner, err: String(err) })
+			);
 		}
 
 		for (const projectId of new Set([

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import {
 	ATTENTION_SKEW_MS,
+	attentionEntryShells,
 	clockSince,
 	freshAttention,
 	nextCompactionAnchor,
@@ -154,6 +155,25 @@ describe("shell turns", () => {
 		const after = shells({ a: "working", b: "working", c: "needs-attention" });
 
 		expect(turnStartShells(before, after)).toEqual(["b", "c"]);
+	});
+
+	test("a working shell that blocks on the user enters needs attention", () => {
+		expect(attentionEntryShells(shells({ a: "working" }), shells({ a: "needs-attention" }))).toEqual(["a"]);
+	});
+
+	test("a shell already blocked on the user does not enter it again", () => {
+		expect(attentionEntryShells(shells({ a: "needs-attention" }), shells({ a: "needs-attention" }))).toEqual([]);
+	});
+
+	test("a shell that resumes working left needs attention behind", () => {
+		expect(attentionEntryShells(shells({ a: "needs-attention" }), shells({ a: "working" }))).toEqual([]);
+	});
+
+	test("only the shell that blocked enters needs attention", () => {
+		const before = shells({ a: "needs-attention", b: "working" });
+		const after = shells({ a: "needs-attention", b: "needs-attention", c: "working" });
+
+		expect(attentionEntryShells(before, after)).toEqual(["b"]);
 	});
 });
 

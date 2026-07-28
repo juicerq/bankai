@@ -45,17 +45,24 @@ const serverSchema = type({
 	"port?": "number",
 });
 
+const vapidSchema = type({
+	publicKey: "string",
+	privateKey: "string",
+});
+export type VapidKeys = typeof vapidSchema.infer;
+
 const settingsContract = type({
 	"windowBounds?": windowBoundsSchema,
 	"layout?": layoutSchema,
 	"harness?": harnessSchema,
 	"server?": serverSchema,
+	"vapid?": vapidSchema,
 });
 export type SettingsValue = typeof settingsContract.infer;
 
 const store = new Store({
 	name: "settings",
-	version: 3,
+	version: 4,
 	contract: settingsContract,
 	migrators: {
 		1: (raw) => {
@@ -63,6 +70,7 @@ const store = new Store({
 			return previous;
 		},
 		2: (raw) => raw,
+		3: (raw) => raw,
 	},
 	seed: (): SettingsValue => ({}),
 });
@@ -99,6 +107,15 @@ export const Settings = {
 		}
 
 		return { port: next.server.port ?? SERVER_DEFAULT_PORT, token: next.server.token };
+	},
+	ensureVapid: async (mint: () => VapidKeys): Promise<VapidKeys> => {
+		const next = await store.mutate((current) => ({ ...current, vapid: current.vapid ?? mint() }));
+
+		if (!next.vapid) {
+			throw new Error("The VAPID keypair was not stored");
+		}
+
+		return next.vapid;
 	},
 };
 

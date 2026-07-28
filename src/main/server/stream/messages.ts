@@ -29,7 +29,7 @@ export const TerminalSchemas = {
 export const ActivitySchemas = {
 	project: type({ projectId: "string" }),
 	viewed: type({ sessionId: "string" }),
-	viewedShell: type({ shellId: "string" }),
+	focusShell: type({ "shellId?": "string" }),
 };
 
 export const ConversationSchemas = {

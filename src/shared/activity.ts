@@ -40,5 +40,5 @@ export interface BankaiActivityApi {
 	unwatch: (projectId: string) => void;
 	onChanged: (listener: (event: ActivityChangedEvent) => void) => () => void;
 	markViewed: (sessionId: string) => void;
-	markShellViewed: (shellId: string) => void;
+	focusShell: (shellId?: string) => void;
 }

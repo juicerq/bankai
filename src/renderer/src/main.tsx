@@ -6,6 +6,7 @@ import "@renderer/lib/api";
 import { installContinuityPush } from "@renderer/lib/continuity-push";
 import { installLoggerBridge } from "@renderer/lib/logger-bridge";
 import { installReviewPrewarm } from "@renderer/lib/prewarm-reviews";
+import { installPushSync } from "@renderer/lib/push";
 import { queryClient } from "@renderer/lib/query-client";
 import { router } from "@renderer/lib/router";
 import { installServiceWorker } from "@renderer/lib/service-worker";
@@ -20,6 +21,7 @@ installLoggerBridge();
 installContinuityPush({ queryClient });
 installReviewPrewarm({ queryClient, mode: DEFAULT_REVIEW_MODE });
 installServiceWorker();
+installPushSync();
 markStartup("installed");
 
 const rootElement = document.querySelector("#root");

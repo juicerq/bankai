@@ -1,7 +1,7 @@
 ---
 title: What an AUR release has to touch
 tags: [build, update]
-updated_at: 2026-07-26
+updated_at: 2026-07-28
 created_at: 2026-07-26
 ---
 
@@ -10,6 +10,10 @@ created_at: 2026-07-26
 `packaging/aur/` holds the `bankai-bin` PKGBUILD. Its single source is the `Bankai-<version>.AppImage` attached to the GitHub release, extracted with `--appimage-extract` and installed into `/opt/bankai`, with `/usr/bin/bankai` as a symlink and a hand-written `/usr/share/applications/bankai.desktop`. The AppImage's own `AppRun`, `bankai.desktop` and bundled `usr/lib` are dropped: the desktop entry has to call the symlink instead of `AppRun`, and the bundled libraries are covered by the declared `depends`.
 
 `chrome-sandbox` is installed setuid root (4755), so the packaged app runs with the Chromium sandbox on. Running the binary straight out of `pkg/` for a smoke test needs `--no-sandbox` because the file is not root-owned there yet.
+
+## Every directory extracted from the AppImage comes out 0700
+
+`--appimage-extract` writes `squashfs-root` and every directory under it with mode 0700, and `cp -a` carries that into `$pkgdir`. Files land readable (0644/0755), directories do not, so a package built without a correction ships `/opt/bankai`, `locales/` and `resources/` traversable only by root. The desktop entry then fails with "could not find the program 'bankai'" — the symlink in `/usr/bin` resolves into a directory the user cannot enter — and fixing only the top directory moves the failure to `resources/app.asar`. `find "$pkgdir/opt/bankai" -type d -exec chmod 755 {} +` corrects it without touching a single file mode, which a recursive `chmod` would. Every AUR release from 0.2.27 to 0.2.32 shipped with this defect.
 
 ## The release workflow republishes the recipe by itself
 

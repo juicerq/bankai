@@ -26,6 +26,8 @@ package() {
 	rm -f "$pkgdir/opt/bankai/AppRun" "$pkgdir/opt/bankai/bankai.desktop" "$pkgdir/opt/bankai/bankai.png" "$pkgdir/opt/bankai/.DirIcon"
 	rm -rf "$pkgdir/opt/bankai/usr"
 
+	find "$pkgdir/opt/bankai" -type d -exec chmod 755 {} +
+
 	chmod 4755 "$pkgdir/opt/bankai/chrome-sandbox"
 
 	install -d "$pkgdir/usr/bin"

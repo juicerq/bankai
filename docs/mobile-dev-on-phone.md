@@ -20,3 +20,7 @@ tailscale serve --bg --https=443 http://127.0.0.1:4697
 The phone then gets HMR and the real oRPC/stream through one origin. The pairing QR stays valid — its URL carries only host and token, never a port.
 
 Toggling Mobile access in the app rewrites the serve config back to 4696 (the packaged path), so re-run the command above after touching the toggle in dev. Port 5173 is left alone on purpose: something else on this machine squats it.
+
+## A phone left open through a CSS edit needs a reload, not a bug report
+
+Editing a component that adds Tailwind classes makes vite push an `hmr update /src/styles.css` to every open client. On a phone that has been sitting on the page, that half-applied stylesheet can leave the surface with scrollbars on both axes, as if the layout broke. It is the page's state, not the code: loading the same dev URL fresh renders at exactly the viewport width. Reload before chasing it.

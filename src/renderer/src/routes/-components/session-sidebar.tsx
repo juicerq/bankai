@@ -9,23 +9,15 @@ import {
 import { type ReactNode, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Project } from "@main/store/projects";
-import type { AgentActivityState } from "@shared/activity";
 import { BankaiWordmark } from "@renderer/routes/-components/bankai-wordmark";
 import { ClaudeGlyph } from "@renderer/routes/-components/claude-glyph";
+import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
 import { MenuItem } from "@renderer/routes/-components/menu-item";
 import { ProjectBadges } from "@renderer/routes/-components/project-badges";
-import { ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
-import { elapsedLabel } from "@renderer/routes/-utils/elapsed";
+import { ACTIVITY_BORDER_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { useMenuDismissal } from "@renderer/routes/-utils/use-menu-dismissal";
-import { SECOND_MS, useClock } from "@renderer/routes/-utils/use-clock";
 import type { useSessionList } from "@renderer/routes/-utils/use-session-list";
-
-const ACTIVITY_BORDER_CLASS: Record<AgentActivityState, string> = {
-	working: "border-l-tertiary",
-	"needs-attention": "border-l-terminal-blue",
-	"done-unseen": "border-l-added",
-};
 
 interface SessionGestures {
 	selectedShellId: string | undefined;
@@ -240,16 +232,6 @@ function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGest
 				{row.activity && row.traceSince ? <ElapsedClock since={row.traceSince} /> : null}
 			</span>
 		</SessionEntry>
-	);
-}
-
-function ElapsedClock({ since }: { since: number }) {
-	const now = useClock(SECOND_MS);
-
-	return (
-		<span data-slot="session-elapsed" className="shrink-0 text-outline-strong">
-			· {elapsedLabel(now - since)}
-		</span>
 	);
 }
 

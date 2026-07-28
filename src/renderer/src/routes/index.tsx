@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { ContinuityShell } from "@main/store/continuity";
 import { orpc } from "@renderer/lib/api";
+import { isBrowserClient } from "@renderer/lib/platform";
 import { queryClient } from "@renderer/lib/query-client";
 import { ContinuityFailedNotice } from "@renderer/routes/-components/continuity-failed-notice";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
@@ -40,6 +41,11 @@ const NO_SHELLS: ContinuityShell[] = [];
 
 export const Route = createFileRoute("/")({
 	component: Bankai,
+	beforeLoad: () => {
+		if (isBrowserClient()) {
+			throw redirect({ to: "/mobile" });
+		}
+	},
 	loader: () =>
 		Promise.all([
 			queryClient.ensureQueryData(orpc.settings.getLayout.queryOptions()).catch(() => null),

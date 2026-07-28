@@ -12,6 +12,38 @@ export function claimPairingToken(): string | undefined {
 	return offered;
 }
 
+function pairingOffer(scanned: string): { origin: string; token: string } | undefined {
+	const offered = URL.parse(scanned);
+	if (!offered) {
+		return undefined;
+	}
+
+	const token = new URLSearchParams(offered.hash.slice(1)).get(SERVER_PAIRING_FRAGMENT_KEY);
+	if (!token) {
+		return undefined;
+	}
+
+	return { origin: offered.origin, token };
+}
+
+export function acceptPairingOffer(scanned: string): boolean {
+	const offer = pairingOffer(scanned);
+	if (!offer) {
+		return false;
+	}
+
+	if (offer.origin !== location.origin) {
+		location.href = scanned;
+
+		return true;
+	}
+
+	localStorage.setItem(SERVER_TOKEN_STORAGE_KEY, offer.token);
+	location.reload();
+
+	return true;
+}
+
 export async function probeUnpaired({
 	origin,
 	token,

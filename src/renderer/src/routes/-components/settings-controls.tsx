@@ -25,7 +25,7 @@ export function Setting({
 				<Switch label={title} slot={slot} on={on} onToggle={onToggle} />
 			</div>
 			{children && (
-				<div className={`mt-3 border-l-2 pl-3 ${on ? "border-tertiary" : "border-outline opacity-40"}`}>
+				<div className="mt-3">
 					{children}
 				</div>
 			)}

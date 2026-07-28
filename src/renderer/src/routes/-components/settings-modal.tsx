@@ -136,7 +136,7 @@ function HarnessRow({
 			disabled={disabled}
 			data-component="settings-harness"
 			data-id={harness.id}
-			className={`flex w-full items-center gap-2.5 px-2 py-1.5 text-left ${
+			className={`flex w-full items-center gap-2.5 px-2 py-1.5 text-left disabled:opacity-40 ${
 				selected ? "bg-surface-active" : "hover:bg-surface-hover"
 			}`}
 			onClick={onSelect}
@@ -167,7 +167,7 @@ function ArgumentsField({
 	};
 
 	return (
-		<div className="mt-3">
+		<div className={`mt-3 ${disabled ? "opacity-40" : ""}`}>
 			<span className="block pb-1.5 text-label text-secondary">EXTRA ARGUMENTS</span>
 			<input
 				data-slot="harness-args"

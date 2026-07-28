@@ -63,14 +63,18 @@ test("tapping a project opens a shell there", async () => {
 	await waitFor(() => expect(created).toEqual(["p2"]));
 });
 
-test("a single mounted project has no choice to make, so no picker", async () => {
+test("a single mounted project still names itself before a shell is spawned there", async () => {
 	const created: string[] = [];
 	renderNewShell({ projects: [BANKAI], onCreate: async (projectId) => void created.push(projectId) });
 
 	fireEvent.click(get("mobile-new-shell"));
 
+	expect(options().map((entry) => entry.dataset.projectId)).toEqual(["p1"]);
+	expect(created).toEqual([]);
+
+	fireEvent.click(option("p1"));
+
 	await waitFor(() => expect(created).toEqual(["p1"]));
-	expect(query("mobile-shell-picker")).toBeNull();
 });
 
 test("with no mounted project there is nothing to open", () => {
@@ -95,14 +99,6 @@ test("a rejected spawn says so inside the picker", async () => {
 
 	fireEvent.click(get("mobile-new-shell"));
 	fireEvent.click(option("p1"));
-
-	await waitFor(() => expect(slot(get("mobile-shell-picker"), "problem").textContent).toBe("Project is gone"));
-});
-
-test("a rejected spawn from a lone project reveals the picker to carry the reason", async () => {
-	renderNewShell({ projects: [BANKAI], onCreate: async () => Promise.reject(new Error("Project is gone")) });
-
-	fireEvent.click(get("mobile-new-shell"));
 
 	await waitFor(() => expect(slot(get("mobile-shell-picker"), "problem").textContent).toBe("Project is gone"));
 });

@@ -34,21 +34,9 @@ export function MobileNewShell({
 			await onCreate(projectId);
 		} catch (err) {
 			setProblem(problemText(err));
-			setOpen(true);
 		} finally {
 			setCreating(undefined);
 		}
-	};
-
-	const handleNew = async () => {
-		const [onlyProject, ...rest] = projects;
-		if (onlyProject && rest.length === 0) {
-			await create(onlyProject.id);
-			return;
-		}
-
-		setProblem(undefined);
-		setOpen(true);
 	};
 
 	const close = () => {
@@ -66,7 +54,10 @@ export function MobileNewShell({
 				aria-haspopup="dialog"
 				disabled={!!creating}
 				className="-mr-3 flex h-full w-11 shrink-0 items-center justify-center text-tertiary active:bg-surface-active disabled:text-outline-strong"
-				onClick={handleNew}
+				onClick={() => {
+					setProblem(undefined);
+					setOpen(true);
+				}}
 			>
 				<PlusIcon className="size-5" aria-hidden="true" />
 			</button>

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Project } from "@main/store/projects";
 import type { AgentActivityState } from "@shared/activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
@@ -5,6 +6,7 @@ import { MobileArchivedShelf } from "@renderer/routes/mobile/-components/mobile-
 import { MobileNewShell } from "@renderer/routes/mobile/-components/mobile-new-shell";
 import { MobileProjectStrip } from "@renderer/routes/mobile/-components/mobile-project-strip";
 import { MobilePushBanner } from "@renderer/routes/mobile/-components/mobile-push-banner";
+import { MobileSessionActions } from "@renderer/routes/mobile/-components/mobile-session-actions";
 import { MobileSessionCard } from "@renderer/routes/mobile/-components/mobile-session-card";
 
 export function MobileSessionList({
@@ -16,6 +18,10 @@ export function MobileSessionList({
 	onToggleProject,
 	onOpen,
 	onCreate,
+	onRename,
+	onArchive,
+	onUnarchive,
+	onCloseSession,
 }: {
 	sessions: SessionRow[];
 	archived: SessionRow[];
@@ -25,7 +31,13 @@ export function MobileSessionList({
 	onToggleProject: (projectId: string) => void;
 	onOpen: (shellId: string) => void;
 	onCreate: (projectId: string) => Promise<void>;
+	onRename: (projectId: string, shellId: string, title: string) => void;
+	onArchive: (projectId: string, shellId: string) => void;
+	onUnarchive: (projectId: string, shellId: string) => void;
+	onCloseSession: (projectId: string, shellId: string) => void;
 }) {
+	const [held, setHeld] = useState<{ row: SessionRow; archived: boolean }>();
+
 	return (
 		<div data-component="mobile-session-list" className="flex h-full flex-col bg-surface">
 			<header className="flex h-header shrink-0 items-center justify-between border-b border-outline px-4">
@@ -51,9 +63,31 @@ export function MobileSessionList({
 							No open sessions.
 						</p>
 					)
-					: sessions.map((row) => <MobileSessionCard key={row.shellId} row={row} onOpen={onOpen} />)}
-				<MobileArchivedShelf archived={archived} onOpen={onOpen} />
+					: sessions.map((row) => (
+						<MobileSessionCard
+							key={row.shellId}
+							row={row}
+							onOpen={onOpen}
+							onHold={() => setHeld({ row, archived: false })}
+						/>
+					))}
+				<MobileArchivedShelf
+					archived={archived}
+					onOpen={onOpen}
+					onHold={(row) => setHeld({ row, archived: true })}
+				/>
 			</div>
+			{held && (
+				<MobileSessionActions
+					row={held.row}
+					archived={held.archived}
+					onRename={onRename}
+					onArchive={onArchive}
+					onUnarchive={onUnarchive}
+					onCloseSession={onCloseSession}
+					onDismiss={() => setHeld(undefined)}
+				/>
+			)}
 		</div>
 	);
 }

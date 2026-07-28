@@ -1,13 +1,16 @@
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import { useLongPress } from "@renderer/routes/mobile/-utils/use-long-press";
 
 export function MobileArchivedShelf({
 	archived,
 	onOpen,
+	onHold,
 }: {
 	archived: SessionRow[];
 	onOpen: (shellId: string) => void;
+	onHold: (row: SessionRow) => void;
 }) {
 	const [open, setOpen] = useState(false);
 
@@ -31,18 +34,38 @@ export function MobileArchivedShelf({
 			</button>
 			{open
 				&& archived.map((row) => (
-					<button
-						key={row.shellId}
-						type="button"
-						data-component="mobile-archived-row"
-						data-shell-id={row.shellId}
-						className="flex min-h-11 w-full items-center gap-3 border-b border-b-outline px-4 text-left active:bg-surface-active"
-						onClick={() => onOpen(row.shellId)}
-					>
-						<span className="min-w-0 flex-1 truncate text-body text-secondary">{row.title}</span>
-						<span className="shrink-0 text-data text-outline-strong">{row.projectName}</span>
-					</button>
+					<ArchivedRow key={row.shellId} row={row} onOpen={onOpen} onHold={() => onHold(row)} />
 				))}
 		</div>
+	);
+}
+
+function ArchivedRow({
+	row,
+	onOpen,
+	onHold,
+}: {
+	row: SessionRow;
+	onOpen: (shellId: string) => void;
+	onHold: () => void;
+}) {
+	const longPress = useLongPress(onHold);
+
+	return (
+		<button
+			type="button"
+			data-component="mobile-archived-row"
+			data-shell-id={row.shellId}
+			className="flex min-h-11 w-full touch-pan-y select-none items-center gap-3 border-b border-b-outline px-4 text-left active:bg-surface-active"
+			{...longPress.press}
+			onClick={() => {
+				if (!longPress.held()) {
+					onOpen(row.shellId);
+				}
+			}}
+		>
+			<span className="min-w-0 flex-1 truncate text-body text-secondary">{row.title}</span>
+			<span className="shrink-0 text-data text-outline-strong">{row.projectName}</span>
+		</button>
 	);
 }

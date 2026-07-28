@@ -32,6 +32,10 @@ function MobileSessions() {
 			onToggleProject={surface.onToggleProject}
 			onOpen={(shellId) => navigate({ to: "/mobile/$shellId", params: { shellId } })}
 			onCreate={createShell}
+			onRename={surface.onRename}
+			onArchive={surface.onArchive}
+			onUnarchive={surface.onUnarchive}
+			onCloseSession={surface.onCloseSession}
 		/>
 	);
 }

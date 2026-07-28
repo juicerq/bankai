@@ -7,6 +7,10 @@ interface MobileSurface {
 	rows: SessionRow[];
 	chosenProjectIds: ReadonlySet<string>;
 	onToggleProject: (projectId: string) => void;
+	onRename: (projectId: string, shellId: string, title: string) => void;
+	onArchive: (projectId: string, shellId: string) => void;
+	onUnarchive: (projectId: string, shellId: string) => void;
+	onCloseSession: (projectId: string, shellId: string) => void;
 }
 
 const MobileSurfaceContext = createContext<MobileSurface | null>(null);

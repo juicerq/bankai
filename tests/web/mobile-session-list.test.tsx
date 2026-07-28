@@ -3,8 +3,9 @@ import type { Project } from "@main/store/projects";
 import type { AgentActivityState } from "@shared/activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { MobileSessionList } from "@renderer/routes/mobile/-components/mobile-session-list";
+import { LONG_PRESS_MS } from "@renderer/routes/mobile/-utils/use-long-press";
 import { get, query, slot } from "./dom";
-import { cleanup, fireEvent, render } from "./testing-library";
+import { act, cleanup, fireEvent, render } from "./testing-library";
 
 afterEach(cleanup);
 
@@ -42,6 +43,10 @@ function renderList(
 		onToggleProject?: (projectId: string) => void;
 		onOpen?: (shellId: string) => void;
 		onCreate?: (projectId: string) => Promise<void>;
+		onRename?: (projectId: string, shellId: string, title: string) => void;
+		onArchive?: (projectId: string, shellId: string) => void;
+		onUnarchive?: (projectId: string, shellId: string) => void;
+		onCloseSession?: (projectId: string, shellId: string) => void;
 	} = {},
 ) {
 	return render(
@@ -54,8 +59,20 @@ function renderList(
 			onToggleProject={options.onToggleProject ?? (() => {})}
 			onOpen={options.onOpen ?? (() => {})}
 			onCreate={options.onCreate ?? (async () => {})}
+			onRename={options.onRename ?? (() => {})}
+			onArchive={options.onArchive ?? (() => {})}
+			onUnarchive={options.onUnarchive ?? (() => {})}
+			onCloseSession={options.onCloseSession ?? (() => {})}
 		/>,
 	);
+}
+
+async function hold(element: HTMLElement) {
+	fireEvent.pointerDown(element, { clientX: 0, clientY: 0 });
+	await act(async () => {
+		await Bun.sleep(LONG_PRESS_MS + 20);
+	});
+	fireEvent.pointerUp(element);
 }
 
 function cards() {
@@ -214,4 +231,87 @@ test("with nothing archived the shelf stays out of the way", () => {
 	renderList([row("s1")]);
 
 	expect(query("mobile-archived-shelf")).toBeNull();
+});
+
+test("holding a card offers what right-click offers on the desktop", async () => {
+	const opened: string[] = [];
+	renderList([row("s1")], { onOpen: (shellId) => opened.push(shellId) });
+
+	await hold(card("s1"));
+
+	const sheet = get("mobile-session-actions");
+
+	expect(slot(sheet, "rename").textContent).toBe("Rename");
+	expect(slot(sheet, "archive").textContent).toBe("Archive");
+	expect(slot(sheet, "close").textContent).toBe("Close");
+	expect(opened).toEqual([]);
+});
+
+test("a hold that turns into a scroll leaves the sheet closed", async () => {
+	renderList([row("s1")]);
+
+	fireEvent.pointerDown(card("s1"), { clientX: 0, clientY: 0 });
+	fireEvent.pointerMove(card("s1"), { clientX: 0, clientY: 60 });
+	await act(async () => {
+		await Bun.sleep(LONG_PRESS_MS + 20);
+	});
+
+	expect(query("mobile-session-actions")).toBeNull();
+});
+
+test("archiving from the sheet names the session it was held on", async () => {
+	const archived: string[] = [];
+	renderList([row("s1")], { onArchive: (projectId, shellId) => archived.push(`${projectId}/${shellId}`) });
+
+	await hold(card("s1"));
+	fireEvent.click(slot(get("mobile-session-actions"), "archive"));
+
+	expect(archived).toEqual(["p1/s1"]);
+	expect(query("mobile-session-actions")).toBeNull();
+});
+
+test("a held archived session offers to come back instead", async () => {
+	const unarchived: string[] = [];
+	renderList([], {
+		archived: [row("old1")],
+		onUnarchive: (projectId, shellId) => unarchived.push(`${projectId}/${shellId}`),
+	});
+
+	fireEvent.click(slot(get("mobile-archived-shelf"), "toggle"));
+	await hold(get("mobile-archived-row", { shellId: "old1" }));
+
+	const sheet = get("mobile-session-actions");
+
+	expect(query("mobile-session-actions")?.querySelector('[data-slot="archive"]')).toBeNull();
+
+	fireEvent.click(slot(sheet, "unarchive"));
+
+	expect(unarchived).toEqual(["p1/old1"]);
+});
+
+test("renaming from the sheet sends the new name once", async () => {
+	const renamed: string[] = [];
+	renderList([row("s1")], { onRename: (_projectId, shellId, title) => renamed.push(`${shellId}:${title}`) });
+
+	await hold(card("s1"));
+	fireEvent.click(slot(get("mobile-session-actions"), "rename"));
+	fireEvent.input(slot(get("mobile-session-actions"), "title"), { target: { value: "refund webhook" } });
+	fireEvent.click(slot(get("mobile-session-actions"), "save"));
+
+	expect(renamed).toEqual(["s1:refund webhook"]);
+	expect(query("mobile-session-actions")).toBeNull();
+});
+
+test("closing asks before it ends the session", async () => {
+	const closed: string[] = [];
+	renderList([row("s1")], { onCloseSession: (projectId, shellId) => closed.push(`${projectId}/${shellId}`) });
+
+	await hold(card("s1"));
+	fireEvent.click(slot(get("mobile-session-actions"), "close"));
+
+	expect(closed).toEqual([]);
+
+	fireEvent.click(slot(get("mobile-session-actions"), "confirm-close"));
+
+	expect(closed).toEqual(["p1/s1"]);
 });

@@ -23,8 +23,21 @@ function MobileSurface() {
 			rows,
 			chosenProjectIds: chosen.projectIds,
 			onToggleProject: chosen.toggle,
+			onRename: sessions.renameShell,
+			onArchive: sessions.archiveShell,
+			onUnarchive: sessions.unarchiveShell,
+			onCloseSession: sessions.closeShell,
 		}),
-		[availableProjects, rows, chosen.projectIds, chosen.toggle],
+		[
+			availableProjects,
+			rows,
+			chosen.projectIds,
+			chosen.toggle,
+			sessions.renameShell,
+			sessions.archiveShell,
+			sessions.unarchiveShell,
+			sessions.closeShell,
+		],
 	);
 
 	return (

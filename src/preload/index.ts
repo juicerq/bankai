@@ -23,10 +23,28 @@ const updateApi: BankaiUpdateApi = {
 
 contextBridge.exposeInMainWorld("bankaiUpdate", updateApi);
 
+let maximized = false;
+const maximizedListeners = new Set<() => void>();
+
+ipcRenderer.on("window:maximized", (_event, value: boolean) => {
+	maximized = value;
+	for (const listener of maximizedListeners) {
+		listener();
+	}
+});
+
 const windowApi: BankaiWindowApi = {
 	minimize: () => ipcRenderer.send("window:minimize"),
 	toggleMaximize: () => ipcRenderer.send("window:toggle-maximize"),
 	close: () => ipcRenderer.send("window:close"),
+	isMaximized: () => maximized,
+	onMaximizedChange: (listener) => {
+		maximizedListeners.add(listener);
+
+		return () => {
+			maximizedListeners.delete(listener);
+		};
+	},
 };
 
 contextBridge.exposeInMainWorld("bankaiWindow", windowApi);

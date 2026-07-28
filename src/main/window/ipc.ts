@@ -21,3 +21,11 @@ export function setupWindowIpc() {
 		BrowserWindow.fromWebContents(event.sender)?.close();
 	});
 }
+
+export function publishMaximizedState(win: BrowserWindow) {
+	const send = () => win.webContents.send("window:maximized", win.isMaximized());
+
+	win.on("maximize", send);
+	win.on("unmaximize", send);
+	win.webContents.on("did-finish-load", send);
+}

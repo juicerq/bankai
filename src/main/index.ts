@@ -8,7 +8,7 @@ import { markStartup, scheduleStartupReport } from "@main/startup";
 import { resolveInstanceIdentity } from "@main/store/paths";
 import { type SettingsValue, Settings } from "@main/store/settings";
 import { setupUpdateIpc } from "@main/update/ipc";
-import { setupWindowIpc } from "@main/window/ipc";
+import { publishMaximizedState, setupWindowIpc } from "@main/window/ipc";
 import { AUTH_IPC } from "@shared/server";
 import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 
@@ -83,6 +83,7 @@ async function createWindow() {
 	});
 
 	mainWindow = win;
+	publishMaximizedState(win);
 	markStartup("window-created");
 	win.webContents.once("did-finish-load", () => markStartup("content-loaded"));
 	win.once("ready-to-show", () => {

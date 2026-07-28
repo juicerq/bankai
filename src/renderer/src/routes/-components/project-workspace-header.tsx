@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import type { Project } from "@main/store/projects";
 import { UpdateButton } from "@renderer/routes/-components/update-button";
 import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-utils/layout-motion";
+import { WINDOW_DRAG_CLASS, WINDOW_NO_DRAG_CLASS } from "@renderer/routes/-utils/window-drag";
 import { useWorkspaceControl, useWorkspaceTopBand } from "@renderer/routes/-utils/workspace-context";
 
 export function ProjectWorkspaceHeader({
@@ -43,7 +44,7 @@ export function ProjectWorkspaceHeader({
 				style={{ transitionDuration: `${LAYOUT_MOTION_DURATION_MS}ms` }}
 				onFocusCapture={topBand.onFocus}
 				onBlurCapture={topBand.onBlur}
-				className={`absolute inset-x-0 top-0 flex h-header items-center border-outline border-b bg-surface-raised pr-[120px] ${
+				className={`absolute inset-x-0 top-0 flex h-header items-center border-outline border-b bg-surface-raised pr-[120px] ${WINDOW_DRAG_CLASS} ${
 					fullscreen
 						? `z-30 transition-[transform,opacity] ease-out motion-reduce:transition-none ${
 							topBand.revealed
@@ -107,7 +108,7 @@ function ProjectWorkspaceHeaderAction({
 	return (
 		<button
 			type="button"
-			className={`flex h-full w-header shrink-0 items-center justify-center border-outline hover:bg-surface-hover hover:text-primary ${className} ${
+			className={`flex h-full w-header shrink-0 items-center justify-center border-outline hover:bg-surface-hover hover:text-primary ${WINDOW_NO_DRAG_CLASS} ${className} ${
 				pressed ? "bg-surface-active text-primary" : "text-secondary"
 			}`}
 			aria-pressed={expanded === undefined ? pressed : undefined}

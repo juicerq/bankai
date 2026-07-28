@@ -27,8 +27,8 @@ export class ConversationTail {
 	private readonly decoder = new StringDecoder("utf8");
 	private pending = "";
 	private offset = 0;
+	private startOffset = 0;
 	private skipping = false;
-	private truncated = false;
 	private stopped = false;
 	private pumping = false;
 	private again = false;
@@ -40,7 +40,7 @@ export class ConversationTail {
 		private readonly watchIntervalMs: number = WATCH_INTERVAL_MS,
 	) {}
 
-	async start(): Promise<ConversationSnapshot> {
+	async start(from?: number): Promise<ConversationSnapshot> {
 		const backfill: ConversationBlock[] = [];
 		this.backfill = backfill;
 
@@ -48,9 +48,9 @@ export class ConversationTail {
 		if (handle) {
 			const { size } = await handle.stat();
 			await handle.close();
-			this.offset = Math.max(0, size - CONVERSATION_BACKFILL_BYTES);
+			this.startOffset = Math.min(from ?? Math.max(0, size - CONVERSATION_BACKFILL_BYTES), size);
+			this.offset = this.startOffset;
 			this.skipping = this.offset > 0;
-			this.truncated = this.skipping;
 			await this.readAppended();
 		}
 
@@ -60,7 +60,12 @@ export class ConversationTail {
 			watchFile(this.path, { interval: this.watchIntervalMs }, this.onChange);
 		}
 
-		return { blocks: backfill, title: this.parser.title, truncated: this.truncated };
+		return {
+			blocks: backfill,
+			title: this.parser.title,
+			startOffset: this.startOffset,
+			atStart: this.startOffset === 0,
+		};
 	}
 
 	stop(): void {

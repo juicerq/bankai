@@ -10,7 +10,8 @@ export type ConversationBlock =
 export interface ConversationSnapshot {
 	blocks: ConversationBlock[];
 	title?: string;
-	truncated: boolean;
+	startOffset: number;
+	atStart: boolean;
 }
 
 export interface ConversationAppendedEvent {
@@ -25,6 +26,7 @@ export interface ConversationResetEvent extends ConversationSnapshot {
 
 export interface BankaiConversationApi {
 	subscribe: (shellId: string) => Promise<ConversationSnapshot>;
+	history: (shellId: string, before: number) => Promise<void>;
 	unsubscribe: (shellId: string) => void;
 	onAppended: (listener: (event: ConversationAppendedEvent) => void) => () => void;
 	onReset: (listener: (event: ConversationResetEvent) => void) => () => void;

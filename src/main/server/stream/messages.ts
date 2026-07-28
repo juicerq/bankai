@@ -36,6 +36,10 @@ export const ActivitySchemas = {
 
 export const ConversationSchemas = {
 	shell: type({ shellId: "string" }),
+	history: type({
+		shellId: "string",
+		before: type("number").narrow((value) => Number.isInteger(value) && value >= 0),
+	}),
 };
 
 export const ReviewSchemas = {

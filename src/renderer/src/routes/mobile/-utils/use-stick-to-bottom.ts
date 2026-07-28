@@ -5,6 +5,7 @@ const STICK_THRESHOLD_PX = 48;
 export function useStickToBottom() {
 	const ref = useRef<HTMLDivElement>(null);
 	const stuck = useRef(true);
+	const anchored = useRef<number | null>(null);
 
 	const contentRef = useCallback((content: HTMLElement | null) => {
 		if (!content) {
@@ -13,7 +14,19 @@ export function useStickToBottom() {
 
 		const observer = new ResizeObserver(() => {
 			const element = ref.current;
-			if (!element || !stuck.current) {
+			if (!element) {
+				return;
+			}
+
+			const previousHeight = anchored.current;
+			if (previousHeight !== null) {
+				anchored.current = null;
+				element.scrollTop += element.scrollHeight - previousHeight;
+
+				return;
+			}
+
+			if (!stuck.current) {
 				return;
 			}
 
@@ -34,5 +47,9 @@ export function useStickToBottom() {
 		stuck.current = element.scrollHeight - element.scrollTop - element.clientHeight < STICK_THRESHOLD_PX;
 	}, []);
 
-	return { ref, contentRef, handleScroll };
+	const keepPosition = useCallback(() => {
+		anchored.current = ref.current?.scrollHeight ?? null;
+	}, []);
+
+	return { ref, contentRef, handleScroll, keepPosition };
 }

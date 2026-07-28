@@ -29,6 +29,18 @@ export function MobileConversation({
 	const scroll = useStickToBottom();
 	const row = session?.row;
 
+	const handleScroll = () => {
+		scroll.handleScroll();
+
+		const element = scroll.ref.current;
+		if (!element || conversation.atStart || conversation.loadingOlder || element.scrollTop > element.clientHeight) {
+			return;
+		}
+
+		scroll.keepPosition();
+		void conversation.loadOlder();
+	};
+
 	return (
 		<div
 			data-component="mobile-conversation"
@@ -39,13 +51,18 @@ export function MobileConversation({
 			<div
 				ref={scroll.ref}
 				data-slot="scroll"
-				onScroll={scroll.handleScroll}
+				onScroll={handleScroll}
 				className="min-h-0 flex-1 overflow-y-auto"
 			>
 				<div ref={scroll.contentRef} data-slot="reading" className="flex flex-col gap-3 py-3">
-					{conversation.truncated && (
-						<p data-slot="truncated" className="px-4 text-center text-label text-outline-strong">
-							HISTORY TRUNCATED
+					{conversation.loadingOlder && (
+						<p data-slot="loading-older" className="px-4 text-center text-label text-tertiary">
+							<span className="pending-pulse">LOADING OLDER HISTORY</span>
+						</p>
+					)}
+					{conversation.atStart && conversation.blocks.length > 0 && (
+						<p data-slot="start" className="px-4 text-center text-label text-outline-strong">
+							BEGINNING OF THIS CONVERSATION
 						</p>
 					)}
 					{conversation.blocks.map((block) => <MobileConversationBlock key={block.id} block={block} />)}

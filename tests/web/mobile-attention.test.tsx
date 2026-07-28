@@ -46,7 +46,14 @@ function renderWaiting(options: { row?: SessionRow; onKey?: (key: TerminalKey) =
 				onSend: async () => {},
 				onKey: options.onKey ?? (async () => {}),
 			}}
-			conversation={{ blocks: [], title: undefined, truncated: false, loading: false }}
+			conversation={{
+				blocks: [],
+				title: undefined,
+				atStart: false,
+				loading: false,
+				loadingOlder: false,
+				loadOlder: async () => {},
+			}}
 			onBack={() => {}}
 		/>,
 	);

@@ -54,7 +54,15 @@ function row(patch: Partial<SessionRow> = {}): SessionRow {
 }
 
 function view(blocks: ConversationBlock[], patch: Partial<ConversationView> = {}): ConversationView {
-	return { blocks, title: undefined, truncated: false, loading: false, ...patch };
+	return {
+		blocks,
+		title: undefined,
+		atStart: false,
+		loading: false,
+		loadingOlder: false,
+		loadOlder: async () => {},
+		...patch,
+	};
 }
 
 interface ConversationOptions {
@@ -174,10 +182,59 @@ test("a compaction and an interruption read as markers, not as messages", () => 
 	expect(block(1).textContent).toContain("INTERRUPTED");
 });
 
-test("a cut history says so above the oldest block", () => {
-	renderConversation({ conversation: view([{ kind: "user", id: "u1", text: "oi" }], { truncated: true }) });
+test("the first byte of the file says so above the oldest block", () => {
+	renderConversation({ conversation: view([{ kind: "user", id: "u1", text: "oi" }], { atStart: true }) });
 
-	expect(slot(get("mobile-conversation"), "truncated").textContent).toContain("HISTORY TRUNCATED");
+	expect(slot(get("mobile-conversation"), "start").textContent).toContain("BEGINNING OF THIS CONVERSATION");
+});
+
+test("reading near the top asks for the step above, once", () => {
+	let pulls = 0;
+	renderConversation({
+		conversation: view([{ kind: "agent", id: "m1", text: "O upload" }], { loadOlder: async () => void pulls++ }),
+	});
+	const element = scroller({ scrollHeight: 5000, clientHeight: 200 });
+
+	element.scrollTop = 3000;
+	fireEvent.scroll(element);
+
+	expect(pulls).toBe(0);
+
+	element.scrollTop = 150;
+	fireEvent.scroll(element);
+
+	expect(pulls).toBe(1);
+});
+
+test("a step already in flight is not asked for again, and neither is the start of the file", () => {
+	let pulls = 0;
+	const loadOlder = async () => void pulls++;
+	const rendered = renderConversation({
+		conversation: view([{ kind: "agent", id: "m1", text: "O upload" }], { loadingOlder: true, loadOlder }),
+	});
+	const scrollArea = scroller({ scrollHeight: 5000, clientHeight: 200 });
+
+	scrollArea.scrollTop = 0;
+	fireEvent.scroll(scrollArea);
+
+	rendered.rerender(
+		element({ conversation: view([{ kind: "agent", id: "m1", text: "O upload" }], { atStart: true, loadOlder }) }),
+	);
+	fireEvent.scroll(scrollArea);
+
+	expect(pulls).toBe(0);
+});
+
+test("history landing above the reader keeps the block they were reading in place", () => {
+	renderConversation({ conversation: view([{ kind: "agent", id: "m1", text: "O upload" }]) });
+	const element = scroller({ scrollHeight: 500, clientHeight: 200 });
+
+	element.scrollTop = 10;
+	fireEvent.scroll(element);
+	Object.defineProperty(element, "scrollHeight", { value: 900, configurable: true });
+	grow();
+
+	expect(element.scrollTop).toBe(410);
 });
 
 test("the parsed title wins over the session name, and the trace stays visible", () => {

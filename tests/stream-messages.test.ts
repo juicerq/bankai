@@ -85,4 +85,14 @@ describe("what a client may ask a conversation for", () => {
 		expect(ConversationSchemas.shell.assert({ shellId: "s1" })).toEqual({ shellId: "s1" });
 		expect(() => ConversationSchemas.shell.assert({})).toThrow();
 	});
+
+	test("a step back names the offset it wants to read before", () => {
+		expect(ConversationSchemas.history.assert({ shellId: "s1", before: 524_288 })).toEqual({
+			shellId: "s1",
+			before: 524_288,
+		});
+		expect(() => ConversationSchemas.history.assert({ shellId: "s1", before: -1 })).toThrow();
+		expect(() => ConversationSchemas.history.assert({ shellId: "s1", before: 1.5 })).toThrow();
+		expect(() => ConversationSchemas.history.assert({ shellId: "s1" })).toThrow();
+	});
 });

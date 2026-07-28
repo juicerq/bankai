@@ -64,7 +64,8 @@ describe("the history the phone gets when it opens a conversation", () => {
 				{ kind: "user", id: "u2", text: "segundo" },
 			],
 			title: undefined,
-			truncated: false,
+			startOffset: 0,
+			atStart: true,
 		});
 	});
 
@@ -90,7 +91,8 @@ describe("the history the phone gets when it opens a conversation", () => {
 		const snapshot = await tail.start();
 		tail.stop();
 
-		expect(snapshot.truncated).toBe(true);
+		expect(snapshot.atStart).toBe(false);
+		expect(snapshot.startOffset).toBeGreaterThan(0);
 		expect(snapshot.blocks).toEqual([
 			{ kind: "user", id: "u1", text: "primeiro" },
 			{ kind: "user", id: "u2", text: "segundo" },
@@ -106,7 +108,49 @@ describe("the history the phone gets when it opens a conversation", () => {
 		const snapshot = await tail.start();
 		tail.stop();
 
-		expect(snapshot).toEqual({ blocks: [], title: undefined, truncated: false });
+		expect(snapshot).toEqual({ blocks: [], title: undefined, startOffset: 0, atStart: true });
+	});
+});
+
+describe("the history the phone asks for when it pulls the top", () => {
+	it("reads from the offset it was given, forward to the line boundary", async () => {
+		const sink = collect();
+		const first = `${userLine("u1", "primeiro")}\n`;
+		const path = transcript([userLine("u1", "primeiro"), userLine("u2", "segundo"), userLine("u3", "terceiro")]);
+		const tail = new ConversationTail(path, sink.onAppended, WATCH_INTERVAL_MS);
+
+		const snapshot = await tail.start(first.length + 4);
+		tail.stop();
+
+		expect(snapshot.blocks).toEqual([{ kind: "user", id: "u3", text: "terceiro" }]);
+		expect(snapshot.startOffset).toBe(first.length + 4);
+		expect(snapshot.atStart).toBe(false);
+	});
+
+	it("settles a tool whose call sits above the offset once the step reaches it", async () => {
+		const call = JSON.stringify({
+			type: "assistant",
+			uuid: "a1",
+			message: { id: "m1", content: [{ type: "tool_use", id: "t1", name: "Read", input: { file_path: "a.ts" } }] },
+		});
+		const result = JSON.stringify({
+			type: "user",
+			uuid: "u2",
+			message: { content: [{ type: "tool_result", tool_use_id: "t1" }] },
+		});
+		const path = transcript([call, result]);
+
+		const cut = new ConversationTail(path, collect().onAppended, WATCH_INTERVAL_MS);
+		const partial = await cut.start(call.length + 1);
+		cut.stop();
+
+		expect(partial.blocks).toEqual([]);
+
+		const whole = new ConversationTail(path, collect().onAppended, WATCH_INTERVAL_MS);
+		const stepped = await whole.start(0);
+		whole.stop();
+
+		expect(stepped.blocks.at(-1)).toEqual({ kind: "tool", id: "t1", label: "Reading a.ts", state: "done" });
 	});
 });
 

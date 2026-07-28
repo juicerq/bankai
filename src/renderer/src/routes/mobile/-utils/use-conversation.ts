@@ -6,16 +6,11 @@ import { type ConversationBlock, mergeConversationBlocks } from "@shared/convers
 export interface ConversationView {
 	blocks: ConversationBlock[];
 	title: string | undefined;
-	truncated: boolean;
+	atStart: boolean;
 	loading: boolean;
+	loadingOlder: boolean;
+	loadOlder: () => Promise<void>;
 }
-
-const LOADING_CONVERSATION: ConversationView = {
-	blocks: [],
-	title: undefined,
-	truncated: false,
-	loading: true,
-};
 
 export function useConversation(shellId: string): ConversationView {
 	const observer = useMemo(() => new ConversationObserver(shellId), [shellId]);
@@ -24,8 +19,34 @@ export function useConversation(shellId: string): ConversationView {
 }
 
 class ConversationObserver {
-	private view = LOADING_CONVERSATION;
+	private cursor = 0;
+	private older: Promise<void> | undefined;
 	private notify: (() => void) | undefined;
+
+	private readonly loadOlder = async (): Promise<void> => {
+		if (this.older || this.view.loading || this.view.atStart || this.cursor <= 0) {
+			return;
+		}
+
+		this.set({ ...this.view, loadingOlder: true });
+		this.older = conversationStream.history(this.shellId, this.cursor);
+
+		try {
+			await this.older;
+		} finally {
+			this.older = undefined;
+			this.set({ ...this.view, loadingOlder: false });
+		}
+	};
+
+	private view: ConversationView = {
+		blocks: [],
+		title: undefined,
+		atStart: false,
+		loading: true,
+		loadingOlder: false,
+		loadOlder: this.loadOlder,
+	};
 
 	constructor(private readonly shellId: string) {}
 
@@ -50,7 +71,14 @@ class ConversationObserver {
 				return;
 			}
 
-			this.set({ blocks: event.blocks, title: event.title, truncated: event.truncated, loading: false });
+			this.cursor = event.startOffset;
+			this.set({
+				...this.view,
+				blocks: event.blocks,
+				title: event.title,
+				atStart: event.atStart,
+				loading: false,
+			});
 		});
 		const stopResync = streamResync.register("watch", () => this.load());
 
@@ -68,10 +96,12 @@ class ConversationObserver {
 	private async load() {
 		const snapshot = await conversationStream.subscribe(this.shellId);
 
+		this.cursor = snapshot.startOffset;
 		this.set({
+			...this.view,
 			blocks: snapshot.blocks,
 			title: snapshot.title,
-			truncated: snapshot.truncated,
+			atStart: snapshot.atStart,
 			loading: false,
 		});
 	}

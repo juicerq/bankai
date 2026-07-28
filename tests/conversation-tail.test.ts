@@ -99,6 +99,28 @@ describe("the history the phone gets when it opens a conversation", () => {
 		]);
 	});
 
+	it("reads a call and its result as one step, already settled", async () => {
+		const call = JSON.stringify({
+			type: "assistant",
+			uuid: "a1",
+			message: { id: "m1", content: [{ type: "tool_use", id: "t1", name: "Read", input: { file_path: "a.ts" } }] },
+		});
+		const result = JSON.stringify({
+			type: "user",
+			uuid: "u2",
+			message: { content: [{ type: "tool_result", tool_use_id: "t1" }] },
+		});
+		const tail = new ConversationTail(transcript([call, result, userLine("u3", "obrigado")]), collect().onAppended, WATCH_INTERVAL_MS);
+
+		const snapshot = await tail.start();
+		tail.stop();
+
+		expect(snapshot.blocks).toEqual([
+			{ kind: "tool", id: "t1", label: "Reading a.ts", state: "done" },
+			{ kind: "user", id: "u3", text: "obrigado" },
+		]);
+	});
+
 	it("is empty and quiet when the agent has written no transcript yet", async () => {
 		const sink = collect();
 		const directory = mkdtempSync(join(tmpdir(), "bankai-conversation-"));

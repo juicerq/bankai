@@ -3,7 +3,7 @@ import { type FileHandle, open } from "node:fs/promises";
 import { StringDecoder } from "node:string_decoder";
 import { ConversationParser } from "@main/activity/claudeConversation";
 import { Logger } from "@main/logger";
-import type { ConversationBlock, ConversationSnapshot } from "@shared/conversation";
+import { type ConversationBlock, type ConversationSnapshot, mergeConversationBlocks } from "@shared/conversation";
 
 export const CONVERSATION_BACKFILL_BYTES = 512 * 1024;
 
@@ -41,8 +41,7 @@ export class ConversationTail {
 	) {}
 
 	async start(from?: number): Promise<ConversationSnapshot> {
-		const backfill: ConversationBlock[] = [];
-		this.backfill = backfill;
+		this.backfill = [];
 
 		const handle = await openTranscript(this.path);
 		if (handle) {
@@ -54,6 +53,7 @@ export class ConversationTail {
 			await this.readAppended();
 		}
 
+		const backfill = this.backfill;
 		this.backfill = undefined;
 
 		if (!this.stopped) {
@@ -147,7 +147,7 @@ export class ConversationTail {
 
 	private emit(blocks: ConversationBlock[]): void {
 		if (this.backfill) {
-			this.backfill.push(...blocks);
+			this.backfill = mergeConversationBlocks(this.backfill, blocks);
 
 			return;
 		}

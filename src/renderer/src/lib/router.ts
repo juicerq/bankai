@@ -1,10 +1,12 @@
 import { createBrowserHistory, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { isBrowserClient } from "@renderer/lib/platform";
 import { routeTree } from "@renderer/routeTree.gen";
+import { CrashScreen } from "@renderer/routes/-components/crash-screen";
 
 export const router = createRouter({
 	routeTree,
 	history: isBrowserClient() ? createBrowserHistory() : createMemoryHistory(),
+	defaultErrorComponent: CrashScreen,
 });
 
 declare module "@tanstack/react-router" {

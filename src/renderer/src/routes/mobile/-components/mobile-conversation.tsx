@@ -27,6 +27,16 @@ function emptyNotice(agent: string | undefined, row: SessionRow | undefined): st
 	return "This session is no longer open.";
 }
 
+function MobileWaiting({ trace, since }: { trace: string | undefined; since: number | undefined }) {
+	return (
+		<p data-slot="waiting" className="flex items-center gap-2 px-4 text-support text-tertiary">
+			<span aria-hidden="true" className="pending-pulse size-1.5 shrink-0 rounded-full bg-tertiary" />
+			<span className="min-w-0 truncate">{trace ?? "Working"}</span>
+			{since ? <ElapsedClock since={since} /> : null}
+		</p>
+	);
+}
+
 export function MobileConversation({
 	shellId,
 	session,
@@ -44,6 +54,7 @@ export function MobileConversation({
 }) {
 	const scroll = useStickToBottom();
 	const row = session?.row;
+	const waiting = row?.activity === "working" && conversation.blocks.at(-1)?.kind === "user";
 
 	const handleScroll = () => {
 		scroll.handleScroll();
@@ -82,6 +93,7 @@ export function MobileConversation({
 						</p>
 					)}
 					<MobileConversationBlocks blocks={conversation.blocks} onOpenAgent={onOpenAgent} />
+					{waiting && <MobileWaiting trace={row.trace} since={row.traceSince} />}
 					{conversation.blocks.length === 0 && !conversation.loading && (
 						<p data-slot="empty" className="px-4 py-8 text-center text-secondary text-support">
 							{emptyNotice(agent, row)}

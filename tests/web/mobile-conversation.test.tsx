@@ -450,3 +450,33 @@ test("a session that left the list says so once, with nothing left to type into"
 	expect(slot(get("mobile-conversation"), "empty").textContent).toContain("This session is no longer open");
 	expect(query("mobile-composer")).toBeNull();
 });
+
+test("a sent message is answered by a live trace instead of silence", () => {
+	renderConversation({
+		row: row({ activity: "working", trace: "Reading upload.ts", traceSince: NOW }),
+		conversation: view([{ kind: "user", id: "u1", text: "adiciona retry" }]),
+	});
+
+	expect(slot(get("mobile-conversation"), "waiting").textContent).toContain("Reading upload.ts");
+});
+
+test("the trace under the message names the wait even before a tool is observed", () => {
+	renderConversation({
+		row: row({ activity: "working" }),
+		conversation: view([{ kind: "user", id: "u1", text: "adiciona retry" }]),
+	});
+
+	expect(slot(get("mobile-conversation"), "waiting").textContent).toContain("Working");
+});
+
+test("the wait ends the moment the agent puts something on the page", () => {
+	renderConversation({
+		row: row({ activity: "working", trace: "Reading upload.ts" }),
+		conversation: view([
+			{ kind: "user", id: "u1", text: "adiciona retry" },
+			{ kind: "tool", id: "t1", label: "Reading upload.ts", state: "running" },
+		]),
+	});
+
+	expect(get("mobile-conversation").querySelector('[data-slot="waiting"]')).toBeNull();
+});

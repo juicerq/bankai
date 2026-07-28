@@ -10,9 +10,6 @@ export const TAILSCALE_MISSING_REMEDY = "Tailscale is not answering on this mach
 
 const TAILSCALE_HTTPS_CAPABILITY = "https";
 
-export const TAILSCALE_HTTPS_REMEDY =
-	"This tailnet does not issue HTTPS certificates yet, and the phone needs them. Enable HTTPS Certificates at login.tailscale.com/admin/dns, then reopen Settings.";
-
 const statusSchema = type({
 	"Self?": { "DNSName?": "string", "CapMap?": { "[string]": "unknown" }, "TailscaleIPs?": "string[]" },
 });
@@ -52,17 +49,13 @@ export function tailnetAddress(raw: string): string | undefined {
 	return statusSelf(raw)?.TailscaleIPs?.find((address) => !address.includes(":"));
 }
 
-export function httpsProblem(raw: string): string | undefined {
+export function tailnetIssuesCertificates(raw: string): boolean {
 	const self = statusSelf(raw);
 	if (!self?.DNSName) {
-		return undefined;
+		return true;
 	}
 
-	if (self.CapMap && TAILSCALE_HTTPS_CAPABILITY in self.CapMap) {
-		return undefined;
-	}
-
-	return TAILSCALE_HTTPS_REMEDY;
+	return !!self.CapMap && TAILSCALE_HTTPS_CAPABILITY in self.CapMap;
 }
 
 export function serveProxyTarget(port: number): string {

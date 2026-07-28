@@ -1,13 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
-	httpsProblem,
 	magicDnsHost,
 	serveArgs,
 	serveExposes,
 	serveProblem,
 	serveProxyTarget,
 	tailnetAddress,
-	TAILSCALE_HTTPS_REMEDY,
+	tailnetIssuesCertificates,
 	TAILSCALE_OPERATOR_REMEDY,
 } from "@main/tailscale/access";
 import { SERVER_DEFAULT_PORT } from "@shared/server";
@@ -58,22 +57,22 @@ describe("https certificates", () => {
 		});
 	}
 
-	it("says nothing when the tailnet issues certificates", () => {
-		expect(httpsProblem(status(["https", "https://tailscale.com/cap/is-admin"]))).toBeUndefined();
+	it("reads the capability the tailnet grants", () => {
+		expect(tailnetIssuesCertificates(status(["https", "https://tailscale.com/cap/is-admin"]))).toBe(true);
 	});
 
-	it("names the admin page when the capability is missing", () => {
-		expect(httpsProblem(status(["https://tailscale.com/cap/is-admin"]))).toBe(TAILSCALE_HTTPS_REMEDY);
+	it("says no when the capability is missing", () => {
+		expect(tailnetIssuesCertificates(status(["https://tailscale.com/cap/is-admin"]))).toBe(false);
 	});
 
-	it("names the admin page when the node reports no capabilities at all", () => {
-		expect(httpsProblem(JSON.stringify({ Self: { DNSName: "cachyos.tail74b3f3.ts.net." } })))
-			.toBe(TAILSCALE_HTTPS_REMEDY);
+	it("says no when the node reports no capabilities at all", () => {
+		expect(tailnetIssuesCertificates(JSON.stringify({ Self: { DNSName: "cachyos.tail74b3f3.ts.net." } })))
+			.toBe(false);
 	});
 
-	it("stays quiet when tailscale itself is not answering", () => {
-		expect(httpsProblem("")).toBeUndefined();
-		expect(httpsProblem(JSON.stringify({ BackendState: "Stopped" }))).toBeUndefined();
+	it("leaves the answer to serve when tailscale itself is not answering", () => {
+		expect(tailnetIssuesCertificates("")).toBe(true);
+		expect(tailnetIssuesCertificates(JSON.stringify({ BackendState: "Stopped" }))).toBe(true);
 	});
 });
 

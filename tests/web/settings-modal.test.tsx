@@ -7,7 +7,7 @@ import {
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettingsModal } from "@renderer/routes/-components/settings-modal";
-import { TAILSCALE_HTTPS_REMEDY, TAILSCALE_OPERATOR_REMEDY } from "@main/tailscale/access";
+import { TAILSCALE_OPERATOR_REMEDY } from "@main/tailscale/access";
 import { pairingUrl } from "@shared/server";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render, waitFor } from "./testing-library";
@@ -60,7 +60,6 @@ beforeEach(() => {
 			problem: undefined,
 		},
 		exposeCalls: [],
-		tailnetCalls: [],
 		regenerations: 0,
 	};
 	setMobileTransport(mobile);
@@ -190,7 +189,21 @@ test("shows the pairing link and its QR once Tailscale names the machine", async
 	expect(slot(modal, "mobile-access").getAttribute("aria-checked")).toBe("false");
 });
 
+test("leaves the pairing controls dead while nothing is serving the phone", async () => {
+	const modal = await loadedModal();
+
+	await waitFor(() => {
+		expect(slot(modal, "pairing-url")).not.toBeNull();
+	});
+	expect(slot(modal, "regenerate-token").hasAttribute("disabled")).toBe(true);
+
+	fireEvent.click(slot(modal, "enlarge-qr"));
+
+	expect(modal.querySelector('[data-slot="enlarged-qr"]')).toBeNull();
+});
+
 test("the QR enlarges to a dialog and Escape closes only the enlargement", async () => {
+	mobile.access = { ...mobile.access, exposed: true };
 	const modal = await loadedModal();
 	await waitFor(() => {
 		expect(slot(modal, "pairing-url")).not.toBeNull();
@@ -223,6 +236,7 @@ test("turning mobile access on asks tailscale to serve the app", async () => {
 });
 
 test("regenerating the token replaces the pairing link", async () => {
+	mobile.access = { ...mobile.access, exposed: true };
 	const modal = await loadedModal();
 	await waitFor(() => {
 		expect(slot(modal, "pairing-url")).not.toBeNull();
@@ -263,36 +277,39 @@ test("surfaces the operator remedy when tailscale refuses the change", async () 
 	});
 });
 
-test("offers the tailnet address as a way out when the tailnet issues no certificate", async () => {
-	mobile.access = { ...mobile.access, problem: TAILSCALE_HTTPS_REMEDY };
+test("falls back to the tailnet address when the tailnet issues no certificate", async () => {
+	mobile.plainOnly = true;
 	const modal = await loadedModal();
 
 	await waitFor(() => {
-		expect(slot(modal, "toggle-tailnet").textContent).toBe("OPEN ANYWAY");
+		expect(slot(modal, "pairing-url")).not.toBeNull();
 	});
+	expect(modal.querySelector('[data-slot="mobile-access-problem"]')).toBeNull();
 
-	fireEvent.click(slot(modal, "toggle-tailnet"));
+	fireEvent.click(slot(modal, "mobile-access"));
 
 	await waitFor(() => {
-		expect(mobile.tailnetCalls).toEqual([true]);
+		expect(slot(get("settings-modal"), "pairing-url").textContent).toBe(TAILNET_URL);
 	});
+	expect(slot(get("settings-modal"), "tailnet-notice").textContent).toContain("login.tailscale.com/admin/dns");
+	expect(slot(get("settings-modal"), "mobile-access").getAttribute("aria-checked")).toBe("true");
 });
 
-test("hides the tailnet way out while HTTPS is working", async () => {
+test("says nothing about plain HTTP while HTTPS is working", async () => {
 	const modal = await loadedModal();
 
 	await waitFor(() => {
 		expect(slot(modal, "pairing-url").textContent).toBe(PAIRING_URL);
 	});
-	expect(modal.querySelector('[data-slot="toggle-tailnet"]')).toBeNull();
+	expect(modal.querySelector('[data-slot="tailnet-notice"]')).toBeNull();
 });
 
 test("pairs against the tailnet address while it is the only way in", async () => {
-	mobile.access = { ...mobile.access, problem: TAILSCALE_HTTPS_REMEDY, tailnetOpen: true };
+	mobile.access = { ...mobile.access, tailnetOpen: true };
 	const modal = await loadedModal();
 
 	await waitFor(() => {
 		expect(slot(modal, "pairing-url").textContent).toBe(TAILNET_URL);
 	});
-	expect(slot(modal, "toggle-tailnet").textContent).toBe("CLOSE");
+	expect(slot(modal, "mobile-access").getAttribute("aria-checked")).toBe("true");
 });

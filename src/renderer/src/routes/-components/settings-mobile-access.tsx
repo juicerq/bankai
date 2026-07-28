@@ -15,45 +15,40 @@ function pairingLink(access: MobileAccess): string | undefined {
 	return access.url;
 }
 
+const TAILNET_NOTICE =
+	"This tailnet issues no HTTPS certificates, so the phone gets plain HTTP on the tailnet address. Notifications only arrive there while Bankai is open on the phone, and it cannot be installed to the home screen. Enable HTTPS Certificates at login.tailscale.com/admin/dns to get the full surface back.";
+
 export function MobileAccessSetting() {
-	const { access, failed, working, setExposed, setTailnetOpen, regenerateToken } = useMobileAccess();
+	const { access, failed, working, setExposed, regenerateToken } = useMobileAccess();
 	const pairing = access && pairingLink(access);
+	const reachable = !!(access?.exposed || access?.tailnetOpen);
 
 	return (
 		<Setting
 			title="Mobile access"
-			description="Serves Bankai to your phone through Tailscale on port 443. Nothing is published beyond your tailnet."
+			description="Serves Bankai to your phone through Tailscale. Nothing is published beyond your tailnet."
 			slot="mobile-access"
-			on={!!access?.exposed}
+			on={reachable}
 			onToggle={() => {
 				if (working) {
 					return;
 				}
 
-				setExposed(!access?.exposed);
+				setExposed(!reachable);
 			}}
 		>
 			{!access && <span className="block text-data text-secondary">Asking Tailscale…</span>}
 			{access && !access.url && (
 				<span data-slot="no-tailscale" className="block text-data text-secondary">{NO_TAILSCALE_NOTICE}</span>
 			)}
-			{pairing && <Pairing url={pairing} onRegenerate={regenerateToken} />}
+			{pairing && <Pairing url={pairing} reachable={reachable} onRegenerate={regenerateToken} />}
+			{access?.tailnetOpen && (
+				<span data-slot="tailnet-notice" className="mt-3 block text-data text-secondary">{TAILNET_NOTICE}</span>
+			)}
 			{access?.problem && (
 				<span data-slot="mobile-access-problem" className="mt-3 block text-data text-removed">
 					{access.problem}
 				</span>
-			)}
-			{access && (
-				<TailnetAccess
-					access={access}
-					onToggle={(open) => {
-						if (working) {
-							return;
-						}
-
-						setTailnetOpen(open);
-					}}
-				/>
 			)}
 			{failed && (
 				<span data-slot="mobile-access-failed" className="mt-3 block text-data text-removed">
@@ -64,39 +59,15 @@ export function MobileAccessSetting() {
 	);
 }
 
-function TailnetAccess({
-	access,
-	onToggle,
+function Pairing({
+	url,
+	reachable,
+	onRegenerate,
 }: {
-	access: MobileAccess;
-	onToggle: (open: boolean) => void;
+	url: string;
+	reachable: boolean;
+	onRegenerate: () => void;
 }) {
-	if (!access.tailnetUrl || (!access.tailnetOpen && !access.problem)) {
-		return null;
-	}
-
-	return (
-		<div data-slot="tailnet-access" className="mt-3 flex flex-col items-start gap-2">
-			<span className="text-label text-tertiary">WITHOUT HTTPS</span>
-			<span className="text-data text-secondary">
-				{access.tailnetOpen
-					? `Reachable at ${new URL(access.tailnetUrl).origin} inside your tailnet.`
-					: "Reaches the phone with no certificate, over the tailnet address."}{" "}
-				Notifications only arrive there while Bankai is open on the phone.
-			</span>
-			<button
-				type="button"
-				data-slot="toggle-tailnet"
-				className="border border-outline-strong px-2 py-1 text-label text-tertiary hover:bg-surface-hover"
-				onClick={() => onToggle(!access.tailnetOpen)}
-			>
-				{access.tailnetOpen ? "CLOSE" : "OPEN ANYWAY"}
-			</button>
-		</div>
-	);
-}
-
-function Pairing({ url, onRegenerate }: { url: string; onRegenerate: () => void }) {
 	const [enlarged, setEnlarged] = useState(false);
 	const trigger = useRef<HTMLButtonElement>(null);
 	const close = () => {
@@ -105,17 +76,18 @@ function Pairing({ url, onRegenerate }: { url: string; onRegenerate: () => void 
 	};
 
 	return (
-		<div className="flex items-start gap-3">
+		<div className={`flex items-start gap-3 ${reachable ? "" : "opacity-40"}`}>
 			<button
 				type="button"
 				data-slot="enlarge-qr"
 				ref={trigger}
 				aria-haspopup="dialog"
-				className="group flex shrink-0 flex-col items-center gap-1.5"
+				disabled={!reachable}
+				className={`flex shrink-0 flex-col items-center gap-1.5 ${reachable ? "group" : ""}`}
 				onClick={() => setEnlarged(true)}
 			>
 				<PairingQr url={url} className="size-[104px] border border-outline-strong group-hover:border-tertiary" />
-				<span className="text-label text-tertiary group-hover:text-secondary">ENLARGE</span>
+				<span className="text-label text-secondary group-hover:text-tertiary">ENLARGE</span>
 			</button>
 			{enlarged && <EnlargedQr url={url} onClose={close} />}
 			<div className="flex min-w-0 flex-1 flex-col items-start gap-2">
@@ -124,7 +96,8 @@ function Pairing({ url, onRegenerate }: { url: string; onRegenerate: () => void 
 				<button
 					type="button"
 					data-slot="regenerate-token"
-					className="border border-outline-strong px-2 py-1 text-label text-tertiary hover:bg-surface-hover"
+					disabled={!reachable}
+					className="border border-outline-strong px-2 py-1 text-label text-secondary enabled:hover:border-tertiary enabled:hover:text-tertiary"
 					onClick={onRegenerate}
 				>
 					REGENERATE

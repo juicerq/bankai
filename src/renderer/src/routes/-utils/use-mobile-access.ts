@@ -11,11 +11,6 @@ export function useMobileAccess() {
 			onSuccess: (next) => queryClient.setQueryData(key, next),
 		}),
 	);
-	const tailnet = useMutation(
-		orpc.mobile.setTailnetOpen.mutationOptions({
-			onSuccess: (next) => queryClient.setQueryData(key, next),
-		}),
-	);
 	const regenerate = useMutation(
 		orpc.mobile.regenerateToken.mutationOptions({
 			onSuccess: async (next) => {
@@ -27,10 +22,9 @@ export function useMobileAccess() {
 
 	return {
 		access: access.data,
-		failed: !!expose.error || !!regenerate.error || !!tailnet.error,
-		working: expose.isPending || regenerate.isPending || tailnet.isPending,
+		failed: !!expose.error || !!regenerate.error,
+		working: expose.isPending || regenerate.isPending,
 		setExposed: (enabled: boolean) => expose.mutate({ enabled }),
-		setTailnetOpen: (open: boolean) => tailnet.mutate({ open }),
 		regenerateToken: () => regenerate.mutate({}),
 	};
 }

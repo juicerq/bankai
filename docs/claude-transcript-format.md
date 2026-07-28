@@ -1,7 +1,7 @@
 ---
 title: What a Claude transcript holds, and what has to be filtered out of it
 tags: [activity]
-updated_at: 2026-07-26
+updated_at: 2026-07-28
 created_at: 2026-07-25
 ---
 
@@ -29,6 +29,10 @@ Several families of block reach the transcript as `type: "user"` records without
 
 Filtering those and taking the first remaining message yields, over 150 recent transcripts: 81% usable intent, 7% junk too short to identify anything (`oi`, `concordo.`), 11% no user message at all. This filter is a **list, not a rule** — it is third-party format, so a new block type degrades the result silently rather than failing.
 
-## A resumed session opens mid-conversation
+## Resuming appends to the same file, and no transcript points at another
 
-A transcript created by resuming does not replay the original history, so its first user message is an answer, not a subject — the survey turned up titles like `"ok, concordo."`, `"1 - ótimo. 2 - ok. 3 - sim mas 6."` and `"[Request interrupted by user]"`. Anything derived from the opening of a transcript must account for the session possibly not starting at the beginning.
+Measured on 2.1.220, both headless (`claude -p --resume <id>`) and through the TUI: resuming a session appends to `<sessionId>.jsonl` and creates no second file. One file therefore holds a whole conversation, and reading it from byte zero reaches the real beginning of it.
+
+Older transcripts on this machine do open mid-conversation — a survey of their first user message turned up answers rather than subjects (`"ok, concordo."`, `"1 - ótimo. 2 - ok. 3 - sim mas 6."`, `"[Request interrupted by user]"`), so anything derived from the opening of a *stored* transcript still has to tolerate a file that starts in the middle.
+
+There is no link to a predecessor either way. Across the 568 transcripts here, the first `user`/`assistant` record has no `parentUuid` in 548 of them and a parent inside its own file in the other 10 — never a uuid living in another file. `leafUuid` on a `last-prompt` record names a message, not a session. So a reader that runs out of file has nowhere else to go, and honest copy is "the beginning of this transcript".

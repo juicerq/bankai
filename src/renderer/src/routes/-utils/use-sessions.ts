@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import type { ContinuityShell, ContinuityValue } from "@main/store/continuity";
 import { orpc } from "@renderer/lib/api";
+import { newId } from "@renderer/lib/id";
 import { useShellResidency } from "@renderer/routes/-utils/use-shell-residency";
 import { ContinuityReducers } from "@shared/continuity-reducers";
 
@@ -10,10 +11,10 @@ const CONTINUITY_KEY = orpc.continuity.get.queryOptions().queryKey;
 
 function newShell(plain?: boolean): Pick<ContinuityShell, "id" | "plain"> {
 	if (plain) {
-		return { id: crypto.randomUUID(), plain };
+		return { id: newId(), plain };
 	}
 
-	return { id: crypto.randomUUID() };
+	return { id: newId() };
 }
 
 export function useSessions() {

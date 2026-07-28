@@ -118,14 +118,13 @@ test("a client without push support sees no banner", () => {
 	expect(query("mobile-push-banner")).toBeNull();
 });
 
-test("a phone on the certificate-less address is told why notifications are missing", () => {
+test("a phone on the certificate-less address is offered nothing instead of a dead prompt", () => {
 	installBrowser({ permission: "default" });
 	Object.defineProperty(window, "isSecureContext", { configurable: true, value: false });
 
 	render(<MobilePushBanner />);
 
-	expect(slot(get("mobile-push-banner"), "insecure").textContent).toContain("no certificate");
-	expect(query("enable")).toBeNull();
+	expect(query("mobile-push-banner")).toBeNull();
 });
 
 test("granting from the banner subscribes the phone and hides the banner", async () => {

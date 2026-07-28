@@ -16,10 +16,6 @@ export function pushPermission(): PushPermission {
 	return Notification.permission;
 }
 
-export function pushBlockedByOrigin(): boolean {
-	return isBrowserClient() && !window.isSecureContext;
-}
-
 export function installPushSync(): void {
 	if (pushPermission() !== "granted") {
 		return;

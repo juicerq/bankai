@@ -22,7 +22,7 @@ async function renderSessions(value: ContinuityValue) {
 		defaultOptions: { queries: { retry: false, staleTime: Infinity, refetchOnWindowFocus: false } },
 	});
 
-	const rendered = renderHook(() => useSessions({ activity: new Map(), statusSince: new Map() }), {
+	const rendered = renderHook(() => useSessions(), {
 		wrapper: ({ children }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>,
 	});
 

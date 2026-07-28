@@ -1,10 +1,3 @@
-export const ACTIVITY_IPC = {
-	watch: "activity:watch",
-	unwatch: "activity:unwatch",
-	changed: "activity:changed",
-	viewed: "activity:viewed",
-} as const;
-
 export type AgentActivityState = "working" | "needs-attention" | "done-unseen";
 
 export const DEFAULT_LIVE_TRACE = true;
@@ -40,10 +33,4 @@ export interface BankaiActivityApi {
 	unwatch: (projectId: string) => void;
 	onChanged: (listener: (event: ActivityChangedEvent) => void) => () => void;
 	markViewed: (sessionId: string) => void;
-}
-
-declare global {
-	interface Window {
-		bankaiActivity: BankaiActivityApi;
-	}
 }

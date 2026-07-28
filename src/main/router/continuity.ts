@@ -1,9 +1,10 @@
-import { type } from "arktype";
 import { stampShell } from "@main/continuity/ShellFacts";
 import { GitProcess } from "@main/git/GitProcess";
 import { Logger } from "@main/logger";
 import { base } from "@main/router/_base";
 import { Continuity, type ContinuityValue } from "@main/store/continuity";
+import { shellProcesses } from "@main/terminal/ShellProcesses";
+import { type } from "arktype";
 
 const shellInput = type({ id: "string", "plain?": "boolean" });
 
@@ -24,23 +25,36 @@ export const continuityRouter = {
 		.handler(async ({ input }) => {
 			const opened = await Continuity.openShell(input);
 
-			return await stamped({ projectId: input.projectId, shellId: input.shell.id }, opened);
+			return await stamped(
+				{ projectId: input.projectId, shellId: input.shell.id },
+				opened,
+			);
 		}),
 	closeShell: base
 		.input(type({ projectId: "string", shellId: "string" }))
 		.handler(({ input }) => {
 			GitProcess.forgetTurn(input.shellId).catch((err) =>
-				Logger.error("review:forget-turn-failed", { shellId: input.shellId, err: String(err) }),
+				Logger.error("review:forget-turn-failed", {
+					shellId: input.shellId,
+					err: String(err),
+				}),
 			);
+			shellProcesses.closeShell(input);
 
 			return Continuity.closeShell(input);
 		}),
 	renameShell: base
-		.input(type({ projectId: "string", shellId: "string", title: "string > 0" }))
+		.input(
+			type({ projectId: "string", shellId: "string", title: "string > 0" }),
+		)
 		.handler(({ input }) => Continuity.renameShell(input)),
 	archiveShell: base
 		.input(type({ projectId: "string", shellId: "string" }))
-		.handler(({ input }) => Continuity.archiveShell(input)),
+		.handler(({ input }) => {
+			shellProcesses.closeShell(input);
+
+			return Continuity.archiveShell(input);
+		}),
 	unarchiveShell: base
 		.input(type({ projectId: "string", shellId: "string" }))
 		.handler(({ input }) => Continuity.unarchiveShell(input)),

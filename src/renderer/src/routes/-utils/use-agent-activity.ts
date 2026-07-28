@@ -1,4 +1,5 @@
 import { useMemo, useSyncExternalStore } from "react";
+import { activityStream } from "@renderer/lib/stream/activity";
 import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
 
 export interface AgentActivities {
@@ -59,14 +60,14 @@ class AgentActivityObserver {
 
 	readonly subscribe = (notify: () => void) => {
 		this.notify = notify;
-		const stopListening = window.bankaiActivity.onChanged((event) => {
+		const stopListening = activityStream.onChanged((event) => {
 			if (this.projectIds.includes(event.projectId)) {
 				this.set(event.projectId, event);
 			}
 		});
 
 		for (const projectId of this.projectIds) {
-			window.bankaiActivity.watch(projectId)
+			activityStream.watch(projectId)
 				.then((snapshot) => this.set(projectId, snapshot))
 				.catch((err) => console.error("Failed to watch agent activity", err));
 		}
@@ -75,7 +76,7 @@ class AgentActivityObserver {
 			stopListening();
 			this.notify = undefined;
 			for (const projectId of this.projectIds) {
-				window.bankaiActivity.unwatch(projectId);
+				activityStream.unwatch(projectId);
 			}
 		};
 	};

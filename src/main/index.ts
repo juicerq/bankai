@@ -1,14 +1,11 @@
 import { join } from "node:path";
-import { setupActivityIpc } from "@main/activity/ipc";
-import { setupContinuityIpc } from "@main/continuity/ipc";
+import { startAgentActivity } from "@main/activity/start";
 import { GitProcess } from "@main/git/GitProcess";
-import { setupReviewIpc } from "@main/git/ipc";
 import { Logger } from "@main/logger";
 import { startLoopbackServer } from "@main/server";
 import { markStartup, scheduleStartupReport } from "@main/startup";
 import { resolveInstanceIdentity } from "@main/store/paths";
 import { type SettingsValue, Settings } from "@main/store/settings";
-import { setupTerminalIpc } from "@main/terminal/ipc";
 import { setupUpdateIpc } from "@main/update/ipc";
 import { setupWindowIpc } from "@main/window/ipc";
 import { AUTH_IPC } from "@shared/server";
@@ -127,10 +124,7 @@ async function start() {
 		ipcMain.handle(AUTH_IPC.getToken, () => reach);
 		markStartup("server-ready");
 
-		setupReviewIpc();
-		setupActivityIpc();
-		setupContinuityIpc();
-		setupTerminalIpc();
+		startAgentActivity();
 		setupWindowIpc();
 		setupUpdateIpc();
 		markStartup("ipc-ready");

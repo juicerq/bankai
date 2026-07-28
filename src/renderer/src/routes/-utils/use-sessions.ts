@@ -3,7 +3,6 @@ import { useCallback, useMemo } from "react";
 import type { ContinuityShell, ContinuityValue } from "@main/store/continuity";
 import { orpc } from "@renderer/lib/api";
 import { useShellResidency } from "@renderer/routes/-utils/use-shell-residency";
-import type { AgentActivityState } from "@shared/activity";
 import { ContinuityReducers } from "@shared/continuity-reducers";
 
 const EMPTY_CONTINUITY: ContinuityValue = { workspaces: [] };
@@ -17,13 +16,7 @@ function newShell(plain?: boolean): Pick<ContinuityShell, "id" | "plain"> {
 	return { id: crypto.randomUUID() };
 }
 
-export function useSessions({
-	activity,
-	statusSince,
-}: {
-	activity: ReadonlyMap<string, AgentActivityState>;
-	statusSince: ReadonlyMap<string, number>;
-}) {
+export function useSessions() {
 	const queryClient = useQueryClient();
 	const { data } = useQuery(orpc.continuity.get.queryOptions());
 	const { mutate: open } = useMutation(orpc.continuity.openShell.mutationOptions());
@@ -37,7 +30,7 @@ export function useSessions({
 		() => continuity.workspaces.flatMap((workspace) => workspace.shells),
 		[continuity],
 	);
-	const residency = useShellResidency({ shells, activity, statusSince });
+	const residency = useShellResidency({ shells });
 
 	// The projected value is written before the main process answers, so a
 	// gesture repaints in its own commit; the push still overwrites it with the

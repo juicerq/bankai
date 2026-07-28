@@ -1,9 +1,10 @@
 import { ReviewTransport, setReviewTransport } from "./orpc-transport";
+import { mock } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement, type ReactNode } from "react";
 import type { BankaiReviewApi, ReviewChangedEvent, ReviewWatchInput } from "@shared/review";
 import { renderHook } from "./testing-library";
-import { type ReviewReading, useReviewReading } from "@renderer/routes/-utils/use-review-reading";
+import type { ReviewReading, useReviewReading } from "@renderer/routes/-utils/use-review-reading";
 
 type WatchListener = (event: ReviewChangedEvent) => void;
 
@@ -74,11 +75,23 @@ class ReviewIpc {
 	}
 }
 
+let current = new ReviewIpc();
+
+void mock.module("@renderer/lib/stream/review", () => ({
+	reviewStream: {
+		watch: (input: ReviewWatchInput) => current.api.watch(input),
+		unwatch: (input: ReviewWatchInput) => current.api.unwatch(input),
+		onChanged: (listener: WatchListener) => current.api.onChanged(listener),
+	} satisfies BankaiReviewApi,
+}));
+
+const { useReviewReading: readReview } = await import("@renderer/routes/-utils/use-review-reading");
+
 export type ReviewReadingProps = Parameters<typeof useReviewReading>[0];
 
 export function renderReviewReading(initialProps: ReviewReadingProps) {
 	const ipc = new ReviewIpc();
-	window.bankaiReview = ipc.api;
+	current = ipc;
 
 	const transport = new ReviewTransport();
 	setReviewTransport(transport);
@@ -92,7 +105,7 @@ export function renderReviewReading(initialProps: ReviewReadingProps) {
 	const renders: ReviewReading[] = [];
 	const view = renderHook(
 		(props: ReviewReadingProps) => {
-			const reading = useReviewReading(props);
+			const reading = readReview(props);
 			renders.push(reading);
 			return reading;
 		},

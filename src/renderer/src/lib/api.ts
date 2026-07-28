@@ -3,24 +3,8 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import type { Router } from "@main/router";
-import { SERVER_HOST, SERVER_RPC_PREFIX, SERVER_TOKEN_STORAGE_KEY } from "@shared/server";
-
-async function resolveReach(): Promise<{ origin: string; token: string | undefined }> {
-	const bridge = window.bankaiAuth;
-
-	if (!bridge) {
-		return {
-			origin: window.location.origin,
-			token: localStorage.getItem(SERVER_TOKEN_STORAGE_KEY) ?? undefined,
-		};
-	}
-
-	const { port, token } = await bridge.getToken();
-
-	return { origin: `http://${SERVER_HOST}:${port}`, token };
-}
-
-const reach = resolveReach();
+import { reach } from "@renderer/lib/reach";
+import { SERVER_RPC_PREFIX } from "@shared/server";
 
 const link = new RPCLink({
 	url: async () => `${(await reach).origin}${SERVER_RPC_PREFIX}`,

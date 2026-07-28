@@ -1,26 +1,41 @@
 import { type FSWatcher, watch } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { COMPACTION_SCAN_WINDOW, COMPACTION_TRACE, matchesCompactionNotice } from "@main/activity/compaction";
+import {
+	COMPACTION_SCAN_WINDOW,
+	COMPACTION_TRACE,
+	matchesCompactionNotice,
+} from "@main/activity/compaction";
+import type {
+	AgentPresence,
+	HarnessReading,
+	HarnessTrace,
+} from "@main/activity/Harness";
 import { hookSpoolDir, pruneSpool } from "@main/activity/HookSource";
-import { TraceDwell } from "@main/activity/TraceDwell";
-import type { AgentPresence, HarnessReading, HarnessTrace } from "@main/activity/Harness";
-import { bindShells } from "@main/activity/SessionBinder";
 import { discoverAgents, harnessReader } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
-import { reconcileSessionRefs, type SessionRef } from "@main/activity/SessionRefs";
+import { bindShells } from "@main/activity/SessionBinder";
+import {
+	reconcileSessionRefs,
+	type SessionRef,
+} from "@main/activity/SessionRefs";
+import { TraceDwell } from "@main/activity/TraceDwell";
 import { stampShell } from "@main/continuity/ShellFacts";
+import type { Worktree } from "@main/git/contracts";
 import { GitProcess } from "@main/git/GitProcess";
 import { projectWorktrees } from "@main/git/ProjectWorktrees";
 import { ReviewChanges } from "@main/git/ReviewChanges";
-import type { Worktree } from "@main/git/contracts";
 import { worktreeContaining } from "@main/git/Worktrees";
 import { Logger } from "@main/logger";
 import { SessionNamer } from "@main/naming/SessionNamer";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { shellOutputLines } from "@main/terminal/ShellOutputLines";
-import { TerminalSessions } from "@main/terminal/TerminalSessions";
-import { type AgentActivityState, DEFAULT_LIVE_TRACE, type ProjectActivitySnapshot } from "@shared/activity";
+import { shellProcesses } from "@main/terminal/ShellProcesses";
+import {
+	type AgentActivityState,
+	DEFAULT_LIVE_TRACE,
+	type ProjectActivitySnapshot,
+} from "@shared/activity";
 import { throttle } from "@shared/throttle";
 
 const ACTIVITY_POLL_MS = 1500;
@@ -191,25 +206,30 @@ async function observeReadings(
 ): Promise<Map<string, HarnessReading>> {
 	const readings = new Map<string, HarnessReading>();
 
-	await Promise.all(shells.map(async (shell) => {
-		const boundPid = bindings.get(shell.sessionId);
-		const presence = boundPid === undefined ? undefined : liveByPid.get(boundPid);
-		if (!presence) {
-			return;
-		}
+	await Promise.all(
+		shells.map(async (shell) => {
+			const boundPid = bindings.get(shell.sessionId);
+			const presence =
+				boundPid === undefined ? undefined : liveByPid.get(boundPid);
+			if (!presence) {
+				return;
+			}
 
-		const read = harnessReader(presence.harness);
-		if (!read) {
-			return;
-		}
+			const read = harnessReader(presence.harness);
+			if (!read) {
+				return;
+			}
 
-		readings.set(shell.shellId, await read(presence));
-	}));
+			readings.set(shell.shellId, await read(presence));
+		}),
+	);
 
 	return readings;
 }
 
-function tracesOf(readings: ReadonlyMap<string, HarnessReading>): Map<string, HarnessTrace> {
+function tracesOf(
+	readings: ReadonlyMap<string, HarnessReading>,
+): Map<string, HarnessTrace> {
 	const traces = new Map<string, HarnessTrace>();
 
 	for (const [shellId, reading] of readings) {
@@ -232,9 +252,15 @@ export function turnEnded(
 	return endedAt > (presence.statusSince ?? 0);
 }
 
-async function locateWorktree(projectPath: string, cwd: string): Promise<Worktree | undefined> {
+async function locateWorktree(
+	projectPath: string,
+	cwd: string,
+): Promise<Worktree | undefined> {
 	const listed = await projectWorktrees(projectPath).catch((err) => {
-		Logger.error("activity:worktrees-failed", { projectPath, err: String(err) });
+		Logger.error("activity:worktrees-failed", {
+			projectPath,
+			err: String(err),
+		});
 		return [];
 	});
 	const found = worktreeContaining(listed, cwd);
@@ -242,14 +268,21 @@ async function locateWorktree(projectPath: string, cwd: string): Promise<Worktre
 		return found;
 	}
 
-	const fresh = await projectWorktrees(projectPath, { fresh: true }).catch(() => listed);
+	const fresh = await projectWorktrees(projectPath, { fresh: true }).catch(
+		() => listed,
+	);
 
 	return worktreeContaining(fresh, cwd);
 }
 
-function shellOwners(shells: { sessionId: string; projectId: string; shellId: string }[]): Map<string, ShellOwner> {
+function shellOwners(
+	shells: { sessionId: string; projectId: string; shellId: string }[],
+): Map<string, ShellOwner> {
 	return new Map(
-		shells.map((shell) => [shell.sessionId, { projectId: shell.projectId, shellId: shell.shellId }]),
+		shells.map((shell) => [
+			shell.sessionId,
+			{ projectId: shell.projectId, shellId: shell.shellId },
+		]),
 	);
 }
 
@@ -283,11 +316,17 @@ export function sessionTraces(input: {
 		}
 	}
 	for (const [shellId, trace] of input.harnessTraces) {
-		traces.set(shellId, { label: trace.label, since: trace.since ?? input.now });
+		traces.set(shellId, {
+			label: trace.label,
+			since: trace.since ?? input.now,
+		});
 	}
 	for (const [shellId, reason] of input.waitingFor) {
 		const since = input.statusSince.get(shellId);
-		traces.set(shellId, { label: reason, ...(since !== undefined && { since }) });
+		traces.set(shellId, {
+			label: reason,
+			...(since !== undefined && { since }),
+		});
 	}
 	for (const shellId of input.compacting) {
 		traces.set(shellId, { label: COMPACTION_TRACE, since: input.now });
@@ -374,7 +413,10 @@ export function snapshotsByProject({
 	return snapshots;
 }
 
-function sameRecord<T>(before: Record<string, T>, after: Record<string, T>): boolean {
+function sameRecord<T>(
+	before: Record<string, T>,
+	after: Record<string, T>,
+): boolean {
 	const keys = Object.keys(before);
 	if (keys.length !== Object.keys(after).length) {
 		return false;
@@ -390,13 +432,25 @@ function sameSnapshot(
 	if (!sameRecord(before?.shells ?? {}, after?.shells ?? {})) {
 		return false;
 	}
-	if (!sameRecord(before?.worktreeByShellId ?? {}, after?.worktreeByShellId ?? {})) {
+	if (
+		!sameRecord(before?.worktreeByShellId ?? {}, after?.worktreeByShellId ?? {})
+	) {
 		return false;
 	}
-	if (!sameRecord(before?.statusSinceByShellId ?? {}, after?.statusSinceByShellId ?? {})) {
+	if (
+		!sameRecord(
+			before?.statusSinceByShellId ?? {},
+			after?.statusSinceByShellId ?? {},
+		)
+	) {
 		return false;
 	}
-	if (!sameRecord(before?.traceSinceByShellId ?? {}, after?.traceSinceByShellId ?? {})) {
+	if (
+		!sameRecord(
+			before?.traceSinceByShellId ?? {},
+			after?.traceSinceByShellId ?? {},
+		)
+	) {
 		return false;
 	}
 
@@ -404,7 +458,13 @@ function sameSnapshot(
 }
 
 function emptySnapshot(): ProjectActivitySnapshot {
-	return { shells: {}, worktreeByShellId: {}, traceByShellId: {}, traceSinceByShellId: {}, statusSinceByShellId: {} };
+	return {
+		shells: {},
+		worktreeByShellId: {},
+		traceByShellId: {},
+		traceSinceByShellId: {},
+		statusSinceByShellId: {},
+	};
 }
 
 type ActivityListener = (snapshot: ProjectActivitySnapshot) => void;
@@ -426,7 +486,10 @@ class AgentActivityTracker {
 	private publishedNames = new Map<string, string>();
 	private agentCwds = new Map<string, string>();
 	private readonly dwell = new TraceDwell();
-	private readonly noteSpoolWrite = throttle(() => this.runTick("event"), SPOOL_PASS_MS);
+	private readonly noteSpoolWrite = throttle(
+		() => this.runTick("event"),
+		SPOOL_PASS_MS,
+	);
 	private liveTrace = DEFAULT_LIVE_TRACE;
 	private viewed: string | undefined;
 	private timer: ReturnType<typeof setInterval> | undefined;
@@ -449,9 +512,10 @@ class AgentActivityTracker {
 		}
 
 		const combined = (this.outputTail.get(sessionId) ?? "") + data;
-		const window = combined.length > COMPACTION_SCAN_WINDOW
-			? combined.slice(-COMPACTION_SCAN_WINDOW)
-			: combined;
+		const window =
+			combined.length > COMPACTION_SCAN_WINDOW
+				? combined.slice(-COMPACTION_SCAN_WINDOW)
+				: combined;
 		if (matchesCompactionNotice(window)) {
 			this.compactionNoticed.add(sessionId);
 		}
@@ -465,7 +529,9 @@ class AgentActivityTracker {
 
 		this.timer = setInterval(() => this.runTick("full"), ACTIVITY_POLL_MS);
 		this.timer.unref();
-		this.watchSpool().catch((err) => Logger.warn("activity:spool-watch-failed", { err: String(err) }));
+		this.watchSpool().catch((err) =>
+			Logger.warn("activity:spool-watch-failed", { err: String(err) }),
+		);
 	}
 
 	private async watchSpool(): Promise<void> {
@@ -479,10 +545,13 @@ class AgentActivityTracker {
 			return;
 		}
 
-		this.drainTimer = setTimeout(() => {
-			this.drainTimer = undefined;
-			this.runTick("event");
-		}, Math.max(wakeIn, 0));
+		this.drainTimer = setTimeout(
+			() => {
+				this.drainTimer = undefined;
+				this.runTick("event");
+			},
+			Math.max(wakeIn, 0),
+		);
 		this.drainTimer.unref();
 	}
 
@@ -517,7 +586,7 @@ class AgentActivityTracker {
 		cleared.delete(sessionId);
 		this.commit({
 			shellStates: cleared,
-			owners: shellOwners(TerminalSessions.list()),
+			owners: shellOwners(shellProcesses.list()),
 			worktrees: this.shellWorktrees,
 			harnessTraces: this.harnessTraces,
 			waitingFor: this.waitingFor,
@@ -534,7 +603,9 @@ class AgentActivityTracker {
 
 		this.ticking = true;
 		this.tick(pass)
-			.catch((err) => Logger.error("activity:tick-failed", { err: String(err) }))
+			.catch((err) =>
+				Logger.error("activity:tick-failed", { err: String(err) }),
+			)
 			.finally(() => {
 				this.ticking = false;
 				const queued = this.queuedPass;
@@ -546,7 +617,7 @@ class AgentActivityTracker {
 	}
 
 	private async tick(pass: ActivityPass): Promise<void> {
-		const shells = TerminalSessions.list();
+		const shells = shellProcesses.list();
 		const owners = shellOwners(shells);
 		if (shells.length === 0) {
 			this.boundSessions = new Set();
@@ -569,20 +640,26 @@ class AgentActivityTracker {
 
 		const presences = await discoverAgents();
 		const liveByPid = new Map<number, AgentPresence>();
-		await Promise.all(presences.map(async (presence) => {
-			const start = await procFs.procStart(presence.pid);
-			if (start !== null && start === presence.procStart) {
-				liveByPid.set(presence.pid, presence);
-			}
-		}));
+		await Promise.all(
+			presences.map(async (presence) => {
+				const start = await procFs.procStart(presence.pid);
+				if (start !== null && start === presence.procStart) {
+					liveByPid.set(presence.pid, presence);
+				}
+			}),
+		);
 		const bindings = await bindShells(shells, liveByPid.keys(), procFs.parent);
 		this.boundSessions = new Set(bindings.keys());
 		this.pruneScans(owners);
 
 		this.captureSessionRefs(shells, bindings, liveByPid);
 		const [worktrees, readings] = await Promise.all([
-			pass === "full" ? this.observeWorktrees(shells, bindings, liveByPid) : this.shellWorktrees,
-			this.liveTrace ? observeReadings(shells, bindings, liveByPid) : new Map<string, HarnessReading>(),
+			pass === "full"
+				? this.observeWorktrees(shells, bindings, liveByPid)
+				: this.shellWorktrees,
+			this.liveTrace
+				? observeReadings(shells, bindings, liveByPid)
+				: new Map<string, HarnessReading>(),
 		]);
 		const harnessTraces = tracesOf(readings);
 
@@ -593,7 +670,8 @@ class AgentActivityTracker {
 		const bound = new Map<string, BoundStatus>();
 		for (const shell of shells) {
 			const boundPid = bindings.get(shell.sessionId);
-			const presence = boundPid === undefined ? undefined : liveByPid.get(boundPid);
+			const presence =
+				boundPid === undefined ? undefined : liveByPid.get(boundPid);
 			const endedAt = readings.get(shell.shellId)?.endedAt;
 			const ended = turnEnded(presence, endedAt);
 			const status = ended ? "idle" : presence?.status;
@@ -602,7 +680,11 @@ class AgentActivityTracker {
 			}
 
 			const previous = this.shellStates.get(shell.sessionId);
-			const next = nextShellActivity(previous, status, shell.sessionId === this.viewed);
+			const next = nextShellActivity(
+				previous,
+				status,
+				shell.sessionId === this.viewed,
+			);
 			if (next !== undefined) {
 				nextStates.set(shell.sessionId, next);
 			}
@@ -632,7 +714,15 @@ class AgentActivityTracker {
 		} else {
 			this.forgetCompaction();
 		}
-		this.commit({ shellStates: nextStates, owners, worktrees, harnessTraces, waitingFor, statusSince, publishedNames });
+		this.commit({
+			shellStates: nextStates,
+			owners,
+			worktrees,
+			harnessTraces,
+			waitingFor,
+			statusSince,
+			publishedNames,
+		});
 	}
 
 	private prune(live: Set<string>): void {
@@ -642,7 +732,9 @@ class AgentActivityTracker {
 		}
 
 		this.prunedAt = now;
-		pruneSpool(live).catch((err) => Logger.warn("activity:spool-prune-failed", { err: String(err) }));
+		pruneSpool(live).catch((err) =>
+			Logger.warn("activity:spool-prune-failed", { err: String(err) }),
+		);
 	}
 
 	private async observeWorktrees(
@@ -650,34 +742,37 @@ class AgentActivityTracker {
 		bindings: Map<string, number>,
 		liveByPid: Map<number, AgentPresence>,
 	): Promise<Map<string, string>> {
-		const observed = await Promise.all(shells.map(async (shell) => {
-			const boundPid = bindings.get(shell.sessionId);
-			const cwd = boundPid === undefined ? undefined : liveByPid.get(boundPid)?.cwd;
-			if (cwd === undefined) {
-				return { shellId: shell.shellId };
-			}
-			if (this.agentCwds.get(shell.shellId) === cwd) {
-				const known = this.shellWorktrees.get(shell.shellId);
-				if (known) {
-					return { shellId: shell.shellId, worktree: known };
+		const observed = await Promise.all(
+			shells.map(async (shell) => {
+				const boundPid = bindings.get(shell.sessionId);
+				const cwd =
+					boundPid === undefined ? undefined : liveByPid.get(boundPid)?.cwd;
+				if (cwd === undefined) {
+					return { shellId: shell.shellId };
+				}
+				if (this.agentCwds.get(shell.shellId) === cwd) {
+					const known = this.shellWorktrees.get(shell.shellId);
+					if (known) {
+						return { shellId: shell.shellId, worktree: known };
+					}
+
+					return { shellId: shell.shellId };
+				}
+
+				this.agentCwds.set(shell.shellId, cwd);
+				const project = await Projects.find(shell.projectId).catch(() => null);
+				if (!project) {
+					return { shellId: shell.shellId };
+				}
+
+				const worktree = await locateWorktree(project.path, cwd);
+				if (worktree) {
+					return { shellId: shell.shellId, worktree: worktree.path };
 				}
 
 				return { shellId: shell.shellId };
-			}
-
-			this.agentCwds.set(shell.shellId, cwd);
-			const project = await Projects.find(shell.projectId).catch(() => null);
-			if (!project) {
-				return { shellId: shell.shellId };
-			}
-
-			const worktree = await locateWorktree(project.path, cwd);
-			if (worktree) {
-				return { shellId: shell.shellId, worktree: worktree.path };
-			}
-
-			return { shellId: shell.shellId };
-		}));
+			}),
+		);
 
 		const living = new Set(shells.map((shell) => shell.shellId));
 		for (const shellId of this.agentCwds.keys()) {
@@ -696,25 +791,45 @@ class AgentActivityTracker {
 	): void {
 		const observations = shells.map((shell) => {
 			const boundPid = bindings.get(shell.sessionId);
-			const presence = boundPid === undefined ? undefined : liveByPid.get(boundPid);
+			const presence =
+				boundPid === undefined ? undefined : liveByPid.get(boundPid);
 
 			return {
 				shellId: shell.shellId,
 				projectId: shell.projectId,
 				session: presence
-					? { harness: presence.harness, sessionId: presence.sessionId, cwd: presence.cwd }
+					? {
+							harness: presence.harness,
+							sessionId: presence.sessionId,
+							cwd: presence.cwd,
+						}
 					: undefined,
 			};
 		});
 
-		const { changes, next } = reconcileSessionRefs(this.sessionRefs, observations);
+		const { changes, next } = reconcileSessionRefs(
+			this.sessionRefs,
+			observations,
+		);
 		this.sessionRefs = next;
 
 		for (const change of changes) {
-			const persist = change.kind === "upsert"
-				? Continuity.setShellSession({ projectId: change.projectId, shellId: change.shellId, session: change.session })
-				: Continuity.clearShellSession({ projectId: change.projectId, shellId: change.shellId });
-			persist.catch((err) => Logger.error("activity:session-ref-persist-failed", { err: String(err) }));
+			const persist =
+				change.kind === "upsert"
+					? Continuity.setShellSession({
+							projectId: change.projectId,
+							shellId: change.shellId,
+							session: change.session,
+						})
+					: Continuity.clearShellSession({
+							projectId: change.projectId,
+							shellId: change.shellId,
+						});
+			persist.catch((err) =>
+				Logger.error("activity:session-ref-persist-failed", {
+					err: String(err),
+				}),
+			);
 		}
 	}
 
@@ -742,7 +857,9 @@ class AgentActivityTracker {
 			}
 		}
 
-		const shellIds = new Set([...present.values()].map((owner) => owner.shellId));
+		const shellIds = new Set(
+			[...present.values()].map((owner) => owner.shellId),
+		);
 		for (const shellId of this.compacting.keys()) {
 			if (!shellIds.has(shellId)) {
 				this.compacting.delete(shellId);
@@ -814,7 +931,13 @@ class AgentActivityTracker {
 			now,
 		});
 		this.scheduleDrain(wakeIn);
-		const nextSnapshots = snapshotsByProject({ shellStates, owners, worktrees, traces: visible, statusSince });
+		const nextSnapshots = snapshotsByProject({
+			shellStates,
+			owners,
+			worktrees,
+			traces: visible,
+			statusSince,
+		});
 		this.shellStates = shellStates;
 		this.shellWorktrees = worktrees;
 		this.harnessTraces = harnessTraces;
@@ -833,11 +956,16 @@ class AgentActivityTracker {
 		});
 		for (const baseline of baselines) {
 			this.captureTurnBaseline(baseline).catch((err) =>
-				Logger.error("activity:turn-baseline-failed", { ...baseline.owner, err: String(err) }),
+				Logger.error("activity:turn-baseline-failed", {
+					...baseline.owner,
+					err: String(err),
+				}),
 			);
 		}
 
-		SessionNamer.forget(new Set([...owners.values()].map((owner) => owner.shellId)));
+		SessionNamer.forget(
+			new Set([...owners.values()].map((owner) => owner.shellId)),
+		);
 
 		for (const sessionId of turnStartShells(previousStates, shellStates)) {
 			const owner = owners.get(sessionId);
@@ -851,11 +979,16 @@ class AgentActivityTracker {
 				...owner,
 				...(worktree ? { cwd: worktree } : {}),
 				...(publishedName ? { publishedName } : {}),
-			}).catch((err) => Logger.error("activity:stamp-failed", { ...owner, err: String(err) }));
+			}).catch((err) =>
+				Logger.error("activity:stamp-failed", { ...owner, err: String(err) }),
+			);
 			SessionNamer.noteTurn(owner);
 		}
 
-		for (const projectId of new Set([...previous.keys(), ...nextSnapshots.keys()])) {
+		for (const projectId of new Set([
+			...previous.keys(),
+			...nextSnapshots.keys(),
+		])) {
 			const before = previous.get(projectId);
 			const after = nextSnapshots.get(projectId) ?? emptySnapshot();
 			if (!sameSnapshot(before, after)) {
@@ -864,8 +997,12 @@ class AgentActivityTracker {
 		}
 	}
 
-	private async captureTurnBaseline(baseline: { owner: ShellOwner; worktree?: string }): Promise<void> {
-		const path = baseline.worktree ?? (await Projects.find(baseline.owner.projectId)).path;
+	private async captureTurnBaseline(baseline: {
+		owner: ShellOwner;
+		worktree?: string;
+	}): Promise<void> {
+		const path =
+			baseline.worktree ?? (await Projects.find(baseline.owner.projectId)).path;
 		await GitProcess.startTurn({ path, shellId: baseline.owner.shellId });
 		ReviewChanges.touch(path);
 	}

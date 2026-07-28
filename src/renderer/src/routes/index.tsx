@@ -124,7 +124,7 @@ function Bankai() {
 	});
 	const availableProjects = projects.data || [];
 	const activity = useAgentActivities(availableProjects.map((project) => project.id));
-	const sessions = useSessions({ activity: activity.shells, statusSince: activity.statusSince });
+	const sessions = useSessions();
 	const workspaces = sessions.continuity.workspaces;
 	const selectedShellId = sessions.continuity.selectedShellId;
 	const selectedProjectId = useMemo(

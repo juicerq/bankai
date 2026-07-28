@@ -6,6 +6,7 @@ import { Logger } from "@main/logger";
 import { router } from "@main/router";
 import { authorizeRequest } from "@main/server/auth";
 import { listenLoopback } from "@main/server/listen";
+import { attachStreamServer } from "@main/server/stream";
 import { Settings } from "@main/store/settings";
 import { SERVER_RPC_PREFIX, type ServerReach } from "@shared/server";
 
@@ -34,6 +35,8 @@ export async function startLoopbackServer(): Promise<ServerReach> {
 			res.end();
 		});
 	});
+
+	attachStreamServer(server, reach.token);
 
 	await listenLoopback(server, reach.port);
 

@@ -1,9 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
-import { type ResidencyShell, shellResidency } from "@renderer/routes/-utils/shell-residency";
-import { SECOND_MS, useClock } from "@renderer/routes/-utils/use-clock";
-import type { AgentActivityState } from "@shared/activity";
+import type { ContinuityShell } from "@main/store/continuity";
 
-const RESIDENCY_CLOCK_MS = 30 * SECOND_MS;
+export type ResidencyShell = Pick<ContinuityShell, "id" | "archivedAt" | "session">;
 
 export interface ShellResidency {
 	asleep: ReadonlySet<string>;
@@ -12,21 +10,24 @@ export interface ShellResidency {
 	sleep: (shellId: string) => void;
 }
 
-export function useShellResidency({
-	shells,
-	activity,
-	statusSince,
-}: {
-	shells: ResidencyShell[];
-	activity: ReadonlyMap<string, AgentActivityState>;
-	statusSince: ReadonlyMap<string, number>;
-}): ShellResidency {
+export function useShellResidency({ shells }: { shells: ResidencyShell[] }): ShellResidency {
 	const [woken, setWoken] = useState<ReadonlySet<string>>(() => new Set());
-	const now = useClock(RESIDENCY_CLOCK_MS);
-	const residency = useMemo(
-		() => shellResidency({ shells, activity, statusSince, woken, now }),
-		[shells, activity, statusSince, woken, now],
-	);
+	const residency = useMemo(() => {
+		const asleep = new Set<string>();
+		const resumable = new Set<string>();
+
+		for (const shell of shells) {
+			if (shell.session) {
+				resumable.add(shell.id);
+			}
+
+			if (shell.archivedAt !== undefined && !woken.has(shell.id)) {
+				asleep.add(shell.id);
+			}
+		}
+
+		return { asleep, resumable };
+	}, [shells, woken]);
 
 	const wake = useCallback((shellId: string) => {
 		setWoken((current) => (current.has(shellId) ? current : new Set(current).add(shellId)));

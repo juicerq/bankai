@@ -1,7 +1,10 @@
 import "./register-dom";
+import { streamTransport } from "./stream-transport";
 import { afterEach, expect, mock, test } from "bun:test";
+import type { TerminalAttached } from "@shared/terminal";
 
 const webglInstances: MockWebglAddon[] = [];
+const terminals: MockTerminal[] = [];
 
 class MockWebglAddon {
 	disposed = false;
@@ -38,10 +41,22 @@ class MockFitAddon {
 class MockTerminal {
 	cols = 80;
 	rows = 24;
+	writes: string[] = [];
+	resets = 0;
+
+	constructor() {
+		terminals.push(this);
+	}
+
 	loadAddon() {}
 	open() {}
 	focus() {}
-	write() {}
+	write(data: string) {
+		this.writes = [...this.writes, data];
+	}
+	reset() {
+		this.resets += 1;
+	}
 	onData() {
 		return { dispose() {} };
 	}
@@ -53,30 +68,10 @@ void mock.module("@xterm/addon-fit", () => ({ FitAddon: MockFitAddon }));
 void mock.module("@xterm/addon-webgl", () => ({ WebglAddon: MockWebglAddon }));
 void mock.module("@renderer/routes/-utils/terminal-style", () => ({ readTerminalStyle: () => ({}) }));
 
-window.bankaiTerminal = {
-	open: async () => "session-1",
-	resume: async () => "session-1",
-	write() {},
-	resize() {},
-	close() {},
-	onData: () => () => {},
-	onExit: () => () => {},
-	onCommandError: () => () => {},
-};
+let attached: TerminalAttached = { sessionId: "session-1" };
 
-window.bankaiActivity = {
-	watch: async () => ({
-		state: null,
-		shells: {},
-		worktreeByShellId: {},
-		traceByShellId: {},
-		traceSinceByShellId: {},
-		statusSinceByShellId: {},
-	}),
-	unwatch() {},
-	onChanged: () => () => {},
-	markViewed() {},
-};
+streamTransport.handle("terminal", "open", () => attached);
+streamTransport.handle("terminal", "resume", () => attached);
 
 Object.defineProperty(document, "fonts", { value: { ready: Promise.resolve() }, configurable: true });
 
@@ -112,8 +107,10 @@ async function startSession() {
 		onResumeOutcome: () => {},
 		onFirstOutput: () => {},
 	});
-	await new Promise((resolve) => setTimeout(resolve, 0));
-	await new Promise((resolve) => setTimeout(resolve, 0));
+
+	for (let tick = 0; tick < 4; tick++) {
+		await new Promise((resolve) => setTimeout(resolve, 0));
+	}
 
 	return session;
 }
@@ -127,8 +124,20 @@ function lastWebgl() {
 	return addon;
 }
 
+function lastTerminal() {
+	const terminal = terminals.at(-1);
+	if (!terminal) {
+		throw new Error("no terminal was created");
+	}
+
+	return terminal;
+}
+
 afterEach(() => {
 	webglInstances.length = 0;
+	terminals.length = 0;
+	streamTransport.reset();
+	attached = { sessionId: "session-1" };
 	document.body.replaceChildren();
 });
 
@@ -195,6 +204,45 @@ test("context loss disposes the lost context and the shell rebuilds on next acti
 
 	expect(webglInstances).toHaveLength(2);
 	expect(lastWebgl().disposed).toBe(false);
+
+	session.dispose();
+});
+
+test("attaching to a live shell clears the screen before replaying its scrollback", async () => {
+	attached = { sessionId: "session-1", replay: "earlier output" };
+
+	const session = await startSession();
+
+	expect(lastTerminal().resets).toBe(1);
+	expect(lastTerminal().writes).toEqual(["earlier output"]);
+
+	session.dispose();
+});
+
+test("opening a shell with nothing to replay leaves the screen untouched", async () => {
+	const session = await startSession();
+
+	expect(lastTerminal().resets).toBe(0);
+	expect(lastTerminal().writes).toEqual([]);
+
+	session.dispose();
+});
+
+test("unmounting detaches the connection and leaves the process running", async () => {
+	const session = await startSession();
+
+	session.dispose();
+
+	expect(streamTransport.payloads("terminal", "detach")).toEqual([{ sessionId: "session-1" }]);
+	expect(streamTransport.payloads("terminal", "close")).toEqual([]);
+});
+
+test("retrying a failed resume closes the shell it replaces", async () => {
+	const session = await startSession();
+
+	session.retryResume();
+
+	expect(streamTransport.payloads("terminal", "close")).toEqual([{ sessionId: "session-1" }]);
 
 	session.dispose();
 });

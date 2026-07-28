@@ -1,8 +1,8 @@
 import { createServer, type Server } from "node:http";
 import { describe, expect, it } from "bun:test";
-import { authorizeRequest } from "@main/server/auth";
+import { authorizeRequest, authorizeUpgrade } from "@main/server/auth";
 import { listenLoopback } from "@main/server/listen";
-import { SERVER_HOST, SERVER_TOKEN_BYTES } from "@shared/server";
+import { SERVER_HOST, SERVER_STREAM_PATH, SERVER_TOKEN_BYTES } from "@shared/server";
 
 const token = "a".repeat(SERVER_TOKEN_BYTES * 2);
 
@@ -25,6 +25,24 @@ describe("server authorization", () => {
 
 	it("rejects a scheme other than bearer", () => {
 		expect(authorizeRequest(token, token)).toBe(false);
+	});
+});
+
+describe("stream upgrade authorization", () => {
+	it("accepts the stream path carrying the token", () => {
+		expect(authorizeUpgrade(`${SERVER_STREAM_PATH}?token=${token}`, token)).toBe(true);
+	});
+
+	it("rejects the stream path with no token", () => {
+		expect(authorizeUpgrade(SERVER_STREAM_PATH, token)).toBe(false);
+	});
+
+	it("rejects the stream path with a wrong token", () => {
+		expect(authorizeUpgrade(`${SERVER_STREAM_PATH}?token=${"b".repeat(token.length)}`, token)).toBe(false);
+	});
+
+	it("rejects an upgrade aimed at any other path", () => {
+		expect(authorizeUpgrade(`/rpc?token=${token}`, token)).toBe(false);
 	});
 });
 

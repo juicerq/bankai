@@ -2,6 +2,7 @@ import { keepPreviousData, type QueryClient, useQueries, useQuery, useQueryClien
 import { useMemo, useRef, useSyncExternalStore } from "react";
 import type { FileChange, FullFile, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/contracts";
 import { orpc } from "@renderer/lib/api";
+import { reviewStream } from "@renderer/lib/stream/review";
 
 const PENDING = { status: "pending" } as const;
 
@@ -218,17 +219,17 @@ class ReviewQueryObserver {
 		const generation = ++this.generation;
 		let watching = false;
 		this.state = PENDING;
-		const stopListening = window.bankaiReview.onChanged((event) => {
+		const stopListening = reviewStream.onChanged((event) => {
 			if (event.projectId === this.watched.projectId) {
 				this.refresh().catch((err) => console.error("Failed to refresh review changes", err));
 			}
 		});
 
-		window.bankaiReview.watch(this.watched)
+		reviewStream.watch(this.watched)
 			.then(async () => {
 				watching = true;
 				if (generation !== this.generation) {
-					window.bankaiReview.unwatch(this.watched);
+					reviewStream.unwatch(this.watched);
 					return;
 				}
 
@@ -254,7 +255,7 @@ class ReviewQueryObserver {
 			this.state = PENDING;
 			stopListening();
 			if (watching) {
-				window.bankaiReview.unwatch(this.watched);
+				reviewStream.unwatch(this.watched);
 			}
 		};
 	};

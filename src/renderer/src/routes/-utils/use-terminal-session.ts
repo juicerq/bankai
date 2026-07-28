@@ -2,9 +2,11 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { type IDisposable, type ITerminalOptions, Terminal } from "@xterm/xterm";
 import { useCallback, useRef } from "react";
+import { activityStream } from "@renderer/lib/stream/activity";
+import { terminalStream } from "@renderer/lib/stream/terminal";
 import type { ResumeOutcome } from "@renderer/routes/-utils/resume-state";
 import { readTerminalStyle } from "@renderer/routes/-utils/terminal-style";
-import type { TerminalCommandErrorEvent } from "@shared/terminal";
+import type { TerminalAttached, TerminalCommandErrorEvent } from "@shared/terminal";
 import { throttle } from "@shared/throttle";
 
 const TERMINAL_OPTIONS = {
@@ -151,30 +153,24 @@ export class RendererTerminalSession {
 		this.resumeAttempt = options.resume;
 		this.terminal.loadAddon(this.fit);
 		this.terminal.open(container);
-		this.removeDataListener = window.bankaiTerminal.onData((event) => {
-			if (event.sessionId !== this.sessionId) {
-				return;
-			}
-
-			this.terminal.write(event.data);
-			if (!this.painted) {
-				this.painted = true;
-				this.options.onFirstOutput();
+		this.removeDataListener = terminalStream.onData((event) => {
+			if (event.sessionId === this.sessionId) {
+				this.paint(event.data);
 			}
 		});
-		this.removeExitListener = window.bankaiTerminal.onExit((event) => {
+		this.removeExitListener = terminalStream.onExit((event) => {
 			if (event.sessionId === this.sessionId) {
 				this.terminal.write(`\r\n\u001B[90m[process exited ${event.exitCode}]\u001B[0m\r\n`);
 			}
 		});
-		this.removeCommandErrorListener = window.bankaiTerminal.onCommandError((event) => {
+		this.removeCommandErrorListener = terminalStream.onCommandError((event) => {
 			if (event.sessionId === this.sessionId) {
 				this.fail(TERMINAL_COMMAND_FAILURES[event.command], event.error);
 			}
 		});
 		this.input = this.terminal.onData((data) => {
 			if (this.sessionId) {
-				window.bankaiTerminal.write(this.sessionId, data);
+				terminalStream.write(this.sessionId, data);
 			}
 		});
 		this.resizeProcess = throttle(() => this.syncProcessDimensions(), TERMINAL_RESIZE_THROTTLE_MS);
@@ -190,7 +186,7 @@ export class RendererTerminalSession {
 
 		this.lifecycle += 1;
 		if (this.sessionId) {
-			window.bankaiTerminal.close(this.sessionId);
+			terminalStream.close(this.sessionId);
 			this.sessionId = undefined;
 		}
 		this.resumeAttempt = true;
@@ -253,7 +249,7 @@ export class RendererTerminalSession {
 		this.removeExitListener();
 		this.removeCommandErrorListener();
 		if (this.sessionId) {
-			window.bankaiTerminal.close(this.sessionId);
+			terminalStream.detach(this.sessionId);
 		}
 		this.disposeWebgl();
 		this.terminal.dispose();
@@ -276,13 +272,17 @@ export class RendererTerminalSession {
 		}
 		this.lastCols = this.terminal.cols;
 		this.lastRows = this.terminal.rows;
-		const sessionId = await this.spawn();
+		const { sessionId, replay } = await this.spawn();
 		if (this.lifecycle !== openingLifecycle) {
-			window.bankaiTerminal.close(sessionId);
+			terminalStream.detach(sessionId);
 			return;
 		}
 
 		this.sessionId = sessionId;
+		if (replay) {
+			this.terminal.reset();
+			this.paint(replay);
+		}
 		this.syncProcessDimensions();
 		if (this.active) {
 			this.terminal.focus();
@@ -290,30 +290,38 @@ export class RendererTerminalSession {
 		}
 	}
 
-	private async spawn(): Promise<string> {
+	private async spawn(): Promise<TerminalAttached> {
 		const { projectId, shellId } = this.options;
 		if (this.resumeAttempt) {
 			this.resumeAttempt = false;
 			try {
-				const sessionId = await window.bankaiTerminal.resume(
+				const attached = await terminalStream.resume(
 					projectId,
 					shellId,
 					this.terminal.cols,
 					this.terminal.rows,
 				);
 				this.options.onResumeOutcome({ kind: "resumed" });
-				return sessionId;
+				return attached;
 			} catch (err) {
 				this.options.onResumeOutcome({ kind: "failed", reason: err instanceof Error ? err.message : String(err) });
 			}
 		}
 
-		return window.bankaiTerminal.open(projectId, shellId, this.terminal.cols, this.terminal.rows);
+		return await terminalStream.open(projectId, shellId, this.terminal.cols, this.terminal.rows);
+	}
+
+	private paint(data: string) {
+		this.terminal.write(data);
+		if (!this.painted) {
+			this.painted = true;
+			this.options.onFirstOutput();
+		}
 	}
 
 	private reportViewed() {
 		if (this.active && this.sessionId) {
-			window.bankaiActivity.markViewed(this.sessionId);
+			activityStream.markViewed(this.sessionId);
 		}
 	}
 
@@ -339,7 +347,7 @@ export class RendererTerminalSession {
 		if (this.sessionId && (this.terminal.cols !== this.lastCols || this.terminal.rows !== this.lastRows)) {
 			this.lastCols = this.terminal.cols;
 			this.lastRows = this.terminal.rows;
-			window.bankaiTerminal.resize(this.sessionId, this.terminal.cols, this.terminal.rows);
+			terminalStream.resize(this.sessionId, this.terminal.cols, this.terminal.rows);
 		}
 	}
 

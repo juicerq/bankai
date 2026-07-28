@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { type WebContents } from "electron";
-import { type IPty, spawn } from "node-pty";
+import { spawn } from "node-pty";
 import { AgentActivity } from "@main/activity/AgentActivity";
 import { harnessResume } from "@main/activity/harnesses";
 import { Logger } from "@main/logger";
@@ -11,61 +10,29 @@ import { shellArgs } from "@main/terminal/commandLine";
 import { terminalEnv } from "@main/terminal/env";
 import { SHELL } from "@main/terminal/shell";
 import { forgetShellOutput, noteShellOutput } from "@main/terminal/ShellOutputLines";
+import { type ShellAttachment, shellProcesses, type ShellRef } from "@main/terminal/ShellProcesses";
 import { forgetShellTitle, noteShellTitle } from "@main/terminal/ShellTitles";
-import { TerminalDataBuffer } from "@main/terminal/TerminalDataBuffer";
-import type { TerminalEvent, TerminalExitEvent } from "@shared/terminal";
+import type { TerminalAttached } from "@shared/terminal";
 
-interface Session {
-	ownerId: number;
-	projectId: string;
-	shellId: string;
-	pty: IPty;
-	output: TerminalDataBuffer;
-}
-
-export interface TerminalSessionInfo {
-	sessionId: string;
-	projectId: string;
-	shellId: string;
-	pid: number;
-}
-
-interface SpawnInput {
-	projectId: string;
-	shellId: string;
-	cwd: string;
+interface OpenInput extends ShellRef {
 	cols: number;
 	rows: number;
+}
+
+interface SpawnInput extends OpenInput {
+	cwd: string;
 	launch?: string;
 }
 
-const sessions = new Map<string, Session>();
-const ownerGenerations = new Map<number, number>();
-
 export const TerminalSessions = {
-	open: async (
-		owner: WebContents,
-		input: { projectId: string; shellId: string; cols: number; rows: number },
-	): Promise<string> => {
-		const generation = ownerGenerations.get(owner.id) || 0;
+	open: async (attachment: ShellAttachment, input: OpenInput): Promise<TerminalAttached> => {
 		const [project, shell] = await Promise.all([Projects.find(input.projectId), Continuity.findShell(input)]);
 		const launch = shell?.plain ? undefined : await autostartCommandLine();
 
-		return spawnSession(owner, generation, {
-			projectId: input.projectId,
-			shellId: input.shellId,
-			cwd: project.path,
-			cols: input.cols,
-			rows: input.rows,
-			launch,
-		});
+		return spawnOrAttach(attachment, { ...input, cwd: project.path, launch });
 	},
-	resume: async (
-		owner: WebContents,
-		input: { projectId: string; shellId: string; cols: number; rows: number },
-	): Promise<string> => {
-		const generation = ownerGenerations.get(owner.id) || 0;
-		const shell = await Continuity.findShell({ projectId: input.projectId, shellId: input.shellId });
+	resume: async (attachment: ShellAttachment, input: OpenInput): Promise<TerminalAttached> => {
+		const shell = await Continuity.findShell(input);
 		const session = shell?.session;
 		if (!session) {
 			throw new Error("No resumable agent session for this shell");
@@ -81,60 +48,18 @@ export const TerminalSessions = {
 			throw new Error(`Invalid session ref for harness "${session.harness}"`);
 		}
 
-		return spawnSession(owner, generation, {
-			projectId: input.projectId,
-			shellId: input.shellId,
+		return spawnOrAttach(attachment, {
+			...input,
 			cwd: session.cwd,
-			cols: input.cols,
-			rows: input.rows,
 			launch: await harnessCommandLine(command, session.harness),
 		});
 	},
-	write: (ownerId: number, sessionId: string, data: string) => {
-		ownedSession(ownerId, sessionId)?.pty.write(data);
-	},
-	resize: (ownerId: number, sessionId: string, cols: number, rows: number) => {
-		ownedSession(ownerId, sessionId)?.pty.resize(cols, rows);
-	},
-	close: (ownerId: number, sessionId: string) => {
-		const session = ownedSession(ownerId, sessionId);
-		if (!session) {
-			return;
-		}
-		session.output.flush();
-		sessions.delete(sessionId);
-		session.pty.kill();
-	},
-	list: (): TerminalSessionInfo[] => {
-		const infos: TerminalSessionInfo[] = [];
-		for (const [sessionId, session] of sessions) {
-			infos.push({ sessionId, projectId: session.projectId, shellId: session.shellId, pid: session.pty.pid });
-		}
-		return infos;
-	},
-	closeOwner: (ownerId: number) => {
-		ownerGenerations.set(ownerId, (ownerGenerations.get(ownerId) || 0) + 1);
-		for (const [sessionId, session] of sessions) {
-			if (session.ownerId === ownerId) {
-				session.output.flush();
-				sessions.delete(sessionId);
-				try {
-					session.pty.kill();
-				} catch (err) {
-					Logger.error("terminal:owner-close-failed", {
-						ownerId,
-						sessionId,
-						err: String(err),
-					});
-				}
-			}
-		}
-	},
 };
 
-function spawnSession(owner: WebContents, generation: number, input: SpawnInput): string {
-	if (owner.isDestroyed() || (ownerGenerations.get(owner.id) || 0) !== generation) {
-		throw new Error("Terminal owner is no longer available");
+function spawnOrAttach(attachment: ShellAttachment, input: SpawnInput): TerminalAttached {
+	const running = shellProcesses.find(input);
+	if (running) {
+		return attached(running, shellProcesses.attach(running, attachment));
 	}
 
 	const sessionId = randomUUID();
@@ -145,61 +70,44 @@ function spawnSession(owner: WebContents, generation: number, input: SpawnInput)
 		cwd: input.cwd,
 		env: terminalEnv(process.env),
 	});
-	const output = new TerminalDataBuffer((data) => {
-		sendTerminalEvent(owner, "terminal:data", { sessionId, data });
-	});
-	sessions.set(sessionId, {
-		ownerId: owner.id,
+
+	shellProcesses.register({
+		sessionId,
 		projectId: input.projectId,
 		shellId: input.shellId,
-		pty: terminal,
-		output,
+		process: {
+			pid: terminal.pid,
+			write: (data) => terminal.write(data),
+			resize: (cols, rows) => terminal.resize(cols, rows),
+			kill: () => terminal.kill(),
+		},
 	});
+	const replay = shellProcesses.attach(sessionId, attachment);
 
 	terminal.onData((data) => {
 		AgentActivity.noteData(sessionId, data);
 		noteShellTitle(input.shellId, data);
 		noteShellOutput(input.shellId, data);
-		output.append(data);
+		shellProcesses.noteData(sessionId, data);
 	});
 	terminal.onExit(({ exitCode }) => {
-		output.dispose();
-		const spontaneous = sessions.delete(sessionId);
 		forgetShellTitle(input.shellId);
 		forgetShellOutput(input.shellId);
-		if (spontaneous) {
+
+		if (shellProcesses.noteExit(sessionId, exitCode)) {
 			Continuity.clearShellSession({ projectId: input.projectId, shellId: input.shellId }).catch((err) =>
 				Logger.error("terminal:exit-clear-session-failed", { sessionId, err: String(err) }),
 			);
 		}
-		sendTerminalEvent(owner, "terminal:exit", { sessionId, exitCode });
 	});
 
-	return sessionId;
+	return attached(sessionId, replay);
 }
 
-function ownedSession(ownerId: number, sessionId: string): Session | undefined {
-	const session = sessions.get(sessionId);
-
-	if (session?.ownerId === ownerId) {
-		return session;
+function attached(sessionId: string, replay: string): TerminalAttached {
+	if (!replay) {
+		return { sessionId };
 	}
 
-	return undefined;
+	return { sessionId, replay };
 }
-
-function sendTerminalEvent(
-	owner: WebContents,
-	channel: "terminal:data" | "terminal:exit",
-	payload: TerminalEvent | TerminalExitEvent,
-): void {
-	if (owner.isDestroyed()) {
-		return;
-	}
-	try {
-		owner.send(channel, payload);
-	} catch (err) {
-		Logger.error(`${channel}-send-failed`, { ownerId: owner.id, err: String(err) });
-	}
-}
-

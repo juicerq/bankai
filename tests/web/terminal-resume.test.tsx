@@ -1,4 +1,5 @@
 import "./register-dom";
+import { streamTransport } from "./stream-transport";
 import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { get, query, slot } from "./dom";
 import { act, cleanup, fireEvent, render, waitFor } from "./testing-library";
@@ -19,6 +20,7 @@ class MockTerminal {
 	open() {}
 	focus() {}
 	write() {}
+	reset() {}
 	onData() {
 		return { dispose() {} };
 	}
@@ -33,51 +35,21 @@ void mock.module("@renderer/routes/-utils/terminal-style", () => ({ readTerminal
 let resumeOutcomes: ("resolve" | "reject")[] = [];
 let openCalls = 0;
 let resumeCalls = 0;
-let dataListeners: ((event: { sessionId: string; data: string }) => void)[] = [];
-let closedSessions: string[] = [];
 
-window.bankaiTerminal = {
-	open: async () => {
-		openCalls += 1;
-		return `open-${openCalls}`;
-	},
-	resume: async () => {
-		resumeCalls += 1;
-		if (resumeOutcomes.shift() === "reject") {
-			throw new Error("resume failed");
-		}
+streamTransport.handle("terminal", "open", () => {
+	openCalls += 1;
 
-		return `resume-${resumeCalls}`;
-	},
-	write() {},
-	resize() {},
-	close(sessionId) {
-		closedSessions.push(sessionId);
-	},
-	onData: (listener) => {
-		dataListeners.push(listener);
+	return { sessionId: `open-${openCalls}` };
+});
 
-		return () => {
-			dataListeners = dataListeners.filter((entry) => entry !== listener);
-		};
-	},
-	onExit: () => () => {},
-	onCommandError: () => () => {},
-};
+streamTransport.handle("terminal", "resume", () => {
+	resumeCalls += 1;
+	if (resumeOutcomes.shift() === "reject") {
+		throw new Error("resume failed");
+	}
 
-window.bankaiActivity = {
-	watch: async () => ({
-		state: null,
-		shells: {},
-		worktreeByShellId: {},
-		traceByShellId: {},
-		traceSinceByShellId: {},
-		statusSinceByShellId: {},
-	}),
-	unwatch() {},
-	onChanged: () => () => {},
-	markViewed() {},
-};
+	return { sessionId: `resume-${resumeCalls}` };
+});
 
 Object.defineProperty(document, "fonts", { value: { ready: Promise.resolve() }, configurable: true });
 
@@ -132,8 +104,7 @@ beforeEach(() => {
 	resumeOutcomes = [];
 	openCalls = 0;
 	resumeCalls = 0;
-	dataListeners = [];
-	closedSessions = [];
+	streamTransport.reset();
 });
 
 afterEach(() => {
@@ -194,9 +165,7 @@ test("a resuming shell is marked until the agent paints its first line", async (
 	expect(query("resuming-mark")).not.toBeNull();
 
 	await act(async () => {
-		for (const listener of dataListeners) {
-			listener({ sessionId: "resume-1", data: "welcome back" });
-		}
+		streamTransport.push("terminal", "data", { sessionId: "resume-1", data: "welcome back" });
 	});
 
 	expect(query("resuming-mark")).toBeNull();
@@ -212,7 +181,7 @@ test("a shell opening fresh is never marked as resuming", async () => {
 	expect(query("resuming-mark")).toBeNull();
 });
 
-test("unmounting the pane closes the shell it opened, which is what hibernating relies on", async () => {
+test("unmounting the pane detaches without killing the shell it opened", async () => {
 	const { unmount } = renderPane(false);
 
 	await waitFor(() => {
@@ -221,5 +190,6 @@ test("unmounting the pane closes the shell it opened, which is what hibernating 
 
 	unmount();
 
-	expect(closedSessions).toEqual(["open-1"]);
+	expect(streamTransport.payloads("terminal", "detach")).toEqual([{ sessionId: "open-1" }]);
+	expect(streamTransport.payloads("terminal", "close")).toEqual([]);
 });

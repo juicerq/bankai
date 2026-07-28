@@ -7,6 +7,7 @@ import { serverReach } from "@main/server/reach";
 import { handleActivityMessage } from "@main/server/stream/activity";
 import { StreamConnection } from "@main/server/stream/connection";
 import { handleContinuityMessage } from "@main/server/stream/continuity";
+import { handleConversationMessage } from "@main/server/stream/conversation";
 import { streamEnvelopeSchema } from "@main/server/stream/messages";
 import { handleReviewMessage } from "@main/server/stream/review";
 import { detachTerminalConnection, handleTerminalMessage } from "@main/server/stream/terminal";
@@ -20,6 +21,7 @@ const CHANNEL_HANDLERS: Record<
 	activity: handleActivityMessage,
 	review: handleReviewMessage,
 	continuity: handleContinuityMessage,
+	conversation: handleConversationMessage,
 	system: () => {
 		throw new Error("The system channel only carries server announcements");
 	},

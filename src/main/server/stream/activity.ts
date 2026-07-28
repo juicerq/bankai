@@ -50,6 +50,10 @@ export function handleActivityMessage(connection: StreamConnection, message: Str
 			AgentActivity.markViewed(ActivitySchemas.viewed.assert(message.payload).sessionId);
 
 			return undefined;
+		case "viewed-shell":
+			AgentActivity.markShellViewed(ActivitySchemas.viewedShell.assert(message.payload).shellId);
+
+			return undefined;
 		default:
 			throw new Error(`Unknown activity message "${message.type}"`);
 	}

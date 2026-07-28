@@ -37,9 +37,13 @@ const userRecordSchema = type({
 
 const textBlockSchema = type({ type: "'text'", text: "string" });
 
+export function noisyText(trimmed: string): boolean {
+	return NOISE_PREFIXES.some((prefix) => trimmed.startsWith(prefix));
+}
+
 function intent(text: string, limit: number): string | null {
 	const trimmed = text.trim();
-	if (!trimmed || NOISE_PREFIXES.some((prefix) => trimmed.startsWith(prefix))) {
+	if (!trimmed || noisyText(trimmed)) {
 		return null;
 	}
 

@@ -576,6 +576,15 @@ class AgentActivityTracker {
 		};
 	}
 
+	markShellViewed(shellId: string): void {
+		const owned = shellProcesses.list().find((shell) => shell.shellId === shellId);
+		if (!owned) {
+			return;
+		}
+
+		this.markViewed(owned.sessionId);
+	}
+
 	markViewed(sessionId: string): void {
 		this.viewed = sessionId;
 		if (this.shellStates.get(sessionId) !== "done-unseen") {

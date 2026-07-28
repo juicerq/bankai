@@ -1,4 +1,4 @@
-export const STREAM_CHANNELS = ["terminal", "activity", "review", "continuity", "system"] as const;
+export const STREAM_CHANNELS = ["terminal", "activity", "review", "continuity", "conversation", "system"] as const;
 
 export type StreamChannel = (typeof STREAM_CHANNELS)[number];
 

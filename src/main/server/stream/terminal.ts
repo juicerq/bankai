@@ -1,6 +1,7 @@
 import { Logger } from "@main/logger";
 import type { StreamConnection } from "@main/server/stream/connection";
 import { TerminalSchemas } from "@main/server/stream/messages";
+import { bracketedPaste, TERMINAL_KEY_BYTES } from "@main/terminal/input";
 import type { ShellAttachment } from "@main/terminal/ShellProcesses";
 import { shellProcesses } from "@main/terminal/ShellProcesses";
 import { TerminalSessions } from "@main/terminal/TerminalSessions";
@@ -49,6 +50,20 @@ export async function handleTerminalMessage(
 
 			return undefined;
 		}
+		case "prompt": {
+			const input = TerminalSchemas.prompt.assert(message.payload);
+			const sessionId = liveSession(input);
+			shellProcesses.write(sessionId, bracketedPaste(input.text));
+			shellProcesses.write(sessionId, "\r");
+
+			return undefined;
+		}
+		case "key": {
+			const input = TerminalSchemas.key.assert(message.payload);
+			shellProcesses.write(liveSession(input), TERMINAL_KEY_BYTES[input.key]);
+
+			return undefined;
+		}
 		default:
 			throw new Error(`Unknown terminal message "${message.type}"`);
 	}
@@ -56,6 +71,15 @@ export async function handleTerminalMessage(
 
 export function detachTerminalConnection(connection: StreamConnection): void {
 	shellProcesses.detachConnection(connection.id);
+}
+
+function liveSession(address: { projectId: string; shellId: string }): string {
+	const sessionId = shellProcesses.find(address);
+	if (!sessionId) {
+		throw new Error("This session is no longer running");
+	}
+
+	return sessionId;
 }
 
 function attachmentOf(connection: StreamConnection): ShellAttachment {

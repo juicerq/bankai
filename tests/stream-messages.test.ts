@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	ConversationSchemas,
 	streamEnvelopeSchema,
 	TERMINAL_WRITE_MAX_LENGTH,
 	TerminalSchemas,
@@ -26,7 +27,14 @@ describe("the envelope every client message arrives in", () => {
 	});
 
 	test("a channel nobody serves is refused", () => {
-		expect(() => streamEnvelopeSchema.assert({ channel: "conversation", type: "subscribe" })).toThrow();
+		expect(() => streamEnvelopeSchema.assert({ channel: "diagnostics", type: "subscribe" })).toThrow();
+	});
+
+	test("the conversation channel is now one of the served ones", () => {
+		expect(streamEnvelopeSchema.assert({ channel: "conversation", type: "subscribe" })).toEqual({
+			channel: "conversation",
+			type: "subscribe",
+		});
 	});
 });
 
@@ -51,5 +59,30 @@ describe("what a client may ask the terminal to do", () => {
 
 	test("detaching only needs the session it is letting go of", () => {
 		expect(TerminalSchemas.session.assert({ sessionId: "s1" })).toEqual({ sessionId: "s1" });
+	});
+
+	test("a prompt is addressed to a shell, not to a terminal the phone never opened", () => {
+		expect(TerminalSchemas.prompt.assert({ projectId: "p1", shellId: "s1", text: "duas\nlinhas" })).toEqual({
+			projectId: "p1",
+			shellId: "s1",
+			text: "duas\nlinhas",
+		});
+		expect(() => TerminalSchemas.prompt.assert({ shellId: "s1", text: "oi" })).toThrow();
+	});
+
+	test("only a key the main process knows how to translate is accepted", () => {
+		expect(TerminalSchemas.key.assert({ projectId: "p1", shellId: "s1", key: "escape" })).toEqual({
+			projectId: "p1",
+			shellId: "s1",
+			key: "escape",
+		});
+		expect(() => TerminalSchemas.key.assert({ projectId: "p1", shellId: "s1", key: "f13" })).toThrow();
+	});
+});
+
+describe("what a client may ask a conversation for", () => {
+	test("a subscription names the shell whose transcript it wants", () => {
+		expect(ConversationSchemas.shell.assert({ shellId: "s1" })).toEqual({ shellId: "s1" });
+		expect(() => ConversationSchemas.shell.assert({})).toThrow();
 	});
 });

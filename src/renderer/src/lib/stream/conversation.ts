@@ -1,0 +1,9 @@
+import { streamSocket } from "@renderer/lib/stream/socket";
+import type { BankaiConversationApi, ConversationSnapshot } from "@shared/conversation";
+
+export const conversationStream: BankaiConversationApi = {
+	subscribe: (shellId) => streamSocket.request<ConversationSnapshot>("conversation", "subscribe", { shellId }),
+	unsubscribe: (shellId) => streamSocket.send("conversation", "unsubscribe", { shellId }),
+	onAppended: (listener) => streamSocket.on("conversation", "appended", listener),
+	onReset: (listener) => streamSocket.on("conversation", "reset", listener),
+};

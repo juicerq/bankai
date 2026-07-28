@@ -1,0 +1,176 @@
+import { describe, expect, it } from "bun:test";
+import { CONVERSATION_LINE_LIMIT, ConversationParser } from "@main/activity/claudeConversation";
+import type { ConversationBlock } from "@shared/conversation";
+
+function userRecord(content: unknown, extra: Record<string, unknown> = {}): string {
+	return JSON.stringify({ type: "user", uuid: "u1", message: { content }, ...extra });
+}
+
+function assistantRecord(messageId: string, content: unknown[], uuid = "a1"): string {
+	return JSON.stringify({ type: "assistant", uuid, message: { id: messageId, content } });
+}
+
+function parse(lines: string[]): { blocks: ConversationBlock[]; title: string | undefined } {
+	const parser = new ConversationParser();
+	const blocks = lines.flatMap((line) => parser.consume(line));
+
+	return { blocks, title: parser.title };
+}
+
+describe("what the phone reads out of a user record", () => {
+	it("takes a plain message as the prompt the user typed", () => {
+		expect(parse([userRecord("adiciona retry no upload")]).blocks).toEqual([
+			{ kind: "user", id: "u1", text: "adiciona retry no upload" },
+		]);
+	});
+
+	it("joins the text blocks of a block list and keeps the line breaks", () => {
+		expect(
+			parse([userRecord([{ type: "text", text: "primeiro isso" }, { type: "text", text: "depois aquilo" }])]).blocks,
+		).toEqual([{ kind: "user", id: "u1", text: "primeiro isso\ndepois aquilo" }]);
+	});
+
+	it("stands an image in for its payload instead of carrying it", () => {
+		const content = [
+			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo" } },
+			{ type: "text", text: "olha esse erro" },
+		];
+
+		expect(parse([userRecord(content)]).blocks).toEqual([
+			{ kind: "user", id: "u1", text: "[image]\nolha esse erro" },
+		]);
+	});
+
+	it("drops the noise blocks and keeps what the human wrote beside them", () => {
+		const content = [
+			{ type: "text", text: "roda os testes" },
+			{ type: "text", text: "<system-reminder>remember the rules</system-reminder>" },
+		];
+
+		expect(parse([userRecord(content)]).blocks).toEqual([{ kind: "user", id: "u1", text: "roda os testes" }]);
+	});
+
+	it("says nothing when the record is meta or pure noise", () => {
+		expect(parse([userRecord("qualquer coisa", { isMeta: true })]).blocks).toEqual([]);
+		expect(parse([userRecord("<command-name>/review</command-name>")]).blocks).toEqual([]);
+	});
+
+	it("marks an interruption instead of printing its sentence", () => {
+		expect(parse([userRecord("[Request interrupted by user]")]).blocks).toEqual([
+			{ kind: "interrupted", id: "u1" },
+		]);
+	});
+
+	it("marks a continuation summary as a compaction", () => {
+		expect(parse([userRecord("This session is being continued", { isCompactSummary: true })]).blocks).toEqual([
+			{ kind: "compacted", id: "u1" },
+		]);
+	});
+});
+
+describe("what the phone reads out of an assistant record", () => {
+	it("grows one message from the chunks that share its id", () => {
+		const blocks = parse([
+			assistantRecord("msg_1", [{ type: "text", text: "Vou olhar o upload." }], "a1"),
+			assistantRecord("msg_1", [{ type: "text", text: "Sem retry nenhum." }], "a2"),
+		]).blocks;
+
+		expect(blocks).toEqual([
+			{ kind: "agent", id: "msg_1", text: "Vou olhar o upload." },
+			{ kind: "agent", id: "msg_1", text: "Vou olhar o upload.\nSem retry nenhum." },
+		]);
+	});
+
+	it("ignores thinking, which is not part of phase one", () => {
+		expect(parse([assistantRecord("msg_1", [{ type: "thinking", thinking: "hmm" }])]).blocks).toEqual([]);
+	});
+
+	it("labels a tool call the way the desktop trace labels it", () => {
+		expect(
+			parse([
+				assistantRecord("msg_1", [
+					{ type: "tool_use", id: "toolu_1", name: "Read", input: { file_path: "/app/src/upload.ts" } },
+				]),
+			]).blocks,
+		).toEqual([{ kind: "tool", id: "toolu_1", label: "Reading upload.ts", state: "running" }]);
+	});
+
+	it("leaves a tool without an answer running", () => {
+		expect(
+			parse([assistantRecord("msg_1", [{ type: "tool_use", id: "toolu_1", name: "Bash", input: {} }])]).blocks,
+		).toEqual([{ kind: "tool", id: "toolu_1", label: "Running commands", state: "running" }]);
+	});
+});
+
+describe("how a tool call is answered", () => {
+	const call = assistantRecord("msg_1", [
+		{ type: "tool_use", id: "toolu_1", name: "Bash", input: { description: "Rodar os testes" } },
+	]);
+
+	it("settles the row it belongs to instead of printing its output", () => {
+		const blocks = parse([call, userRecord([{ type: "tool_result", tool_use_id: "toolu_1", content: "ok" }])]).blocks;
+
+		expect(blocks.at(-1)).toEqual({ kind: "tool", id: "toolu_1", label: "Rodar os testes", state: "done" });
+		expect(blocks).toHaveLength(2);
+	});
+
+	it("paints the row as failed when the tool errored", () => {
+		const answer = userRecord([{ type: "tool_result", tool_use_id: "toolu_1", is_error: true, content: "boom" }]);
+
+		expect(parse([call, answer]).blocks.at(-1)).toEqual({
+			kind: "tool",
+			id: "toolu_1",
+			label: "Rodar os testes",
+			state: "failed",
+		});
+	});
+
+	it("ignores an answer whose call was cut off by the backfill", () => {
+		expect(parse([userRecord([{ type: "tool_result", tool_use_id: "toolu_lost", content: "ok" }])]).blocks).toEqual([]);
+	});
+});
+
+describe("the records that are not conversation", () => {
+	it("turns a compaction boundary into one divider", () => {
+		const boundary = JSON.stringify({ type: "system", subtype: "compact_boundary", uuid: "s1", content: "x" });
+
+		expect(parse([boundary]).blocks).toEqual([{ kind: "compacted", id: "s1" }]);
+	});
+
+	it("keeps the latest title the session was given", () => {
+		const lines = [
+			JSON.stringify({ type: "ai-title", aiTitle: "Retry no upload", sessionId: "x" }),
+			JSON.stringify({ type: "custom-title", customTitle: "upload-retry", sessionId: "x" }),
+		];
+
+		expect(parse(lines)).toEqual({ blocks: [], title: "upload-retry" });
+	});
+
+	it("skips a line it cannot read at all", () => {
+		expect(parse(["", "not json", JSON.stringify({ type: "mode", mode: "plan" })]).blocks).toEqual([]);
+	});
+});
+
+describe("a line too big to hold in memory", () => {
+	it("parses the record after dropping the inline image payload", () => {
+		const heavy = JSON.stringify({
+			type: "user",
+			uuid: "u1",
+			message: {
+				content: [
+					{ type: "image", source: { type: "base64", data: "A".repeat(CONVERSATION_LINE_LIMIT) } },
+					{ type: "text", text: "esse print" },
+				],
+			},
+		});
+
+		expect(heavy.length).toBeGreaterThan(CONVERSATION_LINE_LIMIT);
+		expect(parse([heavy]).blocks).toEqual([{ kind: "user", id: "u1", text: "[image]\nesse print" }]);
+	});
+
+	it("skips a line that stays oversized once the payloads are gone", () => {
+		const heavy = userRecord("x".repeat(CONVERSATION_LINE_LIMIT + 1));
+
+		expect(parse([heavy]).blocks).toEqual([]);
+	});
+});

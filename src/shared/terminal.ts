@@ -1,3 +1,5 @@
+import type { TerminalKey } from "@main/terminal/input";
+
 interface TerminalEvent {
 	sessionId: string;
 	data: string;
@@ -30,6 +32,8 @@ export interface BankaiTerminalApi {
 	resize: (sessionId: string, cols: number, rows: number) => void;
 	close: (sessionId: string) => void;
 	detach: (sessionId: string) => void;
+	prompt: (projectId: string, shellId: string, text: string) => Promise<void>;
+	key: (projectId: string, shellId: string, key: TerminalKey) => Promise<void>;
 	onData: (listener: (event: TerminalEvent) => void) => () => void;
 	onExit: (listener: (event: TerminalExitEvent) => void) => () => void;
 	onCommandError: (listener: (event: TerminalCommandErrorEvent) => void) => () => void;

@@ -167,6 +167,7 @@ function Bankai() {
 				traces: activity.traces,
 				traceSince: activity.traceSince,
 				statusSince: activity.statusSince,
+				attention: activity.attention,
 			}),
 		[
 			sessions.continuity,
@@ -175,6 +176,7 @@ function Bankai() {
 			activity.traces,
 			activity.traceSince,
 			activity.statusSince,
+			activity.attention,
 		],
 	);
 	const chosen = useChosenProjects();

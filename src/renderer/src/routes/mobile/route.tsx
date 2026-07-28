@@ -25,6 +25,7 @@ function MobileSurface() {
 				traces: activity.traces,
 				traceSince: activity.traceSince,
 				statusSince: activity.statusSince,
+				attention: activity.attention,
 			}),
 		[
 			sessions.continuity,
@@ -33,6 +34,7 @@ function MobileSurface() {
 			activity.traces,
 			activity.traceSince,
 			activity.statusSince,
+			activity.attention,
 		],
 	);
 	const surface = useMemo(

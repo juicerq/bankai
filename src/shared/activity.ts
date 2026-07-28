@@ -16,12 +16,19 @@ export function aggregateActivity(states: AgentActivityState[]): AgentActivitySt
 	return null;
 }
 
+export interface ShellAttention {
+	message: string;
+	at: number;
+	detail?: string;
+}
+
 export interface ProjectActivitySnapshot {
 	shells: Record<string, AgentActivityState>;
 	worktreeByShellId: Record<string, string>;
 	traceByShellId: Record<string, string>;
 	traceSinceByShellId: Record<string, number>;
 	statusSinceByShellId: Record<string, number>;
+	attentionByShellId: Record<string, ShellAttention>;
 }
 
 export interface ActivityChangedEvent extends ProjectActivitySnapshot {

@@ -35,6 +35,7 @@ import {
 	type AgentActivityState,
 	DEFAULT_LIVE_TRACE,
 	type ProjectActivitySnapshot,
+	type ShellAttention,
 } from "@shared/activity";
 import { throttle } from "@shared/throttle";
 
@@ -97,6 +98,23 @@ export function clockSince(input: {
 	}
 
 	return input.held ?? input.reported;
+}
+
+export const ATTENTION_SKEW_MS = 2000;
+
+export function freshAttention(input: {
+	attention: ShellAttention | undefined;
+	bound: BoundStatus | undefined;
+	statusSince: number | undefined;
+}): ShellAttention | undefined {
+	if (!input.attention || input.bound !== "waiting") {
+		return undefined;
+	}
+	if (input.statusSince !== undefined && input.attention.at < input.statusSince - ATTENTION_SKEW_MS) {
+		return undefined;
+	}
+
+	return input.attention;
 }
 
 const NO_RECORD = "";
@@ -346,12 +364,14 @@ export function snapshotsByProject({
 	worktrees,
 	traces,
 	statusSince,
+	attention,
 }: {
 	shellStates: Map<string, AgentActivityState>;
 	owners: Map<string, ShellOwner>;
 	worktrees: Map<string, string>;
 	traces: ReadonlyMap<string, ShellTrace>;
 	statusSince: ReadonlyMap<string, number>;
+	attention: ReadonlyMap<string, ShellAttention>;
 }): Map<string, ProjectActivitySnapshot> {
 	const projectIds = new Set<string>();
 	const shellsByProject = new Map<string, Record<string, AgentActivityState>>();
@@ -386,6 +406,7 @@ export function snapshotsByProject({
 		const traceByShellId: Record<string, string> = {};
 		const traceSinceByShellId: Record<string, number> = {};
 		const statusSinceByShellId: Record<string, number> = {};
+		const attentionByShellId: Record<string, ShellAttention> = {};
 		for (const shellId of Object.keys(shells)) {
 			const trace = traces.get(shellId);
 			if (trace) {
@@ -399,6 +420,11 @@ export function snapshotsByProject({
 			if (since) {
 				statusSinceByShellId[shellId] = since;
 			}
+
+			const waiting = attention.get(shellId);
+			if (waiting) {
+				attentionByShellId[shellId] = waiting;
+			}
 		}
 
 		snapshots.set(projectId, {
@@ -407,6 +433,7 @@ export function snapshotsByProject({
 			traceByShellId,
 			traceSinceByShellId,
 			statusSinceByShellId,
+			attentionByShellId,
 		});
 	}
 
@@ -416,13 +443,28 @@ export function snapshotsByProject({
 function sameRecord<T>(
 	before: Record<string, T>,
 	after: Record<string, T>,
+	same: (left: T | undefined, right: T | undefined) => boolean = (
+		left,
+		right,
+	) => left === right,
 ): boolean {
 	const keys = Object.keys(before);
 	if (keys.length !== Object.keys(after).length) {
 		return false;
 	}
 
-	return keys.every((key) => before[key] === after[key]);
+	return keys.every((key) => same(before[key], after[key]));
+}
+
+function sameAttention(
+	before: ShellAttention | undefined,
+	after: ShellAttention | undefined,
+): boolean {
+	return (
+		before?.message === after?.message &&
+		before?.at === after?.at &&
+		before?.detail === after?.detail
+	);
 }
 
 function sameSnapshot(
@@ -453,6 +495,15 @@ function sameSnapshot(
 	) {
 		return false;
 	}
+	if (
+		!sameRecord(
+			before?.attentionByShellId ?? {},
+			after?.attentionByShellId ?? {},
+			sameAttention,
+		)
+	) {
+		return false;
+	}
 
 	return sameRecord(before?.traceByShellId ?? {}, after?.traceByShellId ?? {});
 }
@@ -464,6 +515,7 @@ function emptySnapshot(): ProjectActivitySnapshot {
 		traceByShellId: {},
 		traceSinceByShellId: {},
 		statusSinceByShellId: {},
+		attentionByShellId: {},
 	};
 }
 
@@ -482,6 +534,7 @@ class AgentActivityTracker {
 	private harnessTraces = new Map<string, HarnessTrace>();
 	private traces = new Map<string, ShellTrace>();
 	private waitingFor = new Map<string, string>();
+	private attention = new Map<string, ShellAttention>();
 	private statusSince = new Map<string, number>();
 	private publishedNames = new Map<string, string>();
 	private agentCwds = new Map<string, string>();
@@ -599,6 +652,7 @@ class AgentActivityTracker {
 			worktrees: this.shellWorktrees,
 			harnessTraces: this.harnessTraces,
 			waitingFor: this.waitingFor,
+			attention: this.attention,
 			statusSince: this.statusSince,
 			publishedNames: this.publishedNames,
 		});
@@ -641,6 +695,7 @@ class AgentActivityTracker {
 				worktrees: new Map(),
 				harnessTraces: new Map(),
 				waitingFor: new Map(),
+				attention: new Map(),
 				statusSince: new Map(),
 				publishedNames: new Map(),
 			});
@@ -674,6 +729,7 @@ class AgentActivityTracker {
 
 		const nextStates = new Map<string, AgentActivityState>();
 		const waitingFor = new Map<string, string>();
+		const attention = new Map<string, ShellAttention>();
 		const statusSince = new Map<string, number>();
 		const publishedNames = new Map<string, string>();
 		const bound = new Map<string, BoundStatus>();
@@ -713,6 +769,15 @@ class AgentActivityTracker {
 			if (since) {
 				statusSince.set(shell.shellId, since);
 			}
+
+			const asking = freshAttention({
+				attention: readings.get(shell.shellId)?.attention,
+				bound: status,
+				statusSince: since,
+			});
+			if (asking) {
+				attention.set(shell.shellId, asking);
+			}
 		}
 
 		if (pass === "full") {
@@ -729,6 +794,7 @@ class AgentActivityTracker {
 			worktrees,
 			harnessTraces,
 			waitingFor,
+			attention,
 			statusSince,
 			publishedNames,
 		});
@@ -909,6 +975,7 @@ class AgentActivityTracker {
 		worktrees,
 		harnessTraces,
 		waitingFor,
+		attention,
 		statusSince,
 		publishedNames,
 	}: {
@@ -917,6 +984,7 @@ class AgentActivityTracker {
 		worktrees: Map<string, string>;
 		harnessTraces: Map<string, HarnessTrace>;
 		waitingFor: Map<string, string>;
+		attention: Map<string, ShellAttention>;
 		statusSince: Map<string, number>;
 		publishedNames: Map<string, string>;
 	}): void {
@@ -946,12 +1014,14 @@ class AgentActivityTracker {
 			worktrees,
 			traces: visible,
 			statusSince,
+			attention,
 		});
 		this.shellStates = shellStates;
 		this.shellWorktrees = worktrees;
 		this.harnessTraces = harnessTraces;
 		this.traces = traces;
 		this.waitingFor = waitingFor;
+		this.attention = attention;
 		this.statusSince = statusSince;
 		this.publishedNames = publishedNames;
 		this.projectSnapshots = nextSnapshots;

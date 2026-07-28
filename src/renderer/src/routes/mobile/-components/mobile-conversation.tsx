@@ -1,7 +1,9 @@
 import { ChevronLeftIcon } from "@heroicons/react/24/outline";
+import type { TerminalKey } from "@main/terminal/input";
 import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
 import { ACTIVITY_DOT_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import { MobileAttention } from "@renderer/routes/mobile/-components/mobile-attention";
 import { MobileComposer } from "@renderer/routes/mobile/-components/mobile-composer";
 import { MobileConversationBlock } from "@renderer/routes/mobile/-components/mobile-conversation-block";
 import type { ConversationView } from "@renderer/routes/mobile/-utils/use-conversation";
@@ -13,14 +15,14 @@ export function MobileConversation({
 	conversation,
 	onBack,
 	onSend,
-	onStop,
+	onKey,
 }: {
 	shellId: string;
 	row: SessionRow | undefined;
 	conversation: ConversationView;
 	onBack: () => void;
 	onSend: (text: string) => Promise<void>;
-	onStop: () => Promise<void>;
+	onKey: (key: TerminalKey) => Promise<void>;
 }) {
 	const scroll = useStickToBottom();
 
@@ -49,7 +51,13 @@ export function MobileConversation({
 				)}
 				<div key={conversation.blocks.length} ref={scroll.anchorRef} aria-hidden="true" />
 			</div>
-			<MobileComposer working={row?.activity === "working"} live={!!row?.harness} onSend={onSend} onStop={onStop} />
+			{row?.activity === "needs-attention" && <MobileAttention row={row} onKey={onKey} />}
+			<MobileComposer
+				working={row?.activity === "working"}
+				live={!!row?.harness}
+				onSend={onSend}
+				onStop={() => onKey("escape")}
+			/>
 		</div>
 	);
 }

@@ -29,12 +29,12 @@ function MobileConversationRoute() {
 
 				await terminalStream.prompt(row.projectId, shellId, text);
 			}}
-			onStop={async () => {
+			onKey={async (key) => {
 				if (!row) {
 					throw new Error("This session is no longer open");
 				}
 
-				await terminalStream.key(row.projectId, shellId, "escape");
+				await terminalStream.key(row.projectId, shellId, key);
 			}}
 		/>
 	);

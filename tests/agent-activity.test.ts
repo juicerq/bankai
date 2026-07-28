@@ -3,7 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import {
+	ATTENTION_SKEW_MS,
 	clockSince,
+	freshAttention,
 	nextCompactionAnchor,
 	nextShellActivity,
 	nextShellWorktrees,
@@ -271,6 +273,7 @@ describe("project snapshots", () => {
 			worktrees: new Map(),
 			traces: new Map(),
 			statusSince: new Map(),
+			attention: new Map(),
 		});
 
 		expect(snapshots.get("p1")).toEqual({
@@ -279,6 +282,7 @@ describe("project snapshots", () => {
 			traceByShellId: {},
 			traceSinceByShellId: {},
 			statusSinceByShellId: {},
+			attentionByShellId: {},
 		});
 	});
 
@@ -289,6 +293,7 @@ describe("project snapshots", () => {
 			worktrees: new Map(),
 			traces: new Map(),
 			statusSince: new Map(),
+			attention: new Map(),
 		});
 
 		expect([...snapshots.keys()].sort()).toEqual(["p1", "p2"]);
@@ -298,6 +303,7 @@ describe("project snapshots", () => {
 			traceByShellId: {},
 			traceSinceByShellId: {},
 			statusSinceByShellId: {},
+			attentionByShellId: {},
 		});
 	});
 
@@ -308,6 +314,7 @@ describe("project snapshots", () => {
 			worktrees: new Map(),
 			traces: new Map(),
 			statusSince: new Map(),
+			attention: new Map(),
 		});
 
 		expect(snapshots.size).toBe(1);
@@ -321,6 +328,7 @@ describe("project snapshots", () => {
 			worktrees: new Map([["shell-a", "/tmp/repo-slug"]]),
 			traces: new Map(),
 			statusSince: new Map(),
+			attention: new Map(),
 		});
 
 		expect(snapshots.get("p1")).toEqual({
@@ -329,6 +337,7 @@ describe("project snapshots", () => {
 			traceByShellId: {},
 			traceSinceByShellId: {},
 			statusSinceByShellId: {},
+			attentionByShellId: {},
 		});
 	});
 
@@ -339,6 +348,7 @@ describe("project snapshots", () => {
 			worktrees: new Map(),
 			traces: new Map(),
 			statusSince: new Map(),
+			attention: new Map(),
 		});
 
 		expect(snapshots.get("p1")?.shells["shell-b"]).toBeUndefined();
@@ -351,6 +361,7 @@ describe("project snapshots", () => {
 			worktrees: new Map([["shell-c", "/tmp/repo-slug"]]),
 			traces: new Map(),
 			statusSince: new Map(),
+			attention: new Map(),
 		});
 
 		expect(snapshots.get("p2")).toEqual({
@@ -359,6 +370,7 @@ describe("project snapshots", () => {
 			traceByShellId: {},
 			traceSinceByShellId: {},
 			statusSinceByShellId: {},
+			attentionByShellId: {},
 		});
 	});
 
@@ -372,6 +384,7 @@ describe("project snapshots", () => {
 				["shell-b", { label: "vite ready in 412 ms" }],
 			]),
 			statusSince: new Map(),
+			attention: new Map(),
 		});
 
 		expect(snapshots.get("p1")?.traceByShellId).toEqual({ "shell-a": "Running bun run check" });
@@ -387,6 +400,7 @@ describe("project snapshots", () => {
 				["shell-b", { label: "Thinking", since: 1784901169072 }],
 			]),
 			statusSince: new Map(),
+			attention: new Map(),
 		});
 
 		expect(snapshots.get("p1")?.traceSinceByShellId).toEqual({ "shell-a": 1784901075701 });
@@ -399,13 +413,14 @@ describe("project snapshots", () => {
 			worktrees: new Map(),
 			traces: new Map(),
 			statusSince: new Map([["shell-a", 1784901075701], ["shell-b", 1784901169072]]),
+			attention: new Map(),
 		});
 
 		expect(snapshots.get("p1")?.statusSinceByShellId).toEqual({ "shell-a": 1784901075701 });
 	});
 
 	test("no bound shells means no snapshots at all", () => {
-		expect(snapshotsByProject({ shellStates: new Map(), owners, worktrees: new Map(), traces: new Map(), statusSince: new Map() }).size).toBe(0);
+		expect(snapshotsByProject({ shellStates: new Map(), owners, worktrees: new Map(), traces: new Map(), statusSince: new Map(), attention: new Map() }).size).toBe(0);
 	});
 });
 
@@ -842,5 +857,35 @@ describe("how long the card has held its state", () => {
 
 	test("a harness with no clock leaves the card without one", () => {
 		expect(clockSince({ previous: undefined, next: "working", held: undefined, reported: undefined })).toBeUndefined();
+	});
+});
+
+describe("labelling the wait the phone is looking at", () => {
+	const WAIT_STARTED = 1784901075701;
+	const ASKING = { message: "Claude needs your permission to use Bash", at: WAIT_STARTED + 40 };
+
+	test("a notification from this wait labels it", () => {
+		expect(freshAttention({ attention: ASKING, bound: "waiting", statusSince: WAIT_STARTED })).toEqual(ASKING);
+	});
+
+	test("a notification left over from an earlier wait is not offered", () => {
+		const stale = { ...ASKING, at: WAIT_STARTED - ATTENTION_SKEW_MS - 1 };
+
+		expect(freshAttention({ attention: stale, bound: "waiting", statusSince: WAIT_STARTED })).toBeUndefined();
+	});
+
+	test("a hook that ran just before the registry moved still counts as this wait", () => {
+		const early = { ...ASKING, at: WAIT_STARTED - ATTENTION_SKEW_MS + 1 };
+
+		expect(freshAttention({ attention: early, bound: "waiting", statusSince: WAIT_STARTED })).toEqual(early);
+	});
+
+	test("an agent that is not waiting has nothing to ask", () => {
+		expect(freshAttention({ attention: ASKING, bound: "working", statusSince: WAIT_STARTED })).toBeUndefined();
+		expect(freshAttention({ attention: undefined, bound: "waiting", statusSince: WAIT_STARTED })).toBeUndefined();
+	});
+
+	test("a wait with no clock trusts the notification it has", () => {
+		expect(freshAttention({ attention: ASKING, bound: "waiting", statusSince: undefined })).toEqual(ASKING);
 	});
 });

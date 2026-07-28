@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
+import type { TerminalKey } from "@main/terminal/input";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { MobileConversation } from "@renderer/routes/mobile/-components/mobile-conversation";
 import type { ConversationView } from "@renderer/routes/mobile/-utils/use-conversation";
@@ -24,6 +25,7 @@ function row(patch: Partial<SessionRow> = {}): SessionRow {
 		activity: undefined,
 		trace: undefined,
 		traceSince: undefined,
+		attention: undefined,
 		...patch,
 	};
 }
@@ -37,7 +39,7 @@ function renderConversation(
 		row?: SessionRow | undefined;
 		conversation?: ConversationView;
 		onSend?: (text: string) => Promise<void>;
-		onStop?: () => Promise<void>;
+		onKey?: (key: TerminalKey) => Promise<void>;
 		onBack?: () => void;
 	} = {},
 ) {
@@ -48,7 +50,7 @@ function renderConversation(
 			conversation={options.conversation ?? view([])}
 			onBack={options.onBack ?? (() => {})}
 			onSend={options.onSend ?? (async () => {})}
-			onStop={options.onStop ?? (async () => {})}
+			onKey={options.onKey ?? (async () => {})}
 		/>,
 	);
 }
@@ -194,13 +196,13 @@ test("a working agent is offered a stop, and typing turns it back into a send", 
 	expect(query("mobile-composer")?.textContent).not.toContain("Stop");
 });
 
-test("stopping interrupts the turn", async () => {
-	let stops = 0;
-	renderConversation({ row: row({ activity: "working" }), onStop: async () => void stops++ });
+test("stopping interrupts the turn with the escape byte", async () => {
+	const pressed: TerminalKey[] = [];
+	renderConversation({ row: row({ activity: "working" }), onKey: async (key) => void pressed.push(key) });
 
 	fireEvent.click(slot(composer(), "stop"));
 
-	await waitFor(() => expect(stops).toBe(1));
+	await waitFor(() => expect(pressed).toEqual(["escape"]));
 });
 
 test("a shell whose agent ended sends the user back to the desktop", () => {

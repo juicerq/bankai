@@ -49,6 +49,13 @@ describe("hook settings", () => {
 		expect(hookedSchema.assert(next).hooks?.PreToolUse?.[0]).toEqual(USER_HOOK);
 	});
 
+	test("subscribes to the notification that says a dialog opened, with no matcher of its own", () => {
+		const next = installedSettings({}, "/data/bankai-trace.sh");
+		const installed = type({ hooks: { Notification: "unknown[]" } }).assert(next);
+
+		expect(installed.hooks.Notification).toEqual([{ hooks: [{ type: "command", command: "/data/bankai-trace.sh" }] }]);
+	});
+
 	test("installing twice leaves exactly one entry per event", () => {
 		const once = installedSettings({}, "/data/bankai-trace.sh");
 		const twice = installedSettings(once, "/other/bankai-trace.sh");

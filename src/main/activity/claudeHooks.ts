@@ -1,6 +1,6 @@
 export const HOOK_SCRIPT_NAME = "bankai-trace.sh";
 
-export const HOOK_EVENTS = ["UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"];
+export const HOOK_EVENTS = ["UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop", "Notification"];
 
 const MATCHED_EVENTS = new Set(["PreToolUse", "PostToolUse"]);
 

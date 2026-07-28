@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { watch } from "node:fs";
 import { appendFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
-import { spoolEvent, spoolTrace } from "@main/activity/claudeHookTrace";
+import { readSpool, spoolEvent, spoolReading } from "@main/activity/claudeHookTrace";
 import { SPOOL_SEPARATOR } from "@main/activity/claudeHooks";
 import { fresherReading } from "@main/activity/claudeTraceSource";
 import { recordTrace } from "@main/activity/claudeTrace";
@@ -80,13 +80,68 @@ describe("reading the spool of a session", () => {
 			'1784901075999 {"session_id":"0199',
 		]);
 
-		expect((await spoolTrace({ sessionId: SESSION }))?.trace?.label).toBe("Reading a.ts");
+		expect((await readSpool({ sessionId: SESSION })).event?.trace?.label).toBe("Reading a.ts");
 	});
 
 	test("is not an error for a session that never wrote one", async () => {
 		mkdirSync(hookSpoolDir(), { recursive: true });
 
-		expect(await spoolTrace({ sessionId: "never-ran" })).toBeNull();
+		expect(await readSpool({ sessionId: "never-ran" })).toEqual({ event: null, attention: null });
+	});
+});
+
+describe("what the agent is asking for", () => {
+	const NOTIFICATION = {
+		hook_event_name: "Notification",
+		message: "Claude needs your permission to use Bash",
+	};
+
+	test("the notification labels the wait and the tool it opened on details it", () => {
+		const reading = spoolReading([
+			record(1784901075000, { hook_event_name: "UserPromptSubmit" }),
+			record(1784901075500, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "rm -rf out" } }),
+			record(1784901075701, NOTIFICATION),
+		].join(""));
+
+		expect(reading.attention).toEqual({
+			message: "Claude needs your permission to use Bash",
+			at: 1784901075701,
+			detail: "rm -rf out",
+		});
+	});
+
+	test("a tool that already finished does not describe the open dialog", () => {
+		const reading = spoolReading([
+			record(1784901075500, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "ls" } }),
+			record(1784901075600, { hook_event_name: "PostToolUse", tool_name: "Bash" }),
+			record(1784901075701, NOTIFICATION),
+		].join(""));
+
+		expect(reading.attention).toEqual({ message: NOTIFICATION.message, at: 1784901075701 });
+	});
+
+	test("the freshest notification wins over the one before it", () => {
+		const reading = spoolReading([
+			record(1784901075000, { hook_event_name: "Notification", message: "Claude is waiting for your input" }),
+			record(1784901075701, NOTIFICATION),
+		].join(""));
+
+		expect(reading.attention?.message).toBe(NOTIFICATION.message);
+	});
+
+	test("a spool with no notification leaves the card unlabelled", () => {
+		const reading = spoolReading(record(1784901075701, { hook_event_name: "PreToolUse", tool_name: "Bash" }));
+
+		expect(reading.attention).toBeNull();
+	});
+
+	test("a notification never becomes the trace of what the agent is doing", () => {
+		const reading = spoolReading([
+			record(1784901075000, { hook_event_name: "PreToolUse", tool_name: "Bash" }),
+			record(1784901075701, NOTIFICATION),
+		].join(""));
+
+		expect(reading.event?.trace?.label).toBe("Running commands");
 	});
 });
 
@@ -96,22 +151,28 @@ describe("choosing between the event and the transcript", () => {
 	test("the event wins while it is the fresher of the two", () => {
 		const event = { at: 1784901075701, trace: { label: "Reading a.ts", recordId: "toolu_1", since: 1784901075701 } };
 
-		expect(fresherReading(event, transcript)).toEqual({ trace: event.trace });
+		expect(fresherReading({ event, attention: null }, transcript)).toEqual({ trace: event.trace });
 	});
 
 	test("a stale spool loses to the transcript", () => {
 		const event = { at: 1784900000000, trace: { label: "Thinking", recordId: "x", since: 1784900000000 } };
 
-		expect(fresherReading(event, transcript)).toEqual({ trace: transcript });
+		expect(fresherReading({ event, attention: null }, transcript)).toEqual({ trace: transcript });
 	});
 
 	test("a session with no spool keeps the transcript", () => {
-		expect(fresherReading(null, transcript)).toEqual({ trace: transcript });
+		expect(fresherReading({ event: null, attention: null }, transcript)).toEqual({ trace: transcript });
 	});
 
 	test("the end of a turn silences the trace and dates the end", () => {
-		expect(fresherReading({ at: 1784901075701, trace: null }, transcript))
+		expect(fresherReading({ event: { at: 1784901075701, trace: null }, attention: null }, transcript))
 			.toEqual({ trace: null, endedAt: 1784901075701 });
+	});
+
+	test("what the agent is asking rides beside whichever trace won", () => {
+		const attention = { message: "Claude needs your permission to use Bash", at: 1784901075701 };
+
+		expect(fresherReading({ event: null, attention }, transcript)).toEqual({ trace: transcript, attention });
 	});
 });
 

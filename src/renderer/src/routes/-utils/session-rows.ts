@@ -1,5 +1,5 @@
 import type { ContinuityValue } from "@main/store/continuity";
-import type { AgentActivityState } from "@shared/activity";
+import type { AgentActivityState, ShellAttention } from "@shared/activity";
 import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity";
 
 export interface SessionRow {
@@ -15,6 +15,7 @@ export interface SessionRow {
 	activity: AgentActivityState | undefined;
 	trace: string | undefined;
 	traceSince: number | undefined;
+	attention: ShellAttention | undefined;
 }
 
 export function sessionTrace(
@@ -56,6 +57,7 @@ export function sessionRows(input: {
 	traces: ReadonlyMap<string, string>;
 	traceSince: ReadonlyMap<string, number>;
 	statusSince: ReadonlyMap<string, number>;
+	attention: ReadonlyMap<string, ShellAttention>;
 }): SessionRow[] {
 	const rows: SessionRow[] = [];
 
@@ -85,6 +87,7 @@ export function sessionRows(input: {
 					traceSince: input.traceSince.get(shell.id),
 					statusSince: input.statusSince.get(shell.id),
 				}),
+				attention: input.attention.get(shell.id),
 			});
 		}
 	}

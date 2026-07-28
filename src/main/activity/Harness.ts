@@ -1,3 +1,5 @@
+import type { ShellAttention } from "@shared/activity";
+
 export interface AgentPresence {
 	harness: string;
 	sessionId: string;
@@ -24,6 +26,7 @@ export interface HarnessTrace {
 export interface HarnessReading {
 	trace: HarnessTrace | null;
 	endedAt?: number;
+	attention?: ShellAttention;
 }
 
 export interface Harness {

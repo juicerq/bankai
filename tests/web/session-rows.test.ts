@@ -29,6 +29,7 @@ function rowsOf(
 		traces: new Map(Object.entries(traces)),
 		traceSince: new Map(),
 		statusSince: new Map(),
+		attention: new Map(),
 	});
 }
 
@@ -206,6 +207,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		activity: undefined,
 		trace: undefined,
 		traceSince: undefined,
+		attention: undefined,
 		...patch,
 	};
 }

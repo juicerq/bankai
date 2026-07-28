@@ -62,10 +62,29 @@ test("sessions sharing a state keep the order they arrived in", () => {
 	expect(order(rows)).toEqual(["first", "second", "third"]);
 });
 
-test("filed sessions stay off the phone", () => {
-	const rows = [row("open"), row("filed", { archivedAt: NOW })];
+test("filed sessions leave the list for the shelf, freshest first", () => {
+	const rows = [row("open"), row("filed", { archivedAt: NOW - 1000 }), row("filed-later", { archivedAt: NOW })];
+	const list = mobileSessionList({
+		rows,
+		projects: NO_PROJECT_LIST,
+		chosenProjectIds: NO_PROJECTS,
+		now: NOW,
+	});
 
-	expect(order(rows)).toEqual(["open"]);
+	expect(list.sessions.map((entry) => entry.shellId)).toEqual(["open"]);
+	expect(list.archived.map((entry) => entry.shellId)).toEqual(["filed-later", "filed"]);
+});
+
+test("chosen projects narrow the shelf as they narrow the list", () => {
+	const rows = [row("a", { projectId: "p1", archivedAt: NOW }), row("b", { projectId: "p2", archivedAt: NOW })];
+	const list = mobileSessionList({
+		rows,
+		projects: NO_PROJECT_LIST,
+		chosenProjectIds: new Set(["p2"]),
+		now: NOW,
+	});
+
+	expect(list.archived.map((entry) => entry.shellId)).toEqual(["b"]);
 });
 
 test("chosen projects narrow the list and accumulate", () => {

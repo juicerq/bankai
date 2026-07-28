@@ -1,6 +1,7 @@
 import type { Project } from "@main/store/projects";
 import type { AgentActivityState } from "@shared/activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import { MobileArchivedShelf } from "@renderer/routes/mobile/-components/mobile-archived-shelf";
 import { MobileNewShell } from "@renderer/routes/mobile/-components/mobile-new-shell";
 import { MobileProjectStrip } from "@renderer/routes/mobile/-components/mobile-project-strip";
 import { MobilePushBanner } from "@renderer/routes/mobile/-components/mobile-push-banner";
@@ -8,6 +9,7 @@ import { MobileSessionCard } from "@renderer/routes/mobile/-components/mobile-se
 
 export function MobileSessionList({
 	sessions,
+	archived,
 	projects,
 	projectActivity,
 	chosenProjectIds,
@@ -16,6 +18,7 @@ export function MobileSessionList({
 	onCreate,
 }: {
 	sessions: SessionRow[];
+	archived: SessionRow[];
 	projects: Project[];
 	projectActivity: ReadonlyMap<string, AgentActivityState>;
 	chosenProjectIds: ReadonlySet<string>;
@@ -49,6 +52,7 @@ export function MobileSessionList({
 						</p>
 					)
 					: sessions.map((row) => <MobileSessionCard key={row.shellId} row={row} onOpen={onOpen} />)}
+				<MobileArchivedShelf archived={archived} onOpen={onOpen} />
 			</div>
 		</div>
 	);

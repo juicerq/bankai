@@ -35,6 +35,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 function renderList(
 	sessions: SessionRow[],
 	options: {
+		archived?: SessionRow[];
 		projects?: Project[];
 		projectActivity?: ReadonlyMap<string, AgentActivityState>;
 		chosenProjectIds?: ReadonlySet<string>;
@@ -46,6 +47,7 @@ function renderList(
 	return render(
 		<MobileSessionList
 			sessions={sessions}
+			archived={options.archived ?? []}
 			projects={options.projects ?? [BANKAI, GHOSTAPI]}
 			projectActivity={options.projectActivity ?? new Map()}
 			chosenProjectIds={options.chosenProjectIds ?? new Set()}
@@ -179,4 +181,37 @@ test("an empty list says so instead of showing a bare screen", () => {
 
 	expect(slot(get("mobile-session-list"), "empty").textContent).toContain("No open sessions");
 	expect(cards()).toHaveLength(0);
+});
+
+test("archived sessions wait behind a shelf that counts them", () => {
+	renderList([row("s1")], { archived: [row("old1"), row("old2")] });
+
+	const shelf = get("mobile-archived-shelf");
+
+	expect(slot(shelf, "toggle").textContent).toContain("ARCHIVED");
+	expect(slot(shelf, "toggle").textContent).toContain("2");
+	expect(shelf.querySelectorAll('[data-component="mobile-archived-row"]')).toHaveLength(0);
+
+	fireEvent.click(slot(shelf, "toggle"));
+
+	expect(
+		[...get("mobile-archived-shelf").querySelectorAll<HTMLElement>('[data-component="mobile-archived-row"]')]
+			.map((entry) => entry.dataset.shellId),
+	).toEqual(["old1", "old2"]);
+});
+
+test("tapping an archived session opens it like any other", () => {
+	const opened: string[] = [];
+	renderList([], { archived: [row("old1")], onOpen: (shellId) => opened.push(shellId) });
+
+	fireEvent.click(slot(get("mobile-archived-shelf"), "toggle"));
+	fireEvent.click(get("mobile-archived-row", { shellId: "old1" }));
+
+	expect(opened).toEqual(["old1"]);
+});
+
+test("with nothing archived the shelf stays out of the way", () => {
+	renderList([row("s1")]);
+
+	expect(query("mobile-archived-shelf")).toBeNull();
 });

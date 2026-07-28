@@ -30,16 +30,16 @@ export function mobileSessionList({
 	now: number;
 }): {
 	sessions: SessionRow[];
+	archived: SessionRow[];
 	projects: Project[];
 	projectActivity: ReadonlyMap<string, AgentActivityState>;
 } {
-	const { open } = partitionSessions(rows, now);
-	const narrowed = chosenProjectIds.size === 0
-		? open
-		: open.filter((row) => chosenProjectIds.has(row.projectId));
+	const { open, archived } = partitionSessions(rows, now);
+	const chosen = (row: SessionRow) => chosenProjectIds.size === 0 || chosenProjectIds.has(row.projectId);
 
 	return {
-		sessions: narrowed.sort((left, right) => attentionRank(left.activity) - attentionRank(right.activity)),
+		sessions: open.filter(chosen).sort((left, right) => attentionRank(left.activity) - attentionRank(right.activity)),
+		archived: archived.filter(chosen),
 		projects: [...projects].sort((left, right) => left.name.localeCompare(right.name)),
 		projectActivity: topActivityByProject(open),
 	};

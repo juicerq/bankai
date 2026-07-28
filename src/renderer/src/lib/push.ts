@@ -44,13 +44,35 @@ async function syncPushSubscription(): Promise<void> {
 	}
 
 	const registration = await navigator.serviceWorker.ready;
+	const applicationServerKey = decodeVapidKey(await client.push.getPublicKey());
 	const existing = await registration.pushManager.getSubscription();
-	const subscription = existing ?? (await registration.pushManager.subscribe({
-		userVisibleOnly: true,
-		applicationServerKey: decodeVapidKey(await client.push.getPublicKey()),
-	}));
+	const subscription = existing && subscribedWithKey(existing, applicationServerKey)
+		? existing
+		: await resubscribe(registration.pushManager, existing, applicationServerKey);
 
 	await client.push.subscribe(readSubscription(subscription));
+}
+
+async function resubscribe(
+	pushManager: PushManager,
+	existing: PushSubscription | null,
+	applicationServerKey: Uint8Array<ArrayBuffer>,
+): Promise<PushSubscription> {
+	await existing?.unsubscribe();
+
+	return pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+}
+
+function subscribedWithKey(subscription: PushSubscription, key: Uint8Array<ArrayBuffer>): boolean {
+	const subscribed = subscription.options.applicationServerKey;
+
+	if (!subscribed) {
+		return false;
+	}
+
+	const bytes = new Uint8Array(subscribed);
+
+	return bytes.length === key.length && bytes.every((byte, index) => byte === key[index]);
 }
 
 function readSubscription(subscription: PushSubscription): {

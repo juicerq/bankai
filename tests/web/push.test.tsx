@@ -8,6 +8,8 @@ import { cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 const PUBLIC_KEY = "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U";
 
+const STALE_KEY = "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5NkshAA";
+
 const EXISTING_ENDPOINT = "https://push.example/existing";
 
 const NEW_ENDPOINT = "https://push.example/new";
@@ -19,11 +21,12 @@ let pushManager: FakePushManager;
 
 class FakePushManager {
 	readonly subscribeCalls: PushSubscriptionOptionsInit[] = [];
+	readonly unsubscribedEndpoints: string[] = [];
 	lookups = 0;
 	private subscription: unknown;
 
-	constructor(endpoint?: string) {
-		this.subscription = endpoint ? fakeSubscription(endpoint) : undefined;
+	constructor(endpoint?: string, serverKey?: string) {
+		this.subscription = endpoint ? this.fakeSubscription(endpoint, decodeVapidKey(serverKey ?? PUBLIC_KEY)) : undefined;
 	}
 
 	readonly getSubscription = async () => {
@@ -34,25 +37,33 @@ class FakePushManager {
 
 	readonly subscribe = async (options: PushSubscriptionOptionsInit) => {
 		this.subscribeCalls.push(options);
-		this.subscription = fakeSubscription(NEW_ENDPOINT);
+		this.subscription = this.fakeSubscription(NEW_ENDPOINT, options.applicationServerKey);
 
 		return this.subscription;
 	};
-}
 
-function fakeSubscription(endpoint: string) {
-	return {
-		endpoint,
-		toJSON: () => ({ endpoint, keys: { p256dh: `p256dh-${endpoint}`, auth: `auth-${endpoint}` } }),
-	};
+	private fakeSubscription(endpoint: string, applicationServerKey: unknown) {
+		return {
+			endpoint,
+			options: { applicationServerKey },
+			unsubscribe: async () => {
+				this.unsubscribedEndpoints.push(endpoint);
+				this.subscription = undefined;
+
+				return true;
+			},
+			toJSON: () => ({ endpoint, keys: { p256dh: `p256dh-${endpoint}`, auth: `auth-${endpoint}` } }),
+		};
+	}
 }
 
 function installBrowser(options: {
 	permission?: NotificationPermission | "unsupported";
 	granted?: NotificationPermission;
 	endpoint?: string;
+	serverKey?: string;
 }) {
-	pushManager = new FakePushManager(options.endpoint);
+	pushManager = new FakePushManager(options.endpoint, options.serverKey);
 
 	Object.defineProperty(navigator, "serviceWorker", {
 		configurable: true,
@@ -166,6 +177,19 @@ test("opening the app again re-syncs the subscription the phone already has", as
 	});
 	expect(transport.subscriptions[0]?.endpoint).toBe(EXISTING_ENDPOINT);
 	expect(pushManager.subscribeCalls).toEqual([]);
+});
+
+test("a subscription made under an old server key is replaced, not re-synced", async () => {
+	installBrowser({ permission: "granted", endpoint: EXISTING_ENDPOINT, serverKey: STALE_KEY });
+
+	installPushSync();
+
+	await waitFor(() => {
+		expect(transport.subscriptions).toHaveLength(1);
+	});
+	expect(transport.subscriptions[0]?.endpoint).toBe(NEW_ENDPOINT);
+	expect(pushManager.unsubscribedEndpoints).toEqual([EXISTING_ENDPOINT]);
+	expect(pushManager.subscribeCalls[0]?.applicationServerKey).toEqual(decodeVapidKey(PUBLIC_KEY));
 });
 
 test("an unpaired browser syncs nothing", async () => {

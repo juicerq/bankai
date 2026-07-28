@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
 import { Settings } from "@main/store/settings";
+import { SERVER_DEFAULT_PORT, SERVER_TOKEN_BYTES } from "@shared/server";
 import { assertDefined } from "./utils/assertions";
 
 describe("settings layout", () => {
@@ -76,5 +77,24 @@ describe("settings harness", () => {
 		const settings = await Settings.get();
 		expect(settings.layout).toEqual({ railWidth: 260 });
 		expect(settings.harness).toBeUndefined();
+	});
+});
+
+describe("settings server", () => {
+	it("generates the token once and keeps it across calls", async () => {
+		const first = await Settings.ensureServer();
+		const second = await Settings.ensureServer();
+
+		expect(first.token).toHaveLength(SERVER_TOKEN_BYTES * 2);
+		expect(second.token).toBe(first.token);
+		expect((await Settings.get()).server?.token).toBe(first.token);
+	});
+
+	it("defaults the port and honours a configured one", async () => {
+		expect((await Settings.ensureServer()).port).toBe(SERVER_DEFAULT_PORT);
+
+		await Settings.update({ server: { token: "kept", port: 5000 } });
+
+		expect(await Settings.ensureServer()).toEqual({ port: 5000, token: "kept" });
 	});
 });

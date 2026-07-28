@@ -1,6 +1,8 @@
+import { randomBytes } from "node:crypto";
 import { type } from "arktype";
 import { Store } from "@main/store/Store";
 import { DEFAULT_LIVE_TRACE, DEFAULT_SESSION_NAMING } from "@shared/activity";
+import { SERVER_DEFAULT_PORT, SERVER_TOKEN_BYTES, type ServerReach } from "@shared/server";
 
 const windowBoundsSchema = type({
 	x: "number",
@@ -38,10 +40,16 @@ export function sessionNamingEnabled(harness: HarnessSettings | undefined): bool
 	return harness?.naming ?? DEFAULT_SESSION_NAMING;
 }
 
+const serverSchema = type({
+	token: "string",
+	"port?": "number",
+});
+
 const settingsContract = type({
 	"windowBounds?": windowBoundsSchema,
 	"layout?": layoutSchema,
 	"harness?": harnessSchema,
+	"server?": serverSchema,
 });
 export type SettingsValue = typeof settingsContract.infer;
 
@@ -69,5 +77,15 @@ export const Settings = {
 	updateHarness: async (harness: HarnessSettings): Promise<HarnessSettings> => {
 		await store.mutate((current) => ({ ...current, harness }));
 		return harness;
+	},
+	ensureServer: async (): Promise<ServerReach> => {
+		const current = await store.read();
+		const server = current.server ?? { token: randomBytes(SERVER_TOKEN_BYTES).toString("hex") };
+
+		if (!current.server) {
+			await store.mutate((value) => ({ ...value, server }));
+		}
+
+		return { port: server.port ?? SERVER_DEFAULT_PORT, token: server.token };
 	},
 };

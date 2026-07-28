@@ -1,9 +1,10 @@
 import "./register-dom";
 import { os } from "@orpc/server";
-import { RPCHandler } from "@orpc/server/message-port";
+import { RPCHandler } from "@orpc/server/fetch";
 import { type } from "arktype";
 import type { ContinuityValue } from "@main/store/continuity";
 import type { HarnessSettings } from "@main/store/settings";
+import { SERVER_DEFAULT_PORT, SERVER_RPC_PREFIX } from "@shared/server";
 
 export type ReviewProcedure = "worktrees" | "snapshot" | "files" | "file" | "fullFile";
 
@@ -177,28 +178,29 @@ const router = {
 };
 
 const handler = new RPCHandler(router);
-const realPostMessage = window.postMessage.bind(window);
 
-function isMessagePort(value: Transferable | undefined): value is MessagePort {
-	return typeof value === "object" && value !== null && "start" in value && "postMessage" in value;
+const TRANSPORT_TOKEN = "transport-token";
+
+window.bankaiAuth = {
+	getToken: () => Promise.resolve({ port: SERVER_DEFAULT_PORT, token: TRANSPORT_TOKEN }),
+};
+
+const realFetch = globalThis.fetch;
+
+async function routeFetch(...args: Parameters<typeof realFetch>): Promise<Response> {
+	const request = new Request(...args);
+
+	if (!new URL(request.url).pathname.startsWith(SERVER_RPC_PREFIX)) {
+		return realFetch(...args);
+	}
+
+	if (request.headers.get("authorization") !== `Bearer ${TRANSPORT_TOKEN}`) {
+		return new Response(null, { status: 401 });
+	}
+
+	const { response } = await handler.handle(request, { prefix: SERVER_RPC_PREFIX });
+
+	return response ?? new Response(null, { status: 404 });
 }
 
-window.postMessage = (
-	message: unknown,
-	targetOrigin?: string | WindowPostMessageOptions,
-	transfer?: Transferable[],
-) => {
-	const port = transfer?.[0];
-	if (message === "start-orpc-client" && isMessagePort(port)) {
-		handler.upgrade(port);
-		port.start();
-		return;
-	}
-
-	if (typeof targetOrigin === "string") {
-		realPostMessage(message, targetOrigin, transfer);
-		return;
-	}
-
-	realPostMessage(message, targetOrigin);
-};
+globalThis.fetch = Object.assign(routeFetch, { preconnect: realFetch.preconnect });

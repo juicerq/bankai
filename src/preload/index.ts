@@ -8,19 +8,15 @@ import type {
 import { ACTIVITY_IPC, type ActivityChangedEvent, type BankaiActivityApi } from "@shared/activity";
 import { CONTINUITY_IPC, type BankaiContinuityApi, type ContinuityChangedEvent } from "@shared/continuity";
 import { REVIEW_IPC, type BankaiReviewApi, type ReviewChangedEvent } from "@shared/review";
+import { AUTH_IPC, type BankaiAuthApi } from "@shared/server";
 import { UPDATE_IPC, type BankaiUpdateApi, type UpdateDownloadedEvent } from "@shared/update";
 import type { BankaiWindowApi } from "@shared/window";
 
-window.addEventListener("message", (event) => {
-	if (event.source !== window || event.data !== "start-orpc-client") {
-		return;
-	}
-	const [port] = event.ports;
-	if (!port) {
-		return;
-	}
-	ipcRenderer.postMessage("start-orpc-server", null, [port]);
-});
+const authApi: BankaiAuthApi = {
+	getToken: () => ipcRenderer.invoke(AUTH_IPC.getToken),
+};
+
+contextBridge.exposeInMainWorld("bankaiAuth", authApi);
 
 const terminalApi: BankaiTerminalApi = {
 	open: (projectId, shellId, cols, rows) =>

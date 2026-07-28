@@ -3,15 +3,16 @@ import { setupActivityIpc } from "@main/activity/ipc";
 import { setupContinuityIpc } from "@main/continuity/ipc";
 import { GitProcess } from "@main/git/GitProcess";
 import { setupReviewIpc } from "@main/git/ipc";
-import { startOrpcServer } from "@main/ipc";
 import { Logger } from "@main/logger";
+import { startLoopbackServer } from "@main/server";
 import { markStartup, scheduleStartupReport } from "@main/startup";
 import { resolveInstanceIdentity } from "@main/store/paths";
 import { type SettingsValue, Settings } from "@main/store/settings";
 import { setupTerminalIpc } from "@main/terminal/ipc";
 import { setupUpdateIpc } from "@main/update/ipc";
 import { setupWindowIpc } from "@main/window/ipc";
-import { app, BrowserWindow, screen } from "electron";
+import { AUTH_IPC } from "@shared/server";
+import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 
 const here = import.meta.dirname;
 
@@ -122,7 +123,10 @@ async function createWindow() {
 async function start() {
 	markStartup("app-ready");
 	try {
-		startOrpcServer();
+		const reach = await startLoopbackServer();
+		ipcMain.handle(AUTH_IPC.getToken, () => reach);
+		markStartup("server-ready");
+
 		setupReviewIpc();
 		setupActivityIpc();
 		setupContinuityIpc();
@@ -133,6 +137,7 @@ async function start() {
 		await createWindow();
 	} catch (err) {
 		Logger.error("startup:failed", { err: String(err) });
+		dialog.showErrorBox("Bankai failed to start", String(err));
 		app.exit(1);
 	}
 }

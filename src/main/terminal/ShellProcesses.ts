@@ -1,12 +1,17 @@
+import { Logger } from "@main/logger";
 import { TerminalDataBuffer } from "@main/terminal/TerminalDataBuffer";
 import { TerminalRingBuffer } from "@main/terminal/TerminalRingBuffer";
 import type { TerminalStreamEvent } from "@shared/terminal";
+
+const TERMINAL_KILL_GRACE_MS = 5_000;
+
+const TERMINAL_FORCED_EXIT_CODE = 137;
 
 export interface TerminalProcess {
 	pid: number;
 	write: (data: string) => void;
 	resize: (cols: number, rows: number) => void;
-	kill: () => void;
+	kill: (signal?: string) => void;
 }
 
 export interface ShellAttachment {
@@ -30,10 +35,13 @@ interface ShellProcess extends ShellRef {
 	ring: TerminalRingBuffer;
 	attachments: Map<string, ShellAttachment>;
 	closing: boolean;
+	forceKill: ReturnType<typeof setTimeout> | undefined;
 }
 
 export class ShellProcesses {
 	private readonly sessions = new Map<string, ShellProcess>();
+
+	constructor(private readonly killGraceMs = TERMINAL_KILL_GRACE_MS) {}
 
 	register(input: ShellRef & { sessionId: string; process: TerminalProcess }): void {
 		const { sessionId } = input;
@@ -48,6 +56,7 @@ export class ShellProcesses {
 			ring: new TerminalRingBuffer(),
 			attachments: new Map(),
 			closing: false,
+			forceKill: undefined,
 		});
 	}
 
@@ -61,10 +70,10 @@ export class ShellProcesses {
 		return undefined;
 	}
 
-	attach(sessionId: string, attachment: ShellAttachment): string {
+	attach(sessionId: string, attachment: ShellAttachment): string | undefined {
 		const session = this.live(sessionId);
 		if (!session) {
-			return "";
+			return undefined;
 		}
 
 		session.output.flush();
@@ -77,12 +86,6 @@ export class ShellProcesses {
 		this.sessions.get(sessionId)?.attachments.delete(connectionId);
 	}
 
-	detachConnection(connectionId: string): void {
-		for (const session of this.sessions.values()) {
-			session.attachments.delete(connectionId);
-		}
-	}
-
 	noteData(sessionId: string, data: string): void {
 		const session = this.sessions.get(sessionId);
 		if (!session) {
@@ -93,17 +96,18 @@ export class ShellProcesses {
 		session.output.append(data);
 	}
 
-	noteExit(sessionId: string, exitCode: number): boolean {
+	noteExit(sessionId: string, exitCode: number): { spontaneous: boolean } {
 		const session = this.sessions.get(sessionId);
 		if (!session) {
-			return false;
+			return { spontaneous: false };
 		}
 
+		clearTimeout(session.forceKill);
 		session.output.dispose();
 		this.sessions.delete(sessionId);
 		this.broadcastTo(session, { type: "exit", payload: { sessionId, exitCode } });
 
-		return !session.closing;
+		return { spontaneous: !session.closing };
 	}
 
 	write(sessionId: string, data: string): void {
@@ -123,6 +127,8 @@ export class ShellProcesses {
 		session.closing = true;
 		session.output.flush();
 		session.process.kill();
+		session.forceKill = setTimeout(() => this.forceExit(sessionId), this.killGraceMs);
+		session.forceKill.unref();
 	}
 
 	closeShell(ref: ShellRef): void {
@@ -145,6 +151,17 @@ export class ShellProcesses {
 		}
 
 		return infos;
+	}
+
+	private forceExit(sessionId: string): void {
+		const session = this.sessions.get(sessionId);
+		if (!session) {
+			return;
+		}
+
+		Logger.warn("terminal:force-kill", { sessionId, pid: session.process.pid });
+		session.process.kill("SIGKILL");
+		this.noteExit(sessionId, TERMINAL_FORCED_EXIT_CODE);
 	}
 
 	private live(sessionId: string): ShellProcess | undefined {

@@ -73,7 +73,9 @@ describe("loopback listen", () => {
 		const { port } = boundAddress(taken);
 		const second = createServer();
 
-		expect(() => listenLoopback(second, port)).toThrow(`port ${port}`);
+		const failure = await listenLoopback(second, port).catch((err) => String(err));
+
+		expect(failure).toInclude(`port ${port}`);
 		expect(second.listening).toBe(false);
 
 		taken.close();

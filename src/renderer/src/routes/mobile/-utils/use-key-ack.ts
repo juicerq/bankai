@@ -1,34 +1,44 @@
 import { useRef, useState } from "react";
 import type { TerminalKey } from "@main/terminal/input";
+import { problemText } from "@renderer/routes/-utils/problem-text";
 
 export const KEY_ACK_MS = 2000;
 
-export function useKeyAck(signature: string, send: (key: TerminalKey) => Promise<void>) {
+export function useKeyAck(
+	signature: string,
+	send: (key: TerminalKey) => Promise<void>,
+	ackMs = KEY_ACK_MS,
+) {
 	const observed = useRef(signature);
+	const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const [problem, setProblem] = useState<string>();
-	const [deaf, setDeaf] = useState(false);
+	const [deafFor, setDeafFor] = useState<string>();
 
 	observed.current = signature;
 
 	const press = async (key: TerminalKey) => {
 		const before = signature;
 		setProblem(undefined);
-		setDeaf(false);
+		setDeafFor(undefined);
 
 		try {
 			await send(key);
 		} catch (err) {
-			setProblem(err instanceof Error ? err.message : String(err));
+			setProblem(problemText(err));
 
 			return;
 		}
 
-		setTimeout(() => {
+		if (pending.current) {
+			clearTimeout(pending.current);
+		}
+
+		pending.current = setTimeout(() => {
 			if (observed.current === before) {
-				setDeaf(true);
+				setDeafFor(before);
 			}
-		}, KEY_ACK_MS);
+		}, ackMs);
 	};
 
-	return { problem, deaf, press };
+	return { problem, deaf: deafFor !== undefined && deafFor === signature, press };
 }

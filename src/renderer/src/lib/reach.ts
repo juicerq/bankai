@@ -21,14 +21,20 @@ async function resolveReach(): Promise<Reach> {
 	return { origin: `http://${SERVER_HOST}:${port}`, token };
 }
 
-let current = resolveReach();
+let current: Promise<Reach> | undefined;
 
 export function reach(): Promise<Reach> {
+	current ??= resolveReach().catch((err) => {
+		current = undefined;
+
+		throw err;
+	});
+
 	return current;
 }
 
 export function refreshReach(): Promise<Reach> {
-	current = resolveReach();
+	current = undefined;
 
-	return current;
+	return reach();
 }

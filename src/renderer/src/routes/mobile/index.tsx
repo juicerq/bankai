@@ -11,20 +11,21 @@ function MobileSessions() {
 	const surface = useMobileSurface();
 	const navigate = useNavigate();
 	const createShell = useNewShell();
-	const { sessions, projectActivity } = useMemo(
+	const { sessions, projects, projectActivity } = useMemo(
 		() =>
 			mobileSessionList({
 				rows: surface.rows,
+				projects: surface.projects,
 				chosenProjectIds: surface.chosenProjectIds,
 				now: Date.now(),
 			}),
-		[surface.rows, surface.chosenProjectIds],
+		[surface.rows, surface.projects, surface.chosenProjectIds],
 	);
 
 	return (
 		<MobileSessionList
 			sessions={sessions}
-			projects={surface.projects}
+			projects={projects}
 			projectActivity={projectActivity}
 			chosenProjectIds={surface.chosenProjectIds}
 			onToggleProject={surface.onToggleProject}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { enablePushNotifications, type PushPermission, pushPermission } from "@renderer/lib/push";
+import { problemText } from "@renderer/routes/-utils/problem-text";
 
 export function MobilePushBanner() {
 	const [permission, setPermission] = useState<PushPermission>(pushPermission);
@@ -20,7 +21,7 @@ export function MobilePushBanner() {
 					try {
 						setPermission(await enablePushNotifications());
 					} catch (err) {
-						setProblem(String(err));
+						setProblem(problemText(err));
 					}
 				}}
 			>

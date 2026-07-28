@@ -8,6 +8,8 @@ const VAPID_SUBJECT = "https://github.com/juicerq/bankai-2";
 
 const PUSH_TTL_SECONDS = 600;
 
+const ENDPOINT_TAIL_CHARS = 8;
+
 export type PushDelivery = "sent" | "gone" | "failed";
 
 export type PushSender = (input: {
@@ -37,7 +39,7 @@ export const sendWebPush: PushSender = async ({ subscription, payload, vapid }) 
 		}
 
 		Logger.warn("push:send-failed", {
-			endpoint: subscription.endpoint,
+			endpoint: endpointLabel(subscription.endpoint),
 			statusCode,
 			err: String(err),
 		});
@@ -45,6 +47,10 @@ export const sendWebPush: PushSender = async ({ subscription, payload, vapid }) 
 		return "failed";
 	}
 };
+
+function endpointLabel(endpoint: string): string {
+	return `${URL.parse(endpoint)?.origin ?? "unknown"}/…${endpoint.slice(-ENDPOINT_TAIL_CHARS)}`;
+}
 
 export function vapidKeys(): Promise<VapidKeys> {
 	return Settings.ensureVapid(() => webpush.generateVAPIDKeys());

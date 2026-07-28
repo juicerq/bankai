@@ -20,7 +20,7 @@ self.addEventListener("push", (event) => {
 			icon: "/icon-192.png",
 			badge: "/icon-192.png",
 			tag: payload.data?.shellId,
-			renotify: true,
+			renotify: !!payload.data?.shellId,
 		}),
 	);
 });
@@ -34,8 +34,9 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 async function openConversation(path) {
-	const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-	const client = windows[0];
+	const windows = await self.clients.matchAll({ type: "window" });
+	const surface = windows.find((entry) => new URL(entry.url).pathname.startsWith("/mobile"));
+	const client = surface ?? windows[0];
 
 	if (!client) {
 		await self.clients.openWindow(path);
@@ -43,6 +44,13 @@ async function openConversation(path) {
 		return;
 	}
 
-	const navigated = await client.navigate(path).catch(() => client);
-	await (navigated ?? client).focus();
+	const navigated = await client.navigate(path).catch(() => {});
+
+	if (!navigated) {
+		await self.clients.openWindow(path);
+
+		return;
+	}
+
+	await navigated.focus();
 }

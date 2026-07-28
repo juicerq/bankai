@@ -3,14 +3,13 @@ import { transcriptPath } from "@main/activity/claudeTranscript";
 import { ConversationTail } from "@main/activity/conversationTail";
 import { Logger } from "@main/logger";
 import type { StreamConnection } from "@main/server/stream/connection";
+import { releaseWatch, replaceWatch } from "@main/server/stream/connectionWatches";
 import { ConversationSchemas } from "@main/server/stream/messages";
 import { Continuity, type ContinuitySessionRef, type ContinuityValue } from "@main/store/continuity";
 import type { ConversationAppendedEvent, ConversationResetEvent, ConversationSnapshot } from "@shared/conversation";
 import type { StreamEnvelope } from "@shared/stream";
 
 const EMPTY_CONVERSATION: ConversationSnapshot = { blocks: [], truncated: false };
-
-const watchesByConnection = new Map<string, Map<string, ConversationWatch>>();
 
 function shellSession(value: ContinuityValue, shellId: string): ContinuitySessionRef | undefined {
 	for (const workspace of value.workspaces) {
@@ -39,9 +38,20 @@ class ConversationWatch {
 	) {}
 
 	async start(): Promise<ConversationSnapshot> {
+		const generation = this.generation;
 		const { value } = await Continuity.load();
+
+		if (generation !== this.generation) {
+			return EMPTY_CONVERSATION;
+		}
+
 		this.session = shellSession(value, this.shellId);
-		const snapshot = await this.open(this.generation);
+		const snapshot = await this.open(generation);
+
+		if (generation !== this.generation) {
+			return EMPTY_CONVERSATION;
+		}
+
 		this.stopContinuity = Continuity.subscribe((next) => this.resolve(next));
 
 		return snapshot;
@@ -112,43 +122,20 @@ class ConversationWatch {
 
 export function handleConversationMessage(connection: StreamConnection, message: StreamEnvelope): unknown {
 	const { shellId } = ConversationSchemas.shell.assert(message.payload);
-	const watches = watchesOf(connection);
 
 	switch (message.type) {
 		case "subscribe": {
-			watches.get(shellId)?.stop();
 			const watch = new ConversationWatch(connection, shellId);
-			watches.set(shellId, watch);
+			replaceWatch({ connection, channel: "conversation", key: shellId }, () => watch.stop());
 			AgentActivity.markShellViewed(shellId);
 
 			return watch.start();
 		}
-		case "unsubscribe": {
-			watches.get(shellId)?.stop();
-			watches.delete(shellId);
+		case "unsubscribe":
+			releaseWatch({ connection, channel: "conversation", key: shellId });
 
 			return undefined;
-		}
 		default:
 			throw new Error(`Unknown conversation message "${message.type}"`);
 	}
-}
-
-function watchesOf(connection: StreamConnection): Map<string, ConversationWatch> {
-	const existing = watchesByConnection.get(connection.id);
-	if (existing) {
-		return existing;
-	}
-
-	const watches = new Map<string, ConversationWatch>();
-	watchesByConnection.set(connection.id, watches);
-	connection.onClose(() => {
-		watchesByConnection.delete(connection.id);
-		for (const watch of watches.values()) {
-			watch.stop();
-		}
-		watches.clear();
-	});
-
-	return watches;
 }

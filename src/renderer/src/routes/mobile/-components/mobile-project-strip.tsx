@@ -1,6 +1,6 @@
 import type { Project } from "@main/store/projects";
 import type { AgentActivityState } from "@shared/activity";
-import { ACTIVITY_DOT_CLASS } from "@renderer/routes/-utils/agent-activity";
+import { projectDotClass } from "@renderer/routes/-utils/agent-activity";
 
 export function MobileProjectStrip({
 	projects,
@@ -17,8 +17,6 @@ export function MobileProjectStrip({
 		return null;
 	}
 
-	const sorted = [...projects].sort((left, right) => left.name.localeCompare(right.name));
-
 	return (
 		<div
 			data-component="mobile-project-strip"
@@ -26,7 +24,7 @@ export function MobileProjectStrip({
 			aria-label="Narrow sessions to projects"
 			className="flex shrink-0 gap-2 overflow-x-auto border-b border-outline px-4 py-2"
 		>
-			{sorted.map((project) => {
+			{projects.map((project) => {
 				const chosen = chosenProjectIds.has(project.id);
 				const activity = projectActivity.get(project.id);
 
@@ -60,9 +58,6 @@ function dotClass({ activity, chosen }: { activity: AgentActivityState | undefin
 	if (chosen) {
 		return "bg-surface";
 	}
-	if (!activity) {
-		return "bg-outline-strong";
-	}
 
-	return ACTIVITY_DOT_CLASS[activity];
+	return projectDotClass(activity);
 }

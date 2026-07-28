@@ -109,13 +109,15 @@ export const Settings = {
 		return { port: next.server.port ?? SERVER_DEFAULT_PORT, token: next.server.token };
 	},
 	ensureVapid: async (mint: () => VapidKeys): Promise<VapidKeys> => {
-		const next = await store.mutate((current) => ({ ...current, vapid: current.vapid ?? mint() }));
-
-		if (!next.vapid) {
-			throw new Error("The VAPID keypair was not stored");
+		const current = await store.read();
+		if (current.vapid) {
+			return current.vapid;
 		}
 
-		return next.vapid;
+		const vapid = mint();
+		await store.mutate((value) => ({ ...value, vapid }));
+
+		return vapid;
 	},
 };
 

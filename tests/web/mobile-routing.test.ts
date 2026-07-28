@@ -1,15 +1,11 @@
 import "./register-dom";
 import { setContinuityTransport } from "./orpc-transport";
-import { streamTransport } from "./stream-transport";
-import { afterAll, afterEach, expect, test } from "bun:test";
+import "./stream-transport";
+import { afterEach, expect, test } from "bun:test";
 import { createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { routeTree } from "@renderer/routeTree.gen";
 
-const releaseTransport = streamTransport.borrow();
-
 setContinuityTransport({ value: { workspaces: [] }, calls: [] });
-
-afterAll(releaseTransport);
 
 afterEach(() => Reflect.deleteProperty(window, "bankaiWindow"));
 

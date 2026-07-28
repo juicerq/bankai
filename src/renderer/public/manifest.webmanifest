@@ -1,7 +1,8 @@
 {
 	"name": "Bankai",
 	"short_name": "Bankai",
-	"start_url": "/",
+	"id": "/",
+	"start_url": "/mobile",
 	"scope": "/",
 	"display": "standalone",
 	"theme_color": "#060606",

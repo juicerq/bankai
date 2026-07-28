@@ -1,8 +1,8 @@
 import { type PushTransport, setPushTransport } from "./orpc-transport";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { decodeVapidKey, installPushSync } from "@renderer/lib/push";
+import { refreshReach } from "@renderer/lib/reach";
 import { MobilePushBanner } from "@renderer/routes/mobile/-components/mobile-push-banner";
-import { SERVER_TOKEN_STORAGE_KEY } from "@shared/server";
 import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render, waitFor } from "./testing-library";
 
@@ -12,18 +12,25 @@ const EXISTING_ENDPOINT = "https://push.example/existing";
 
 const NEW_ENDPOINT = "https://push.example/new";
 
+const bridge = window.bankaiAuth;
+
 let transport: PushTransport;
 let pushManager: FakePushManager;
 
 class FakePushManager {
 	readonly subscribeCalls: PushSubscriptionOptionsInit[] = [];
+	lookups = 0;
 	private subscription: unknown;
 
 	constructor(endpoint?: string) {
 		this.subscription = endpoint ? fakeSubscription(endpoint) : undefined;
 	}
 
-	readonly getSubscription = async () => this.subscription ?? null;
+	readonly getSubscription = async () => {
+		this.lookups += 1;
+
+		return this.subscription ?? null;
+	};
 
 	readonly subscribe = async (options: PushSubscriptionOptionsInit) => {
 		this.subscribeCalls.push(options);
@@ -68,15 +75,18 @@ function installBrowser(options: {
 	});
 }
 
-beforeEach(() => {
+beforeEach(async () => {
 	transport = { publicKey: PUBLIC_KEY, subscriptions: [] };
 	setPushTransport(transport);
-	localStorage.setItem(SERVER_TOKEN_STORAGE_KEY, "paired-token");
+	window.bankaiAuth = bridge;
+	await refreshReach();
 });
 
-afterEach(() => {
+afterEach(async () => {
 	cleanup();
 	localStorage.clear();
+	window.bankaiAuth = bridge;
+	await refreshReach();
 });
 
 test("the banner offers notifications while the phone has not decided", () => {
@@ -150,14 +160,13 @@ test("opening the app again re-syncs the subscription the phone already has", as
 
 test("an unpaired browser syncs nothing", async () => {
 	installBrowser({ permission: "granted", endpoint: EXISTING_ENDPOINT });
+	delete window.bankaiAuth;
 	localStorage.clear();
+	await refreshReach();
 
 	installPushSync();
-	localStorage.setItem(SERVER_TOKEN_STORAGE_KEY, "paired-token");
-	installPushSync();
+	await new Promise((resolve) => setTimeout(resolve, 0));
 
-	await waitFor(() => {
-		expect(transport.subscriptions).toHaveLength(1);
-	});
-	expect(transport.subscriptions[0]?.endpoint).toBe(EXISTING_ENDPOINT);
+	expect(transport.subscriptions).toHaveLength(0);
+	expect(pushManager.lookups).toBe(0);
 });

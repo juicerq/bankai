@@ -9,22 +9,25 @@ import { MobileConversationBlock } from "@renderer/routes/mobile/-components/mob
 import type { ConversationView } from "@renderer/routes/mobile/-utils/use-conversation";
 import { useStickToBottom } from "@renderer/routes/mobile/-utils/use-stick-to-bottom";
 
-export function MobileConversation({
-	shellId,
-	row,
-	conversation,
-	onBack,
-	onSend,
-	onKey,
-}: {
-	shellId: string;
-	row: SessionRow | undefined;
-	conversation: ConversationView;
-	onBack: () => void;
+export interface MobileConversationSession {
+	row: SessionRow;
 	onSend: (text: string) => Promise<void>;
 	onKey: (key: TerminalKey) => Promise<void>;
+}
+
+export function MobileConversation({
+	shellId,
+	session,
+	conversation,
+	onBack,
+}: {
+	shellId: string;
+	session: MobileConversationSession | undefined;
+	conversation: ConversationView;
+	onBack: () => void;
 }) {
 	const scroll = useStickToBottom();
+	const row = session?.row;
 
 	return (
 		<div
@@ -35,29 +38,40 @@ export function MobileConversation({
 			<MobileConversationHeader row={row} title={conversation.title ?? row?.title} onBack={onBack} />
 			<div
 				ref={scroll.ref}
+				data-slot="scroll"
 				onScroll={scroll.handleScroll}
-				className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto py-3"
+				className="min-h-0 flex-1 overflow-y-auto"
 			>
-				{conversation.truncated && (
-					<p data-slot="truncated" className="px-4 text-center text-label text-outline-strong">
-						HISTORY TRUNCATED
-					</p>
-				)}
-				{conversation.blocks.map((block) => <MobileConversationBlock key={block.id} block={block} />)}
-				{conversation.blocks.length === 0 && !conversation.loading && (
-					<p data-slot="empty" className="px-4 py-8 text-center text-secondary text-support">
-						{row ? "Nothing to read here yet." : "This session is no longer open."}
-					</p>
-				)}
-				<div key={conversation.blocks.length} ref={scroll.anchorRef} aria-hidden="true" />
+				<div ref={scroll.contentRef} data-slot="reading" className="flex flex-col gap-3 py-3">
+					{conversation.truncated && (
+						<p data-slot="truncated" className="px-4 text-center text-label text-outline-strong">
+							HISTORY TRUNCATED
+						</p>
+					)}
+					{conversation.blocks.map((block) => <MobileConversationBlock key={block.id} block={block} />)}
+					{conversation.blocks.length === 0 && !conversation.loading && (
+						<p data-slot="empty" className="px-4 py-8 text-center text-secondary text-support">
+							{row ? "Nothing to read here yet." : "This session is no longer open."}
+						</p>
+					)}
+				</div>
 			</div>
-			{row?.activity === "needs-attention" && <MobileAttention row={row} onKey={onKey} />}
-			<MobileComposer
-				working={row?.activity === "working"}
-				live={!!row?.harness}
-				onSend={onSend}
-				onStop={() => onKey("escape")}
-			/>
+			{session?.row.activity === "needs-attention" && (
+				<MobileAttention
+					attention={session.row.attention}
+					label={session.row.trace}
+					signature={`${session.row.activity} ${session.row.trace} ${session.row.traceSince}`}
+					onKey={session.onKey}
+				/>
+			)}
+			{session && (
+				<MobileComposer
+					working={session.row.activity === "working"}
+					live={!!session.row.harness}
+					onSend={session.onSend}
+					onStop={() => session.onKey("escape")}
+				/>
+			)}
 		</div>
 	);
 }
@@ -77,7 +91,7 @@ function MobileConversationHeader({
 				type="button"
 				data-slot="back"
 				aria-label="Back to sessions"
-				className="flex size-8 shrink-0 items-center justify-center text-secondary active:text-primary"
+				className="-mx-1.5 flex size-11 shrink-0 items-center justify-center text-secondary active:text-primary"
 				onClick={onBack}
 			>
 				<ChevronLeftIcon className="size-4" aria-hidden="true" />

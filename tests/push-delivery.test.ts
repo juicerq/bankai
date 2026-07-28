@@ -4,10 +4,14 @@ import { attentionPushPayload } from "@main/push/attention";
 import { pushNeedsAttention } from "@main/push/notifyAttention";
 import { deliverAttentionPush } from "@main/push/deliver";
 import type { PushDelivery, PushSender } from "@main/push/webPush";
-import { type PushSubscription, PushSubscriptions } from "@main/store/push";
-import { Settings } from "@main/store/settings";
+import {
+	PUSH_SUBSCRIPTION_CAP,
+	type PushSubscription,
+	pushSubscriptionSchema,
+	PushSubscriptions,
+} from "@main/store/push";
 
-const VAPID = { publicKey: "public-key", privateKey: "private-key" };
+const vapid = async () => ({ publicKey: "public-key", privateKey: "private-key" });
 
 const PAYLOAD = attentionPushPayload({ shellId: "shell-a", title: "Rewrite the parser" });
 
@@ -44,7 +48,7 @@ test("the notification reaches every subscribed phone", async () => {
 	await PushSubscriptions.save(subscription("https://push.example/b"));
 	const { send, sent } = sender();
 
-	const deliveries = await deliverAttentionPush({ payload: PAYLOAD, vapid: VAPID, send });
+	const deliveries = await deliverAttentionPush({ payload: PAYLOAD, vapid, send });
 
 	expect(deliveries).toEqual(["sent", "sent"]);
 	expect(sent.map((target) => target.endpoint)).toEqual(["https://push.example/a", "https://push.example/b"]);
@@ -56,7 +60,7 @@ test("a subscription the push service no longer knows is dropped", async () => {
 	await PushSubscriptions.save(subscription("https://push.example/alive"));
 	const { send } = sender({ "https://push.example/dead": "gone" });
 
-	await deliverAttentionPush({ payload: PAYLOAD, vapid: VAPID, send });
+	await deliverAttentionPush({ payload: PAYLOAD, vapid, send });
 
 	expect((await PushSubscriptions.list()).map((stored) => stored.endpoint)).toEqual(["https://push.example/alive"]);
 });
@@ -65,18 +69,54 @@ test("a push service that failed keeps the subscription for the next attempt", a
 	await PushSubscriptions.save(subscription("https://push.example/flaky"));
 	const { send } = sender({ "https://push.example/flaky": "failed" });
 
-	await deliverAttentionPush({ payload: PAYLOAD, vapid: VAPID, send });
+	await deliverAttentionPush({ payload: PAYLOAD, vapid, send });
 
 	expect(await PushSubscriptions.list()).toHaveLength(1);
 });
 
 test("a shell someone is already looking at sends nothing", async () => {
 	await PushSubscriptions.save(subscription("https://push.example/watching"));
-	focusShell({ id: "watcher", onClose: () => {} }, "shell-watched");
+	const cleanups: (() => void)[] = [];
+	const { send, sent } = sender();
+	focusShell({ id: "watcher", onClose: (cleanup) => cleanups.push(cleanup) }, "shell-watched");
 
-	await pushNeedsAttention({ projectId: "p1", shellId: "shell-watched" });
+	await pushNeedsAttention({ projectId: "p1", shellId: "shell-watched" }, send);
 
-	expect((await Settings.get()).vapid).toBeUndefined();
+	expect(sent).toEqual([]);
+
+	for (const cleanup of cleanups) {
+		cleanup();
+	}
+});
+
+test("only the subscription fields a phone is allowed to send are stored", async () => {
+	await PushSubscriptions.save(
+		pushSubscriptionSchema.assert({
+			endpoint: "https://push.example/curious",
+			keys: { p256dh: "p", auth: "a", stash: "x".repeat(64) },
+			stash: "y".repeat(64),
+		}),
+	);
+
+	const [stored] = await PushSubscriptions.list();
+
+	expect(stored).toEqual({
+		endpoint: "https://push.example/curious",
+		keys: { p256dh: "p", auth: "a" },
+		savedAt: expect.any(Number),
+	});
+});
+
+test("the oldest phone falls off once the stored list is full", async () => {
+	for (let index = 0; index <= PUSH_SUBSCRIPTION_CAP; index++) {
+		await PushSubscriptions.save(subscription(`https://push.example/${index}`));
+	}
+
+	const stored = await PushSubscriptions.list();
+
+	expect(stored).toHaveLength(PUSH_SUBSCRIPTION_CAP);
+	expect(stored.map((entry) => entry.endpoint)).not.toContain("https://push.example/0");
+	expect(stored.at(-1)?.endpoint).toBe(`https://push.example/${PUSH_SUBSCRIPTION_CAP}`);
 });
 
 test("removing a subscription leaves the others reachable", async () => {

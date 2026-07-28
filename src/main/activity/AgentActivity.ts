@@ -628,6 +628,10 @@ class AgentActivityTracker {
 		return this.projectSnapshots.get(projectId) ?? emptySnapshot();
 	}
 
+	liveAgentSessions(): ReadonlySet<string> {
+		return this.boundSessions;
+	}
+
 	subscribe(projectId: string, listener: ActivityListener): () => void {
 		const set = this.listeners.get(projectId) ?? new Set<ActivityListener>();
 		set.add(listener);
@@ -1086,7 +1090,8 @@ class AgentActivityTracker {
 				continue;
 			}
 
-			pushNeedsAttention({ ...owner, attention: attention.get(owner.shellId) }).catch((err) =>
+			const needsAttention = attention.get(owner.shellId);
+			pushNeedsAttention({ ...owner, ...(needsAttention ? { attention: needsAttention } : {}) }).catch((err) =>
 				Logger.error("push:attention-failed", { ...owner, err: String(err) })
 			);
 		}

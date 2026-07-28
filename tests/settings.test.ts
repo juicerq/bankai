@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
 import { Settings } from "@main/store/settings";
@@ -107,5 +107,19 @@ describe("settings server", () => {
 		expect(regenerated.token).toHaveLength(SERVER_TOKEN_BYTES * 2);
 		expect(regenerated.token).not.toBe("revoked");
 		expect(await Settings.ensureServer()).toEqual(regenerated);
+	});
+});
+
+describe("settings vapid", () => {
+	it("mints the keypair once and leaves the file untouched afterwards", async () => {
+		assertDefined(process.env.DATA_DIR);
+		const path = join(process.env.DATA_DIR, "settings.json");
+		const minted = { publicKey: "public", privateKey: "private" };
+
+		expect(await Settings.ensureVapid(() => minted)).toEqual(minted);
+		const writtenAt = statSync(path, { bigint: true }).mtimeNs;
+
+		expect(await Settings.ensureVapid(() => ({ publicKey: "other", privateKey: "other" }))).toEqual(minted);
+		expect(statSync(path, { bigint: true }).mtimeNs).toBe(writtenAt);
 	});
 });

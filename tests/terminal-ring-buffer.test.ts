@@ -20,25 +20,26 @@ test("scrollback beyond the cap drops from the oldest end", () => {
 
 	ring.append("newest");
 
-	const replay = ring.read();
-	expect(replay.length).toBe(TERMINAL_RING_BYTES);
-	expect(replay.endsWith("newest")).toBe(true);
+	expect(ring.read()).toBe("newest");
 });
 
-test("a single write larger than the cap keeps only its tail", () => {
+test("a write larger than the cap is kept whole rather than cut", () => {
 	const ring = new TerminalRingBuffer();
 
 	ring.append(`${"x".repeat(TERMINAL_RING_BYTES)}tail`);
 
-	const replay = ring.read();
-	expect(replay.length).toBe(TERMINAL_RING_BYTES);
-	expect(replay.endsWith("tail")).toBe(true);
+	expect(ring.read().length).toBe(TERMINAL_RING_BYTES + "tail".length);
 });
 
-test("the cap counts bytes, not characters", () => {
+test("trimming never cuts a character in half", () => {
 	const ring = new TerminalRingBuffer();
+	const chunk = "é".repeat(1024);
 
-	ring.append("é".repeat(TERMINAL_RING_BYTES));
+	for (let written = 0; written <= TERMINAL_RING_BYTES; written += chunk.length * 2) {
+		ring.append(chunk);
+	}
 
-	expect(ring.read().length).toBeLessThan(TERMINAL_RING_BYTES);
+	const replay = ring.read();
+	expect(replay).not.toInclude("�");
+	expect(Buffer.byteLength(replay)).toBeLessThanOrEqual(TERMINAL_RING_BYTES + chunk.length * 2);
 });

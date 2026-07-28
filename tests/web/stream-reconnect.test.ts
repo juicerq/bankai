@@ -9,6 +9,8 @@ import { streamStatus } from "@renderer/lib/stream/status";
 const PROBE_KEY = ["stream-reconnect-probe"];
 
 const releaseTransport = streamTransport.borrow();
+const realFetch = globalThis.fetch;
+const sockets: StreamSocket[] = [];
 
 afterAll(releaseTransport);
 
@@ -27,6 +29,7 @@ async function backoff() {
 
 async function connected() {
 	const socket = new StreamSocket();
+	sockets.push(socket);
 	socket.on("activity", "changed", () => {});
 	await settle();
 
@@ -36,9 +39,18 @@ async function connected() {
 beforeEach(() => {
 	streamTransport.reset();
 	queryClient.clear();
+	globalThis.fetch = Object.assign(
+		() => Promise.resolve(new Response(null, { status: 404 })),
+		{ preconnect: realFetch.preconnect },
+	);
 });
 
 afterEach(() => {
+	globalThis.fetch = realFetch;
+	for (const socket of sockets.splice(0)) {
+		socket.dispose();
+	}
+
 	streamStatus.set("open");
 });
 

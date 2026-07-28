@@ -19,23 +19,13 @@ function MobileConversationRoute() {
 	return (
 		<MobileConversation
 			shellId={shellId}
-			row={row}
+			session={row && {
+				row,
+				onSend: (text) => terminalStream.prompt(row.projectId, shellId, text),
+				onKey: (key) => terminalStream.key(row.projectId, shellId, key),
+			}}
 			conversation={conversation}
 			onBack={() => navigate({ to: "/mobile" })}
-			onSend={async (text) => {
-				if (!row) {
-					throw new Error("This session is no longer open");
-				}
-
-				await terminalStream.prompt(row.projectId, shellId, text);
-			}}
-			onKey={async (key) => {
-				if (!row) {
-					throw new Error("This session is no longer open");
-				}
-
-				await terminalStream.key(row.projectId, shellId, key);
-			}}
 		/>
 	);
 }

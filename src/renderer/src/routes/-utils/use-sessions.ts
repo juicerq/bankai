@@ -19,7 +19,7 @@ function newShell(plain?: boolean): Pick<ContinuityShell, "id" | "plain"> {
 export function useSessions() {
 	const queryClient = useQueryClient();
 	const { data } = useQuery(orpc.continuity.get.queryOptions());
-	const { mutate: open } = useMutation(orpc.continuity.openShell.mutationOptions());
+	const { mutate: open, mutateAsync: openAsync } = useMutation(orpc.continuity.openShell.mutationOptions());
 	const { mutate: close } = useMutation(orpc.continuity.closeShell.mutationOptions());
 	const { mutate: select } = useMutation(orpc.continuity.selectShell.mutationOptions());
 	const { mutate: rename } = useMutation(orpc.continuity.renameShell.mutationOptions());
@@ -53,6 +53,18 @@ export function useSessions() {
 			open({ projectId, shell });
 		},
 		[open, project],
+	);
+
+	const openShellAsync = useCallback(
+		async (projectId: string) => {
+			const shell = newShell();
+
+			project((value) => ContinuityReducers.openShell(value, { projectId, shell, now: Date.now() }));
+			await openAsync({ projectId, shell });
+
+			return shell.id;
+		},
+		[openAsync, project],
 	);
 
 	const closeShell = useCallback(
@@ -102,6 +114,7 @@ export function useSessions() {
 		failed: data?.failed ?? false,
 		residency,
 		openShell,
+		openShellAsync,
 		closeShell,
 		selectShell,
 		archiveShell,

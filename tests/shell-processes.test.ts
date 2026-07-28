@@ -9,10 +9,13 @@ import type { TerminalStreamEvent } from "@shared/terminal";
 
 const SHELL = { projectId: "p1", shellId: "s1" };
 
+const KILL_GRACE_MS = 20;
+
 class FakeProcess implements TerminalProcess {
 	readonly pid = 4242;
 	writes: string[] = [];
 	readonly resizes: { cols: number; rows: number }[] = [];
+	readonly signals: (string | undefined)[] = [];
 	killed = 0;
 
 	write(data: string) {
@@ -23,8 +26,9 @@ class FakeProcess implements TerminalProcess {
 		this.resizes.push({ cols, rows });
 	}
 
-	kill() {
+	kill(signal?: string) {
 		this.killed += 1;
+		this.signals.push(signal);
 	}
 }
 
@@ -129,7 +133,7 @@ test("a connection going away detaches it without touching the process", async (
 	processes.attach("session-1", desktop);
 	processes.attach("session-1", phone);
 
-	processes.detachConnection("phone");
+	processes.detach("session-1", "phone");
 	processes.noteData("session-1", "still running");
 	await flushed();
 
@@ -162,13 +166,13 @@ test("an exit the app asked for does not read as the agent session dying on its 
 	register("session-1");
 	processes.close("session-1");
 
-	expect(processes.noteExit("session-1", 0)).toBe(false);
+	expect(processes.noteExit("session-1", 0)).toEqual({ spontaneous: false });
 });
 
 test("an exit nobody asked for reports itself as spontaneous", () => {
 	register("session-1");
 
-	expect(processes.noteExit("session-1", 1)).toBe(true);
+	expect(processes.noteExit("session-1", 1)).toEqual({ spontaneous: true });
 });
 
 test("every attached connection is told the process exited", () => {
@@ -183,6 +187,31 @@ test("every attached connection is told the process exited", () => {
 	const exit: TerminalStreamEvent = { type: "exit", payload: { sessionId: "session-1", exitCode: 3 } };
 	expect(desktop.events).toEqual([exit]);
 	expect(phone.events).toEqual([exit]);
+});
+
+test("a process that ignores the kill is forced out instead of leaking its session", async () => {
+	const stubborn = new ShellProcesses(KILL_GRACE_MS);
+	stubborn.register({ ...SHELL, sessionId: "session-1", process: terminal });
+	const desktop = new FakeConnection("desktop");
+	stubborn.attach("session-1", desktop);
+
+	stubborn.close("session-1");
+	await new Promise((resolve) => setTimeout(resolve, KILL_GRACE_MS * 4));
+
+	expect(terminal.signals).toEqual([undefined, "SIGKILL"]);
+	expect(stubborn.list()).toEqual([]);
+	expect(desktop.events.at(-1)?.type).toBe("exit");
+});
+
+test("a process that exits when asked is never forced", async () => {
+	const polite = new ShellProcesses(KILL_GRACE_MS);
+	polite.register({ ...SHELL, sessionId: "session-1", process: terminal });
+
+	polite.close("session-1");
+	polite.noteExit("session-1", 0);
+	await new Promise((resolve) => setTimeout(resolve, KILL_GRACE_MS * 4));
+
+	expect(terminal.signals).toEqual([undefined]);
 });
 
 test("output buffered when the process was closed still reaches the screen", () => {

@@ -51,6 +51,7 @@ class MergedByProject<T> {
 class AgentActivityObserver {
 	private snapshot: AgentActivities = EMPTY_ACTIVITIES;
 	private notify: (() => void) | undefined;
+	private generation = 0;
 	private readonly shells = new MergedByProject<AgentActivityState>();
 	private readonly worktrees = new MergedByProject<string>();
 	private readonly traces = new MergedByProject<string>();
@@ -76,6 +77,7 @@ class AgentActivityObserver {
 		return () => {
 			stopListening();
 			stopResync();
+			this.generation += 1;
 			this.notify = undefined;
 			for (const projectId of this.projectIds) {
 				activityStream.unwatch(projectId);
@@ -84,8 +86,16 @@ class AgentActivityObserver {
 	};
 
 	private async watchProjects() {
+		const generation = ++this.generation;
+
 		await Promise.all(this.projectIds.map(async (projectId) => {
-			this.set(projectId, await activityStream.watch(projectId));
+			const snapshot = await activityStream.watch(projectId);
+
+			if (generation !== this.generation) {
+				return;
+			}
+
+			this.set(projectId, snapshot);
 		}));
 	}
 

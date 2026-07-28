@@ -17,3 +17,11 @@ export const ACTIVITY_TEXT_CLASS: Record<AgentActivityState, string> = {
 	"needs-attention": "text-terminal-blue",
 	"done-unseen": "text-added",
 };
+
+export function projectDotClass(activity: AgentActivityState | undefined): string {
+	if (!activity) {
+		return "bg-outline-strong";
+	}
+
+	return ACTIVITY_DOT_CLASS[activity];
+}

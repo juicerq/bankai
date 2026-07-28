@@ -69,6 +69,27 @@ test("a shell opened without a harness carries the request to the main process",
 	});
 });
 
+test("opening a shell asynchronously projects first and answers with the projected id", async () => {
+	const { result } = await renderSessions({
+		workspaces: [{ projectId: "p1", shells: [{ id: "s1", label: "Shell 1", createdAt: 1 }] }],
+	});
+
+	let opening: Promise<string> | undefined;
+	act(() => {
+		opening = result.current.openShellAsync("p1");
+	});
+
+	const [, projected] = cached().workspaces[0]?.shells ?? [];
+	expect(projected?.label).toBe("Shell 2");
+	expect(cached().selectedShellId).toBe(projected?.id);
+
+	const shellId = await opening;
+	expect(shellId).toBe(projected?.id ?? "");
+	expect(transport.calls).toEqual([
+		{ procedure: "openShell", input: { projectId: "p1", shell: { id: shellId } } },
+	]);
+});
+
 test("closing the selected shell hands the selection over in the same commit", async () => {
 	const { result } = await renderSessions({
 		selectedShellId: "s2",

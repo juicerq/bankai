@@ -1,4 +1,5 @@
-import { pairable, probeUnpaired } from "@renderer/lib/pairing";
+import { probeUnpaired } from "@renderer/lib/pairing";
+import { isBrowserClient } from "@renderer/lib/platform";
 import { reach } from "@renderer/lib/reach";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { type StreamStatus, streamStatus } from "@renderer/lib/stream/status";
@@ -38,15 +39,26 @@ export class StreamSocket {
 	private status: StreamStatus = "connecting";
 	private serverVersion: string | undefined;
 	private attempt = 0;
+	private generation = 0;
 	private retryTimer: ReturnType<typeof setTimeout> | undefined;
 
 	constructor() {
 		window.addEventListener("online", this.retry);
-		document.addEventListener("visibilitychange", () => {
-			if (document.visibilityState === "visible") {
-				this.retry();
-			}
-		});
+		document.addEventListener("visibilitychange", this.wake);
+	}
+
+	dispose(): void {
+		window.removeEventListener("online", this.retry);
+		document.removeEventListener("visibilitychange", this.wake);
+		clearTimeout(this.retryTimer);
+		this.retryTimer = undefined;
+		this.generation += 1;
+		const socket = this.socket;
+		this.socket = undefined;
+		this.connecting = false;
+		this.outbox = [];
+		this.rejectPending(new Error("The Bankai stream was disposed"));
+		socket?.close();
 	}
 
 	send(channel: StreamChannel, type: string, payload?: unknown): void {
@@ -77,6 +89,12 @@ export class StreamSocket {
 		};
 	}
 
+	private readonly wake = (): void => {
+		if (document.visibilityState === "visible") {
+			this.retry();
+		}
+	};
+
 	readonly retry = (): void => {
 		if (this.halted) {
 			return;
@@ -89,7 +107,7 @@ export class StreamSocket {
 	};
 
 	readonly unpair = (): void => {
-		if (!pairable() || this.halted) {
+		if (!isBrowserClient() || this.halted) {
 			return;
 		}
 
@@ -101,6 +119,12 @@ export class StreamSocket {
 	}
 
 	private emit(envelope: StreamEnvelope): void {
+		if (this.halted) {
+			this.rejectPending(haltError(this.status));
+
+			return;
+		}
+
 		const data = JSON.stringify(envelope);
 		this.connect();
 
@@ -119,8 +143,13 @@ export class StreamSocket {
 		}
 
 		this.connecting = true;
+		const generation = this.generation;
 		streamUrl()
 			.then((url) => {
+				if (generation !== this.generation) {
+					return;
+				}
+
 				const socket = new WebSocket(url);
 				this.socket = socket;
 				socket.addEventListener("message", (event) => this.receive(String(event.data)));
@@ -131,7 +160,13 @@ export class StreamSocket {
 				});
 				socket.addEventListener("error", () => socket.close());
 			})
-			.catch((err) => this.drop(err instanceof Error ? err : new Error(String(err))));
+			.catch((err) => {
+				if (generation !== this.generation) {
+					return;
+				}
+
+				this.drop(err instanceof Error ? err : new Error(String(err)));
+			});
 	}
 
 	private handshake(version: string): void {
@@ -161,24 +196,22 @@ export class StreamSocket {
 	private halt(status: StreamStatus): void {
 		clearTimeout(this.retryTimer);
 		this.retryTimer = undefined;
+		this.generation += 1;
 		this.setStatus(status);
 		const socket = this.socket;
 		this.socket = undefined;
 		this.connecting = false;
 		this.outbox = [];
+		this.rejectPending(haltError(status));
 		socket?.close();
 	}
 
 	private drop(error: Error): void {
+		this.generation += 1;
 		this.socket = undefined;
 		this.connecting = false;
 		this.outbox = [];
-
-		const waiting = [...this.pending.values()];
-		this.pending.clear();
-		for (const request of waiting) {
-			request.reject(error);
-		}
+		this.rejectPending(error);
 
 		if (this.halted) {
 			return;
@@ -191,8 +224,17 @@ export class StreamSocket {
 		}, reconnectDelay(this.attempt));
 		this.attempt += 1;
 
-		if (pairable()) {
+		if (isBrowserClient()) {
 			this.checkPairing().catch((err) => console.error("Failed to check the Bankai pairing", err));
+		}
+	}
+
+	private rejectPending(error: Error): void {
+		const waiting = [...this.pending.values()];
+		this.pending.clear();
+
+		for (const request of waiting) {
+			request.reject(error);
 		}
 	}
 
@@ -228,12 +270,17 @@ export class StreamSocket {
 	}
 
 	private settle(envelope: StreamEnvelope): void {
-		const request = envelope.requestId ? this.pending.get(envelope.requestId) : undefined;
-		if (!request || !envelope.requestId) {
+		const { requestId } = envelope;
+		if (!requestId) {
 			return;
 		}
 
-		this.pending.delete(envelope.requestId);
+		const request = this.pending.get(requestId);
+		if (!request) {
+			return;
+		}
+
+		this.pending.delete(requestId);
 		if (envelope.type === STREAM_REJECT) {
 			request.reject(new Error(String(envelope.payload)));
 
@@ -242,6 +289,10 @@ export class StreamSocket {
 
 		request.resolve(envelope.payload);
 	}
+}
+
+function haltError(status: StreamStatus): Error {
+	return new Error(`The Bankai stream is ${status}`);
 }
 
 function helloVersion(payload: unknown): StreamHello["version"] {

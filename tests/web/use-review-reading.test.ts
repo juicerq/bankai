@@ -86,12 +86,21 @@ function base(overrides: Partial<ReviewReadingProps>): ReviewReadingProps {
 	return { projectId: "p1", worktree: "/p1", mode: "uncommitted", isFileOpen: openAll, ...overrides };
 }
 
-test("the change listener is installed before watch is invoked", () => {
+test("mounting watches the worktree once", () => {
 	const view = renderReviewReading(base({}));
 
-	expect(view.ipc.events).toEqual(["listen", "watch"]);
 	expect(view.ipc.watchCalls).toEqual([{ projectId: "p1", worktree: "/p1" }]);
-	expect(view.ipc.listenerCount).toBe(1);
+	expect(view.ipc.pendingWatchCount).toBe(1);
+});
+
+test("a change event arriving before watch resolves is still picked up", async () => {
+	const view = renderReviewReading(base({}));
+
+	view.ipc.emitChange("p1");
+	await reachReady(view);
+	view.transport.resolve("snapshot", snapshotOf(["a"]));
+
+	await waitFor(() => expect(view.result.current.generation?.snapshot.files.length).toBe(1));
 });
 
 test("no reads happen before watch succeeds", async () => {
@@ -103,13 +112,19 @@ test("no reads happen before watch succeeds", async () => {
 	expect(view.result.current.generation).toBeUndefined();
 });
 
-test("unmount unwatches exactly once", async () => {
+test("unmount unwatches exactly once and stops listening for changes", async () => {
 	const view = renderReviewReading(base({}));
 	await reachReady(view);
 
 	view.unmount();
 
 	expect(view.ipc.unwatchCalls).toEqual([{ projectId: "p1", worktree: "/p1" }]);
+
+	const callsBefore = view.transport.calls.length;
+	view.ipc.emitChange("p1");
+	await wait(20);
+
+	expect(view.transport.calls.length).toBe(callsBefore);
 });
 
 test("unwatch happens once when watch completes after unmount", async () => {

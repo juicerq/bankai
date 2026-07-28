@@ -1,3 +1,4 @@
+import { AgentActivity } from "@main/activity/AgentActivity";
 import { Logger } from "@main/logger";
 import type { StreamConnection } from "@main/server/stream/connection";
 import { TerminalSchemas } from "@main/server/stream/messages";
@@ -6,7 +7,7 @@ import type { ShellAttachment } from "@main/terminal/ShellProcesses";
 import { shellProcesses } from "@main/terminal/ShellProcesses";
 import { TerminalSessions } from "@main/terminal/TerminalSessions";
 import type { StreamEnvelope } from "@shared/stream";
-import type { TerminalCommandErrorEvent } from "@shared/terminal";
+import type { TerminalAttached, TerminalCommandErrorEvent } from "@shared/terminal";
 
 export async function handleTerminalMessage(
 	connection: StreamConnection,
@@ -14,14 +15,14 @@ export async function handleTerminalMessage(
 ): Promise<unknown> {
 	switch (message.type) {
 		case "open":
-			return await TerminalSessions.open(
-				attachmentOf(connection),
-				TerminalSchemas.open.assert(message.payload),
+			return detachOnClose(
+				connection,
+				await TerminalSessions.open(attachmentOf(connection), TerminalSchemas.open.assert(message.payload)),
 			);
 		case "resume":
-			return await TerminalSessions.resume(
-				attachmentOf(connection),
-				TerminalSchemas.resume.assert(message.payload),
+			return detachOnClose(
+				connection,
+				await TerminalSessions.resume(attachmentOf(connection), TerminalSchemas.resume.assert(message.payload)),
 			);
 		case "write": {
 			const input = TerminalSchemas.write.assert(message.payload);
@@ -53,6 +54,11 @@ export async function handleTerminalMessage(
 		case "prompt": {
 			const input = TerminalSchemas.prompt.assert(message.payload);
 			const sessionId = liveSession(input);
+
+			if (!AgentActivity.liveAgentSessions().has(sessionId)) {
+				throw new Error("No agent is listening to this shell");
+			}
+
 			shellProcesses.write(sessionId, bracketedPaste(input.text));
 			shellProcesses.write(sessionId, "\r");
 
@@ -69,8 +75,10 @@ export async function handleTerminalMessage(
 	}
 }
 
-export function detachTerminalConnection(connection: StreamConnection): void {
-	shellProcesses.detachConnection(connection.id);
+export function detachOnClose(connection: StreamConnection, attached: TerminalAttached): TerminalAttached {
+	connection.onClose(() => shellProcesses.detach(attached.sessionId, connection.id));
+
+	return attached;
 }
 
 function liveSession(address: { projectId: string; shellId: string }): string {

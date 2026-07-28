@@ -37,6 +37,7 @@ export class ConversationTail {
 	constructor(
 		private readonly path: string,
 		private readonly onAppended: (event: { blocks: ConversationBlock[]; title?: string }) => void,
+		private readonly watchIntervalMs: number = WATCH_INTERVAL_MS,
 	) {}
 
 	async start(): Promise<ConversationSnapshot> {
@@ -54,7 +55,10 @@ export class ConversationTail {
 		}
 
 		this.backfill = undefined;
-		watchFile(this.path, { interval: WATCH_INTERVAL_MS }, this.onChange);
+
+		if (!this.stopped) {
+			watchFile(this.path, { interval: this.watchIntervalMs }, this.onChange);
+		}
 
 		return { blocks: backfill, title: this.parser.title, truncated: this.truncated };
 	}

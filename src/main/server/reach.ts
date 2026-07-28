@@ -1,3 +1,4 @@
+import { closeLiveConnections } from "@main/server/connections";
 import { Settings } from "@main/store/settings";
 import type { ServerReach } from "@shared/server";
 
@@ -11,6 +12,7 @@ export async function openServerReach(): Promise<ServerReach> {
 
 export async function regenerateServerToken(): Promise<ServerReach> {
 	current = await Settings.regenerateServerToken();
+	closeLiveConnections();
 
 	return current;
 }

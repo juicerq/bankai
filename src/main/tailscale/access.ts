@@ -21,7 +21,7 @@ export interface MobileAccess {
 	host: string | undefined;
 	url: string | undefined;
 	exposed: boolean;
-	problem: string | undefined;
+	problem?: string;
 }
 
 function readJson<Schema extends Type>(raw: string, schema: Schema): Schema["infer"] | undefined {
@@ -83,7 +83,6 @@ export async function mobileAccess(): Promise<MobileAccess> {
 		host,
 		url: host ? pairingUrl({ host, token }) : undefined,
 		exposed: serveExposes(serve.stdout, port),
-		problem: undefined,
 	};
 }
 

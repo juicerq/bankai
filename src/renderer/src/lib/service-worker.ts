@@ -1,5 +1,7 @@
+import { isBrowserClient } from "@renderer/lib/platform";
+
 export function installServiceWorker(): void {
-	if (window.bankaiAuth || !("serviceWorker" in navigator)) {
+	if (!isBrowserClient() || !("serviceWorker" in navigator)) {
 		return;
 	}
 

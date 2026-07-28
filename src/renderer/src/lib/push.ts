@@ -1,6 +1,6 @@
 import { client } from "@renderer/lib/api";
 import { isBrowserClient } from "@renderer/lib/platform";
-import { SERVER_TOKEN_STORAGE_KEY } from "@shared/server";
+import { reach } from "@renderer/lib/reach";
 
 export type PushPermission = NotificationPermission | "unsupported";
 
@@ -13,7 +13,7 @@ export function pushPermission(): PushPermission {
 }
 
 export function installPushSync(): void {
-	if (pushPermission() !== "granted" || !localStorage.getItem(SERVER_TOKEN_STORAGE_KEY)) {
+	if (pushPermission() !== "granted") {
 		return;
 	}
 
@@ -33,6 +33,12 @@ export async function enablePushNotifications(): Promise<PushPermission> {
 }
 
 async function syncPushSubscription(): Promise<void> {
+	const { token } = await reach();
+
+	if (!token) {
+		return;
+	}
+
 	const registration = await navigator.serviceWorker.ready;
 	const existing = await registration.pushManager.getSubscription();
 	const subscription = existing ?? (await registration.pushManager.subscribe({

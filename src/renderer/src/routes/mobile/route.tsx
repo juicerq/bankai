@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { orpc } from "@renderer/lib/api";
-import { sessionRows } from "@renderer/routes/-utils/session-rows";
 import { useAgentActivities } from "@renderer/routes/-utils/use-agent-activity";
 import { useChosenProjects } from "@renderer/routes/-utils/use-chosen-projects";
+import { useSessionRows } from "@renderer/routes/-utils/use-session-rows";
 import { useSessions } from "@renderer/routes/-utils/use-sessions";
 import { MobileSurfaceProvider } from "@renderer/routes/mobile/-utils/mobile-surface-context";
 
@@ -16,27 +16,7 @@ function MobileSurface() {
 	const activity = useAgentActivities(availableProjects.map((project) => project.id));
 	const sessions = useSessions();
 	const chosen = useChosenProjects();
-	const rows = useMemo(
-		() =>
-			sessionRows({
-				continuity: sessions.continuity,
-				projects: availableProjects,
-				shellActivity: activity.shells,
-				traces: activity.traces,
-				traceSince: activity.traceSince,
-				statusSince: activity.statusSince,
-				attention: activity.attention,
-			}),
-		[
-			sessions.continuity,
-			availableProjects,
-			activity.shells,
-			activity.traces,
-			activity.traceSince,
-			activity.statusSince,
-			activity.attention,
-		],
-	);
+	const rows = useSessionRows({ continuity: sessions.continuity, projects: availableProjects, activity });
 	const surface = useMemo(
 		() => ({
 			projects: availableProjects,

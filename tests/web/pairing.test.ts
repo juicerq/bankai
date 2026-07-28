@@ -14,6 +14,7 @@ const releaseTransport = streamTransport.borrow();
 const bridge = window.bankaiAuth;
 const realFetch = globalThis.fetch;
 const probed: string[] = [];
+const sockets: StreamSocket[] = [];
 let rpcStatus = 404;
 
 async function settle(ticks = 6) {
@@ -24,6 +25,7 @@ async function settle(ticks = 6) {
 
 async function browserSocket() {
 	const socket = new StreamSocket();
+	sockets.push(socket);
 	socket.on("activity", "changed", () => {});
 	await settle();
 
@@ -50,6 +52,10 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+	for (const socket of sockets.splice(0)) {
+		socket.dispose();
+	}
+
 	globalThis.fetch = realFetch;
 	window.bankaiAuth = bridge;
 	streamStatus.set("open");

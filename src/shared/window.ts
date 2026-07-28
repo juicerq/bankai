@@ -6,6 +6,6 @@ export interface BankaiWindowApi {
 
 declare global {
 	interface Window {
-		bankaiWindow: BankaiWindowApi;
+		bankaiWindow?: BankaiWindowApi;
 	}
 }

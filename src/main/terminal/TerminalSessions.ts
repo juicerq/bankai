@@ -79,7 +79,7 @@ function spawnOrAttach(attachment: ShellAttachment, input: SpawnInput): Terminal
 			pid: terminal.pid,
 			write: (data) => terminal.write(data),
 			resize: (cols, rows) => terminal.resize(cols, rows),
-			kill: () => terminal.kill(),
+			kill: (signal) => terminal.kill(signal),
 		},
 	});
 	const replay = shellProcesses.attach(sessionId, attachment);
@@ -94,7 +94,7 @@ function spawnOrAttach(attachment: ShellAttachment, input: SpawnInput): Terminal
 		forgetShellTitle(input.shellId);
 		forgetShellOutput(input.shellId);
 
-		if (shellProcesses.noteExit(sessionId, exitCode)) {
+		if (shellProcesses.noteExit(sessionId, exitCode).spontaneous) {
 			Continuity.clearShellSession({ projectId: input.projectId, shellId: input.shellId }).catch((err) =>
 				Logger.error("terminal:exit-clear-session-failed", { sessionId, err: String(err) }),
 			);
@@ -104,7 +104,7 @@ function spawnOrAttach(attachment: ShellAttachment, input: SpawnInput): Terminal
 	return attached(sessionId, replay);
 }
 
-function attached(sessionId: string, replay: string): TerminalAttached {
+function attached(sessionId: string, replay: string | undefined): TerminalAttached {
 	if (!replay) {
 		return { sessionId };
 	}

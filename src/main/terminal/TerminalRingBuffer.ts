@@ -16,21 +16,13 @@ export class TerminalRingBuffer {
 	}
 
 	private trim(): void {
-		while (this.bytes > TERMINAL_RING_BYTES) {
-			const oldest = this.chunks[0];
+		while (this.bytes > TERMINAL_RING_BYTES && this.chunks.length > 1) {
+			const oldest = this.chunks.shift();
 			if (!oldest) {
 				return;
 			}
 
-			const excess = this.bytes - TERMINAL_RING_BYTES;
-			if (excess >= oldest.byteLength) {
-				this.chunks.shift();
-				this.bytes -= oldest.byteLength;
-				continue;
-			}
-
-			this.chunks[0] = oldest.subarray(excess);
-			this.bytes -= excess;
+			this.bytes -= oldest.byteLength;
 		}
 	}
 }

@@ -3,12 +3,17 @@ import { WebSocket } from "ws";
 import { Logger } from "@main/logger";
 import { STREAM_REJECT, STREAM_REPLY, type StreamChannel, type StreamEnvelope } from "@shared/stream";
 
+export interface StreamSocket {
+	readyState: number;
+	send: (data: string) => void;
+}
+
 export class StreamConnection {
 	readonly id = randomUUID();
 	private readonly cleanups = new Set<() => void>();
 	private closed = false;
 
-	constructor(private readonly socket: WebSocket) {}
+	constructor(private readonly socket: StreamSocket) {}
 
 	send(channel: StreamChannel, type: string, payload?: unknown): void {
 		this.emit({ channel, type, payload });

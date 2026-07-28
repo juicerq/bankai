@@ -5,11 +5,33 @@ import { MobileConversation } from "@renderer/routes/mobile/-components/mobile-c
 import type { ConversationView } from "@renderer/routes/mobile/-utils/use-conversation";
 import type { ConversationBlock } from "@shared/conversation";
 import { get, query, slot } from "./dom";
-import { cleanup, fireEvent, render, waitFor } from "./testing-library";
+import { act, cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 afterEach(cleanup);
 
 const NOW = 1_800_000_000_000;
+
+const watchers = new Set<() => void>();
+
+class WatchedBox {
+	constructor(private readonly resized: () => void) {}
+
+	observe() {
+		watchers.add(this.resized);
+	}
+
+	disconnect() {
+		watchers.delete(this.resized);
+	}
+
+	unobserve() {
+		watchers.delete(this.resized);
+	}
+}
+
+Object.assign(globalThis, { ResizeObserver: WatchedBox });
+
+afterEach(() => watchers.clear());
 
 function row(patch: Partial<SessionRow> = {}): SessionRow {
 	return {
@@ -34,25 +56,33 @@ function view(blocks: ConversationBlock[], patch: Partial<ConversationView> = {}
 	return { blocks, title: undefined, truncated: false, loading: false, ...patch };
 }
 
-function renderConversation(
-	options: {
-		row?: SessionRow | undefined;
-		conversation?: ConversationView;
-		onSend?: (text: string) => Promise<void>;
-		onKey?: (key: TerminalKey) => Promise<void>;
-		onBack?: () => void;
-	} = {},
-) {
-	return render(
+interface ConversationOptions {
+	row?: SessionRow | undefined;
+	conversation?: ConversationView;
+	onSend?: (text: string) => Promise<void>;
+	onKey?: (key: TerminalKey) => Promise<void>;
+	onBack?: () => void;
+}
+
+function element(options: ConversationOptions) {
+	const session = "row" in options && !options.row ? undefined : {
+		row: options.row ?? row(),
+		onSend: options.onSend ?? (async () => {}),
+		onKey: options.onKey ?? (async () => {}),
+	};
+
+	return (
 		<MobileConversation
 			shellId="s1"
-			row={"row" in options ? options.row : row()}
+			session={session}
 			conversation={options.conversation ?? view([])}
 			onBack={options.onBack ?? (() => {})}
-			onSend={options.onSend ?? (async () => {})}
-			onKey={options.onKey ?? (async () => {})}
-		/>,
+		/>
 	);
+}
+
+function renderConversation(options: ConversationOptions = {}) {
+	return render(element(options));
 }
 
 function blocks() {
@@ -88,6 +118,23 @@ function sendButton() {
 	}
 
 	return element;
+}
+
+function scroller({ scrollHeight, clientHeight }: { scrollHeight: number; clientHeight: number }) {
+	const element = slot(get("mobile-conversation"), "scroll");
+
+	Object.defineProperty(element, "scrollHeight", { value: scrollHeight, configurable: true });
+	Object.defineProperty(element, "clientHeight", { value: clientHeight, configurable: true });
+
+	return element;
+}
+
+function grow() {
+	act(() => {
+		for (const resized of watchers) {
+			resized();
+		}
+	});
 }
 
 test("the conversation paints its blocks in the order the file wrote them", () => {
@@ -152,6 +199,26 @@ test("the back chevron returns to the list", () => {
 	expect(backs).toBe(1);
 });
 
+test("a block that grows in place keeps the newest line in view", () => {
+	renderConversation({ conversation: view([{ kind: "agent", id: "m1", text: "O upload" }]) });
+	const element = scroller({ scrollHeight: 500, clientHeight: 200 });
+
+	grow();
+
+	expect(element.scrollTop).toBe(300);
+});
+
+test("a reader who scrolled up is left where they were", () => {
+	renderConversation({ conversation: view([{ kind: "agent", id: "m1", text: "O upload" }]) });
+	const element = scroller({ scrollHeight: 500, clientHeight: 200 });
+
+	element.scrollTop = 0;
+	fireEvent.scroll(element);
+	grow();
+
+	expect(element.scrollTop).toBe(0);
+});
+
 test("the composer sends what was typed and empties itself", async () => {
 	const sent: string[] = [];
 	renderConversation({ onSend: async (text) => void sent.push(text) });
@@ -185,15 +252,23 @@ test("send stays out of reach until something is written", () => {
 	expect(sendButton().disabled).toBe(true);
 });
 
-test("a working agent is offered a stop, and typing turns it back into a send", () => {
+test("a working agent keeps its stop within reach even once the next prompt is written", () => {
 	renderConversation({ row: row({ activity: "working", trace: "Writing" }) });
 
-	expect(composer().dataset.state).toBe("stop");
+	expect(composer().dataset.state).toBe("working");
+	expect(slot(composer(), "stop")).toBeDefined();
 
 	fireEvent.input(field(), { target: { value: "mais uma coisa" } });
 
-	expect(composer().dataset.state).toBe("send");
-	expect(query("mobile-composer")?.textContent).not.toContain("Stop");
+	expect(slot(composer(), "stop")).toBeDefined();
+	expect(sendButton().disabled).toBe(false);
+});
+
+test("an idle agent has no turn to stop", () => {
+	renderConversation();
+
+	expect(composer().dataset.state).toBe("idle");
+	expect(composer().textContent).not.toContain("Stop");
 });
 
 test("stopping interrupts the turn with the escape byte", async () => {
@@ -205,6 +280,26 @@ test("stopping interrupts the turn with the escape byte", async () => {
 	await waitFor(() => expect(pressed).toEqual(["escape"]));
 });
 
+test("a double tap on stop interrupts the turn once", async () => {
+	const pressed: TerminalKey[] = [];
+	let release = () => {};
+	renderConversation({
+		row: row({ activity: "working" }),
+		onKey: async (key) => {
+			pressed.push(key);
+			await new Promise<void>((resolve) => {
+				release = resolve;
+			});
+		},
+	});
+
+	fireEvent.click(slot(composer(), "stop"));
+	fireEvent.click(slot(composer(), "stop"));
+
+	await waitFor(() => expect(pressed).toEqual(["escape"]));
+	await act(async () => release());
+});
+
 test("a shell whose agent ended sends the user back to the desktop", () => {
 	renderConversation({ row: row({ harness: undefined }) });
 
@@ -212,8 +307,9 @@ test("a shell whose agent ended sends the user back to the desktop", () => {
 	expect(composer().textContent).toContain("Agent ended — resume from the desktop");
 });
 
-test("a session that left the list says so instead of a bare screen", () => {
+test("a session that left the list says so once, with nothing left to type into", () => {
 	renderConversation({ row: undefined });
 
 	expect(slot(get("mobile-conversation"), "empty").textContent).toContain("This session is no longer open");
+	expect(query("mobile-composer")).toBeNull();
 });

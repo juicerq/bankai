@@ -1,9 +1,11 @@
 import { expect, test } from "bun:test";
+import type { Project } from "@main/store/projects";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { mobileSessionList } from "@renderer/routes/mobile/-utils/mobile-session-list";
 
 const NOW = 1_800_000_000_000;
 const NO_PROJECTS: ReadonlySet<string> = new Set();
+const NO_PROJECT_LIST: Project[] = [];
 
 function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 	return {
@@ -25,7 +27,8 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 }
 
 function order(rows: SessionRow[], chosenProjectIds: ReadonlySet<string> = NO_PROJECTS): string[] {
-	return mobileSessionList({ rows, chosenProjectIds, now: NOW }).sessions.map((entry) => entry.shellId);
+	return mobileSessionList({ rows, projects: NO_PROJECT_LIST, chosenProjectIds, now: NOW })
+		.sessions.map((entry) => entry.shellId);
 }
 
 test("attention comes first, then work, then what finished unseen", () => {
@@ -84,6 +87,7 @@ test("a project badge carries the most urgent state of its sessions", () => {
 			row("c", { projectId: "p2", activity: "working" }),
 			row("d", { projectId: "p3" }),
 		],
+		projects: NO_PROJECT_LIST,
 		chosenProjectIds: NO_PROJECTS,
 		now: NOW,
 	});
@@ -99,9 +103,23 @@ test("a badge keeps reporting activity of the projects the list is hiding", () =
 			row("a", { projectId: "p1" }),
 			row("b", { projectId: "p2", activity: "needs-attention" }),
 		],
+		projects: NO_PROJECT_LIST,
 		chosenProjectIds: new Set(["p1"]),
 		now: NOW,
 	});
 
 	expect(projectActivity.get("p2")).toBe("needs-attention");
+});
+
+test("the projects come out named in reading order, so every surface shows the same list", () => {
+	const projects: Project[] = [
+		{ id: "p2", name: "ghostapi", path: "/projects/ghostapi", createdAt: 2 },
+		{ id: "p1", name: "bankai", path: "/projects/bankai", createdAt: 1 },
+		{ id: "p3", name: "axiom", path: "/projects/axiom", createdAt: 3 },
+	];
+
+	const listed = mobileSessionList({ rows: [], projects, chosenProjectIds: NO_PROJECTS, now: NOW });
+
+	expect(listed.projects.map((project) => project.id)).toEqual(["p3", "p1", "p2"]);
+	expect(projects.map((project) => project.id)).toEqual(["p2", "p1", "p3"]);
 });

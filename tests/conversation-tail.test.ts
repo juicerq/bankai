@@ -30,8 +30,10 @@ function titleLine(title: string): string {
 	return JSON.stringify({ type: "ai-title", aiTitle: title, sessionId: "s1" });
 }
 
+const WATCH_INTERVAL_MS = 10;
+
 async function settle(): Promise<void> {
-	await new Promise((resolve) => setTimeout(resolve, 1200));
+	await new Promise((resolve) => setTimeout(resolve, WATCH_INTERVAL_MS * 8));
 }
 
 function collect() {
@@ -51,7 +53,7 @@ function collect() {
 describe("the history the phone gets when it opens a conversation", () => {
 	it("reads the whole transcript when it fits in the backfill", async () => {
 		const sink = collect();
-		const tail = new ConversationTail(transcript([userLine("u1", "primeiro"), userLine("u2", "segundo")]), sink.onAppended);
+		const tail = new ConversationTail(transcript([userLine("u1", "primeiro"), userLine("u2", "segundo")]), sink.onAppended, WATCH_INTERVAL_MS);
 
 		const snapshot = await tail.start();
 		tail.stop();
@@ -68,7 +70,7 @@ describe("the history the phone gets when it opens a conversation", () => {
 
 	it("carries the title the session was given", async () => {
 		const sink = collect();
-		const tail = new ConversationTail(transcript([titleLine("Retry no upload"), userLine("u1", "oi")]), sink.onAppended);
+		const tail = new ConversationTail(transcript([titleLine("Retry no upload"), userLine("u1", "oi")]), sink.onAppended, WATCH_INTERVAL_MS);
 
 		const snapshot = await tail.start();
 		tail.stop();
@@ -82,6 +84,7 @@ describe("the history the phone gets when it opens a conversation", () => {
 		const tail = new ConversationTail(
 			transcript([padding, userLine("u1", "primeiro"), userLine("u2", "segundo")]),
 			sink.onAppended,
+			WATCH_INTERVAL_MS,
 		);
 
 		const snapshot = await tail.start();
@@ -98,7 +101,7 @@ describe("the history the phone gets when it opens a conversation", () => {
 		const sink = collect();
 		const directory = mkdtempSync(join(tmpdir(), "bankai-conversation-"));
 		directories.push(directory);
-		const tail = new ConversationTail(join(directory, "missing.jsonl"), sink.onAppended);
+		const tail = new ConversationTail(join(directory, "missing.jsonl"), sink.onAppended, WATCH_INTERVAL_MS);
 
 		const snapshot = await tail.start();
 		tail.stop();
@@ -111,9 +114,10 @@ describe("what the phone gets while the agent keeps writing", () => {
 	it("pushes the records appended after the backfill, once each", async () => {
 		const sink = collect();
 		const path = transcript([userLine("u1", "primeiro")]);
-		const tail = new ConversationTail(path, sink.onAppended);
+		const tail = new ConversationTail(path, sink.onAppended, WATCH_INTERVAL_MS);
 
 		await tail.start();
+		await settle();
 		appendFileSync(path, `${userLine("u2", "segundo")}\n`);
 		await settle();
 		tail.stop();
@@ -124,9 +128,10 @@ describe("what the phone gets while the agent keeps writing", () => {
 	it("waits for a record to be complete before parsing it", async () => {
 		const sink = collect();
 		const path = transcript([userLine("u1", "primeiro")]);
-		const tail = new ConversationTail(path, sink.onAppended);
+		const tail = new ConversationTail(path, sink.onAppended, WATCH_INTERVAL_MS);
 
 		await tail.start();
+		await settle();
 		const half = userLine("u2", "segundo");
 		appendFileSync(path, half.slice(0, 20));
 		await settle();
@@ -143,7 +148,7 @@ describe("what the phone gets while the agent keeps writing", () => {
 	it("stops reading once the phone leaves the conversation", async () => {
 		const sink = collect();
 		const path = transcript([userLine("u1", "primeiro")]);
-		const tail = new ConversationTail(path, sink.onAppended);
+		const tail = new ConversationTail(path, sink.onAppended, WATCH_INTERVAL_MS);
 
 		await tail.start();
 		tail.stop();

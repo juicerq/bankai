@@ -224,9 +224,9 @@ class ReviewQueryObserver {
 				this.refresh().catch((err) => console.error("Failed to refresh review changes", err));
 			}
 		});
-		const stopResync = streamResync.register("watch", () => this.watch(notify));
+		const stopResync = streamResync.register("watch", () => this.watch({ notify, refresh: false }));
 
-		this.watch(notify).catch((err) => console.error("Failed to watch review changes", err));
+		this.watch({ notify, refresh: true }).catch((err) => console.error("Failed to watch review changes", err));
 
 		return () => {
 			this.generation += 1;
@@ -240,7 +240,7 @@ class ReviewQueryObserver {
 		};
 	};
 
-	private async watch(notify: () => void) {
+	private async watch({ notify, refresh }: { notify: () => void; refresh: boolean }) {
 		const generation = ++this.generation;
 
 		try {
@@ -254,16 +254,20 @@ class ReviewQueryObserver {
 			return;
 		}
 
-		this.watching = true;
 		if (generation !== this.generation) {
 			reviewStream.unwatch(this.watched);
 
 			return;
 		}
 
-		await this.refresh();
-		if (generation !== this.generation) {
-			return;
+		this.watching = true;
+
+		if (refresh) {
+			await this.refresh();
+
+			if (generation !== this.generation) {
+				return;
+			}
 		}
 
 		this.state = { status: "ready" };

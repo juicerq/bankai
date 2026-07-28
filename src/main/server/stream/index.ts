@@ -3,14 +3,16 @@ import { app } from "electron";
 import { type RawData, WebSocketServer } from "ws";
 import { Logger } from "@main/logger";
 import { authorizeUpgrade } from "@main/server/auth";
+import { trackLiveConnection } from "@main/server/connections";
 import { serverReach } from "@main/server/reach";
 import { handleActivityMessage } from "@main/server/stream/activity";
 import { StreamConnection } from "@main/server/stream/connection";
 import { handleContinuityMessage } from "@main/server/stream/continuity";
 import { handleConversationMessage } from "@main/server/stream/conversation";
-import { streamEnvelopeSchema } from "@main/server/stream/messages";
+import { watchLiveness } from "@main/server/stream/heartbeat";
+import { STREAM_MAX_PAYLOAD_BYTES, streamEnvelopeSchema } from "@main/server/stream/messages";
 import { handleReviewMessage } from "@main/server/stream/review";
-import { detachTerminalConnection, handleTerminalMessage } from "@main/server/stream/terminal";
+import { handleTerminalMessage } from "@main/server/stream/terminal";
 import { STREAM_HELLO, type StreamChannel, type StreamEnvelope, type StreamHello } from "@shared/stream";
 
 const CHANNEL_HANDLERS: Record<
@@ -28,8 +30,10 @@ const CHANNEL_HANDLERS: Record<
 };
 
 export function attachStreamServer(server: Server): void {
-	const sockets = new WebSocketServer({ noServer: true });
+	const sockets = new WebSocketServer({ noServer: true, maxPayload: STREAM_MAX_PAYLOAD_BYTES });
 
+	watchLiveness(sockets);
+	server.on("close", () => sockets.close());
 	server.on("upgrade", (request, socket, head) => {
 		if (!authorizeUpgrade(request.url, serverReach().token)) {
 			Logger.warn("stream:upgrade-rejected");
@@ -42,14 +46,12 @@ export function attachStreamServer(server: Server): void {
 		sockets.handleUpgrade(request, socket, head, (accepted) => {
 			const connection = new StreamConnection(accepted);
 
+			trackLiveConnection(accepted);
 			connection.send("system", STREAM_HELLO, { version: app.getVersion() } satisfies StreamHello);
 			accepted.on("message", (data) => {
 				receive(connection, textOf(data));
 			});
-			accepted.on("close", () => {
-				detachTerminalConnection(connection);
-				connection.close();
-			});
+			accepted.on("close", () => connection.close());
 			accepted.on("error", (err) => Logger.error("stream:socket-error", { err: String(err) }));
 		});
 	});

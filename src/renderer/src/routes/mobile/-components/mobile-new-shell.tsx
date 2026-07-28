@@ -1,8 +1,9 @@
 import { PlusIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
 import type { AgentActivityState } from "@shared/activity";
-import { ACTIVITY_DOT_CLASS } from "@renderer/routes/-utils/agent-activity";
+import { projectDotClass } from "@renderer/routes/-utils/agent-activity";
+import { problemText } from "@renderer/routes/-utils/problem-text";
 
 export function MobileNewShell({
 	projects,
@@ -13,6 +14,7 @@ export function MobileNewShell({
 	projectActivity: ReadonlyMap<string, AgentActivityState>;
 	onCreate: (projectId: string) => Promise<void>;
 }) {
+	const trigger = useRef<HTMLButtonElement>(null);
 	const [open, setOpen] = useState(false);
 	const [problem, setProblem] = useState<string>();
 	const [creating, setCreating] = useState<string>();
@@ -31,7 +33,7 @@ export function MobileNewShell({
 		try {
 			await onCreate(projectId);
 		} catch (err) {
-			setProblem(err instanceof Error ? err.message : String(err));
+			setProblem(problemText(err));
 			setOpen(true);
 		} finally {
 			setCreating(undefined);
@@ -49,12 +51,19 @@ export function MobileNewShell({
 		setOpen(true);
 	};
 
+	const close = () => {
+		setOpen(false);
+		trigger.current?.focus();
+	};
+
 	return (
 		<>
 			<button
+				ref={trigger}
 				type="button"
 				data-component="mobile-new-shell"
 				aria-label="New shell"
+				aria-haspopup="dialog"
 				disabled={!!creating}
 				className="-mr-3 flex h-full w-11 shrink-0 items-center justify-center text-tertiary active:bg-surface-active disabled:text-outline-strong"
 				onClick={handleNew}
@@ -62,20 +71,20 @@ export function MobileNewShell({
 				<PlusIcon className="size-5" aria-hidden="true" />
 			</button>
 			{open && (
-				<MobileProjectSheet
+				<MobileShellPicker
 					projects={projects}
 					projectActivity={projectActivity}
 					problem={problem}
 					creating={creating}
 					onCreate={create}
-					onClose={() => setOpen(false)}
+					onClose={close}
 				/>
 			)}
 		</>
 	);
 }
 
-function MobileProjectSheet({
+function MobileShellPicker({
 	projects,
 	projectActivity,
 	problem,
@@ -90,17 +99,20 @@ function MobileProjectSheet({
 	onCreate: (projectId: string) => Promise<void>;
 	onClose: () => void;
 }) {
-	const sorted = [...projects].sort((left, right) => left.name.localeCompare(right.name));
-
 	return (
 		<div className="fixed inset-0 z-50 flex flex-col justify-end bg-surface-sunken/70" onPointerDown={onClose}>
 			<div
 				role="dialog"
 				aria-modal="true"
 				aria-label="New shell"
-				data-component="mobile-project-sheet"
+				data-component="mobile-shell-picker"
 				className="flex max-h-[70vh] flex-col border-outline-strong border-t bg-surface-raised"
 				onPointerDown={(event) => event.stopPropagation()}
+				onKeyDown={(event) => {
+					if (event.key === "Escape") {
+						onClose();
+					}
+				}}
 			>
 				<div className="flex h-header shrink-0 items-center justify-between border-outline border-b px-4">
 					<span className="text-label text-secondary">NEW SHELL IN</span>
@@ -119,13 +131,15 @@ function MobileProjectSheet({
 					</p>
 				)}
 				<div className="min-h-0 flex-1 overflow-y-auto">
-					{sorted.map((project) => {
+					{projects.map((project, index) => {
 						const activity = projectActivity.get(project.id);
 
 						return (
 							<button
 								key={project.id}
 								type="button"
+								// biome-ignore lint/a11y/noAutofocus: a modal picker must seat the caret inside itself
+								autoFocus={index === 0}
 								data-component="mobile-project-option"
 								data-project-id={project.id}
 								data-activity={activity}
@@ -136,9 +150,7 @@ function MobileProjectSheet({
 								<span
 									data-slot="project-dot"
 									aria-hidden="true"
-									className={`size-1.5 shrink-0 rounded-full ${
-										activity ? ACTIVITY_DOT_CLASS[activity] : "bg-outline-strong"
-									}`}
+									className={`size-1.5 shrink-0 rounded-full ${projectDotClass(activity)}`}
 								/>
 								<span className="min-w-0 flex-1 truncate text-body text-primary">{project.name}</span>
 								{creating === project.id && (

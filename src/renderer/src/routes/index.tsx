@@ -21,7 +21,7 @@ import {
 	RAIL_WIDTH_PROPERTY,
 	resolveRailWidth,
 } from "@renderer/routes/-utils/rail-layout";
-import { sessionRows } from "@renderer/routes/-utils/session-rows";
+import { useSessionRows } from "@renderer/routes/-utils/use-session-rows";
 import { useAgentActivities } from "@renderer/routes/-utils/use-agent-activity";
 import { useBankaiShortcuts } from "@renderer/routes/-utils/use-bankai-shortcuts";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
@@ -161,27 +161,7 @@ function Bankai() {
 		},
 		[activateProject, sessions.openShell],
 	);
-	const rows = useMemo(
-		() =>
-			sessionRows({
-				continuity: sessions.continuity,
-				projects: availableProjects,
-				shellActivity: activity.shells,
-				traces: activity.traces,
-				traceSince: activity.traceSince,
-				statusSince: activity.statusSince,
-				attention: activity.attention,
-			}),
-		[
-			sessions.continuity,
-			availableProjects,
-			activity.shells,
-			activity.traces,
-			activity.traceSince,
-			activity.statusSince,
-			activity.attention,
-		],
-	);
+	const rows = useSessionRows({ continuity: sessions.continuity, projects: availableProjects, activity });
 	const chosen = useChosenProjects();
 	const list = useSessionList({ rows, now: Date.now(), projectIds: chosen.projectIds });
 	const [pickerOpen, setPickerOpen] = useState(false);

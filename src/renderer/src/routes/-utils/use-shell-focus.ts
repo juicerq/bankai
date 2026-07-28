@@ -2,7 +2,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { activityStream } from "@renderer/lib/stream/activity";
 import { streamResync } from "@renderer/lib/stream/resync";
 
-export const FOCUS_IDLE_MS = 60_000;
+export const FOCUS_IDLE_MS = 5 * 60_000;
 
 const INPUT_EVENTS = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"] as const;
 
@@ -43,6 +43,7 @@ class ShellFocusReporter {
 
 			clearTimeout(this.idleTimer);
 			this.idleTimer = undefined;
+			this.published = undefined;
 			activityStream.focusShell();
 		};
 	};

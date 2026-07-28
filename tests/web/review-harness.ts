@@ -1,55 +1,42 @@
 import { ReviewTransport, setReviewTransport } from "./orpc-transport";
-import { mock } from "bun:test";
+import { streamTransport } from "./stream-transport";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement, type ReactNode } from "react";
-import type { BankaiReviewApi, ReviewChangedEvent, ReviewWatchInput } from "@shared/review";
+import { streamSocket } from "@renderer/lib/stream/socket";
+import type { ReviewWatchInput } from "@shared/review";
 import { renderHook } from "./testing-library";
-import type { ReviewReading, useReviewReading } from "@renderer/routes/-utils/use-review-reading";
+import { type ReviewReading, useReviewReading } from "@renderer/routes/-utils/use-review-reading";
 
-type WatchListener = (event: ReviewChangedEvent) => void;
-
-interface PendingWatch { input: ReviewWatchInput; resolve: () => void; reject: (error: unknown) => void }
+interface PendingWatch {
+	input: ReviewWatchInput;
+	resolve: () => void;
+	reject: (error: unknown) => void;
+}
 
 class ReviewIpc {
-	readonly events: ("listen" | "watch" | "unwatch")[] = [];
-	readonly watchCalls: ReviewWatchInput[] = [];
-	readonly unwatchCalls: ReviewWatchInput[] = [];
-	private readonly listeners = new Set<WatchListener>();
+	private readonly since = streamTransport.calls.length;
 	private readonly pendingWatch: PendingWatch[] = [];
 
-	readonly api: BankaiReviewApi = {
-		watch: (input) => {
-			this.events.push("watch");
-			this.watchCalls.push(input);
-			return new Promise<void>((resolve, reject) => {
-				this.pendingWatch.push({ input, resolve, reject });
-			});
-		},
-		unwatch: (input) => {
-			this.events.push("unwatch");
-			this.unwatchCalls.push(input);
-		},
-		onChanged: (listener) => {
-			this.events.push("listen");
-			this.listeners.add(listener);
-			return () => {
-				this.listeners.delete(listener);
-			};
-		},
-	};
+	get watchCalls() {
+		return this.sent("watch");
+	}
 
-	get listenerCount() {
-		return this.listeners.size;
+	get unwatchCalls() {
+		return this.sent("unwatch");
 	}
 
 	get pendingWatchCount() {
 		return this.pendingWatch.length;
 	}
 
+	queueWatch(input: ReviewWatchInput) {
+		return new Promise<void>((resolve, reject) => {
+			this.pendingWatch.push({ input, resolve, reject });
+		});
+	}
+
 	emitChange(projectId: string) {
-		for (const listener of this.listeners) {
-			listener({ projectId });
-		}
+		streamTransport.push("review", "changed", { projectId });
 	}
 
 	resolveWatch(projectId?: string) {
@@ -58,6 +45,13 @@ class ReviewIpc {
 
 	rejectWatch(error: unknown, projectId?: string) {
 		this.takeWatch(projectId).reject(error);
+	}
+
+	private sent(type: string) {
+		return streamTransport.calls
+			.slice(this.since)
+			.filter((call) => call.channel === "review" && call.type === type)
+			.map((call) => call.payload);
 	}
 
 	private takeWatch(projectId?: string) {
@@ -77,15 +71,12 @@ class ReviewIpc {
 
 let current = new ReviewIpc();
 
-void mock.module("@renderer/lib/stream/review", () => ({
-	reviewStream: {
-		watch: (input: ReviewWatchInput) => current.api.watch(input),
-		unwatch: (input: ReviewWatchInput) => current.api.unwatch(input),
-		onChanged: (listener: WatchListener) => current.api.onChanged(listener),
-	} satisfies BankaiReviewApi,
-}));
+const HANDSHAKE = "harness-handshake";
 
-const { useReviewReading: readReview } = await import("@renderer/routes/-utils/use-review-reading");
+streamTransport.handle("review", "watch", (input: ReviewWatchInput) => current.queueWatch(input));
+streamTransport.handle("review", HANDSHAKE, () => {});
+
+await streamSocket.request("review", HANDSHAKE);
 
 export type ReviewReadingProps = Parameters<typeof useReviewReading>[0];
 
@@ -105,7 +96,7 @@ export function renderReviewReading(initialProps: ReviewReadingProps) {
 	const renders: ReviewReading[] = [];
 	const view = renderHook(
 		(props: ReviewReadingProps) => {
-			const reading = readReview(props);
+			const reading = useReviewReading(props);
 			renders.push(reading);
 			return reading;
 		},

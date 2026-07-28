@@ -1,0 +1,22 @@
+---
+title: How to open the dev renderer on a phone, and why the packaged path refuses
+tags: [server, env]
+updated_at: 2026-07-28
+created_at: 2026-07-28
+---
+
+## The loopback server only serves the bundle packaged
+
+`startLoopbackServer` serves the renderer from the asar, read once at boot. In development there is no asar, so the bundle route answers with "Bankai serves the renderer bundle only packaged" — the vite dev server owns the renderer then.
+
+## Dev on the phone goes through vite, not the loopback bundle
+
+The renderer dev server is pinned to `127.0.0.1:4697` (`electron.vite.config.ts`, `strictPort`) and proxies `/rpc` (HTTP) and `/stream` (WebSocket) to the loopback server on 4696. Point tailscale at vite instead of the app's own target:
+
+```sh
+tailscale serve --bg --https=443 http://127.0.0.1:4697
+```
+
+The phone then gets HMR and the real oRPC/stream through one origin. The pairing QR stays valid — its URL carries only host and token, never a port.
+
+Toggling Mobile access in the app rewrites the serve config back to 4696 (the packaged path), so re-run the command above after touching the toggle in dev. Port 5173 is left alone on purpose: something else on this machine squats it.

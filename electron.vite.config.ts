@@ -49,5 +49,14 @@ export default defineConfig({
 		],
 		resolve: { alias: aliasWeb },
 		worker: { format: "es" },
+		server: {
+			host: "127.0.0.1",
+			port: 4697,
+			strictPort: true,
+			proxy: {
+				"/rpc": "http://127.0.0.1:4696",
+				"/stream": { target: "ws://127.0.0.1:4696", ws: true },
+			},
+		},
 	},
 });

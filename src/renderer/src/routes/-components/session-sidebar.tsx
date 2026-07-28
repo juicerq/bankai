@@ -14,6 +14,7 @@ import { ClaudeGlyph } from "@renderer/routes/-components/claude-glyph";
 import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
 import { MenuItem } from "@renderer/routes/-components/menu-item";
 import { ProjectBadges } from "@renderer/routes/-components/project-badges";
+import { ShellGlyph } from "@renderer/routes/-components/shell-glyph";
 import { ACTIVITY_BORDER_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { useMenuDismissal } from "@renderer/routes/-utils/use-menu-dismissal";
@@ -208,18 +209,32 @@ export function SessionSidebar({
 	);
 }
 
+function HarnessMark({ harness, active }: { harness: string | undefined; active: boolean }) {
+	if (harness === "claude") {
+		return <ClaudeGlyph active={active} />;
+	}
+
+	if (!harness) {
+		return <ShellGlyph active={active} />;
+	}
+
+	return (
+		<span
+			className={`shrink-0 border px-1 text-data uppercase ${
+				active ? "border-tertiary text-tertiary" : "border-outline text-outline-strong"
+			}`}
+		>
+			{harness}
+		</span>
+	);
+}
+
 function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGestures }) {
 	return (
 		<SessionEntry row={row} gestures={gestures} archived={false}>
 			<span className="flex w-full items-center gap-2">
 				<span className="min-w-0 flex-1 truncate text-data text-secondary">{row.projectName}</span>
-				{row.harness === "claude"
-					? <ClaudeGlyph active={row.shellId === gestures.selectedShellId} />
-					: row.harness && (
-						<span className="shrink-0 border border-outline px-1 text-data text-outline-strong uppercase">
-							{row.harness}
-						</span>
-					)}
+				<HarnessMark harness={row.harness} active={row.shellId === gestures.selectedShellId} />
 			</span>
 			<span className="w-full truncate text-body text-primary">{row.title}</span>
 			<span

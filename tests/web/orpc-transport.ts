@@ -2,6 +2,7 @@ import "./register-dom";
 import { os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { type } from "arktype";
+import { commandDraftSchema, type ProjectCommand } from "@main/store/commands";
 import type { ContinuityValue } from "@main/store/continuity";
 import type { MobileAccess } from "@main/tailscale/access";
 import type { HarnessSettings } from "@main/store/settings";
@@ -170,6 +171,34 @@ function requirePush() {
 	return currentPush;
 }
 
+export interface CommandsTransport {
+	commands: ProjectCommand[];
+	saveFailure?: string;
+}
+
+let currentCommands: CommandsTransport | undefined;
+
+export function setCommandsTransport(transport: CommandsTransport) {
+	currentCommands = transport;
+}
+
+function requireCommands() {
+	if (!currentCommands) {
+		throw new Error("No commands transport is installed");
+	}
+
+	return currentCommands;
+}
+
+function requireWritableCommands() {
+	const transport = requireCommands();
+	if (transport.saveFailure) {
+		throw new Error(transport.saveFailure);
+	}
+
+	return transport;
+}
+
 function recordContinuity(procedure: string) {
 	return os.handler(({ input }) => {
 		const transport = requireContinuity();
@@ -180,6 +209,34 @@ function recordContinuity(procedure: string) {
 }
 
 const router = {
+	commands: {
+		list: os.input(type({ projectId: "string" })).handler(({ input }) =>
+			requireCommands().commands.filter((command) => command.projectId === input.projectId)
+		),
+		add: os
+			.input(commandDraftSchema.and({ projectId: "string" }))
+			.handler(({ input }) => {
+				const transport = requireWritableCommands();
+				const command = { id: `c${transport.commands.length + 1}`, createdAt: 0, ...input };
+				transport.commands = [...transport.commands, command];
+
+				return command;
+			}),
+		update: os
+			.input(commandDraftSchema.and({ id: "string" }))
+			.handler(({ input }) => {
+				const transport = requireWritableCommands();
+				transport.commands = transport.commands.map((command) =>
+					command.id === input.id ? { ...command, ...input } : command
+				);
+
+				return transport.commands.find((command) => command.id === input.id);
+			}),
+		remove: os.input(type({ id: "string" })).handler(({ input }) => {
+			const transport = requireWritableCommands();
+			transport.commands = transport.commands.filter((command) => command.id !== input.id);
+		}),
+	},
 	continuity: {
 		get: os.handler(() => ({ value: requireContinuity().value, failed: false })),
 		openShell: recordContinuity("openShell"),

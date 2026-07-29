@@ -2,6 +2,7 @@ import {
 	ArrowsPointingInIcon,
 	ArrowsPointingOutIcon,
 	Cog6ToothIcon,
+	CommandLineIcon,
 	ViewColumnsIcon,
 } from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
@@ -26,7 +27,7 @@ export function ProjectWorkspaceHeader({
 	reviewOpen: boolean;
 	onToggleReview: () => void;
 }) {
-	const { onToggleFullscreen, onOpenSettings } = useWorkspaceControl();
+	const { onToggleFullscreen, onOpenSettings, onOpenCommands } = useWorkspaceControl();
 	const topBand = useWorkspaceTopBand();
 
 	return (
@@ -74,6 +75,14 @@ export function ProjectWorkspaceHeader({
 					onClick={onToggleReview}
 				>
 					<ViewColumnsIcon className="size-4" />
+				</ProjectWorkspaceHeaderAction>
+				<ProjectWorkspaceHeaderAction
+					className="border-l"
+					label="Open commands"
+					title="Open commands (Ctrl+X C)"
+					onClick={onOpenCommands}
+				>
+					<CommandLineIcon className="size-4" />
 				</ProjectWorkspaceHeaderAction>
 				<ProjectWorkspaceHeaderAction
 					className="border-x"

@@ -9,10 +9,12 @@ afterEach(cleanup);
 function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 	const [reviewOpen, setReviewOpen] = useState(true);
 	const [reviewExpanded, setReviewExpanded] = useState(false);
+	const [commandsOpen, setCommandsOpen] = useState(false);
 	const registerShortcuts = useProjectWorkspaceShortcuts({
 		active,
 		onToggleReview: () => setReviewOpen((open) => !open),
 		onToggleReviewExpanded: () => setReviewExpanded((expanded) => !expanded),
+		onOpenCommands: () => setCommandsOpen(true),
 	});
 
 	return (
@@ -21,6 +23,7 @@ function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 			data-component="workspace-shortcut-state"
 			data-review-open={reviewOpen}
 			data-review-expanded={reviewExpanded}
+			data-commands-open={commandsOpen}
 		/>
 	);
 }
@@ -48,6 +51,25 @@ test("the leader followed by e expands the review panel", () => {
 
 	expect(expandPassedThrough).toBe(false);
 	expect(get("workspace-shortcut-state").dataset.reviewExpanded).toBe("true");
+});
+
+test("the leader followed by c opens the commands palette", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	const commandsPassedThrough = fireEvent.keyDown(window, { key: "c", code: "KeyC" });
+
+	expect(commandsPassedThrough).toBe(false);
+	expect(get("workspace-shortcut-state").dataset.commandsOpen).toBe("true");
+});
+
+test("c on its own reaches the Shell instead of opening commands", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	const typedPassedThrough = fireEvent.keyDown(window, { key: "c", code: "KeyC" });
+
+	expect(typedPassedThrough).toBe(true);
+	expect(get("workspace-shortcut-state").dataset.commandsOpen).toBe("false");
 });
 
 test("e on its own reaches the Shell instead of expanding review", () => {

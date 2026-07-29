@@ -8,6 +8,7 @@ interface WorkspaceControl {
 	initialTreeWidth: number;
 	onToggleFullscreen: () => void;
 	onOpenSettings: () => void;
+	onOpenCommands: () => void;
 	onPersistLayout: (patch: LayoutSettings) => void;
 	onReviewOpenChange: (open: boolean) => void;
 	onReviewExpandedChange: (expanded: boolean) => void;

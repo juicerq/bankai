@@ -30,7 +30,7 @@ A time threshold before drawing was considered as a fix and rejected: invisible 
 
 ## The leader's letters mean the panel; punctuation means the app
 
-After `Ctrl+X` the letters name what they open — `f` fullscreen, `t` a shell, `x` closes one, `r` the review panel, `e` expands it over the terminal. Settings took `,` instead of a letter because every editor the user already has open binds preferences to a comma, so it is the one chord guessed correctly without reading anything. It also keeps a letter free for a panel, which is what letters are for here.
+After `Ctrl+X` the letters name what they open — `f` fullscreen, `t` a shell, `x` closes one, `r` the review panel, `e` expands it over the terminal, `c` the commands palette. Settings took `,` instead of a letter because every editor the user already has open binds preferences to a comma, so it is the one chord guessed correctly without reading anything. It also keeps a letter free for a panel, which is what letters are for here.
 
 ## Only the 60% base layer is available
 

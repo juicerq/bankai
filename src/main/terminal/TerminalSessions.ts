@@ -5,7 +5,7 @@ import { harnessResume } from "@main/activity/harnesses";
 import { Logger } from "@main/logger";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
-import { autostartCommandLine, harnessCommandLine } from "@main/terminal/autostart";
+import { harnessCommandLine, shellLaunchLine } from "@main/terminal/autostart";
 import { shellArgs } from "@main/terminal/commandLine";
 import { terminalEnv } from "@main/terminal/env";
 import { SHELL } from "@main/terminal/shell";
@@ -27,9 +27,8 @@ interface SpawnInput extends OpenInput {
 export const TerminalSessions = {
 	open: async (attachment: ShellAttachment, input: OpenInput): Promise<TerminalAttached> => {
 		const [project, shell] = await Promise.all([Projects.find(input.projectId), Continuity.findShell(input)]);
-		const launch = shell?.plain ? undefined : await autostartCommandLine();
 
-		return spawnOrAttach(attachment, { ...input, cwd: project.path, launch });
+		return spawnOrAttach(attachment, { ...input, cwd: project.path, launch: await shellLaunchLine(shell) });
 	},
 	resume: async (attachment: ShellAttachment, input: OpenInput): Promise<TerminalAttached> => {
 		const shell = await Continuity.findShell(input);

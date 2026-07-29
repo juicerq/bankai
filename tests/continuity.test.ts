@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { Continuity, type ContinuityValue } from "@main/store/continuity";
+import { CONTINUITY_STORE_VERSION, Continuity, type ContinuityValue } from "@main/store/continuity";
 import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity";
 import { assertDefined } from "./utils/assertions";
 
@@ -105,11 +105,11 @@ describe("continuity store", () => {
 	});
 
 	it("rejects a file version newer than the code and rewrites a safe empty envelope", async () => {
-		writeContinuityFile({ version: 7, data: { workspaces: [] } });
+		writeContinuityFile({ version: CONTINUITY_STORE_VERSION + 1, data: { workspaces: [] } });
 
 		const result = await Continuity.load();
 		expect(result).toEqual({ value: { workspaces: [] }, failed: true });
-		expect(readContinuityFile()).toEqual({ version: 6, data: { workspaces: [] } });
+		expect(readContinuityFile()).toEqual({ version: CONTINUITY_STORE_VERSION, data: { workspaces: [] } });
 	});
 
 	it("promotes the v5 selection of the active project to the only selection there is", async () => {
@@ -440,7 +440,7 @@ describe("continuity live session refs", () => {
 		await Continuity.setShellSession({ projectId: "p1", shellId: "s1", session: CLAUDE_REF });
 
 		expect(readContinuityFile()).toEqual({
-			version: 6,
+			version: CONTINUITY_STORE_VERSION,
 			data: {
 				selectedShellId: "s1",
 				workspaces: [{

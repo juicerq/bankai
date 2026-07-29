@@ -1,7 +1,13 @@
 import { type } from "arktype";
 import { Logger } from "@main/logger";
 import { Store } from "@main/store/Store";
-import { ContinuityReducers, type ShellAddress, type ShellName, withSelection } from "@shared/continuity-reducers";
+import {
+	ContinuityReducers,
+	type OpenedShell,
+	type ShellAddress,
+	type ShellName,
+	withSelection,
+} from "@shared/continuity-reducers";
 
 const sessionRefSchema = type({ harness: "string", sessionId: "string", cwd: "string" });
 
@@ -17,6 +23,7 @@ const shellSchema = type({
 	"namings?": "number",
 	"archivedAt?": "number",
 	"plain?": "boolean",
+	"launch?": "string",
 });
 
 const workspaceSchema = type({
@@ -87,9 +94,11 @@ const selectionPerWorkspaceSchema = type({
 	),
 );
 
+export const CONTINUITY_STORE_VERSION = 7;
+
 const store = new Store({
 	name: "continuity",
-	version: 6,
+	version: CONTINUITY_STORE_VERSION,
 	contract: continuitySchema,
 	migrators: {
 		1: (raw) => shellsWithoutCwdSchema.assert(raw),
@@ -97,6 +106,7 @@ const store = new Store({
 		3: (raw) => raw,
 		4: (raw) => shellsWithoutCreatedAtSchema.assert(raw),
 		5: (raw) => selectionPerWorkspaceSchema.assert(raw),
+		6: (raw) => raw,
 	},
 	seed: (): ContinuityValue => ({ workspaces: [] }),
 });
@@ -141,7 +151,7 @@ export const Continuity = {
 
 	openShell: (input: {
 		projectId: string;
-		shell: Pick<ContinuityShell, "id" | "plain">;
+		shell: OpenedShell;
 	}): Promise<ContinuityValue> =>
 		mutate((current) => ContinuityReducers.openShell(current, { ...input, now: Date.now() })),
 

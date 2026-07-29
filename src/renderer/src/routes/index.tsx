@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { ProjectCommand } from "@main/store/commands";
 import type { ContinuityShell } from "@main/store/continuity";
 import { orpc } from "@renderer/lib/api";
 import { isBrowserClient } from "@renderer/lib/platform";
 import { queryClient } from "@renderer/lib/query-client";
+import { CommandsModal } from "@renderer/routes/-components/commands-modal";
 import { ContinuityFailedNotice } from "@renderer/routes/-components/continuity-failed-notice";
 import { EmptyState } from "@renderer/routes/-components/empty-state";
 import { ProjectPicker } from "@renderer/routes/-components/project-picker";
@@ -224,12 +226,24 @@ function Bankai() {
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const openSettings = useCallback(() => setSettingsOpen(true), []);
 	const closeSettings = useCallback(() => setSettingsOpen(false), []);
+	const activeProject = availableProjects.find((project) => project.id === activeProjectId);
+	const [commandsOpen, setCommandsOpen] = useState(false);
+	const openCommands = useCallback(() => setCommandsOpen(true), []);
+	const closeCommands = useCallback(() => setCommandsOpen(false), []);
+	const runCommand = useCallback(
+		(projectId: string, command: Pick<ProjectCommand, "label" | "command">) => {
+			sessions.openCommandShell(projectId, command);
+			activateProject(projectId);
+		},
+		[activateProject, sessions.openCommandShell],
+	);
 	const control = useMemo(
 		() => ({
 			initialDiffWidth: layout.initial.diffWidth,
 			initialTreeWidth: layout.initial.treeWidth,
 			onToggleFullscreen: projectRail.toggleFullscreen,
 			onOpenSettings: openSettings,
+			onOpenCommands: openCommands,
 			onPersistLayout: layout.persist,
 			onReviewOpenChange: handleReviewOpenChange,
 			onReviewExpandedChange: handleReviewExpandedChange,
@@ -242,6 +256,7 @@ function Bankai() {
 			layout.persist,
 			projectRail.toggleFullscreen,
 			openSettings,
+			openCommands,
 			handleReviewExpandedChange,
 			handleReviewOpenChange,
 			handleTreeOpenChange,
@@ -413,6 +428,9 @@ function Bankai() {
 				/>
 			)}
 			{settingsOpen && <SettingsModal onClose={closeSettings} />}
+			{commandsOpen && activeProject && (
+				<CommandsModal project={activeProject} onRun={runCommand} onClose={closeCommands} />
+			)}
 			{pickerOpen && (
 				<ProjectPicker
 					adding={addingProject}

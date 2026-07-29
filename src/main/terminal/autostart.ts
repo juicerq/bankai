@@ -1,6 +1,7 @@
 import type { HarnessCommand } from "@main/activity/Harness";
 import { DEFAULT_HARNESS_SETTINGS, harnessLaunch } from "@main/activity/harnesses";
 import { Logger } from "@main/logger";
+import type { ContinuityShell } from "@main/store/continuity";
 import { type HarnessSettings, Settings } from "@main/store/settings";
 import { shellCommandLine, splitArguments } from "@main/terminal/commandLine";
 
@@ -26,6 +27,20 @@ export async function autostartCommandLine(): Promise<string | undefined> {
 	}
 
 	return withExtraArguments(launch(), harness.args);
+}
+
+export async function shellLaunchLine(shell: Pick<ContinuityShell, "plain" | "launch"> | undefined) {
+	// A command shell launches its saved command; a plain shell launches nothing;
+	// everything else gets the configured harness.
+	if (shell?.launch) {
+		return shell.launch;
+	}
+
+	if (shell?.plain) {
+		return;
+	}
+
+	return await autostartCommandLine();
 }
 
 export async function harnessCommandLine(command: HarnessCommand, harnessId: string): Promise<string> {

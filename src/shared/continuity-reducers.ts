@@ -13,6 +13,8 @@ interface Candidate {
 
 type ShellTitleSource = NonNullable<ContinuityShell["titleSource"]>;
 
+export type OpenedShell = Pick<ContinuityShell, "id" | "plain" | "launch" | "title" | "titleSource">;
+
 export interface ShellName {
 	title: string;
 	source: Exclude<ShellTitleSource, "user">;
@@ -118,7 +120,7 @@ export function nextShellNumber(shells: Pick<ContinuityShell, "label">[]): numbe
 export const ContinuityReducers = {
 	openShell: (
 		value: ContinuityValue,
-		input: { projectId: string; shell: Pick<ContinuityShell, "id" | "plain">; now: number },
+		input: { projectId: string; shell: OpenedShell; now: number },
 	): ContinuityValue => {
 		const known = value.workspaces.some((workspace) => workspace.projectId === input.projectId);
 		const mounted = known

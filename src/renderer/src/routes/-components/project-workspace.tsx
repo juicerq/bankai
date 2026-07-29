@@ -76,6 +76,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		active,
 		onToggleReview: handleToggleReview,
 		onToggleReviewExpanded: handleToggleReviewExpanded,
+		onOpenCommands: control.onOpenCommands,
 	});
 
 	return (

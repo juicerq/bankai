@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { ClaudeHarness } from "@main/activity/claude";
 import { DEFAULT_HARNESS_SETTINGS, harnessLaunch, launchableHarnesses } from "@main/activity/harnesses";
 import { Settings } from "@main/store/settings";
-import { autostartCommandLine, harnessCommandLine } from "@main/terminal/autostart";
+import { autostartCommandLine, harnessCommandLine, shellLaunchLine } from "@main/terminal/autostart";
 import { shellArgs, shellCommandLine, splitArguments } from "@main/terminal/commandLine";
 import { harnessAvailable } from "@main/terminal/harnessAvailability";
 import { assertDefined } from "./utils/assertions";
@@ -118,6 +118,26 @@ describe("shell command line", () => {
 
 	test("escapes a single quote without ending the quoted run", () => {
 		expect(shellCommandLine({ file: "claude", args: ["it's"] })).toBe("claude 'it'\\''s'");
+	});
+});
+
+describe("shell launch line", () => {
+	test("launches the harness in an ordinary shell", async () => {
+		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id });
+
+		expect(await shellLaunchLine({})).toBe("claude");
+	});
+
+	test("launches nothing in a plain shell", async () => {
+		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id });
+
+		expect(await shellLaunchLine({ plain: true })).toBeUndefined();
+	});
+
+	test("launches the saved command instead of the harness", async () => {
+		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id });
+
+		expect(await shellLaunchLine({ plain: true, launch: "bun run dev" })).toBe("bun run dev");
 	});
 });
 

@@ -26,8 +26,8 @@ export function query(component: string, filters?: Record<string, string>) {
 	return match;
 }
 
-export function slot(parent: HTMLElement, name: string) {
-	const matches = [...parent.querySelectorAll<HTMLElement>(`[data-slot="${name}"]`)];
+export function slot<Element extends HTMLElement = HTMLElement>(parent: HTMLElement, name: string) {
+	const matches = [...parent.querySelectorAll<Element>(`[data-slot="${name}"]`)];
 	const [match] = matches;
 
 	if (!match || matches.length !== 1) {

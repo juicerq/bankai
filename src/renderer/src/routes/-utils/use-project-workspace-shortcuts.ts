@@ -6,10 +6,12 @@ export function useProjectWorkspaceShortcuts({
 	active,
 	onToggleReview,
 	onToggleReviewExpanded,
+	onOpenCommands,
 }: {
 	active: boolean;
 	onToggleReview: () => void;
 	onToggleReviewExpanded: () => void;
+	onOpenCommands: () => void;
 }) {
 	return useCallback(() => {
 		let leaderArmed = false;
@@ -27,6 +29,10 @@ export function useProjectWorkspaceShortcuts({
 
 				if (event.code === "KeyE") {
 					return onToggleReviewExpanded;
+				}
+
+				if (event.code === "KeyC") {
+					return onOpenCommands;
 				}
 
 				return;
@@ -65,5 +71,5 @@ export function useProjectWorkspaceShortcuts({
 			window.removeEventListener("keydown", handleKeyDown, true);
 			window.removeEventListener("blur", handleWindowBlur);
 		};
-	}, [active, onToggleReview, onToggleReviewExpanded]);
+	}, [active, onOpenCommands, onToggleReview, onToggleReviewExpanded]);
 }

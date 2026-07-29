@@ -6,7 +6,13 @@ import { Continuity, type ContinuityValue } from "@main/store/continuity";
 import { shellProcesses } from "@main/terminal/ShellProcesses";
 import { type } from "arktype";
 
-const shellInput = type({ id: "string", "plain?": "boolean" });
+const shellInput = type({
+	id: "string",
+	"plain?": "boolean",
+	"launch?": "string",
+	"title?": "string",
+	"titleSource?": "'user' | 'published' | 'model'",
+});
 
 async function stamped(
 	input: { projectId: string; shellId: string },

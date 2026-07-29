@@ -1,15 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import type { ContinuityShell, ContinuityValue } from "@main/store/continuity";
+import type { ProjectCommand } from "@main/store/commands";
+import type { ContinuityValue } from "@main/store/continuity";
 import { orpc } from "@renderer/lib/api";
 import { newId } from "@renderer/lib/id";
 import { useShellResidency } from "@renderer/routes/-utils/use-shell-residency";
-import { ContinuityReducers } from "@shared/continuity-reducers";
+import { ContinuityReducers, type OpenedShell } from "@shared/continuity-reducers";
 
 const EMPTY_CONTINUITY: ContinuityValue = { workspaces: [] };
 const CONTINUITY_KEY = orpc.continuity.get.queryOptions().queryKey;
 
-function newShell(plain?: boolean): Pick<ContinuityShell, "id" | "plain"> {
+function newShell(plain?: boolean): OpenedShell {
 	if (plain) {
 		return { id: newId(), plain };
 	}
@@ -49,6 +50,25 @@ export function useSessions() {
 	const openShell = useCallback(
 		(projectId: string, plain?: boolean) => {
 			const shell = newShell(plain);
+
+			project((value) => ContinuityReducers.openShell(value, { projectId, shell, now: Date.now() }));
+			open({ projectId, shell });
+		},
+		[open, project],
+	);
+
+	// The command rides on the shell record instead of being typed into a live
+	// one: the shell launches it, so nothing has to wait for a PTY to attach and
+	// no agent is left reading the command as a prompt.
+	const openCommandShell = useCallback(
+		(projectId: string, command: Pick<ProjectCommand, "label" | "command">) => {
+			const shell: OpenedShell = {
+				id: newId(),
+				plain: true,
+				launch: command.command,
+				title: command.label,
+				titleSource: "user",
+			};
 
 			project((value) => ContinuityReducers.openShell(value, { projectId, shell, now: Date.now() }));
 			open({ projectId, shell });
@@ -115,6 +135,7 @@ export function useSessions() {
 		failed: data?.failed ?? false,
 		residency,
 		openShell,
+		openCommandShell,
 		openShellAsync,
 		closeShell,
 		selectShell,

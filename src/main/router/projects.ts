@@ -3,6 +3,7 @@ import { type } from "arktype";
 import { dialog, shell } from "electron";
 import { browseDirectories, expandUserPath } from "@main/fs/directories";
 import { base } from "@main/router/_base";
+import { ProjectCommands } from "@main/store/commands";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 
@@ -28,6 +29,7 @@ export const projectsRouter = {
 	remove: base.input(type({ projectId: "string" })).handler(async ({ input }) => {
 		await Projects.find(input.projectId);
 		await Projects.remove(input.projectId);
+		await ProjectCommands.purgeProject(input.projectId);
 		await Continuity.purgeProject(input.projectId);
 	}),
 	chooseDirectory: base.handler(async () => {

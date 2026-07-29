@@ -57,6 +57,32 @@ test("opening a shell lands in the cache named and selected before the main proc
 	});
 });
 
+test("a command opens a plain shell that launches it and wears its name", async () => {
+	const { result } = await renderSessions({ workspaces: [{ projectId: "p1", shells: [] }] });
+
+	act(() => result.current.openCommandShell("p1", { label: "Dev server", command: "bun run dev" }));
+
+	const [opened] = cached().workspaces[0]?.shells ?? [];
+	expect(opened?.title).toBe("Dev server");
+	expect(cached().selectedShellId).toBe(opened?.id);
+
+	await waitFor(() => {
+		expect(transport.calls).toEqual([{
+			procedure: "openShell",
+			input: {
+				projectId: "p1",
+				shell: {
+					id: opened?.id,
+					plain: true,
+					launch: "bun run dev",
+					title: "Dev server",
+					titleSource: "user",
+				},
+			},
+		}]);
+	});
+});
+
 test("a shell opened without a harness carries the request to the main process", async () => {
 	const { result } = await renderSessions({ workspaces: [] });
 

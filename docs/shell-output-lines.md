@@ -1,7 +1,7 @@
 ---
 title: Where the "last output line" on a session card comes from
 tags: [terminal, activity]
-updated_at: 2026-07-27
+updated_at: 2026-07-29
 created_at: 2026-07-25
 ---
 
@@ -37,7 +37,7 @@ Two known holes, both accepted: a paint that wraps *inside* a word defeats the m
 
 ## A finished agent is not described by what it last did
 
-`sessionTrace` in `src/renderer/src/routes/-utils/session-rows.ts` overrides the observed trace for `done-unseen` only. A stopped agent's newest transcript block is always `text`, because a turn ends with the reply — so replaying it leaves "Writing" pinned to a card that finished minutes ago. It says "Done" instead.
+`sessionTrace` in `src/renderer/src/routes/-utils/session-rows.ts` overrides the observed trace for `done` only. A stopped agent's newest transcript block is always `text`, because a turn ends with the reply — so replaying it leaves "Writing" pinned to a card that finished minutes ago. It says "Done" instead.
 
 A waiting agent is no longer overridden here: the main process already put the reason on the trace, read from `waitingFor` in the session registry, so the renderer would only be fabricating a vaguer version of a label it was handed. See `claude-session-registry.md`.
 

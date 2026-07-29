@@ -181,7 +181,7 @@ test("a session the harness gave no clock for shows the verb alone", () => {
 });
 
 test("a state each session can be in paints its own border", () => {
-	const states: AgentActivityState[] = ["working", "needs-attention", "done-unseen"];
+	const states: AgentActivityState[] = ["working", "needs-attention", "done"];
 	renderSidebar({ open: states.map((activity, index) => row(`s${index}`, { activity })) });
 
 	expect(sessionRow("s0").className).toContain("border-l-tertiary");

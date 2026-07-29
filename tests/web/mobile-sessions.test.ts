@@ -31,10 +31,10 @@ function order(rows: SessionRow[], chosenProjectIds: ReadonlySet<string> = NO_PR
 		.sessions.map((entry) => entry.shellId);
 }
 
-test("attention comes first, then work, then what finished unseen", () => {
+test("attention comes first, then work, then what finished", () => {
 	const rows = [
 		row("idle"),
-		row("done", { activity: "done-unseen" }),
+		row("done", { activity: "done" }),
 		row("working", { activity: "working" }),
 		row("waiting", { activity: "needs-attention" }),
 	];
@@ -101,7 +101,7 @@ test("chosen projects narrow the list and accumulate", () => {
 test("a project badge carries the most urgent state of its sessions", () => {
 	const { projectActivity } = mobileSessionList({
 		rows: [
-			row("a", { projectId: "p1", activity: "done-unseen" }),
+			row("a", { projectId: "p1", activity: "done" }),
 			row("b", { projectId: "p1", activity: "needs-attention" }),
 			row("c", { projectId: "p2", activity: "working" }),
 			row("d", { projectId: "p3" }),

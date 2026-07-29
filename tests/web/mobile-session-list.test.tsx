@@ -128,7 +128,7 @@ test("a running session says how long it has been at it", () => {
 });
 
 test("each state paints its own band down the left edge", () => {
-	const states: AgentActivityState[] = ["working", "needs-attention", "done-unseen"];
+	const states: AgentActivityState[] = ["working", "needs-attention", "done"];
 	renderList(states.map((activity, index) => row(`s${index}`, { activity })));
 
 	expect(card("s0").className).toContain("border-l-tertiary");

@@ -1,4 +1,3 @@
-import { AgentActivity } from "@main/activity/AgentActivity";
 import { locateTranscript } from "@main/activity/claudeTranscript";
 import { CONVERSATION_BACKFILL_BYTES, ConversationTail } from "@main/activity/conversationTail";
 import { subagentTranscriptPath } from "@main/activity/subagentTranscript";
@@ -203,7 +202,6 @@ export function handleConversationMessage(connection: StreamConnection, message:
 				}
 			});
 			conversationWatches.set(key, watch);
-			AgentActivity.markShellViewed(address.shellId);
 
 			return watch.start();
 		}

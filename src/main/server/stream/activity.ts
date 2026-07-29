@@ -25,18 +25,10 @@ export async function handleActivityMessage(connection: StreamConnection, messag
 
 			return undefined;
 		}
-		case "viewed":
-			AgentActivity.markViewed(ActivitySchemas.viewed.assert(message.payload).sessionId);
-
-			return undefined;
 		case "focus-shell": {
 			const { shellId } = ActivitySchemas.focusShell.assert(message.payload);
 
 			focusShell(connection, shellId);
-
-			if (shellId) {
-				AgentActivity.markShellViewed(shellId);
-			}
 
 			return undefined;
 		}

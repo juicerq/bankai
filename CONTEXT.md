@@ -145,7 +145,7 @@ A point in a Shell's life at which its Session name is worth reconsidering, coun
 _Avoid_: Refresh, interval, poll, tick
 
 **Agent activity**:
-The observed state of the Agent inside a Shell: Working, Needs attention, or Done unseen. A shell with no recognized agent, or whose finished work was already seen, carries no activity. A project's activity is the most urgent among its shells' — Needs attention over Done unseen over Working.
+The current disposition of Agent work in a Shell: Working, Needs attention, or Done. A Shell with no recognized Agent turn carries no activity. A project's activity is the most urgent among its Shells' — Needs attention over Done over Working.
 _Avoid_: Status, presence, agent state
 
 **Working**:
@@ -156,9 +156,9 @@ _Avoid_: Busy, running, active
 The agent stopped mid-turn waiting on the user — a permission request or a question. The most urgent activity: work is blocked until the user responds.
 _Avoid_: Blocked, waiting, paused, pending
 
-**Done unseen**:
-The agent finished its turn and the user has not looked at that Shell since. Clears only when the shell is viewed — its tab active in the Active project.
-_Avoid_: Unread, completed, finished, new
+**Done**:
+The Agent finished the latest Shell turn, and the Shell still awaits the user's next decision: start another turn, archive it, or close it. Looking at the Shell does not resolve it.
+_Avoid_: Done unseen, unread, completed, finished, new
 
 **Activity indicator**:
 The compact element left of the shell tabs, present during Focus mode, that keeps every mounted project's Agent activity visible while the Project rail is hidden. Passive: activating a project stays with the rail and shortcuts.

@@ -161,7 +161,20 @@ describe("building the flat list", () => {
 			workspaces: [{ projectId: "p1", shells: [{ id: "s1", label: "Shell 1", createdAt: 1 }] }],
 		};
 
-		expect(rowsOf(stopped, { s1: "done-unseen" }, { s1: "Writing" })[0]?.trace).toBe("Done");
+		expect(rowsOf(stopped, { s1: "done" }, { s1: "Writing" })[0]?.trace).toBe("Done");
+	});
+
+	test("a persisted completion restores done and its clock without a live snapshot", () => {
+		const doneAt = NOW - 1000;
+		const stopped: ContinuityValue = {
+			workspaces: [{ projectId: "p1", shells: [{ id: "s1", label: "Shell 1", createdAt: 1, doneAt }] }],
+		};
+
+		expect(rowsOf(stopped)[0]).toMatchObject({
+			activity: "done",
+			trace: "Done",
+			traceSince: doneAt,
+		});
 	});
 
 	test("a waiting agent shows the reason the main process read from the registry", () => {
@@ -257,6 +270,12 @@ describe("splitting the open list from the archive", () => {
 		expect(partitionSessions([busy], NOW).open.map((entry) => entry.shellId)).toEqual(["busy"]);
 	});
 
+	test("done holds a stale session open until the user resolves it", () => {
+		const done = row("done", { lastTouchedAt: NOW - SESSION_AUTO_ARCHIVE_MS - 1, activity: "done" });
+
+		expect(partitionSessions([done], NOW).open.map((entry) => entry.shellId)).toEqual(["done"]);
+	});
+
 	test("the archive orders by when the work ended, not by when it started", () => {
 		const rows = [
 			row("filed-first", { createdAt: NOW, archivedAt: NOW - 100 }),
@@ -288,8 +307,8 @@ describe("choosing what the trace slot says", () => {
 	});
 
 	test("a finished agent names its state, whatever the transcript last held", () => {
-		expect(sessionTrace("done-unseen", "Writing")).toBe("Done");
-		expect(sessionTrace("done-unseen")).toBe("Done");
+		expect(sessionTrace("done", "Writing")).toBe("Done");
+		expect(sessionTrace("done")).toBe("Done");
 	});
 
 	test("a waiting agent shows the reason it was handed, not the transcript's stale verb", () => {
@@ -312,7 +331,7 @@ describe("choosing what the clock beside the trace counts from", () => {
 	});
 
 	test("a finished agent counts from the end of its turn", () => {
-		expect(sessionSince({ activity: "done-unseen", traceSince: NOW - 6000, statusSince: NOW - 1000 }))
+		expect(sessionSince({ activity: "done", traceSince: NOW - 6000, statusSince: NOW - 1000 }))
 			.toBe(NOW - 1000);
 	});
 

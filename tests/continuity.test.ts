@@ -326,6 +326,56 @@ describe("continuity store", () => {
 		expect((await Continuity.load()).value.workspaces[0]?.shells[0]?.archivedAt).toBeUndefined();
 	});
 
+	it("persists done with its completion clock and selecting does not clear it", async () => {
+		const doneAt = 1_784_901_075_701;
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
+		await Continuity.finishTurn({ projectId: "p1", shellId: "s1", at: doneAt });
+		await Continuity.selectShell({ projectId: "p1", shellId: "s1" });
+
+		expect((await Continuity.load()).value.workspaces[0]?.shells[0]?.doneAt).toBe(doneAt);
+		expect(readContinuityFile()).toMatchObject({
+			version: CONTINUITY_STORE_VERSION,
+			data: { workspaces: [{ shells: [{ doneAt }] }] },
+		});
+	});
+
+	it("resolves done when a later turn starts, even when both writes are queued together", async () => {
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
+		const finished = Continuity.finishTurn({ projectId: "p1", shellId: "s1", at: 1_784_901_075_701 });
+		const started = Continuity.startTurn({ projectId: "p1", shellId: "s1" });
+
+		await Promise.all([finished, started]);
+
+		expect((await Continuity.load()).value.workspaces[0]?.shells[0]?.doneAt).toBeUndefined();
+	});
+
+	it("resolves done on archive and unarchive does not bring it back", async () => {
+		await Continuity.openShell({ projectId: "p1", shell: { id: "s1" } });
+		await Continuity.finishTurn({ projectId: "p1", shellId: "s1", at: 1_784_901_075_701 });
+		await Continuity.archiveShell({ projectId: "p1", shellId: "s1" });
+		await Continuity.unarchiveShell({ projectId: "p1", shellId: "s1" });
+
+		expect((await Continuity.load()).value.workspaces[0]?.shells[0]?.doneAt).toBeUndefined();
+	});
+
+	it("migrates v7 shells without inventing historical done state", async () => {
+		writeContinuityFile({
+			version: 7,
+			data: {
+				selectedShellId: "s1",
+				workspaces: [{
+					projectId: "p1",
+					shells: [{ id: "s1", label: "Shell 1", createdAt: 1, lastTouchedAt: 2 }],
+				}],
+			},
+		});
+
+		const { value, failed } = await Continuity.load();
+
+		expect(failed).toBe(false);
+		expect(value.workspaces[0]?.shells[0]?.doneAt).toBeUndefined();
+	});
+
 	it("keeps a v1 topology while dropping session refs that predate the recorded directory", async () => {
 		writeContinuityFile({
 			version: 1,

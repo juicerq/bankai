@@ -25,7 +25,7 @@ export function sessionTrace(
 	if (!activity) {
 		return undefined;
 	}
-	if (activity === "done-unseen") {
+	if (activity === "done") {
 		return "Done";
 	}
 	if (activity === "working") {
@@ -43,7 +43,7 @@ export function sessionSince(input: {
 	if (!input.activity) {
 		return undefined;
 	}
-	if (input.activity === "done-unseen") {
+	if (input.activity === "done") {
 		return input.statusSince;
 	}
 
@@ -68,7 +68,9 @@ export function sessionRows(input: {
 		}
 
 		for (const shell of workspace.shells) {
-			const activity = input.shellActivity.get(shell.id);
+			const activity =
+				input.shellActivity.get(shell.id) ??
+				(shell.doneAt !== undefined && shell.archivedAt === undefined ? "done" : undefined);
 
 			rows.push({
 				shellId: shell.id,
@@ -85,7 +87,7 @@ export function sessionRows(input: {
 				traceSince: sessionSince({
 					activity,
 					traceSince: input.traceSince.get(shell.id),
-					statusSince: input.statusSince.get(shell.id),
+					statusSince: input.statusSince.get(shell.id) ?? shell.doneAt,
 				}),
 				attention: input.attention.get(shell.id),
 			});

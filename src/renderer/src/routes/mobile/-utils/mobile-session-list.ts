@@ -5,7 +5,7 @@ import { partitionSessions, type SessionRow } from "@renderer/routes/-utils/sess
 const ATTENTION_RANK: Record<AgentActivityState, number> = {
 	"needs-attention": 0,
 	working: 1,
-	"done-unseen": 2,
+	"done": 2,
 };
 
 const IDLE_RANK = 3;

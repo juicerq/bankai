@@ -57,7 +57,10 @@ function idleSince(shell: ContinuityShell): number {
 }
 
 function isOpen(shell: ContinuityShell, now: number): boolean {
-	return shell.archivedAt === undefined && idleSince(shell) >= now - SESSION_AUTO_ARCHIVE_MS;
+	return (
+		shell.archivedAt === undefined &&
+		(shell.doneAt !== undefined || idleSince(shell) >= now - SESSION_AUTO_ARCHIVE_MS)
+	);
 }
 
 function pinnedIfStale(shell: ContinuityShell, now: number): ContinuityShell {
@@ -166,7 +169,10 @@ export const ContinuityReducers = {
 	},
 
 	archiveShell: (value: ContinuityValue, input: ShellAddress & { now: number }): ContinuityValue => {
-		const archived = mapShell(value, input, (shell) => ({ ...shell, archivedAt: input.now }));
+		const archived = mapShell(value, input, ({ doneAt: _doneAt, ...shell }) => ({
+			...shell,
+			archivedAt: input.now,
+		}));
 
 		if (value.selectedShellId !== input.shellId) {
 			return archived;
@@ -212,6 +218,18 @@ export const ContinuityReducers = {
 			}
 
 			return touched;
+		}),
+
+	startTurn: (value: ContinuityValue, input: ShellAddress): ContinuityValue =>
+		mapShell(value, input, ({ doneAt: _doneAt, ...shell }) => shell),
+
+	finishTurn: (value: ContinuityValue, input: ShellAddress & { at: number }): ContinuityValue =>
+		mapShell(value, input, (shell) => {
+			if (shell.archivedAt !== undefined || (shell.doneAt ?? 0) >= input.at) {
+				return shell;
+			}
+
+			return { ...shell, doneAt: input.at };
 		}),
 
 	setShellSession: (value: ContinuityValue, input: ShellAddress & { session: ContinuitySessionRef }): ContinuityValue =>

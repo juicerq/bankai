@@ -1,10 +1,10 @@
-export type AgentActivityState = "working" | "needs-attention" | "done-unseen";
+export type AgentActivityState = "working" | "needs-attention" | "done";
 
 export const DEFAULT_LIVE_TRACE = true;
 
 export const DEFAULT_SESSION_NAMING = true;
 
-const AGGREGATE_PRIORITY: AgentActivityState[] = ["needs-attention", "done-unseen", "working"];
+const AGGREGATE_PRIORITY: AgentActivityState[] = ["needs-attention", "done", "working"];
 
 export function aggregateActivity(states: AgentActivityState[]): AgentActivityState | null {
 	for (const priority of AGGREGATE_PRIORITY) {
@@ -39,6 +39,5 @@ export interface BankaiActivityApi {
 	watch: (projectId: string) => Promise<ProjectActivitySnapshot>;
 	unwatch: (projectId: string) => void;
 	onChanged: (listener: (event: ActivityChangedEvent) => void) => () => void;
-	markViewed: (sessionId: string) => void;
 	focusShell: (shellId?: string) => void;
 }

@@ -30,7 +30,7 @@ test("an agent working in the same worktree is named", () => {
 });
 
 test("an agent whose turn already ended still shares the worktree", () => {
-	expect(shells({ activity: [["shell-1", "done-unseen"]] })).toEqual(["Shell 1"]);
+	expect(shells({ activity: [["shell-1", "done"]] })).toEqual(["Shell 1"]);
 });
 
 test("the focused shell never reports itself", () => {

@@ -1,7 +1,7 @@
 ---
 title: How the trace line knows what an agent is doing right now
 tags: [activity, terminal]
-updated_at: 2026-07-27
+updated_at: 2026-07-29
 created_at: 2026-07-25
 ---
 
@@ -61,7 +61,7 @@ It is also late. Measured on this machine, a record becomes visible on disk afte
 
 The anchor moves when the **label** changes, never when the record does. The same label legitimately spans several records — `Thinking` is produced first by the `tool_result` record and then by the `thinking` block written after it — and restarting on each one understated one measured thought by 43s. The cost is that two consecutive `Bash` calls with no readable subject both read `Running commands` and count as one span; that is the intended reading, since the label is what the number measures.
 
-Three labels have no record behind them and keep their own anchor: a waiting reason counts from the registry's status edge, `Compacting` from the tick that scraped the notice, and `Done` from the end of the turn (`sessionSince` in `session-rows.ts` picks the status stamp for `done-unseen`). A record whose timestamp is missing or unparseable still yields a trace and falls back to the observing tick — no record on this machine has ever needed it, across 38509 sampled.
+Three labels have no record behind them and keep their own anchor: a waiting reason counts from the registry's status edge, `Compacting` from the tick that scraped the notice, and `Done` from the end of the turn (`sessionSince` in `session-rows.ts` picks the status stamp for `done`). A record whose timestamp is missing or unparseable still yields a trace and falls back to the observing tick — no record on this machine has ever needed it, across 38509 sampled.
 
 ## "Thinking" is the label for a block being streamed, not only for a thinking block
 

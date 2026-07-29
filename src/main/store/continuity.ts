@@ -22,6 +22,7 @@ const shellSchema = type({
 	"titleSource?": "'user' | 'published' | 'model'",
 	"namings?": "number",
 	"archivedAt?": "number",
+	"doneAt?": "number",
 	"plain?": "boolean",
 	"launch?": "string",
 });
@@ -94,7 +95,7 @@ const selectionPerWorkspaceSchema = type({
 	),
 );
 
-export const CONTINUITY_STORE_VERSION = 7;
+export const CONTINUITY_STORE_VERSION = 8;
 
 const store = new Store({
 	name: "continuity",
@@ -107,6 +108,7 @@ const store = new Store({
 		4: (raw) => shellsWithoutCreatedAtSchema.assert(raw),
 		5: (raw) => selectionPerWorkspaceSchema.assert(raw),
 		6: (raw) => raw,
+		7: (raw) => raw,
 	},
 	seed: (): ContinuityValue => ({ workspaces: [] }),
 });
@@ -175,6 +177,12 @@ export const Continuity = {
 
 	touchShell: (input: ShellAddress & { branch: string; title?: string }): Promise<ContinuityValue> =>
 		mutate((current) => ContinuityReducers.touchShell(current, { ...input, now: Date.now() })),
+
+	startTurn: (input: ShellAddress): Promise<ContinuityValue> =>
+		mutate((current) => ContinuityReducers.startTurn(current, input)),
+
+	finishTurn: (input: ShellAddress & { at: number }): Promise<ContinuityValue> =>
+		mutate((current) => ContinuityReducers.finishTurn(current, input)),
 
 	setShellSession: (input: ShellAddress & { session: ContinuitySessionRef }): Promise<ContinuityValue> =>
 		mutate((current) => ContinuityReducers.setShellSession(current, input)),

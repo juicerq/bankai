@@ -1,38 +1,50 @@
 ---
-title: Why agent activity is a per-turn signal and cannot stand for "this session is alive"
+title: Why Agent activity follows the turn while Done follows the Shell
 tags: [activity, ui]
-updated_at: 2026-07-26
+updated_at: 2026-07-29
 created_at: 2026-07-25
 ---
 
 ## A live PTY is not activity
 
-`nextShellActivity` in `src/main/activity/AgentActivity.ts` only produces a state when `SessionBinder` matches the shell to an agent process that has a turn open. A shell running a plain command, or nothing at all, never has a state — no matter that its PTY exists and its terminal is mounted.
+`nextShellActivity` in `src/main/activity/AgentActivity.ts` only discovers live state when `SessionBinder` matches the Shell to an Agent process. A Shell running a plain command, or nothing at all, never becomes Working or Needs attention — no matter that its PTY exists and its terminal is mounted.
 
-The three states are shorter-lived than they look:
+Two states follow the live turn:
 
-- `working` ends when the turn ends.
-- `done-unseen` is cleared by `markViewed` the moment the user looks at the shell.
-- `needs-attention` is the only one that survives the user reading the row, and only while the agent is still waiting.
+- `working` means the Agent is executing the turn.
+- `needs-attention` means the turn is open but waiting on the user.
 
-## The session you are working in has no activity
+If the Agent process disappears during either state, the state disappears. Bankai does not invent a completion from a dead process.
 
-Reading a shell clears `done-unseen`; typing in it while the agent is idle produces nothing. So any UI that partitions sessions into "active" and "inactive" by the presence of an activity state puts the session under the user's cursor on the inactive side.
+## Done is a durable decision queue
 
-## Activity is keyed by the persistent shell id
+When a live turn reaches `done`, `AgentActivity` writes its completion time to the Shell's `doneAt` fact through `Continuity.finishTurn`. The activity snapshot only publishes Done once that fact exists. A later Agent exit therefore cannot erase it, and restarting Bankai restores both Done and its original elapsed clock without needing a live PTY.
+
+Done survives focus, selection, terminal input that does not begin a turn, and reading the Conversation. It is resolved only when:
+
+- the Harness observes a later turn begin and `Continuity.startTurn` clears `doneAt`
+- the user archives the Shell and `Continuity.archiveShell` clears `doneAt`
+- the user closes the Shell and its record leaves Continuity
+
+Unarchiving does not restore Done. Store v8 added the optional fact without backfilling old idle Shells, because an old timestamp cannot prove that an Agent completed a turn.
+
+The completion push still follows the live `working` or `needs-attention` to `done` edge. Restoring `doneAt`, selecting the Shell, or restarting Bankai changes no live edge and sends no new push.
+
+## Activity is keyed by the persistent Shell id
 
 `snapshotsByProject` writes `shells` under `owner.shellId`, the same key `worktreeByShellId` already uses, not under the ephemeral session id a PTY spawn mints. Any surface can therefore join activity to a shell without a renderer-side map from one to the other; the map that used to do that is gone.
 
-This does not make activity available for cold shells — it is still PTY-derived, so a shell whose terminal is not mounted has no state at all.
+Working and Needs attention remain PTY-derived. Done is joined from Continuity, so a cold Shell can still carry it. The renderer also reads `doneAt` from its Continuity value as a startup fallback while the activity stream connects.
 
 The sessions-first sidebar hit this twice. Its first prototype split `ACTIVE` from `IDLE` on `session.activity` being set, and the session being worked in fell into the shelf. The fix removed activity from the partition but left it choosing the row's height, so the session under the cursor still shrank the moment its turn ended — the same mistake, one layer down. Activity now decides paint only: a border colour, a dot, and what the card's trace line says. Placement comes from `createdAt`, and the open/archived split comes from the user (see `session-archiving.md`).
 
-The one thing activity still decides is a hold. The 3-day auto-archive will not file a shell with any state, and an explicitly archived shell keeps its process for a grace window after its state began — see `shell-residency.md`. The veto is safe only for the automatic limb because these states are short-lived; `needs-attention` outlives the user reading the row, which is why the process side uses a deadline rather than a veto.
+The one thing activity still decides is a hold. The 3-day auto-archive will not file a Shell with any state. Done can hold it indefinitely because that is the decision queue: the Shell stays easy to reach until the user starts the next turn, archives it, or closes it. Explicit archive still wins over every activity state.
 
-## There is no per-project aggregate any more
+## Aggregates are projections, not stored activity
 
-`ProjectActivitySnapshot` used to carry a `state` field — `aggregateActivity` over the project's shells. Two surfaces consumed it: the rail's per-project dot and the fullscreen header's cross-project announcement strip, which numbered a project with the same digit `Ctrl+1..9` used. Both died with the project rail, and the digit they shared has no owner left, so the field went with them.
+`ProjectActivitySnapshot` carries Shell states, never a stored project state. Consumers derive the grouping they need from those Shells:
 
-`aggregateActivity` itself is still alive — the review panel aggregates a worktree's shells with it.
+- the mobile Project picker chooses the most urgent open Shell for each Project
+- the Review panel uses `aggregateActivity` for the Shells sharing one Worktree
 
-What is lost is real and was accepted: activity in a project the user is not looking at is now seen by bringing the pointer to the sidebar edge, not passively from the header. The per-session replacement for that passive signal is a separate effort.
+Done restored from Continuity joins the same snapshot, so these projections do not need their own completion memory.

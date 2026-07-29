@@ -85,7 +85,7 @@ describe("done push payload", () => {
 
 describe("the turns that are worth a notification", () => {
 	const working = new Map<string, AgentActivityState>([["s1", "working"]]);
-	const done = new Map<string, AgentActivityState>([["s1", "done-unseen"]]);
+	const done = new Map<string, AgentActivityState>([["s1", "done"]]);
 
 	test("a turn that just finished is the one that notifies", () => {
 		expect(doneEntryShells(working, done)).toEqual(["s1"]);

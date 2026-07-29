@@ -1,17 +1,17 @@
 ---
 title: What a shell record persists, and when it is stamped
 tags: [continuity, store, git]
-updated_at: 2026-07-25
+updated_at: 2026-07-29
 created_at: 2026-07-25
 ---
 
-## Store v5 carries the facts the session list sorts and renders by
+## Store v8 carries the facts the session list sorts and renders by
 
-A shell record persists `createdAt` (epoch ms, required) plus the optional `lastTouchedAt`, `branch`, `title`, `archivedAt` and session ref, alongside `id` and `label`.
+A shell record persists `createdAt` (epoch ms, required) plus the optional `lastTouchedAt`, `branch`, `title`, `archivedAt`, `doneAt` and session ref, alongside `id` and `label`.
 
 `createdAt` is the one required fact because the sidebar's open list orders by it and an absent value would have no defensible position. The v4→v5 migration cannot invent one — nothing recorded when an old shell was opened — so it writes `lastTouchedAt ?? 0`. Shells migrated with `0` land at the bottom of the list in id order, stable but arbitrary; every shell opened since carries a real stamp.
 
-`lastTouchedAt`, `branch` and `title` stay optional and are invented by nothing: a shell restored from an older store has none of them until it is next stamped. A shell with no `title` falls back to `branch` and then to `label`.
+`lastTouchedAt`, `branch`, `title` and `doneAt` stay optional and are invented by nothing. The v7→v8 migration leaves old Shells without `doneAt`; an idle record cannot prove that an Agent completed a turn. A Shell with no `title` falls back to `branch` and then to `label`.
 
 ## Exactly two events stamp a shell
 
@@ -24,7 +24,18 @@ PTY output stamps nothing. A watch build or a `tail -f` would otherwise keep a d
 
 `lastTouchedAt` no longer places a session in the list — it only feeds the auto-archive window and orders the archive.
 
-Selecting never unarchives. `archivedAt` is cleared by `Continuity.unarchiveShell` and by nothing else. Because select stamps `lastTouchedAt`, a session the 3-day window had filed would otherwise walk out of the archive the moment it was opened, which is the one thing the explicit gesture exists to prevent — so `selectShell` first runs the shell through `pinnedIfStale`, writing `archivedAt` to the idle timestamp the window was already judging it by. Implicit becomes explicit on the way in, the archive's order does not move, and the stamp that follows is harmless.
+Selecting never unarchives. `archivedAt` is cleared by `Continuity.unarchiveShell` and by nothing else. Because select stamps `lastTouchedAt`, a session the 3-day window had filed would otherwise walk out of the archive the moment it was opened, which is the one thing the explicit gesture exists to prevent — so `selectShell` first runs the shell through `pinnedIfStale`, writing `archivedAt` to the idle timestamp the window was already judging it by. Implicit becomes explicit on the way in, the archive's order does not move, and the stamp that follows is harmless. A Shell with `doneAt` is still open regardless of age, so focusing Done never takes that path.
+
+## Turn boundaries write the Done fact
+
+`AgentActivity.commit` owns both writes:
+
+- a live turn finishing calls `Continuity.finishTurn` with the Harness completion time
+- a later turn starting calls `Continuity.startTurn`, which removes `doneAt`
+
+The Store serializes mutations in call order. If a finish and the next start arrive before the first disk write settles, the start still wins. Selection and Shell facts never clear `doneAt`.
+
+Explicit archive removes `doneAt` while writing `archivedAt`. Unarchive only removes `archivedAt` and touches the Shell, so a resolved completion does not return. Closing removes the whole Shell record.
 
 ## The branch is a snapshot, not a subscription
 

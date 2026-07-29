@@ -6,6 +6,7 @@ import {
 	ATTENTION_SKEW_MS,
 	attentionEntryShells,
 	clockSince,
+	doneShells,
 	freshAttention,
 	nextCompactionAnchor,
 	nextShellActivity,
@@ -34,61 +35,50 @@ const WAITING_RECORD =
 
 describe("shell activity transitions", () => {
 	test("a bound working agent yields working regardless of prior state", () => {
-		expect(nextShellActivity(undefined, "working", false)).toBe("working");
-		expect(nextShellActivity("done-unseen", "working", false)).toBe("working");
+		expect(nextShellActivity(undefined, "working")).toBe("working");
+		expect(nextShellActivity("done", "working")).toBe("working");
 	});
 
-	test("a turn finishing (working then idle) yields done-unseen", () => {
-		expect(nextShellActivity("working", "idle", false)).toBe("done-unseen");
+	test("a turn finishing (working then idle) yields done", () => {
+		expect(nextShellActivity("working", "idle")).toBe("done");
 	});
 
 	test("an idle agent with no observed turn yields no activity", () => {
-		expect(nextShellActivity(undefined, "idle", false)).toBeUndefined();
+		expect(nextShellActivity(undefined, "idle")).toBeUndefined();
 	});
 
-	test("done-unseen persists while the agent rests or disappears", () => {
-		expect(nextShellActivity("done-unseen", "idle", false)).toBe("done-unseen");
-		expect(nextShellActivity("done-unseen", undefined, false)).toBe("done-unseen");
+	test("done persists while the agent rests or disappears", () => {
+		expect(nextShellActivity("done", "idle")).toBe("done");
+		expect(nextShellActivity("done")).toBe("done");
 	});
 
 	test("killing the agent mid-turn removes the working signal", () => {
-		expect(nextShellActivity("working", undefined, false)).toBeUndefined();
+		expect(nextShellActivity("working")).toBeUndefined();
 	});
 
-	test("viewing the shell clears done-unseen, including as the turn completes", () => {
-		expect(nextShellActivity("done-unseen", "idle", true)).toBeUndefined();
-		expect(nextShellActivity("working", "idle", true)).toBeUndefined();
-	});
-
-	test("viewing a still-working shell keeps it working", () => {
-		expect(nextShellActivity("working", "working", true)).toBe("working");
-	});
 });
 
 describe("needs-attention", () => {
 	test("a prompt while the agent waits mid-turn yields needs-attention", () => {
-		expect(nextShellActivity("working", "waiting", false)).toBe("needs-attention");
+		expect(nextShellActivity("working", "waiting")).toBe("needs-attention");
 	});
 
 	test("needs-attention persists across ticks while still waiting", () => {
-		expect(nextShellActivity("needs-attention", "waiting", false)).toBe("needs-attention");
+		expect(nextShellActivity("needs-attention", "waiting")).toBe("needs-attention");
 	});
 
 	test("answering the prompt returns the shell to working as the turn continues", () => {
-		expect(nextShellActivity("needs-attention", "working", false)).toBe("working");
+		expect(nextShellActivity("needs-attention", "working")).toBe("working");
 	});
 
-	test("answering into a finished turn hands off to done-unseen", () => {
-		expect(nextShellActivity("needs-attention", "idle", false)).toBe("done-unseen");
+	test("answering into a finished turn hands off to done", () => {
+		expect(nextShellActivity("needs-attention", "idle")).toBe("done");
 	});
 
 	test("a waiting agent needs attention even on the first tick that sees it", () => {
-		expect(nextShellActivity(undefined, "waiting", false)).toBe("needs-attention");
+		expect(nextShellActivity(undefined, "waiting")).toBe("needs-attention");
 	});
 
-	test("reading the shell does not dismiss a prompt that is still open", () => {
-		expect(nextShellActivity("needs-attention", "waiting", true)).toBe("needs-attention");
-	});
 });
 
 describe("the harness reporting the end of its own turn", () => {
@@ -96,7 +86,7 @@ describe("the harness reporting the end of its own turn", () => {
 
 	test("an end newer than the reported status finishes the turn before the poll sees it", () => {
 		expect(turnEnded(working, 1784901076200)).toBe(true);
-		expect(nextShellActivity("working", "idle", false)).toBe("done-unseen");
+		expect(nextShellActivity("working", "idle")).toBe("done");
 	});
 
 	test("the end of the previous turn does not finish the one running now", () => {
@@ -115,8 +105,8 @@ describe("the harness reporting the end of its own turn", () => {
 
 describe("project aggregation", () => {
 	test("picks the most urgent state among shells", () => {
-		expect(aggregateActivity(["working", "done-unseen"])).toBe("done-unseen");
-		expect(aggregateActivity(["done-unseen", "needs-attention", "working"])).toBe("needs-attention");
+		expect(aggregateActivity(["working", "done"])).toBe("done");
+		expect(aggregateActivity(["done", "needs-attention", "working"])).toBe("needs-attention");
 		expect(aggregateActivity(["working", "working"])).toBe("working");
 	});
 
@@ -143,11 +133,11 @@ describe("shell turns", () => {
 	});
 
 	test("working again after the shell went quiet opens a new turn", () => {
-		expect(turnStartShells(shells({ a: "done-unseen" }), shells({ a: "working" }))).toEqual(["a"]);
+		expect(turnStartShells(shells({ a: "done" }), shells({ a: "working" }))).toEqual(["a"]);
 	});
 
-	test("finished work waiting to be seen never opens a turn", () => {
-		expect(turnStartShells(shells({}), shells({ a: "done-unseen" }))).toEqual([]);
+	test("finished work waiting for a decision never opens a turn", () => {
+		expect(turnStartShells(shells({}), shells({ a: "done" }))).toEqual([]);
 	});
 
 	test("a sibling shell opens its turn without touching the one already working", () => {
@@ -294,6 +284,7 @@ describe("project snapshots", () => {
 			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
+			doneShells: new Map(),
 		});
 
 		expect(snapshots.get("p1")).toEqual({
@@ -308,21 +299,22 @@ describe("project snapshots", () => {
 
 	test("keeps each project's shells to itself", () => {
 		const snapshots = snapshotsByProject({
-			shellStates: states({ "session-a": "working", "session-c": "done-unseen" }),
+			shellStates: states({ "session-a": "working", "session-c": "done" }),
 			owners,
 			worktrees: new Map(),
 			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
+			doneShells: new Map([["shell-c", { projectId: "p2", at: 1784901075701 }]]),
 		});
 
 		expect([...snapshots.keys()].sort()).toEqual(["p1", "p2"]);
 		expect(snapshots.get("p2")).toEqual({
-			shells: { "shell-c": "done-unseen" },
+			shells: { "shell-c": "done" },
 			worktreeByShellId: {},
 			traceByShellId: {},
 			traceSinceByShellId: {},
-			statusSinceByShellId: {},
+			statusSinceByShellId: { "shell-c": 1784901075701 },
 			attentionByShellId: {},
 		});
 	});
@@ -335,6 +327,7 @@ describe("project snapshots", () => {
 			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
+			doneShells: new Map(),
 		});
 
 		expect(snapshots.size).toBe(1);
@@ -349,6 +342,7 @@ describe("project snapshots", () => {
 			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
+			doneShells: new Map(),
 		});
 
 		expect(snapshots.get("p1")).toEqual({
@@ -369,6 +363,7 @@ describe("project snapshots", () => {
 			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
+			doneShells: new Map(),
 		});
 
 		expect(snapshots.get("p1")?.shells["shell-b"]).toBeUndefined();
@@ -382,6 +377,7 @@ describe("project snapshots", () => {
 			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
+			doneShells: new Map(),
 		});
 
 		expect(snapshots.get("p2")).toEqual({
@@ -405,6 +401,7 @@ describe("project snapshots", () => {
 			]),
 			statusSince: new Map(),
 			attention: new Map(),
+			doneShells: new Map(),
 		});
 
 		expect(snapshots.get("p1")?.traceByShellId).toEqual({ "shell-a": "Running bun run check" });
@@ -421,6 +418,7 @@ describe("project snapshots", () => {
 			]),
 			statusSince: new Map(),
 			attention: new Map(),
+			doneShells: new Map(),
 		});
 
 		expect(snapshots.get("p1")?.traceSinceByShellId).toEqual({ "shell-a": 1784901075701 });
@@ -434,13 +432,91 @@ describe("project snapshots", () => {
 			traces: new Map(),
 			statusSince: new Map([["shell-a", 1784901075701], ["shell-b", 1784901169072]]),
 			attention: new Map(),
+			doneShells: new Map(),
 		});
 
 		expect(snapshots.get("p1")?.statusSinceByShellId).toEqual({ "shell-a": 1784901075701 });
 	});
 
+	test("a persisted completion restores done without a bound shell", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: new Map(),
+			owners: new Map(),
+			worktrees: new Map(),
+			traces: new Map(),
+			statusSince: new Map(),
+			attention: new Map(),
+			doneShells: new Map([["shell-c", { projectId: "p2", at: 1784901075701 }]]),
+		});
+
+		expect(snapshots.get("p2")).toEqual({
+			shells: { "shell-c": "done" },
+			worktreeByShellId: {},
+			traceByShellId: {},
+			traceSinceByShellId: {},
+			statusSinceByShellId: { "shell-c": 1784901075701 },
+			attentionByShellId: {},
+		});
+	});
+
+	test("live work outranks the prior persisted completion until its start is saved", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: states({ "session-a": "working" }),
+			owners,
+			worktrees: new Map(),
+			traces: new Map(),
+			statusSince: new Map([["shell-a", 1784901169072]]),
+			attention: new Map(),
+			doneShells: new Map([["shell-a", { projectId: "p1", at: 1784901075701 }]]),
+		});
+
+		expect(snapshots.get("p1")?.shells).toEqual({ "shell-a": "working" });
+		expect(snapshots.get("p1")?.statusSinceByShellId).toEqual({ "shell-a": 1784901169072 });
+	});
+
+	test("a live done transition waits for its durable completion before appearing", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: states({ "session-c": "done" }),
+			owners,
+			worktrees: new Map(),
+			traces: new Map(),
+			statusSince: new Map([["shell-c", 1784901075701]]),
+			attention: new Map(),
+			doneShells: new Map(),
+		});
+
+		expect(snapshots.size).toBe(0);
+	});
+
 	test("no bound shells means no snapshots at all", () => {
-		expect(snapshotsByProject({ shellStates: new Map(), owners, worktrees: new Map(), traces: new Map(), statusSince: new Map(), attention: new Map() }).size).toBe(0);
+		expect(snapshotsByProject({
+			shellStates: new Map(),
+			owners,
+			worktrees: new Map(),
+			traces: new Map(),
+			statusSince: new Map(),
+			attention: new Map(),
+			doneShells: new Map(),
+		}).size).toBe(0);
+	});
+});
+
+describe("durable done state", () => {
+	test("takes only open completed shells and their original completion time", () => {
+		const done = doneShells({
+			workspaces: [
+				{
+					projectId: "p1",
+					shells: [
+						{ id: "open", label: "open", createdAt: 1, doneAt: 10 },
+						{ id: "idle", label: "idle", createdAt: 2 },
+						{ id: "archived", label: "archived", createdAt: 3, doneAt: 20, archivedAt: 30 },
+					],
+				},
+			],
+		});
+
+		expect(done).toEqual(new Map([["open", { projectId: "p1", at: 10 }]]));
 	});
 });
 
@@ -868,7 +944,7 @@ describe("how long the card has held its state", () => {
 	});
 
 	test("a state that changed adopts the moment the harness reported", () => {
-		expect(clockSince({ previous: "working", next: "done-unseen", held: 1000, reported: 9000 })).toBe(9000);
+		expect(clockSince({ previous: "working", next: "done", held: 1000, reported: 9000 })).toBe(9000);
 	});
 
 	test("a shell seen for the first time takes the harness clock", () => {

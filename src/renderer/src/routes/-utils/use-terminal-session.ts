@@ -2,7 +2,6 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { type IDisposable, type ITerminalOptions, Terminal } from "@xterm/xterm";
 import { useCallback, useRef } from "react";
-import { activityStream } from "@renderer/lib/stream/activity";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { terminalStream } from "@renderer/lib/stream/terminal";
 import type { ResumeOutcome } from "@renderer/routes/-utils/resume-state";
@@ -218,7 +217,6 @@ export class RendererTerminalSession {
 		}
 
 		this.terminal.focus();
-		this.reportViewed();
 		if (this.sessionId && !this.webgl) {
 			this.loadWebgl();
 		}
@@ -301,7 +299,6 @@ export class RendererTerminalSession {
 		this.syncProcessDimensions();
 		if (this.active) {
 			this.terminal.focus();
-			this.reportViewed();
 		}
 	}
 
@@ -331,12 +328,6 @@ export class RendererTerminalSession {
 		if (!this.painted) {
 			this.painted = true;
 			this.options.onFirstOutput();
-		}
-	}
-
-	private reportViewed() {
-		if (this.active && this.sessionId) {
-			activityStream.markViewed(this.sessionId);
 		}
 	}
 

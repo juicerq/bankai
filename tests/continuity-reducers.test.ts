@@ -72,6 +72,8 @@ test("no reducer mutates the value it was given", () => {
 	ContinuityReducers.renameShell(before, { ...address, title: "psql" });
 	ContinuityReducers.nameShell(before, { ...address, title: "psql", source: "model" });
 	ContinuityReducers.touchShell(before, { ...address, branch: "main" });
+	ContinuityReducers.startTurn(before, address);
+	ContinuityReducers.finishTurn(before, { ...address, at: NOW });
 	ContinuityReducers.clearShellSession(before, address);
 	ContinuityReducers.purgeProject(before, { projectId: "p1", now: NOW });
 
@@ -96,6 +98,17 @@ test("selecting a shell still inside the archive window leaves it unfiled", () =
 		{ projectId: "p1", shellId: "a1", now: NOW },
 	);
 
+	expect(selected.workspaces[0]?.shells[0]?.archivedAt).toBeUndefined();
+});
+
+test("selecting an old done shell leaves it open and done", () => {
+	const doneAt = NOW - SESSION_AUTO_ARCHIVE_MS - 1;
+	const selected = ContinuityReducers.selectShell(
+		twoProjects("b1", shell("a1", { createdAt: doneAt, doneAt })),
+		{ projectId: "p1", shellId: "a1", now: NOW },
+	);
+
+	expect(selected.workspaces[0]?.shells[0]).toMatchObject({ doneAt });
 	expect(selected.workspaces[0]?.shells[0]?.archivedAt).toBeUndefined();
 });
 
@@ -137,6 +150,20 @@ test("a session left idle past the window loses like an archived one", () => {
 	);
 
 	expect(closed.selectedShellId).toBe("b1");
+});
+
+test("a done session stays an open successor past the idle window", () => {
+	const closed = ContinuityReducers.closeShell(
+		twoProjects(
+			"a2",
+			shell("a1", { createdAt: NOW - SESSION_AUTO_ARCHIVE_MS - 1, doneAt: NOW - 1 }),
+			shell("a2"),
+			shell("b1"),
+		),
+		{ projectId: "p1", shellId: "a2", now: NOW },
+	);
+
+	expect(closed.selectedShellId).toBe("a1");
 });
 
 test("with nothing open left the selection still lands on a filed session of its own project", () => {
@@ -207,6 +234,28 @@ function oneShell(extra: Partial<ContinuityShell> = {}): ContinuityValue {
 function onlyShell(value: ContinuityValue): ContinuityShell | undefined {
 	return value.workspaces[0]?.shells[0];
 }
+
+test("a finished turn records its completion once", () => {
+	const finished = ContinuityReducers.finishTurn(oneShell(), { ...A1, at: NOW });
+	const older = ContinuityReducers.finishTurn(finished, { ...A1, at: NOW - 1 });
+
+	expect(onlyShell(finished)?.doneAt).toBe(NOW);
+	expect(older).toEqual(finished);
+});
+
+test("starting a later turn resolves done", () => {
+	const started = ContinuityReducers.startTurn(oneShell({ doneAt: NOW }), A1);
+
+	expect(onlyShell(started)?.doneAt).toBeUndefined();
+});
+
+test("archiving resolves done and a late completion cannot restore it", () => {
+	const archived = ContinuityReducers.archiveShell(oneShell({ doneAt: NOW - 1 }), { ...A1, now: NOW });
+	const late = ContinuityReducers.finishTurn(archived, { ...A1, at: NOW + 1 });
+
+	expect(onlyShell(archived)?.doneAt).toBeUndefined();
+	expect(late).toEqual(archived);
+});
 
 test("a name the user typed by hand survives every automatic source", () => {
 	const renamed = ContinuityReducers.renameShell(oneShell(), { ...A1, title: "psql" });

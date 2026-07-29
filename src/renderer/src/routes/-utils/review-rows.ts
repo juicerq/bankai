@@ -41,7 +41,7 @@ export function reviewRows({
 		}
 
 		const content = contentByPath.get(file.path);
-		if (!content || content.status !== "ready") {
+		if (content?.status !== "ready") {
 			rows.push({
 				kind: "notice",
 				key: `notice:${file.path}`,

@@ -56,10 +56,17 @@ function signal(label: string) {
 	return dot ?? undefined;
 }
 
-function removeButton(label: string) {
-	const button = menuItem(label).parentElement?.querySelector<HTMLElement>('[data-slot="remove"]');
+function queryRemoveButton(label: string) {
+	return menuItem(label).parentElement?.querySelector<HTMLElement>('[data-slot="remove"]') ?? null;
+}
 
-	return button ?? undefined;
+function removeButton(label: string) {
+	const button = queryRemoveButton(label);
+	if (!button) {
+		throw new Error(`No remove button for ${label}`);
+	}
+
+	return button;
 }
 
 function menuItem(label: string) {
@@ -156,10 +163,10 @@ test("the first click on the remove icon only arms the confirmation", () => {
 	render(<ReviewWorktreeHarness onRemove={(path) => removed.push(path)} />);
 
 	fireEvent.click(get("review-worktree"));
-	fireEvent.click(removeButton("feat/worktrees")!);
+	fireEvent.click(removeButton("feat/worktrees"));
 
 	expect(removed).toEqual([]);
-	expect(removeButton("feat/worktrees")?.getAttribute("aria-label")).toBe(
+	expect(removeButton("feat/worktrees").getAttribute("aria-label")).toBe(
 		"Confirm: Remove worktree feat/worktrees",
 	);
 });
@@ -169,8 +176,8 @@ test("clicking the armed confirmation removes the worktree", () => {
 	render(<ReviewWorktreeHarness onRemove={(path) => removed.push(path)} />);
 
 	fireEvent.click(get("review-worktree"));
-	fireEvent.click(removeButton("feat/worktrees")!);
-	fireEvent.click(removeButton("feat/worktrees")!);
+	fireEvent.click(removeButton("feat/worktrees"));
+	fireEvent.click(removeButton("feat/worktrees"));
 
 	expect(removed).toEqual([SOLO]);
 	expect(query("review-worktree-menu")).not.toBeNull();
@@ -180,10 +187,10 @@ test("the confirmation disarms itself when it is left alone", async () => {
 	render(<ReviewWorktreeHarness />);
 
 	fireEvent.click(get("review-worktree"));
-	fireEvent.click(removeButton("feat/worktrees")!);
+	fireEvent.click(removeButton("feat/worktrees"));
 
 	await waitFor(
-		() => expect(removeButton("feat/worktrees")?.getAttribute("aria-label")).toBe("Remove worktree feat/worktrees"),
+		() => expect(removeButton("feat/worktrees").getAttribute("aria-label")).toBe("Remove worktree feat/worktrees"),
 		{ timeout: 3000 },
 	);
 });
@@ -203,7 +210,7 @@ test("the main worktree of the project offers no removal", () => {
 
 	fireEvent.click(get("review-worktree"));
 
-	expect(removeButton("main")).toBeUndefined();
+	expect(queryRemoveButton("main")).toBeNull();
 });
 
 test("a refused removal is reported on the worktree it failed for", () => {

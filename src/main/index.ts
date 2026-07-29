@@ -172,7 +172,9 @@ if (identity.singleInstanceLock && !app.requestSingleInstanceLock()) {
 	app.quit();
 } else {
 	app.on("second-instance", focusMainWindow);
-	app.on("ready", start);
+	app.on("ready", () => {
+		start().catch((err) => Logger.error("app:start-failed", { err: String(err) }));
+	});
 	app.on("before-quit", () => GitProcess.close());
 	app.on("window-all-closed", () => app.quit());
 }

@@ -36,8 +36,8 @@ const CODEX_TOOL_TRACE: Record<string, string> = {
 	write_stdin: RUNNING_TRACE,
 };
 
-export function codexToolTrace(name: string): string {
-	return CODEX_TOOL_TRACE[name.toLowerCase()] ?? RUNNING_TRACE;
+export function codexToolTrace(name: string): string | null {
+	return CODEX_TOOL_TRACE[name.toLowerCase()] ?? null;
 }
 
 const codexHookEventSchema = type({
@@ -77,34 +77,41 @@ export function codexSpoolRecord(raw: string): CodexSpoolRecord | null {
 	return { at, event };
 }
 
-function eventTrace(event: typeof codexHookEventSchema.infer, at: number): HarnessTrace | null | undefined {
-	if (event.hook_event_name === TURN_OVER) {
-		return null;
-	}
-	if (THINKING_EVENTS.has(event.hook_event_name)) {
-		return { label: THINKING_TRACE, recordId: String(at), since: at };
-	}
-	if (event.hook_event_name !== TOOL_OPENED || !event.tool_name) {
-		return undefined;
-	}
-
-	return {
-		label: codexToolTrace(event.tool_name),
-		recordId: event.turn_id ?? String(at),
-		since: at,
-	};
+export interface CodexEdge {
+	at: number;
+	trace: HarnessTrace | null;
+	over: boolean;
 }
 
-export function codexSpoolReading(tail: string): { at: number; trace: HarnessTrace | null } | null {
+function eventEdge(event: typeof codexHookEventSchema.infer, at: number): CodexEdge | null {
+	if (event.hook_event_name === TURN_OVER) {
+		return { at, trace: null, over: true };
+	}
+	if (THINKING_EVENTS.has(event.hook_event_name)) {
+		return { at, trace: { label: THINKING_TRACE, recordId: String(at), since: at }, over: false };
+	}
+	if (event.hook_event_name !== TOOL_OPENED || !event.tool_name) {
+		return null;
+	}
+
+	const label = codexToolTrace(event.tool_name);
+	if (!label) {
+		return { at, trace: null, over: false };
+	}
+
+	return { at, trace: { label, recordId: event.turn_id ?? String(at), since: at }, over: false };
+}
+
+export function codexSpoolReading(tail: string): CodexEdge | null {
 	for (const raw of tail.split(SPOOL_SEPARATOR).reverse()) {
 		const record = codexSpoolRecord(raw);
 		if (!record) {
 			continue;
 		}
 
-		const trace = eventTrace(record.event, record.at);
-		if (trace !== undefined) {
-			return { at: record.at, trace };
+		const edge = eventEdge(record.event, record.at);
+		if (edge) {
+			return edge;
 		}
 	}
 
@@ -117,13 +124,13 @@ export async function codexRead(ref: { sessionId: string }): Promise<HarnessRead
 		return { trace: null };
 	}
 
-	const reading = codexSpoolReading(tail);
-	if (!reading) {
+	const edge = codexSpoolReading(tail);
+	if (!edge) {
 		return { trace: null };
 	}
-	if (reading.trace) {
-		return { trace: reading.trace };
+	if (edge.over) {
+		return { trace: null, endedAt: edge.at };
 	}
 
-	return { trace: null, endedAt: reading.at };
+	return { trace: edge.trace };
 }

@@ -57,8 +57,8 @@ describe("naming what a codex tool is doing", () => {
 		expect(codexToolTrace("Bash")).toBe(RUNNING_TRACE);
 	});
 
-	test("still traces a tool it has never seen", () => {
-		expect(codexToolTrace("some_new_tool")).toBe(RUNNING_TRACE);
+	test("says nothing about a tool it has never seen", () => {
+		expect(codexToolTrace("some_new_tool")).toBeNull();
 	});
 });
 
@@ -94,7 +94,18 @@ describe("reading the tail of the codex spool", () => {
 			[record(AT, { hook_event_name: "UserPromptSubmit" }), record(AT + 10, { hook_event_name: "Stop" })].join(""),
 		);
 
-		expect(reading).toEqual({ at: AT + 10, trace: null });
+		expect(reading).toEqual({ at: AT + 10, trace: null, over: true });
+	});
+
+	test("an unnamed tool holds the turn open with no label of its own", () => {
+		const reading = codexSpoolReading(
+			[
+				record(AT, { hook_event_name: "UserPromptSubmit" }),
+				record(AT + 10, { hook_event_name: "PreToolUse", tool_name: "some_new_tool" }),
+			].join(""),
+		);
+
+		expect(reading).toEqual({ at: AT + 10, trace: null, over: false });
 	});
 
 	test("an event that names nothing falls through to the one before it", () => {
@@ -125,6 +136,12 @@ describe("what the harness reports from the spool", () => {
 		writeSpool([record(AT, { hook_event_name: "Stop" })]);
 
 		expect(await codexRead({ sessionId: SESSION })).toEqual({ trace: null, endedAt: AT });
+	});
+
+	test("an unnamed tool costs the label without ending the turn", async () => {
+		writeSpool([record(AT, { hook_event_name: "PreToolUse", tool_name: "some_new_tool" })]);
+
+		expect(await codexRead({ sessionId: SESSION })).toEqual({ trace: null });
 	});
 
 	test("costs the label and nothing else when the hook never ran", async () => {

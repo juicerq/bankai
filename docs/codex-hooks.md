@@ -29,4 +29,10 @@ Codex stores trust in `config.toml` under `hooks.state."<file>:<snake_case_event
 
 A live Codex 0.146.0 sent, on every event, `session_id`, `turn_id`, `transcript_path`, `cwd`, `hook_event_name`, `model`, and `permission_mode`. `UserPromptSubmit` added `prompt`; `Stop` added `stop_hook_active` and `last_assistant_message`; `PreToolUse` added `tool_name`, `tool_input`, and `tool_use_id`; `PostToolUse` added those three plus `tool_response`. `hook_event_name` is PascalCase and `tool_input` is an object, not a string. The spool script's text search for `session_id` works against all four.
 
-`matcher: ".*"` on the tool events was confirmed against a trusted Bankai hook: a turn that ran `apply_patch` and `Bash` reached the spool and produced a trace. Those two are the tool names a real turn was measured using; Codex's edit tool is `apply_patch`, not `Edit` or `Write`, so a matcher naming Claude's tool names never fires.
+`matcher: ".*"` on the tool events was confirmed against a trusted Bankai hook: a turn that ran `apply_patch` and `Bash` reached the spool and produced a trace. Codex's edit tool is `apply_patch`, not `Edit` or `Write`, so a matcher naming Claude's tool names never fires.
+
+## The hook renames tools, so the rollout is not a source of tool names
+
+In one measured session the rollout recorded `exec_command` while the hook payload for the same call carried `tool_name: "Bash"`. `apply_patch` came through unchanged. The two vocabularies are therefore separate contracts, and a name read from 316 local rollouts — `exec`, `run`, `write_stdin`, `spawn_agent`, `wait_agent`, `send_message`, `list_agents`, `followup_task`, `interrupt_agent`, `update_plan`, `view_image` — proves nothing about what a hook will send.
+
+`Bash` and `apply_patch` are the only two hook names measured so far. A tool name with no entry in `CODEX_TOOL_TRACE` gets no label at all, so the card says **Working**: naming an unmeasured tool "Running commands" would be a guess printed as a fact, and the delegation family was 17% of the tool calls in the local sample.

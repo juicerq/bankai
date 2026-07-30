@@ -52,6 +52,11 @@ describe("naming what a codex tool is doing", () => {
 		expect(codexToolTrace("update_plan")).toBe(PLANNING_TRACE);
 	});
 
+	test("names the two tools a real codex turn was measured using", () => {
+		expect(codexToolTrace("apply_patch")).toBe(EDITING_TRACE);
+		expect(codexToolTrace("Bash")).toBe(RUNNING_TRACE);
+	});
+
 	test("still traces a tool it has never seen", () => {
 		expect(codexToolTrace("some_new_tool")).toBe(RUNNING_TRACE);
 	});

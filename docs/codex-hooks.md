@@ -25,8 +25,8 @@ The official hook contract explicitly says the file at `transcript_path` is not 
 
 Codex stores trust in `config.toml` under `hooks.state."<file>:<snake_case_event>:<groupIndex>:<hookIndex>"`. Inserting a group before a user's group shifts that user's index and invalidates their trust, which would send them back to `/hooks` for a hook they already reviewed. Bankai appends its group to the end of each event's list for that reason alone.
 
-## The measured payload, and what is still unmeasured
+## The measured payload of all four events
 
-A live Codex 0.146.0 sent `session_id`, `turn_id`, `transcript_path`, `cwd`, `hook_event_name`, `model`, `permission_mode`, and `prompt` for `UserPromptSubmit`, and the same plus `stop_hook_active` and `last_assistant_message` for `Stop`. `hook_event_name` is PascalCase. The spool script's text search for `session_id` works against this payload.
+A live Codex 0.146.0 sent, on every event, `session_id`, `turn_id`, `transcript_path`, `cwd`, `hook_event_name`, `model`, and `permission_mode`. `UserPromptSubmit` added `prompt`; `Stop` added `stop_hook_active` and `last_assistant_message`; `PreToolUse` added `tool_name`, `tool_input`, and `tool_use_id`; `PostToolUse` added those three plus `tool_response`. `hook_event_name` is PascalCase and `tool_input` is an object, not a string. The spool script's text search for `session_id` works against all four.
 
-⚠️ The tool events are unmeasured. The matcher value Bankai writes (`.*`) and the `tool_name` field it reads on `PreToolUse` and `PostToolUse` come from the published contract, not from a captured payload. Measuring them needs a hook this machine's user has trusted for a matcher that Codex's own edit tool (`apply_patch`) hits, which no existing hook does.
+`matcher: ".*"` on the tool events was confirmed against a trusted Bankai hook: a turn that ran `apply_patch` and `Bash` reached the spool and produced a trace. Those two are the tool names a real turn was measured using; Codex's edit tool is `apply_patch`, not `Edit` or `Write`, so a matcher naming Claude's tool names never fires.

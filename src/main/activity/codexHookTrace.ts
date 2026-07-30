@@ -19,6 +19,7 @@ const TOOL_OPENED = "PreToolUse";
 
 const CODEX_TOOL_TRACE: Record<string, string> = {
 	apply_patch: EDITING_TRACE,
+	bash: RUNNING_TRACE,
 	exec: RUNNING_TRACE,
 	exec_command: RUNNING_TRACE,
 	followup_task: DELEGATING_TRACE,

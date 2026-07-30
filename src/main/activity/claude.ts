@@ -3,13 +3,12 @@ import { join } from "node:path";
 import { type } from "arktype";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/activity/Harness";
 import { claudeConfigDir } from "@main/activity/claudeConfig";
+import { claudeLiveTrace } from "@main/activity/claudeHooks";
 import { claudeRead } from "@main/activity/claudeTraceSource";
 import { transcriptTitle } from "@main/activity/claudeTranscript";
+import { CLAUDE_HARNESS_ID } from "@main/activity/harnessIds";
+import { SESSION_UUID } from "@main/activity/SessionRefs";
 import { claudeProposeName } from "@main/naming/claudeNamer";
-
-const CLAUDE_HARNESS_ID = "claude";
-
-const CLAUDE_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const PRESENCE_STATUS: Record<string, AgentPresence["status"]> = {
 	busy: "working",
@@ -84,11 +83,12 @@ function sessionsDirectory(): string {
 export const ClaudeHarness: Harness = {
 	id: CLAUDE_HARNESS_ID,
 	label: "Claude Code",
+	conversation: true,
 	launch(): HarnessCommand {
 		return { file: "claude", args: [] };
 	},
 	resume(ref): HarnessCommand | null {
-		if (!CLAUDE_SESSION_ID.test(ref.sessionId)) {
+		if (!SESSION_UUID.test(ref.sessionId)) {
 			return null;
 		}
 
@@ -97,6 +97,7 @@ export const ClaudeHarness: Harness = {
 	title: transcriptTitle,
 	proposeName: claudeProposeName,
 	read: claudeRead,
+	liveTrace: claudeLiveTrace,
 	async discover() {
 		const directory = sessionsDirectory();
 		const files = await readdir(directory).catch((): string[] => []);

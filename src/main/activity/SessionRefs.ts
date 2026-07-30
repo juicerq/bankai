@@ -1,3 +1,5 @@
+export const SESSION_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export interface SessionRef {
 	harness: string;
 	sessionId: string;

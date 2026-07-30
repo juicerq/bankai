@@ -60,11 +60,39 @@ describe("settings harness", () => {
 	});
 
 	it("drops the extra arguments when the choice is saved without them", async () => {
-		await Settings.updateHarness({ autostart: true, id: "claude", args: "--model opus" });
-		expect((await Settings.get()).harness).toEqual({ autostart: true, id: "claude", args: "--model opus" });
+		const profiles = { claude: { args: "--model opus" } };
+		await Settings.updateHarness({ autostart: true, id: "claude", profiles });
+		expect((await Settings.get()).harness).toEqual({ autostart: true, id: "claude", profiles });
 
 		await Settings.updateHarness({ autostart: true, id: "claude" });
 		expect((await Settings.get()).harness).toEqual({ autostart: true, id: "claude" });
+	});
+
+	it("keeps each harness profile apart", async () => {
+		const profiles = {
+			claude: { args: "--model opus", liveTrace: true },
+			codex: { args: "--model gpt-5.6", liveTrace: false, naming: false },
+		};
+		await Settings.updateHarness({ autostart: true, id: "codex", profiles });
+
+		expect((await Settings.get()).harness).toEqual({ autostart: true, id: "codex", profiles });
+	});
+
+	it("moves a v4 flat harness choice into the profile of the harness it belonged to", async () => {
+		assertDefined(process.env.DATA_DIR);
+		writeFileSync(
+			join(process.env.DATA_DIR, "settings.json"),
+			JSON.stringify({
+				version: 4,
+				data: { harness: { autostart: true, id: "claude", args: "--model opus", liveTrace: false } },
+			}),
+		);
+
+		expect((await Settings.get()).harness).toEqual({
+			autostart: true,
+			id: "claude",
+			profiles: { claude: { args: "--model opus", liveTrace: false } },
+		});
 	});
 
 	it("carries a v2 file forward with no harness choice recorded", async () => {

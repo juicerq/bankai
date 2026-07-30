@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ClaudeHarness } from "@main/activity/claude";
+import { CodexHarness } from "@main/activity/codex";
 import { DEFAULT_HARNESS_SETTINGS, harnessLaunch, launchableHarnesses } from "@main/activity/harnesses";
 import { Settings } from "@main/store/settings";
 import { autostartCommandLine, harnessCommandLine, shellLaunchLine } from "@main/terminal/autostart";
@@ -19,7 +20,8 @@ describe("claude launch command", () => {
 describe("launchable harnesses", () => {
 	test("lists every harness that can be started", () => {
 		expect(launchableHarnesses()).toEqual([
-			{ id: ClaudeHarness.id, label: ClaudeHarness.label, file: "claude" },
+			{ id: ClaudeHarness.id, label: ClaudeHarness.label, conversation: true, file: "claude" },
+			{ id: CodexHarness.id, label: CodexHarness.label, conversation: false, file: "codex" },
 		]);
 	});
 
@@ -27,8 +29,12 @@ describe("launchable harnesses", () => {
 		expect(harnessLaunch(ClaudeHarness.id)).toBe(ClaudeHarness.launch);
 	});
 
+	test("resolves the codex launch capability", () => {
+		expect(harnessLaunch(CodexHarness.id)).toBe(CodexHarness.launch);
+	});
+
 	test("returns nothing for an unknown harness", () => {
-		expect(harnessLaunch("codex")).toBeUndefined();
+		expect(harnessLaunch("aider")).toBeUndefined();
 	});
 
 	test("defaults to autostarting a harness that is actually launchable", () => {
@@ -55,13 +61,17 @@ describe("autostart command line", () => {
 	});
 
 	test("types nothing when the configured harness is gone", async () => {
-		await Settings.updateHarness({ autostart: true, id: "codex" });
+		await Settings.updateHarness({ autostart: true, id: "aider" });
 
 		expect(await autostartCommandLine()).toBeUndefined();
 	});
 
 	test("appends the configured extra arguments", async () => {
-		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id, args: "--model opus" });
+		await Settings.updateHarness({
+			autostart: true,
+			id: ClaudeHarness.id,
+			profiles: { [ClaudeHarness.id]: { args: "--model opus" } },
+		});
 
 		expect(await autostartCommandLine()).toBe("claude --model opus");
 	});
@@ -69,17 +79,40 @@ describe("autostart command line", () => {
 
 describe("harness command line", () => {
 	test("appends the extra arguments of the configured harness to a resume", async () => {
-		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id, args: "--model opus" });
+		await Settings.updateHarness({
+			autostart: true,
+			id: ClaudeHarness.id,
+			profiles: { [ClaudeHarness.id]: { args: "--model opus" } },
+		});
 
 		expect(await harnessCommandLine({ file: "claude", args: ["--resume", "67af"] }, ClaudeHarness.id)).toBe(
 			"claude --resume 67af --model opus",
 		);
 	});
 
-	test("leaves a resume of another harness untouched", async () => {
-		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id, args: "--model opus" });
+	test("appends the resumed harness's own arguments, not the selected harness's", async () => {
+		await Settings.updateHarness({
+			autostart: true,
+			id: ClaudeHarness.id,
+			profiles: {
+				[ClaudeHarness.id]: { args: "--model opus" },
+				[CodexHarness.id]: { args: "--model gpt-5.6" },
+			},
+		});
 
-		expect(await harnessCommandLine({ file: "codex", args: ["resume", "67af"] }, "codex")).toBe(
+		expect(await harnessCommandLine({ file: "codex", args: ["resume", "67af"] }, CodexHarness.id)).toBe(
+			"codex resume 67af --model gpt-5.6",
+		);
+	});
+
+	test("leaves a resume of a harness with no profile untouched", async () => {
+		await Settings.updateHarness({
+			autostart: true,
+			id: ClaudeHarness.id,
+			profiles: { [ClaudeHarness.id]: { args: "--model opus" } },
+		});
+
+		expect(await harnessCommandLine({ file: "codex", args: ["resume", "67af"] }, CodexHarness.id)).toBe(
 			"codex resume 67af",
 		);
 	});

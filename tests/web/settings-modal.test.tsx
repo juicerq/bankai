@@ -43,8 +43,8 @@ beforeEach(() => {
 	onClose.mockClear();
 	transport = {
 		harnesses: [
-			{ id: "claude", label: "Claude Code", available: true },
-			{ id: "codex", label: "Codex", available: true },
+			{ id: "claude", label: "Claude Code", conversation: true, available: true },
+			{ id: "codex", label: "Codex", conversation: false, available: true },
 		],
 		harness: { autostart: true, id: "claude" },
 		updates: [],
@@ -114,7 +114,7 @@ test("closes on Escape and on a click outside the panel", async () => {
 });
 
 test("marks a harness the shell cannot find and never calls it current", async () => {
-	transport.harnesses = [{ id: "claude", label: "Claude Code", available: false }];
+	transport.harnesses = [{ id: "claude", label: "Claude Code", conversation: true, available: false }];
 	await loadedModal();
 
 	const row = get("settings-harness", { id: "claude" });
@@ -131,14 +131,16 @@ test("persists extra arguments on blur and drops them when emptied", async () =>
 	fireEvent.focusOut(field);
 
 	await waitFor(() => {
-		expect(transport.updates).toEqual([{ autostart: true, id: "claude", args: "--model opus" }]);
+		expect(transport.updates).toEqual([
+			{ autostart: true, id: "claude", profiles: { claude: { args: "--model opus" } } },
+		]);
 	});
 
 	fireEvent.input(field, { target: { value: "" } });
 	fireEvent.focusOut(field);
 
 	await waitFor(() => {
-		expect(transport.updates.at(-1)).toEqual({ autostart: true, id: "claude" });
+		expect(transport.updates.at(-1)).toEqual({ autostart: true, id: "claude", profiles: { claude: {} } });
 	});
 });
 
@@ -176,7 +178,11 @@ test("keeps typed arguments when the blur that saves them races the next change"
 	await waitFor(() => {
 		expect(transport.updates).toHaveLength(2);
 	});
-	expect(transport.updates.at(-1)).toEqual({ autostart: false, id: "claude", args: "--model opus" });
+	expect(transport.updates.at(-1)).toEqual({
+		autostart: false,
+		id: "claude",
+		profiles: { claude: { args: "--model opus" } },
+	});
 });
 
 test("shows the pairing link and its QR once Tailscale names the machine", async () => {
@@ -312,4 +318,52 @@ test("pairs against the tailnet address while it is the only way in", async () =
 		expect(slot(modal, "pairing-url").textContent).toBe(TAILNET_URL);
 	});
 	expect(slot(modal, "mobile-access").getAttribute("aria-checked")).toBe("true");
+});
+
+test("keeps live trace and naming in the profile of the harness they were toggled on", async () => {
+	const modal = await loadedModal();
+
+	fireEvent.click(get("settings-harness", { id: "codex" }));
+	await waitFor(() => {
+		expect(transport.harness.id).toBe("codex");
+	});
+	fireEvent.click(slot(get("settings-modal"), "live-trace"));
+
+	await waitFor(() => {
+		expect(transport.updates.at(-1)?.profiles).toEqual({ codex: { liveTrace: false } });
+	});
+
+	fireEvent.click(slot(get("settings-modal"), "naming"));
+
+	await waitFor(() => {
+		expect(transport.updates.at(-1)?.profiles).toEqual({ codex: { liveTrace: false, naming: false } });
+	});
+	expect(modal).not.toBeNull();
+});
+
+test("hands each harness its own extra arguments field", async () => {
+	transport.harness = { autostart: true, id: "claude", profiles: { claude: { args: "--model opus" } } };
+	const modal = await loadedModal();
+
+	expect(slot<HTMLInputElement>(modal, "harness-args").value).toBe("--model opus");
+
+	fireEvent.click(get("settings-harness", { id: "codex" }));
+
+	await waitFor(() => {
+		expect(slot<HTMLInputElement>(get("settings-modal"), "harness-args").value).toBe("");
+	});
+});
+
+test("tells the codex user their hook may need review, and says nothing of the sort for claude", async () => {
+	const modal = await loadedModal();
+
+	expect(modal.textContent).toContain("Adds a hook to Claude Code");
+	expect(modal.textContent).not.toContain("/hooks");
+
+	fireEvent.click(get("settings-harness", { id: "codex" }));
+
+	await waitFor(() => {
+		expect(get("settings-modal").textContent).toContain("Adds a hook to Codex");
+	});
+	expect(get("settings-modal").textContent).toContain("/hooks");
 });

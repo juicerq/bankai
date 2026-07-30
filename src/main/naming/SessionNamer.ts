@@ -2,7 +2,7 @@ import { harnessProposeName } from "@main/activity/harnesses";
 import { Logger } from "@main/logger";
 import { withNamingSlot } from "@main/naming/slots";
 import { Continuity, type ContinuityShell } from "@main/store/continuity";
-import { Settings, sessionNamingEnabled } from "@main/store/settings";
+import { harnessProfile, Settings, sessionNamingEnabled } from "@main/store/settings";
 import type { ShellAddress } from "@shared/continuity-reducers";
 
 export const NAMING_MILESTONES = [3, 10, 30, 100] as const;
@@ -62,14 +62,17 @@ class SessionNamerRunner {
 	private async propose(owner: ShellAddress): Promise<void> {
 		const shell = await Continuity.findShell(owner);
 		const session = shell?.session;
+		if (!session) {
+			return;
+		}
 
 		const due = namingDue({
 			shell,
 			turns: this.turns.get(owner.shellId) ?? 0,
 			attempts: this.attempts.get(owner.shellId) ?? 0,
-			enabled: sessionNamingEnabled((await Settings.get()).harness),
+			enabled: sessionNamingEnabled(harnessProfile((await Settings.get()).harness, session.harness)),
 		});
-		if (!due || !session) {
+		if (!due) {
 			return;
 		}
 

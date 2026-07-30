@@ -1,7 +1,7 @@
 ---
 title: Where Codex loads hooks and why Bankai cannot silently trust one
 tags: [activity, store]
-updated_at: 2026-07-29
+updated_at: 2026-07-30
 created_at: 2026-07-29
 ---
 
@@ -20,3 +20,13 @@ Codex requires non-managed command hooks to be reviewed and trusted. It keys tru
 Every command hook receives one JSON object on stdin. Shared fields include `session_id`, nullable `transcript_path`, `cwd`, `hook_event_name`, and `model`; turn-scoped events can also carry `turn_id`.
 
 The official hook contract explicitly says the file at `transcript_path` is not a stable interface. Bankai can validate the hook payload and use the rollout format it has measured, but it cannot treat either external JSON shape as trusted TypeScript data.
+
+## A trust key holds the hook's position, so Bankai's group goes last
+
+Codex stores trust in `config.toml` under `hooks.state."<file>:<snake_case_event>:<groupIndex>:<hookIndex>"`. Inserting a group before a user's group shifts that user's index and invalidates their trust, which would send them back to `/hooks` for a hook they already reviewed. Bankai appends its group to the end of each event's list for that reason alone.
+
+## The measured payload, and what is still unmeasured
+
+A live Codex 0.146.0 sent `session_id`, `turn_id`, `transcript_path`, `cwd`, `hook_event_name`, `model`, `permission_mode`, and `prompt` for `UserPromptSubmit`, and the same plus `stop_hook_active` and `last_assistant_message` for `Stop`. `hook_event_name` is PascalCase. The spool script's text search for `session_id` works against this payload.
+
+⚠️ The tool events are unmeasured. The matcher value Bankai writes (`.*`) and the `tool_name` field it reads on `PreToolUse` and `PostToolUse` come from the published contract, not from a captured payload. Measuring them needs a hook this machine's user has trusted for a matcher that Codex's own edit tool (`apply_patch`) hits, which no existing hook does.

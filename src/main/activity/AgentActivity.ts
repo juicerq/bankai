@@ -1,16 +1,8 @@
 import { type FSWatcher, watch } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import {
-	COMPACTION_SCAN_WINDOW,
-	COMPACTION_TRACE,
-	matchesCompactionNotice,
-} from "@main/activity/compaction";
-import type {
-	AgentPresence,
-	HarnessReading,
-	HarnessTrace,
-} from "@main/activity/Harness";
-import { hookSpoolDir, pruneSpool } from "@main/activity/HookSource";
+import { COMPACTION_SCAN_WINDOW, COMPACTION_TRACE, matchesCompactionNotice } from "@main/activity/compaction";
+import type { AgentPresence, HarnessReading, HarnessTrace } from "@main/activity/Harness";
+import { hookSpoolDir, pruneSpool, spoolKey } from "@main/activity/HookSource";
 import { discoverAgents, harnessReader } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
 import { bindShells } from "@main/activity/SessionBinder";
@@ -32,12 +24,7 @@ import { Continuity, type ContinuityValue } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { shellOutputLines } from "@main/terminal/ShellOutputLines";
 import { shellProcesses } from "@main/terminal/ShellProcesses";
-import {
-	type AgentActivityState,
-	DEFAULT_LIVE_TRACE,
-	type ProjectActivitySnapshot,
-	type ShellAttention,
-} from "@shared/activity";
+import type { AgentActivityState, ProjectActivitySnapshot, ShellAttention } from "@shared/activity";
 import { throttle } from "@shared/throttle";
 
 const ACTIVITY_POLL_MS = 1500;
@@ -282,15 +269,15 @@ async function observeReadings(
 	shells: { sessionId: string; shellId: string }[],
 	bindings: Map<string, number>,
 	liveByPid: Map<number, AgentPresence>,
+	traced: ReadonlySet<string>,
 ): Promise<Map<string, HarnessReading>> {
 	const readings = new Map<string, HarnessReading>();
 
 	await Promise.all(
 		shells.map(async (shell) => {
 			const boundPid = bindings.get(shell.sessionId);
-			const presence =
-				boundPid === undefined ? undefined : liveByPid.get(boundPid);
-			if (!presence) {
+			const presence = boundPid === undefined ? undefined : liveByPid.get(boundPid);
+			if (!presence || !traced.has(presence.harness)) {
 				return;
 			}
 
@@ -610,11 +597,8 @@ class AgentActivityTracker {
 	private statusSince = new Map<string, number>();
 	private agentCwds = new Map<string, string>();
 	private readonly dwell = new TraceDwell();
-	private readonly noteSpoolWrite = throttle(
-		() => this.runTick("event"),
-		SPOOL_PASS_MS,
-	);
-	private liveTrace = DEFAULT_LIVE_TRACE;
+	private readonly noteSpoolWrite = throttle(() => this.runTick("event"), SPOOL_PASS_MS);
+	private traced: ReadonlySet<string> = new Set();
 	private timer: ReturnType<typeof setInterval> | undefined;
 	private watcher: FSWatcher | undefined;
 	private drainTimer: ReturnType<typeof setTimeout> | undefined;
@@ -622,15 +606,15 @@ class AgentActivityTracker {
 	private queuedPass: ActivityPass | undefined;
 	private prunedAt = 0;
 
-	setLiveTrace(enabled: boolean): void {
-		this.liveTrace = enabled;
+	setLiveTrace(traced: ReadonlySet<string>): void {
+		this.traced = traced;
 		if (this.timer) {
 			this.runTick("event");
 		}
 	}
 
 	noteData(sessionId: string, data: string): void {
-		if (!this.liveTrace || !this.boundSessions.has(sessionId)) {
+		if (this.traced.size === 0 || !this.boundSessions.has(sessionId)) {
 			return;
 		}
 
@@ -779,12 +763,10 @@ class AgentActivityTracker {
 
 		this.captureSessionRefs(shells, bindings, liveByPid);
 		const [worktrees, readings] = await Promise.all([
-			pass === "full"
-				? this.observeWorktrees(shells, bindings, liveByPid)
-				: this.shellWorktrees,
-			this.liveTrace
-				? observeReadings(shells, bindings, liveByPid)
-				: new Map<string, HarnessReading>(),
+			pass === "full" ? this.observeWorktrees(shells, bindings, liveByPid) : this.shellWorktrees,
+			this.traced.size === 0
+				? new Map<string, HarnessReading>()
+				: observeReadings(shells, bindings, liveByPid, this.traced),
 		]);
 		const harnessTraces = tracesOf(readings);
 
@@ -838,9 +820,9 @@ class AgentActivityTracker {
 		}
 
 		if (pass === "full") {
-			this.prune(new Set(presences.map((presence) => presence.sessionId)));
+			this.prune(new Set(presences.map((presence) => spoolKey(presence))));
 		}
-		if (this.liveTrace) {
+		if (this.traced.size > 0) {
 			this.trackCompaction(shells, bound, harnessTraces);
 		} else {
 			this.forgetCompaction();

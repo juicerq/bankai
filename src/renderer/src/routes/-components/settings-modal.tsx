@@ -1,11 +1,21 @@
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
 import { useCallback, useState } from "react";
-import type { HarnessSettings } from "@main/store/settings";
+import type { HarnessProfile, HarnessSettings } from "@main/store/settings";
 import { PickerHint } from "@renderer/routes/-components/picker-hint";
 import { Setting } from "@renderer/routes/-components/settings-controls";
 import { MobileAccessSetting } from "@renderer/routes/-components/settings-mobile-access";
 import { useHarnessSettings } from "@renderer/routes/-utils/use-harness-settings";
 import { DEFAULT_LIVE_TRACE, DEFAULT_SESSION_NAMING } from "@shared/activity";
+
+const DEFAULT_LIVE_TRACE_DESCRIPTION =
+	"Adds a hook to the harness so a card names every tool the moment it starts. Off, a card says only Working and Done.";
+
+const LIVE_TRACE_DESCRIPTION: Record<string, string> = {
+	claude:
+		"Adds a hook to Claude Code so a card names every tool the moment it starts. Off, a card says only Working and Done.",
+	codex:
+		"Adds a hook to Codex so a card names every tool the moment it starts. Codex may ask you to trust the hook once, through /hooks.",
+};
 
 interface LaunchableHarness {
 	id: string;
@@ -14,7 +24,7 @@ interface LaunchableHarness {
 }
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
-	const { harness, harnesses, save, saveError } = useHarnessSettings();
+	const { harness, profile, harnesses, save, saveProfile, saveError } = useHarnessSettings();
 	const takeFocus = useCallback((element: HTMLDivElement | null) => element?.focus(), []);
 
 	return (
@@ -42,7 +52,13 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 					<span className="flex-1 text-label text-secondary">SETTINGS</span>
 				</div>
 				{harness && harnesses ? (
-					<SettingsBody harness={harness} harnesses={harnesses} onSave={save} />
+					<SettingsBody
+						harness={harness}
+						profile={profile}
+						harnesses={harnesses}
+						onSave={save}
+						onSaveProfile={saveProfile}
+					/>
 				) : (
 					<p className="px-3 py-6 text-data text-secondary">Reading settings…</p>
 				)}
@@ -61,15 +77,19 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
 function SettingsBody({
 	harness,
+	profile,
 	harnesses,
 	onSave,
+	onSaveProfile,
 }: {
 	harness: HarnessSettings;
+	profile: HarnessProfile;
 	harnesses: LaunchableHarness[];
-	onSave: (patch: Partial<HarnessSettings>) => void;
+	onSave: (patch: Partial<Pick<HarnessSettings, "autostart" | "id">>) => void;
+	onSaveProfile: (patch: Partial<HarnessProfile>) => void;
 }) {
-	const liveTrace = harness.liveTrace ?? DEFAULT_LIVE_TRACE;
-	const naming = harness.naming ?? DEFAULT_SESSION_NAMING;
+	const liveTrace = profile.liveTrace ?? DEFAULT_LIVE_TRACE;
+	const naming = profile.naming ?? DEFAULT_SESSION_NAMING;
 
 	return (
 		<div className="divide-y divide-outline">
@@ -93,24 +113,25 @@ function SettingsBody({
 					))}
 				</div>
 				<ArgumentsField
-					args={harness.args ?? ""}
+					key={harness.id}
+					args={profile.args ?? ""}
 					disabled={!harness.autostart}
-					onCommit={(args) => onSave({ args })}
+					onCommit={(args) => onSaveProfile({ args })}
 				/>
 			</Setting>
 			<Setting
 				title="Read the trace from the harness, live"
-				description="Adds a hook to Claude Code so a card names every tool the moment it starts. Off, a card says only Working and Done."
+				description={LIVE_TRACE_DESCRIPTION[harness.id] ?? DEFAULT_LIVE_TRACE_DESCRIPTION}
 				slot="live-trace"
 				on={liveTrace}
-				onToggle={() => onSave({ liveTrace: !liveTrace })}
+				onToggle={() => onSaveProfile({ liveTrace: !liveTrace })}
 			/>
 			<Setting
 				title="Name every session from its conversation"
 				description="Asks the harness for a short name a few times as a session grows. Off, a card keeps the first thing you typed."
 				slot="naming"
 				on={naming}
-				onToggle={() => onSave({ naming: !naming })}
+				onToggle={() => onSaveProfile({ naming: !naming })}
 			/>
 			<MobileAccessSetting />
 		</div>

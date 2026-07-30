@@ -12,6 +12,7 @@ export const settingsRouter = {
 			launchableHarnesses().map(async (harness) => ({
 				id: harness.id,
 				label: harness.label,
+				conversation: harness.conversation,
 				available: await harnessAvailable(harness.file),
 			})),
 		)

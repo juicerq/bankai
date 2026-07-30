@@ -1,26 +1,35 @@
 import type { AgentPresence, Harness } from "@main/activity/Harness";
 import { ClaudeHarness } from "@main/activity/claude";
+import { CodexHarness } from "@main/activity/codex";
 import { Logger } from "@main/logger";
 import type { HarnessSettings } from "@main/store/settings";
-import { DEFAULT_LIVE_TRACE, DEFAULT_SESSION_NAMING } from "@shared/activity";
 
-const harnesses: Harness[] = [ClaudeHarness];
+const harnesses: Harness[] = [ClaudeHarness, CodexHarness];
 
 export const DEFAULT_HARNESS_SETTINGS: HarnessSettings = {
 	autostart: true,
 	id: ClaudeHarness.id,
-	liveTrace: DEFAULT_LIVE_TRACE,
-	naming: DEFAULT_SESSION_NAMING,
 };
 
-export function launchableHarnesses(): { id: string; label: string; file: string }[] {
+export function harnessIds(): string[] {
+	return harnesses.map((harness) => harness.id);
+}
+
+export function launchableHarnesses() {
 	return harnesses.flatMap((harness) => {
 		const launch = harness.launch;
 		if (!launch) {
 			return [];
 		}
 
-		return [{ id: harness.id, label: harness.label, file: launch().file }];
+		return [
+			{
+				id: harness.id,
+				label: harness.label,
+				conversation: harness.conversation,
+				file: launch().file,
+			},
+		];
 	});
 }
 
@@ -38,6 +47,10 @@ export function harnessTitle(harnessId: string): Harness["title"] {
 
 export function harnessProposeName(harnessId: string): Harness["proposeName"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.proposeName;
+}
+
+export function harnessLiveTrace(harnessId: string): Harness["liveTrace"] {
+	return harnesses.find((harness) => harness.id === harnessId)?.liveTrace;
 }
 
 export function harnessReader(harnessId: string): Harness["read"] {

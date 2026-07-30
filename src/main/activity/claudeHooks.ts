@@ -1,104 +1,45 @@
+import { rm } from "node:fs/promises";
+import { join } from "node:path";
+import { claudeConfigDir } from "@main/activity/claudeConfig";
+import type { HarnessLiveTrace } from "@main/activity/Harness";
+import {
+	clearSpool,
+	hookScript,
+	hookScriptPath,
+	hookSpoolDir,
+	rewriteJsonConfig,
+	shellQuoted,
+	spoolPrefix,
+	writeHookScript,
+} from "@main/activity/HookSource";
+import { CLAUDE_HARNESS_ID } from "@main/activity/harnessIds";
+import { type HookInstall, installedSettings, uninstalledSettings } from "@main/activity/hookSettings";
+
 export const HOOK_SCRIPT_NAME = "bankai-trace.sh";
 
 export const HOOK_EVENTS = ["UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop", "Notification"];
 
-const MATCHED_EVENTS = new Set(["PreToolUse", "PostToolUse"]);
+export const CLAUDE_HOOK_INSTALL: HookInstall = {
+	scriptName: HOOK_SCRIPT_NAME,
+	events: HOOK_EVENTS,
+	matchedEvents: new Set(["PreToolUse", "PostToolUse"]),
+	matcher: "*",
+};
 
-export const SPOOL_SEPARATOR = "\0";
-
-export function shellQuoted(value: string): string {
-	return `'${value.replaceAll("'", "'\\''")}'`;
+function claudeSettingsPath(): string {
+	return join(claudeConfigDir(), "settings.json");
 }
 
-export function hookScript(spoolDir: string): string {
-	return [
-		"#!/bin/sh",
-		`d=${shellQuoted(spoolDir)}`,
-		"p=$(cat)",
-		"r=${p#*session_id}",
-		"r=${r#*:}",
-		'r=${r#*\\"}',
-		's=${r%%\\"*}',
-		'case "$s" in',
-		"\t*[!0-9a-fA-F-]*|\"\") exit 0 ;;",
-		"esac",
-		"[ ${#s} -eq 36 ] || exit 0",
-		`printf '%s %s\\0' "$(date +%s%3N)" "$p" 2>/dev/null >>"$d/$s.spool"`,
-		"exit 0",
-		"",
-	].join("\n");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function bankaiGroup(group: unknown): boolean {
-	if (!isRecord(group) || !Array.isArray(group.hooks)) {
-		return false;
-	}
-
-	return group.hooks.some((entry) =>
-		isRecord(entry) && typeof entry.command === "string" && entry.command.includes(HOOK_SCRIPT_NAME)
-	);
-}
-
-function withoutBankai(hooks: unknown): Record<string, unknown> {
-	if (!isRecord(hooks)) {
-		return {};
-	}
-
-	const next: Record<string, unknown> = {};
-	for (const [event, groups] of Object.entries(hooks)) {
-		if (!Array.isArray(groups)) {
-			next[event] = groups;
-			continue;
-		}
-
-		const kept = groups.filter((group) => !bankaiGroup(group));
-		if (kept.length > 0) {
-			next[event] = kept;
-		}
-	}
-
-	return next;
-}
-
-function withHooks(settings: Record<string, unknown>, hooks: Record<string, unknown>): Record<string, unknown> {
-	const next = { ...settings };
-	if (Object.keys(hooks).length === 0) {
-		delete next.hooks;
-
-		return next;
-	}
-
-	next.hooks = hooks;
-
-	return next;
-}
-
-function bankaiEntry(event: string, command: string): Record<string, unknown> {
-	const hooks = [{ type: "command", command }];
-	if (MATCHED_EVENTS.has(event)) {
-		return { matcher: "*", hooks };
-	}
-
-	return { hooks };
-}
-
-export function installedSettings(current: unknown, command: string): Record<string, unknown> {
-	const settings = isRecord(current) ? current : {};
-	const hooks = withoutBankai(settings.hooks);
-	for (const event of HOOK_EVENTS) {
-		const groups = hooks[event];
-		hooks[event] = [...(Array.isArray(groups) ? groups : []), bankaiEntry(event, command)];
-	}
-
-	return withHooks(settings, hooks);
-}
-
-export function uninstalledSettings(current: unknown): Record<string, unknown> {
-	const settings = isRecord(current) ? current : {};
-
-	return withHooks(settings, withoutBankai(settings.hooks));
-}
+export const claudeLiveTrace: HarnessLiveTrace = {
+	async install(): Promise<void> {
+		await writeHookScript(HOOK_SCRIPT_NAME, hookScript(hookSpoolDir(), spoolPrefix(CLAUDE_HARNESS_ID)));
+		await rewriteJsonConfig(claudeSettingsPath(), (current) =>
+			installedSettings(current, shellQuoted(hookScriptPath(HOOK_SCRIPT_NAME)), CLAUDE_HOOK_INSTALL),
+		);
+	},
+	async uninstall(): Promise<void> {
+		await rewriteJsonConfig(claudeSettingsPath(), (current) => uninstalledSettings(current, HOOK_SCRIPT_NAME));
+		await rm(hookScriptPath(HOOK_SCRIPT_NAME), { force: true });
+		await clearSpool(CLAUDE_HARNESS_ID);
+	},
+};

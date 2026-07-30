@@ -2,12 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "bun:test";
-import {
-	MATERIAL_MESSAGE_LIMIT,
-	MATERIAL_TOTAL_LIMIT,
-	transcriptMaterial,
-	transcriptPath,
-} from "@main/activity/claudeTranscript";
+import { transcriptMaterial, transcriptPath } from "@main/activity/claudeTranscript";
+import { MATERIAL_MESSAGE_LIMIT, MATERIAL_TOTAL_LIMIT } from "@main/activity/transcriptMaterial";
 import {
 	NAMING_DISALLOWED_TOOLS,
 	NAMING_MODEL,

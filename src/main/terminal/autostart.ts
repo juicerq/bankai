@@ -2,7 +2,7 @@ import type { HarnessCommand } from "@main/activity/Harness";
 import { DEFAULT_HARNESS_SETTINGS, harnessLaunch } from "@main/activity/harnesses";
 import { Logger } from "@main/logger";
 import type { ContinuityShell } from "@main/store/continuity";
-import { type HarnessSettings, Settings } from "@main/store/settings";
+import { type HarnessSettings, harnessProfile, Settings } from "@main/store/settings";
 import { shellCommandLine, splitArguments } from "@main/terminal/commandLine";
 
 async function harnessSettings(): Promise<HarnessSettings> {
@@ -26,7 +26,7 @@ export async function autostartCommandLine(): Promise<string | undefined> {
 		return undefined;
 	}
 
-	return withExtraArguments(launch(), harness.args);
+	return withExtraArguments(launch(), harnessProfile(harness, harness.id).args);
 }
 
 export async function shellLaunchLine(shell: Pick<ContinuityShell, "plain" | "launch"> | undefined) {
@@ -44,12 +44,9 @@ export async function shellLaunchLine(shell: Pick<ContinuityShell, "plain" | "la
 }
 
 export async function harnessCommandLine(command: HarnessCommand, harnessId: string): Promise<string> {
-	const harness = await harnessSettings();
-	if (harness.id !== harnessId) {
-		return shellCommandLine(command);
-	}
-
-	return withExtraArguments(command, harness.args);
+	// A session resumes under the harness that owns it, with that harness's arguments,
+	// whichever harness is currently selected for new shells.
+	return withExtraArguments(command, harnessProfile(await harnessSettings(), harnessId).args);
 }
 
 function withExtraArguments(command: HarnessCommand, extra?: string): string {

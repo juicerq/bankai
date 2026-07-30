@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { terminalStream } from "@renderer/lib/stream/terminal";
+import { useDesktopOnlyHarness } from "@renderer/routes/-utils/use-harness-conversation";
 import { MobileConversation } from "@renderer/routes/mobile/-components/mobile-conversation";
 import { useConversation } from "@renderer/routes/mobile/-utils/use-conversation";
 import { useShellFocus } from "@renderer/routes/-utils/use-shell-focus";
@@ -13,6 +14,7 @@ function MobileConversationRoute() {
 	const navigate = useNavigate();
 	const row = rows.find((entry) => entry.shellId === shellId);
 	const conversation = useConversation(shellId);
+	const desktopOnly = useDesktopOnlyHarness(row?.harness);
 
 	useShellFocus(shellId);
 
@@ -25,7 +27,10 @@ function MobileConversationRoute() {
 				onKey: (key) => terminalStream.key(row.projectId, shellId, key),
 			}}
 			conversation={conversation}
-			onOpenAgent={(toolUseId) => navigate({ to: "/mobile/$shellId/$agentId", params: { shellId, agentId: toolUseId } })}
+			desktopOnly={desktopOnly}
+			onOpenAgent={(toolUseId) =>
+				navigate({ to: "/mobile/$shellId/$agentId", params: { shellId, agentId: toolUseId } })
+			}
 			onBack={() => navigate({ to: "/mobile" })}
 		/>
 	);

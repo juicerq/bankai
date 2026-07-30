@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "bun:test";
-import { LABEL_CAP, recordTrace, transcriptTrace } from "@main/activity/claudeTrace";
+import { recordTrace, transcriptTrace } from "@main/activity/claudeTrace";
+import { LABEL_CAP } from "@main/activity/traceLabels";
 import { transcriptPath } from "@main/activity/claudeTranscript";
 
 let records = 0;

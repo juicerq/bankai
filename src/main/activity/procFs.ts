@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile, readlink } from "node:fs/promises";
 
 interface ProcStat {
 	parent: number | null;
@@ -31,4 +31,46 @@ async function procStart(pid: number): Promise<string | null> {
 	return stat?.start ?? null;
 }
 
-export const procFs = { parent, procStart };
+async function named(comm: string): Promise<number[]> {
+	const entries = await readdir("/proc").catch((): string[] => []);
+	const pids = entries.flatMap((entry) => {
+		const pid = Number(entry);
+		if (!Number.isInteger(pid)) {
+			return [];
+		}
+
+		return [pid];
+	});
+	const matched = await Promise.all(
+		pids.map(async (pid) => {
+			const raw = await readFile(`/proc/${pid}/comm`, "utf8").catch(() => null);
+			if (raw?.trim() !== comm) {
+				return null;
+			}
+
+			return pid;
+		}),
+	);
+
+	return matched.flatMap((pid) => pid ?? []);
+}
+
+async function commandLine(pid: number): Promise<string[] | null> {
+	const raw = await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => null);
+	if (raw === null) {
+		return null;
+	}
+
+	return raw.split("\0").filter((argument) => argument !== "");
+}
+
+async function openFiles(pid: number): Promise<string[]> {
+	const descriptors = await readdir(`/proc/${pid}/fd`).catch((): string[] => []);
+	const targets = await Promise.all(
+		descriptors.map((descriptor) => readlink(`/proc/${pid}/fd/${descriptor}`).catch(() => null)),
+	);
+
+	return targets.flatMap((target) => target ?? []);
+}
+
+export const procFs = { parent, procStart, named, commandLine, openFiles };

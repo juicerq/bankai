@@ -3,6 +3,7 @@ import type { TerminalKey } from "@main/terminal/input";
 import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
 import { ACTIVITY_DOT_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import type { DesktopOnlyHarness } from "@renderer/routes/-utils/use-harness-conversation";
 import { MobileAttention } from "@renderer/routes/mobile/-components/mobile-attention";
 import { MobileAgentNotice, MobileComposer } from "@renderer/routes/mobile/-components/mobile-composer";
 import { MobileConversationBlocks } from "@renderer/routes/mobile/-components/mobile-conversation-block";
@@ -42,6 +43,7 @@ export function MobileConversation({
 	session,
 	agent,
 	conversation,
+	desktopOnly,
 	onOpenAgent,
 	onBack,
 }: {
@@ -49,6 +51,7 @@ export function MobileConversation({
 	session: MobileConversationSession | undefined;
 	agent?: string;
 	conversation: ConversationView;
+	desktopOnly?: DesktopOnlyHarness;
 	onOpenAgent?: (toolUseId: string) => void;
 	onBack: () => void;
 }) {
@@ -67,6 +70,17 @@ export function MobileConversation({
 		scroll.keepPosition();
 		void conversation.loadOlder();
 	};
+
+	if (desktopOnly) {
+		return (
+			<div data-component="mobile-conversation" data-shell-id={shellId} className="flex h-full flex-col bg-surface">
+				<MobileConversationHeader row={row} title={row?.title} onBack={onBack} />
+				<p data-slot="desktop-only" className="px-6 py-10 text-center text-secondary text-support">
+					Conversas do {desktopOnly.label} estão disponíveis apenas no desktop nesta versão.
+				</p>
+			</div>
+		);
+	}
 
 	return (
 		<div

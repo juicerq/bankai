@@ -2,6 +2,7 @@ import { open } from "node:fs/promises";
 import { type } from "arktype";
 import type { HarnessTrace } from "@main/activity/Harness";
 import { locateTranscript } from "@main/activity/claudeTranscript";
+import { LABEL_CAP, THINKING_TRACE } from "@main/activity/traceLabels";
 import { Logger } from "@main/logger";
 
 const TRACE_TAIL_BYTES = 64 * 1024;
@@ -44,8 +45,6 @@ const TOOL_SUBJECT: Record<string, { verb: string; keys: string[] }> = {
 	agent: { verb: "Delegating", keys: ["description"] },
 	task: { verb: "Delegating", keys: ["description"] },
 };
-
-export const LABEL_CAP = 64;
 
 const SHELL_OPERATOR = /\s*(?:\|\||&&|[|;]|\d*[<>])/;
 
@@ -130,8 +129,6 @@ const BLOCK_TRACE: Record<string, string> = {
 	redacted_thinking: "Thinking",
 	text: "Writing",
 };
-
-export const THINKING_TRACE = "Thinking";
 
 const traceRecordSchema = type({
 	type: "'assistant'",

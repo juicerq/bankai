@@ -1,5 +1,5 @@
 ---
-title: The hook bankai installs in Claude Code and the spool it writes
+title: The hook bankai installs in a harness and the spool it writes
 tags: [activity, store]
 updated_at: 2026-07-30
 created_at: 2026-07-27
@@ -21,13 +21,13 @@ Three failure paths matter and all are silent: no spool directory, an unwritable
 
 ## Records are separated by NUL, not by newline
 
-`<DATA_DIR>/hooks/spool/<session_id>.spool` holds `<epoch millis> <payload>\0` per event. The separator is NUL because bankai never has to assume the harness emits compact single-line JSON — an embedded newline cannot split a record. Reading takes the last 16KB and scans backwards, so the fragment at the head of the window and a half-written record at its tail both fail to parse and are skipped.
+`<DATA_DIR>/hooks/spool/<harness>-<session_id>.spool` holds `<epoch millis> <payload>\0` per event. One flat directory serves every harness, so the harness id is part of the file name: two harnesses that happen to hold the same native session id would otherwise address the same file. Every reader and every cleanup path keys on that same `<harness>-<session_id>` string, never on the session id alone. The separator is NUL because bankai never has to assume the harness emits compact single-line JSON — an embedded newline cannot split a record. Reading takes the last 16KB and scans backwards, so the fragment at the head of the window and a half-written record at its tail both fail to parse and are skipped.
 
 The stamp is the point of the whole file: it is the moment the event happened, which is what the elapsed counter must count from. The moment bankai read the line says nothing.
 
 ## Bankai's entries are recognised by the script's name
 
-`installedSettings` in `src/main/activity/claudeHooks.ts` merges into `hooks.<Event>[]` by dropping every group holding a command that contains `bankai-trace.sh` and then appending exactly one group per event, so installing twice leaves one entry and the user's own hooks are never rewritten. Uninstalling performs only the drop, and removes the `hooks` block when nothing else is left in it.
+`installedSettings` in `src/main/activity/hookSettings.ts` merges into `hooks.<Event>[]` by dropping every group holding a command that contains `bankai-trace.sh` and then appending exactly one group per event, so installing twice leaves one entry and the user's own hooks are never rewritten. Uninstalling performs only the drop, and removes the `hooks` block when nothing else is left in it.
 
 The five events are `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop` and `Notification`. Only the tool events carry `matcher: "*"`; the other three ignore a matcher entirely.
 
@@ -35,9 +35,13 @@ The file written is `<CLAUDE_CONFIG_DIR>/settings.json`, the same directory sess
 
 Nothing is printed to stdout. On `UserPromptSubmit` the harness feeds a hook's stdout to the model as context, so a debug line there would end up in the user's conversation.
 
-## One toggle decides it, and it is on by default
+## The naming helper's own hook events are dropped at the script
 
-`harness.liveTrace` — `DEFAULT_LIVE_TRACE` in `src/shared/activity.ts` — is applied by `applyLiveTrace` on startup and on every save of the harness panel. Off uninstalls the hook, on reinstalls it.
+Bankai's session namer runs the harness itself, and a harness that fires hooks would spool its own naming call as if it were the user's session. The script's first line exits 0 when `BANKAI_NAMING` is set, and the namer sets that variable in the child's environment. The guard sits in the script rather than in the reader because a record that was never written costs nothing to filter.
+
+## One toggle per harness decides it, and it is on by default
+
+`harness.profiles.<id>.liveTrace` — `DEFAULT_LIVE_TRACE` in `src/shared/activity.ts` — is applied by `applyLiveTrace` on startup and on every save of the harness panel. Off uninstalls that harness's hook, on reinstalls it. Each harness answers for itself: turning Codex's trace off leaves Claude's installed.
 
 That single function carries the platform guard, and it has to: activity tracking is Linux-only, so anywhere else the install would write a `#!/bin/sh` script into the user's own `settings.json` — costing every tool call a shell — to feed a spool nothing will ever read. Both callers go through it for that reason, not for tidiness.
 

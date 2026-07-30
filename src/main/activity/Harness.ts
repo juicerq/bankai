@@ -29,13 +29,20 @@ export interface HarnessReading {
 	attention?: ShellAttention;
 }
 
+export interface HarnessLiveTrace {
+	install: () => Promise<void>;
+	uninstall: () => Promise<void>;
+}
+
 export interface Harness {
 	id: string;
 	label: string;
+	conversation: boolean;
 	discover: () => Promise<AgentPresence[]>;
 	launch?: () => HarnessCommand;
 	resume?: (ref: { sessionId: string }) => HarnessCommand | null;
 	title?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
 	proposeName?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
 	read?: (ref: { sessionId: string; cwd: string }) => Promise<HarnessReading>;
+	liveTrace?: HarnessLiveTrace;
 }

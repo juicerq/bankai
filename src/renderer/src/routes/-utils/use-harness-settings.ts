@@ -1,7 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import type { HarnessSettings } from "@main/store/settings";
+import type { HarnessProfile, HarnessSettings } from "@main/store/settings";
 import { orpc } from "@renderer/lib/api";
+
+function withoutEmptyArguments(profile: HarnessProfile): HarnessProfile {
+	const { args, ...rest } = profile;
+	if (!args) {
+		return rest;
+	}
+
+	return { ...rest, args };
+}
 
 export function useHarnessSettings() {
 	const queryClient = useQueryClient();
@@ -22,17 +31,35 @@ export function useHarnessSettings() {
 		}),
 	);
 	const save = useCallback(
-		(patch: Partial<HarnessSettings>) => {
+		(patch: Partial<Pick<HarnessSettings, "autostart" | "id">>) => {
 			const current = queryClient.getQueryData<HarnessSettings>(key);
 			if (!current) {
 				return;
 			}
 
-			const { args, ...rest } = { ...current, ...patch };
-			mutation.mutate(args ? { ...rest, args } : rest);
+			mutation.mutate({ ...current, ...patch });
+		},
+		[key, mutation.mutate, queryClient],
+	);
+	const saveProfile = useCallback(
+		(patch: Partial<HarnessProfile>) => {
+			const current = queryClient.getQueryData<HarnessSettings>(key);
+			if (!current) {
+				return;
+			}
+
+			const profile = withoutEmptyArguments({ ...current.profiles?.[current.id], ...patch });
+			mutation.mutate({ ...current, profiles: { ...current.profiles, [current.id]: profile } });
 		},
 		[key, mutation.mutate, queryClient],
 	);
 
-	return { harness: stored.data, harnesses: available.data, save, saveError: mutation.error };
+	return {
+		harness: stored.data,
+		profile: stored.data?.profiles?.[stored.data.id] ?? {},
+		harnesses: available.data,
+		save,
+		saveProfile,
+		saveError: mutation.error,
+	};
 }

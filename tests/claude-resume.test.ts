@@ -35,6 +35,6 @@ describe("harness resume lookup", () => {
 	});
 
 	test("returns nothing for an unknown harness", () => {
-		expect(harnessResume("codex")).toBeUndefined();
+		expect(harnessResume("aider")).toBeUndefined();
 	});
 });

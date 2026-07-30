@@ -1,7 +1,7 @@
 ---
 title: What the pre-commit gate actually checks, and what it lets through
 tags: [build, test]
-updated_at: 2026-07-28
+updated_at: 2026-07-30
 created_at: 2026-07-26
 ---
 
@@ -16,6 +16,10 @@ Run `bun test` yourself before committing. The hook does not cover you.
 ## oxlint --fix can leave the tree redder than it found it
 
 `juicerq-check` autofixes, and a fix it makes is only checked against lint rules — not against the type checker in the same pass. Dropping an explicit `undefined` argument is a valid lint fix that breaks `tsc` when the parameter was declared `value: T | undefined` instead of `value?: T`. Re-run `bun run check` after any run that reports `oxlint --fix rewrote`.
+
+## There is no formatter, so never run one
+
+The repository has no Biome, Prettier, or dprint configuration, and `juicerq-check` only lints. Source layout is hand-written: tabs, lines up to about 120 characters, and wrapping chosen per call site. Running any formatter over `src/` rewrites hundreds of untouched files and no gate will complain, because formatting is not checked. Match the surrounding file by hand instead.
 
 ## bun run check rewrites the whole tree, not the files you touched
 

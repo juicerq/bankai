@@ -1,13 +1,10 @@
-import { open } from "node:fs/promises";
 import { type } from "arktype";
 import type { HarnessTrace } from "@main/activity/Harness";
-import { SPOOL_SEPARATOR } from "@main/activity/claudeHooks";
-import { spoolPath } from "@main/activity/HookSource";
-import { THINKING_TRACE, toolTrace } from "@main/activity/claudeTrace";
-import { Logger } from "@main/logger";
+import { toolTrace } from "@main/activity/claudeTrace";
+import { CLAUDE_HARNESS_ID } from "@main/activity/harnessIds";
+import { readSpoolTail, SPOOL_SEPARATOR, spoolPath } from "@main/activity/HookSource";
+import { THINKING_TRACE } from "@main/activity/traceLabels";
 import type { ShellAttention } from "@shared/activity";
-
-const SPOOL_TAIL_BYTES = 16 * 1024;
 
 const TURN_OVER = "Stop";
 
@@ -139,41 +136,11 @@ export function spoolReading(tail: string): SpoolReading {
 	return { event, attention: { ...notified, ...(detail && { detail }) } };
 }
 
-async function readTail(path: string): Promise<string | null> {
-	const handle = await open(path, "r").catch((err: unknown) => {
-		if (!missingFile(err)) {
-			Logger.warn("hook-spool:unreadable", { path, err: String(err) });
-		}
-
-		return null;
-	});
-	if (!handle) {
-		return null;
-	}
-
-	try {
-		const { size } = await handle.stat();
-		const length = Math.min(size, SPOOL_TAIL_BYTES);
-		const { buffer, bytesRead } = await handle.read({
-			buffer: Buffer.alloc(length),
-			position: size - length,
-		});
-
-		return buffer.toString("utf8", 0, bytesRead);
-	} finally {
-		await handle.close();
-	}
-}
-
 export async function readSpool(ref: { sessionId: string }): Promise<SpoolReading> {
-	const tail = await readTail(spoolPath(ref.sessionId));
+	const tail = await readSpoolTail(spoolPath({ harness: CLAUDE_HARNESS_ID, sessionId: ref.sessionId }));
 	if (tail === null) {
 		return { event: null, attention: null };
 	}
 
 	return spoolReading(tail);
-}
-
-function missingFile(err: unknown): boolean {
-	return err instanceof Error && "code" in err && err.code === "ENOENT";
 }

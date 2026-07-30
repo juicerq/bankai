@@ -6,26 +6,25 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { type } from "arktype";
+import { CLAUDE_HOOK_INSTALL, claudeLiveTrace, HOOK_EVENTS, HOOK_SCRIPT_NAME } from "@main/activity/claudeHooks";
+import { CLAUDE_HARNESS_ID } from "@main/activity/harnessIds";
+import { installedSettings, uninstalledSettings } from "@main/activity/hookSettings";
 import {
-	HOOK_EVENTS,
-	HOOK_SCRIPT_NAME,
 	hookScript,
-	installedSettings,
-	SPOOL_SEPARATOR,
-	uninstalledSettings,
-} from "@main/activity/claudeHooks";
-import {
 	hookSpoolDir,
-	installHookSource,
 	pruneSpool,
 	SPOOL_MAX_BYTES,
+	SPOOL_SEPARATOR,
+	spoolKey,
 	spoolPath,
-	uninstallHookSource,
+	spoolPrefix,
 } from "@main/activity/HookSource";
 
 const run = promisify(execFile);
 
 const SESSION = "0199e7f9-8b1e-7c22-9f4a-5b2d0d9a1c33";
+
+const REF = { harness: CLAUDE_HARNESS_ID, sessionId: SESSION };
 
 const USER_HOOK = { matcher: "Bash", hooks: [{ type: "command", command: "/home/me/lint.sh" }] };
 
@@ -42,7 +41,11 @@ function bankaiCommands(settings: unknown): string[] {
 
 describe("hook settings", () => {
 	test("installs one entry per event and keeps the rest of the file", () => {
-		const next = installedSettings({ model: "opus", hooks: { PreToolUse: [USER_HOOK] } }, "/data/bankai-trace.sh");
+		const next = installedSettings(
+			{ model: "opus", hooks: { PreToolUse: [USER_HOOK] } },
+			"/data/bankai-trace.sh",
+			CLAUDE_HOOK_INSTALL,
+		);
 
 		expect(next.model).toBe("opus");
 		expect(bankaiCommands(next)).toEqual(Array(HOOK_EVENTS.length).fill("/data/bankai-trace.sh"));
@@ -50,30 +53,34 @@ describe("hook settings", () => {
 	});
 
 	test("subscribes to the notification that says a dialog opened, with no matcher of its own", () => {
-		const next = installedSettings({}, "/data/bankai-trace.sh");
+		const next = installedSettings({}, "/data/bankai-trace.sh", CLAUDE_HOOK_INSTALL);
 		const installed = type({ hooks: { Notification: "unknown[]" } }).assert(next);
 
 		expect(installed.hooks.Notification).toEqual([{ hooks: [{ type: "command", command: "/data/bankai-trace.sh" }] }]);
 	});
 
 	test("installing twice leaves exactly one entry per event", () => {
-		const once = installedSettings({}, "/data/bankai-trace.sh");
-		const twice = installedSettings(once, "/other/bankai-trace.sh");
+		const once = installedSettings({}, "/data/bankai-trace.sh", CLAUDE_HOOK_INSTALL);
+		const twice = installedSettings(once, "/other/bankai-trace.sh", CLAUDE_HOOK_INSTALL);
 
 		expect(bankaiCommands(twice)).toEqual(Array(HOOK_EVENTS.length).fill("/other/bankai-trace.sh"));
 	});
 
 	test("uninstalling removes only bankai's entries", () => {
-		const installed = installedSettings({ hooks: { PreToolUse: [USER_HOOK] } }, "/data/bankai-trace.sh");
-		const next = uninstalledSettings(installed);
+		const installed = installedSettings(
+			{ hooks: { PreToolUse: [USER_HOOK] } },
+			"/data/bankai-trace.sh",
+			CLAUDE_HOOK_INSTALL,
+		);
+		const next = uninstalledSettings(installed, HOOK_SCRIPT_NAME);
 
 		expect(next).toEqual({ hooks: { PreToolUse: [USER_HOOK] } });
 	});
 
 	test("uninstalling drops the hooks block when nothing else is left", () => {
-		const installed = installedSettings({ model: "opus" }, "/data/bankai-trace.sh");
+		const installed = installedSettings({ model: "opus" }, "/data/bankai-trace.sh", CLAUDE_HOOK_INSTALL);
 
-		expect(uninstalledSettings(installed)).toEqual({ model: "opus" });
+		expect(uninstalledSettings(installed, HOOK_SCRIPT_NAME)).toEqual({ model: "opus" });
 	});
 });
 
@@ -83,7 +90,9 @@ describe("hook script", () => {
 	beforeEach(() => {
 		dir = mkdtempSync(join(tmpdir(), "bankai-hook-"));
 		mkdirSync(join(dir, "spool"));
-		writeFileSync(join(dir, "hook.sh"), hookScript(join(dir, "spool")), { mode: 0o755 });
+		writeFileSync(join(dir, "hook.sh"), hookScript(join(dir, "spool"), spoolPrefix(CLAUDE_HARNESS_ID)), {
+			mode: 0o755,
+		});
 	});
 
 	afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -100,7 +109,7 @@ describe("hook script", () => {
 		await fire(`{"session_id":"${SESSION}","hook_event_name":"PreToolUse","tool_name":"Read"}`);
 		await fire(`{"session_id": "${SESSION}", "hook_event_name": "Stop"}`);
 
-		const records = readFileSync(join(dir, "spool", `${SESSION}.spool`), "utf8")
+		const records = readFileSync(join(dir, "spool", `claude-${SESSION}.spool`), "utf8")
 			.split(SPOOL_SEPARATOR)
 			.filter((record) => record.length > 0);
 
@@ -148,7 +157,7 @@ describe("installing the source", () => {
 	}
 
 	test("writes an executable script into bankai's data directory and points the harness at it", async () => {
-		await installHookSource();
+		await claudeLiveTrace.install();
 
 		const commands = bankaiCommands(settings());
 		expect(commands).toHaveLength(HOOK_EVENTS.length);
@@ -158,25 +167,28 @@ describe("installing the source", () => {
 	});
 
 	test("repairs a script that was deleted", async () => {
-		await installHookSource();
+		await claudeLiveTrace.install();
 		const script = (bankaiCommands(settings())[0] ?? "").replaceAll("'", "");
 		rmSync(script);
-		await installHookSource();
+		await claudeLiveTrace.install();
 
-		expect(readFileSync(script, "utf8")).toBe(hookScript(hookSpoolDir()));
+		expect(readFileSync(script, "utf8")).toBe(hookScript(hookSpoolDir(), spoolPrefix(CLAUDE_HARNESS_ID)));
 	});
 
 	test("uninstalling leaves the user's own hooks running", async () => {
 		writeFileSync(join(config, "settings.json"), JSON.stringify({ hooks: { PreToolUse: [USER_HOOK] } }));
-		await installHookSource();
-		await uninstallHookSource();
+		await claudeLiveTrace.install();
+		await claudeLiveTrace.uninstall();
 
 		expect(settings()).toEqual({ hooks: { PreToolUse: [USER_HOOK] } });
 	});
 
 	test("leaves an unreadable settings file untouched", async () => {
 		writeFileSync(join(config, "settings.json"), "{ not json");
-		const failed = await installHookSource().then(() => false).catch(() => true);
+		const failed = await claudeLiveTrace
+			.install()
+			.then(() => false)
+			.catch(() => true);
 
 		expect(failed).toBe(true);
 		expect(readFileSync(join(config, "settings.json"), "utf8")).toBe("{ not json");
@@ -187,24 +199,24 @@ describe("pruning the spool", () => {
 	beforeEach(() => mkdirSync(hookSpoolDir(), { recursive: true }));
 
 	test("removes files of sessions that no longer exist", async () => {
-		writeFileSync(spoolPath(SESSION), "x");
-		writeFileSync(spoolPath("dead"), "x");
-		await pruneSpool(new Set([SESSION]));
+		writeFileSync(spoolPath(REF), "x");
+		writeFileSync(spoolPath({ harness: CLAUDE_HARNESS_ID, sessionId: "dead" }), "x");
+		await pruneSpool(new Set([spoolKey(REF)]));
 
-		expect(await readdir(hookSpoolDir())).toEqual([`${SESSION}.spool`]);
+		expect(await readdir(hookSpoolDir())).toEqual([`claude-${SESSION}.spool`]);
 	});
 
 	test("keeps every file when no session was discovered", async () => {
-		writeFileSync(spoolPath(SESSION), "x");
+		writeFileSync(spoolPath(REF), "x");
 		await pruneSpool(new Set());
 
-		expect(await readdir(hookSpoolDir())).toEqual([`${SESSION}.spool`]);
+		expect(await readdir(hookSpoolDir())).toEqual([`claude-${SESSION}.spool`]);
 	});
 
 	test("empties a live spool that outgrew its cap", async () => {
-		writeFileSync(spoolPath(SESSION), "x".repeat(SPOOL_MAX_BYTES + 1));
-		await pruneSpool(new Set([SESSION]));
+		writeFileSync(spoolPath(REF), "x".repeat(SPOOL_MAX_BYTES + 1));
+		await pruneSpool(new Set([spoolKey(REF)]));
 
-		expect(statSync(spoolPath(SESSION)).size).toBe(0);
+		expect(statSync(spoolPath(REF)).size).toBe(0);
 	});
 });

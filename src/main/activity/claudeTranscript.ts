@@ -4,13 +4,10 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { type } from "arktype";
 import { claudeConfigDir } from "@main/activity/claudeConfig";
+import { MATERIAL_EDGE_COUNT, MATERIAL_MESSAGE_LIMIT, withinTotal } from "@main/activity/transcriptMaterial";
 import { Logger } from "@main/logger";
 
 const TITLE_LIMIT = 120;
-
-export const MATERIAL_MESSAGE_LIMIT = 400;
-export const MATERIAL_TOTAL_LIMIT = 1600;
-const MATERIAL_EDGE_COUNT = 3;
 
 const NOISE_PREFIXES = [
 	"<local-command-caveat>",
@@ -158,16 +155,6 @@ export async function transcriptTitle(ref: { sessionId: string; cwd: string }): 
 	}
 
 	return null;
-}
-
-function withinTotal(messages: string[]): string[] {
-	const kept = [...messages];
-
-	while (kept.join("\n").length > MATERIAL_TOTAL_LIMIT && kept.length > 1) {
-		kept.splice(Math.floor(kept.length / 2), 1);
-	}
-
-	return kept;
 }
 
 export async function transcriptMaterial(ref: { sessionId: string; cwd: string }): Promise<string[]> {

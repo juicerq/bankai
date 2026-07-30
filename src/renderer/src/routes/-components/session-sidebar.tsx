@@ -6,11 +6,12 @@ import {
 	PlusIcon,
 	XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { type ReactNode, useCallback, useState } from "react";
+import { type ReactElement, type ReactNode, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Project } from "@main/store/projects";
 import { BankaiWordmark } from "@renderer/routes/-components/bankai-wordmark";
 import { ClaudeGlyph } from "@renderer/routes/-components/claude-glyph";
+import { CodexGlyph } from "@renderer/routes/-components/codex-glyph";
 import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
 import { MenuItem } from "@renderer/routes/-components/menu-item";
 import { ProjectBadges } from "@renderer/routes/-components/project-badges";
@@ -209,13 +210,19 @@ export function SessionSidebar({
 	);
 }
 
-function HarnessMark({ harness, active }: { harness: string | undefined; active: boolean }) {
-	if (harness === "claude") {
-		return <ClaudeGlyph active={active} />;
-	}
+const HARNESS_GLYPH: Record<string, (props: { active: boolean }) => ReactElement> = {
+	claude: ClaudeGlyph,
+	codex: CodexGlyph,
+};
 
+function HarnessMark({ harness, active }: { harness: string | undefined; active: boolean }) {
 	if (!harness) {
 		return <ShellGlyph active={active} />;
+	}
+
+	const Glyph = HARNESS_GLYPH[harness];
+	if (Glyph) {
+		return <Glyph active={active} />;
 	}
 
 	return (

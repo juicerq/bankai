@@ -5,7 +5,7 @@ import { type } from "arktype";
 import { commandDraftSchema, type ProjectCommand } from "@main/store/commands";
 import type { ContinuityValue } from "@main/store/continuity";
 import type { MobileAccess } from "@main/tailscale/access";
-import type { HarnessSettings } from "@main/store/settings";
+import { type HarnessSettings, harnessSchema } from "@main/store/settings";
 import { SERVER_DEFAULT_PORT, SERVER_RPC_PREFIX } from "@shared/server";
 
 export type ReviewProcedure = "worktrees" | "snapshot" | "files" | "file" | "fullFile";
@@ -92,7 +92,7 @@ function requireBrowse() {
 }
 
 export interface HarnessTransport {
-	harnesses: { id: string; label: string; available: boolean }[];
+	harnesses: { id: string; label: string; conversation: boolean; available: boolean }[];
 	harness: HarnessSettings;
 	updates: HarnessSettings[];
 	saveFailure?: string;
@@ -249,13 +249,11 @@ const router = {
 	settings: {
 		listHarnesses: os.handler(() => requireHarness().harnesses),
 		getHarness: os.handler(() => requireHarness().harness),
-		updateHarness: os
-			.input(type({ autostart: "boolean", id: "string", "args?": "string" }))
-			.handler(({ input }) => {
-				const transport = requireHarness();
-				if (transport.saveFailure) {
-					throw new Error(transport.saveFailure);
-				}
+		updateHarness: os.input(harnessSchema).handler(({ input }) => {
+			const transport = requireHarness();
+			if (transport.saveFailure) {
+				throw new Error(transport.saveFailure);
+			}
 
 				transport.updates.push(input);
 				transport.harness = input;

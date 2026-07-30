@@ -1,14 +1,15 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { watch } from "node:fs";
+import { mkdirSync, watch, writeFileSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 import { readSpool, spoolEvent, spoolReading } from "@main/activity/claudeHookTrace";
-import { SPOOL_SEPARATOR } from "@main/activity/claudeHooks";
+import { CLAUDE_HARNESS_ID } from "@main/activity/harnessIds";
 import { fresherReading } from "@main/activity/claudeTraceSource";
 import { recordTrace } from "@main/activity/claudeTrace";
-import { hookSpoolDir, spoolPath } from "@main/activity/HookSource";
+import { hookSpoolDir, SPOOL_SEPARATOR, spoolPath } from "@main/activity/HookSource";
 
 const SESSION = "0199e7f9-8b1e-7c22-9f4a-5b2d0d9a1c33";
+
+const REF = { harness: CLAUDE_HARNESS_ID, sessionId: SESSION };
 
 function record(at: number, payload: Record<string, unknown>): string {
 	return `${at} ${JSON.stringify({ session_id: SESSION, ...payload })}${SPOOL_SEPARATOR}`;
@@ -16,7 +17,7 @@ function record(at: number, payload: Record<string, unknown>): string {
 
 function writeSpool(records: string[]): void {
 	mkdirSync(hookSpoolDir(), { recursive: true });
-	writeFileSync(spoolPath(SESSION), records.join(""));
+	writeFileSync(spoolPath(REF), records.join(""));
 }
 
 describe("reading one spooled event", () => {
@@ -183,7 +184,7 @@ describe("watching the spool directory", () => {
 		const watcher = watch(hookSpoolDir(), () => fired.resolve());
 
 		try {
-			await appendFile(spoolPath(SESSION), record(1784901075701, { hook_event_name: "Stop" }));
+			await appendFile(spoolPath(REF), record(1784901075701, { hook_event_name: "Stop" }));
 			await fired.promise;
 		} finally {
 			watcher.close();

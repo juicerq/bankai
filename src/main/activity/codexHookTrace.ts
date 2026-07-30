@@ -30,6 +30,7 @@ const CODEX_TOOL_TRACE: Record<string, string> = {
 	send_message: DELEGATING_TRACE,
 	spawn_agent: DELEGATING_TRACE,
 	update_plan: PLANNING_TRACE,
+	view_image: EXPLORING_TRACE,
 	wait: DELEGATING_TRACE,
 	wait_agent: DELEGATING_TRACE,
 	write_stdin: RUNNING_TRACE,

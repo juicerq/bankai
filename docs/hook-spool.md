@@ -1,7 +1,7 @@
 ---
 title: The hook bankai installs in Claude Code and the spool it writes
 tags: [activity, store]
-updated_at: 2026-07-27
+updated_at: 2026-07-30
 created_at: 2026-07-27
 ---
 
@@ -29,7 +29,7 @@ The stamp is the point of the whole file: it is the moment the event happened, w
 
 `installedSettings` in `src/main/activity/claudeHooks.ts` merges into `hooks.<Event>[]` by dropping every group holding a command that contains `bankai-trace.sh` and then appending exactly one group per event, so installing twice leaves one entry and the user's own hooks are never rewritten. Uninstalling performs only the drop, and removes the `hooks` block when nothing else is left in it.
 
-The four events are `UserPromptSubmit`, `PreToolUse`, `PostToolUse` and `Stop`. Only the tool events carry `matcher: "*"`; the other two ignore a matcher entirely.
+The five events are `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop` and `Notification`. Only the tool events carry `matcher: "*"`; the other three ignore a matcher entirely.
 
 The file written is `<CLAUDE_CONFIG_DIR>/settings.json`, the same directory session discovery reads. It is rewritten only when the merge actually changes it, and a `settings.json` that does not parse aborts the install rather than being replaced — that file is the user's, and bankai is the only thing here that writes into the harness's own configuration.
 

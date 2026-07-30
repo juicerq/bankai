@@ -1,7 +1,7 @@
 ---
 title: Which sources can name a session, and which ones are dead
 tags: [activity, terminal, store]
-updated_at: 2026-07-27
+updated_at: 2026-07-30
 created_at: 2026-07-25
 ---
 
@@ -11,9 +11,9 @@ The live source for a Claude session is its transcript, and what can be pulled o
 
 `~/.claude/sessions/<pid>.json` publishes `name` and `nameSource`, but every interactive session reports `nameSource: "derived"` and a name built from the cwd basename plus a counter — `bankai-2-94`, `app-04`. It identifies nothing the card does not already show. `"user"` appears when the session was started with `claude -n <name>`, and `"auto"` is written by Claude Code's own LLM namer, which only runs for background jobs. See `session-naming.md`.
 
-## Codex publishes a session index with a ready-made name
+## Codex's session index is not a live source
 
-`~/.codex/session_index.jsonl` holds one line per session: `{ id, thread_name, updated_at }`, with `thread_name` already a human-readable title (`"Adaptar setup do Claude Code"`). Keyed by the same `sessionId` the continuity store persists, so it is a lookup rather than a scan. It is also live — `thread_name` follows the thread as it evolves.
+`~/.codex/session_index.jsonl` carries `{ id, thread_name, updated_at }`, but Codex 0.146.0 does not keep it complete or current. The file sampled on this machine repeats IDs as names change and omits the active session plus newer rollouts. It can supply a fallback name by taking the last entry for an ID, never establish that a session has no name and never stand as the only naming source.
 
 ## The claude binary emits no terminal title
 

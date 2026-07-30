@@ -113,7 +113,7 @@ Preparing a mounted project's review in the background before its first activati
 _Avoid_: Preload, eager load, warmup
 
 **Agent**:
-A CLI coding agent the user runs inside a Shell — Claude Code, Codex, or pi.
+A conversational CLI coding agent the user runs inside a Shell — Claude Code, Codex, or pi. One-shot and headless commands from the same CLI are ordinary shell processes, not Agents.
 _Avoid_: Assistant, bot, AI, process
 
 **Harness**:

@@ -62,4 +62,4 @@ bun run dist:linux  # x64 AppImage
 bun run dist:win    # x64 NSIS
 ```
 
-Pushing a `v*` tag triggers the release workflow, which builds the Linux AppImage and Windows NSIS installer and publishes them to a GitHub release on `juicerq/bankai-2`. Code signing and macOS packaging are not configured.
+Pushing a `v*` tag triggers the release workflow, which builds the Linux AppImage and publishes it to a GitHub release on `juicerq/bankai-2`. Run the `release windows` workflow with that tag to attach the Windows NSIS installer. Code signing and macOS packaging are not configured.

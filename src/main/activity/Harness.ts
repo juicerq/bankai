@@ -37,4 +37,5 @@ export interface Harness {
 	proposeName?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
 	read?: (ref: { sessionId: string }) => Promise<HarnessReading>;
 	hooks?: HarnessHooks;
+	watch?: () => string[];
 }

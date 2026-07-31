@@ -72,7 +72,9 @@ async function rootRollout(candidates: string[]) {
 	return roots[0];
 }
 
-async function presenceOf(pid: number): Promise<{ presence: AgentPresence; rollouts: string[] } | null> {
+let rootRollouts: string[] = [];
+
+async function presenceOf(pid: number): Promise<{ presence: AgentPresence; rollouts: string[]; root: string } | null> {
 	const [argv, procStart, openFiles] = await Promise.all([
 		procFs.commandLine(pid),
 		procFs.procStart(pid),
@@ -93,6 +95,7 @@ async function presenceOf(pid: number): Promise<{ presence: AgentPresence; rollo
 
 	return {
 		rollouts,
+		root: root.path,
 		presence: {
 			harness: CODEX_HARNESS_ID,
 			sessionId: root.meta.sessionId,
@@ -121,11 +124,13 @@ export const CodexHarness: Harness = {
 	},
 	title: codexTitle,
 	proposeName: codexProposeName,
+	watch: () => rootRollouts,
 	async discover() {
 		const pids = await procFs.named(CODEX_PROCESS);
 		const found = await Promise.all(pids.map((pid) => presenceOf(pid)));
 		const live = found.flatMap((entry) => entry?.rollouts ?? []);
 		codexRollouts.forget(new Set(live));
+		rootRollouts = found.flatMap((entry) => (entry ? [entry.root] : []));
 
 		return found.flatMap((entry) => entry?.presence ?? []);
 	},

@@ -86,6 +86,7 @@ export const ClaudeHarness: Harness = {
 	proposeName: claudeProposeName,
 	read: claudeRead,
 	hooks: claudeHooks,
+	watch: () => [sessionsDirectory()],
 	async discover() {
 		const directory = sessionsDirectory();
 		const files = await readdir(directory).catch((): string[] => []);

@@ -2,7 +2,7 @@ import { type FSWatcher, watch } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import type { AgentPresence, HarnessReading } from "@main/activity/Harness";
 import { hookSpoolDir, pruneSpool, spoolKey } from "@main/activity/HookSource";
-import { discoverAgents, harnessReader } from "@main/activity/harnesses";
+import { discoverAgents, harnessReader, harnessWatchPaths } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
 import { bindShells } from "@main/activity/SessionBinder";
 import {
@@ -26,11 +26,15 @@ import { throttle } from "@shared/throttle";
 
 const ACTIVITY_POLL_MS = 1500;
 
-const SPOOL_PASS_MS = 150;
+const EVENT_PASS_MS = 150;
 
 const SPOOL_PRUNE_MS = 5 * 60 * 1000;
 
 type ActivityPass = "full" | "event";
+
+function missingPath(err: unknown): boolean {
+	return err instanceof Error && "code" in err && err.code === "ENOENT";
+}
 
 type BoundStatus = "working" | "waiting" | "idle";
 
@@ -464,10 +468,11 @@ class AgentActivityTracker {
 	private shellWorktrees = new Map<string, string>();
 	private statusSince = new Map<string, number>();
 	private agentCwds = new Map<string, string>();
-	private readonly noteSpoolWrite = throttle(() => this.runTick("event"), SPOOL_PASS_MS);
+	private readonly noteWrite = throttle(() => this.runTick("event"), EVENT_PASS_MS);
+	private readonly harnessWatchers = new Map<string, FSWatcher>();
 	private hooked: ReadonlySet<string> = new Set();
 	private timer: ReturnType<typeof setInterval> | undefined;
-	private watcher: FSWatcher | undefined;
+	private spoolWatcher: FSWatcher | undefined;
 	private ticking = false;
 	private queuedPass: ActivityPass | undefined;
 	private prunedAt = 0;
@@ -509,8 +514,43 @@ class AgentActivityTracker {
 
 	private async watchSpool(): Promise<void> {
 		await mkdir(hookSpoolDir(), { recursive: true });
-		this.watcher = watch(hookSpoolDir(), () => this.noteSpoolWrite());
-		this.watcher.unref();
+		this.spoolWatcher = watch(hookSpoolDir(), () => this.noteWrite());
+		this.spoolWatcher.unref();
+	}
+
+	private watchHarnessFiles(declared: string[]): void {
+		const paths = new Set(declared);
+
+		for (const [path, watcher] of this.harnessWatchers) {
+			if (!paths.has(path)) {
+				watcher.close();
+				this.harnessWatchers.delete(path);
+			}
+		}
+
+		for (const path of paths) {
+			if (this.harnessWatchers.has(path)) {
+				continue;
+			}
+
+			this.attachWatcher(path);
+		}
+	}
+
+	private attachWatcher(path: string): void {
+		try {
+			const watcher = watch(path, () => this.noteWrite());
+			watcher.unref();
+			watcher.on("error", () => {
+				watcher.close();
+				this.harnessWatchers.delete(path);
+			});
+			this.harnessWatchers.set(path, watcher);
+		} catch (err) {
+			if (!missingPath(err)) {
+				Logger.warn("activity:harness-watch-failed", { path, err: String(err) });
+			}
+		}
 	}
 
 	getProjectSnapshot(projectId: string): ProjectActivitySnapshot {
@@ -566,6 +606,7 @@ class AgentActivityTracker {
 			this.boundSessions = new Set();
 			this.sessionRefs = new Map();
 			this.agentCwds.clear();
+			this.watchHarnessFiles([]);
 			this.commit({
 				shellStates: new Map(),
 				owners,
@@ -640,6 +681,7 @@ class AgentActivityTracker {
 		}
 
 		if (pass === "full") {
+			this.watchHarnessFiles(harnessWatchPaths());
 			this.prune(new Set(presences.map((presence) => spoolKey(presence))));
 		}
 		this.commit({

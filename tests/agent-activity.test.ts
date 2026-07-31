@@ -16,6 +16,7 @@ import {
 	turnStartShells,
 } from "@main/activity/AgentActivity";
 import { ClaudeHarness, parseSessionRecord } from "@main/activity/claude";
+import { harnessWatchPaths } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
 import { bindShells, type ParentOf } from "@main/activity/SessionBinder";
 import { shellArgs } from "@main/terminal/commandLine";
@@ -659,6 +660,13 @@ describe("claude harness discovery", () => {
 	test("yields nothing when the registry directory is absent", async () => {
 		process.env.CLAUDE_CONFIG_DIR = join(tmpdir(), "claude-config-missing-xyz");
 		expect(await ClaudeHarness.discover()).toEqual([]);
+	});
+
+	test("declares the registry directory as the file to watch", () => {
+		configDir = mkdtempSync(join(tmpdir(), "claude-config-"));
+		process.env.CLAUDE_CONFIG_DIR = configDir;
+
+		expect(harnessWatchPaths()).toContain(join(configDir, "sessions"));
 	});
 });
 

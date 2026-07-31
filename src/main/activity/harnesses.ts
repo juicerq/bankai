@@ -54,6 +54,10 @@ export function harnessHooks(harnessId: string): Harness["hooks"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.hooks;
 }
 
+export function harnessWatchPaths(): string[] {
+	return harnesses.flatMap((harness) => harness.watch?.() ?? []);
+}
+
 export function harnessReader(harnessId: string): Harness["read"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.read;
 }

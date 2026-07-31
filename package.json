@@ -1,6 +1,6 @@
 {
 	"name": "bankai-2",
-	"version": "0.2.42",
+	"version": "0.2.43",
 	"private": true,
 	"license": "MIT",
 	"description": "Focused Electron workspace for persistent project shell sessions",

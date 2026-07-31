@@ -1,3 +1,0 @@
-# Harness live trace may use hooks
-
-ADR-0001 chose passive Agent detection because hooks mutate configuration Bankai does not own. Passive discovery and `/proc` binding remain the authority for session identity and Working/Done, but measured transcript delay loses short tool calls entirely. A Harness may therefore own an independently configurable hook source when it can merge and remove only Bankai's entries, keep the hook file-only and non-blocking, preserve every user hook, respect the CLI's trust flow, and fall back to coarse activity when installation, trust, or parsing fails. This supersedes only ADR-0001's blanket ban on hooks; it does not make hooks the authority for Agent presence or Continuity.

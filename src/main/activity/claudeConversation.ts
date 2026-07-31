@@ -1,5 +1,4 @@
 import { type } from "arktype";
-import { toolTrace } from "@main/activity/claudeTrace";
 import { noisyText } from "@main/activity/claudeTranscript";
 import type { ConversationBlock, ConversationEdit } from "@shared/conversation";
 
@@ -126,7 +125,7 @@ export class ConversationParser {
 	private sequence = 0;
 	private readonly agentText = new Map<string, string>();
 	private readonly thoughts = new Map<string, string>();
-	private readonly toolLabels = new Map<string, string>();
+	private readonly toolNames = new Map<string, string>();
 	private readonly agentTools = new Set<string>();
 
 	consume(line: string): ConversationBlock[] {
@@ -172,17 +171,17 @@ export class ConversationParser {
 		for (const entry of record.message.content) {
 			const tool = toolUseBlockSchema(entry);
 			if (!(tool instanceof type.errors)) {
-				const label = toolTrace(tool.name, tool.input);
-				this.toolLabels.set(tool.id, label);
+				const name = tool.name.split("__").at(-1) ?? tool.name;
+				this.toolNames.set(tool.id, name);
 
 				if (AGENT_TOOL_NAMES.has(tool.name.toLowerCase())) {
 					this.agentTools.add(tool.id);
-					blocks.push({ kind: "tool", id: tool.id, label, state: "running", agent: true });
+					blocks.push({ kind: "tool", id: tool.id, name, state: "running", agent: true });
 
 					continue;
 				}
 
-				blocks.push({ kind: "tool", id: tool.id, label, state: "running" });
+				blocks.push({ kind: "tool", id: tool.id, name, state: "running" });
 
 				continue;
 			}
@@ -279,15 +278,15 @@ export class ConversationParser {
 		result: typeof toolResultBlockSchema.infer,
 		edit: ConversationEdit | undefined,
 	): ConversationBlock | undefined {
-		const label = this.toolLabels.get(result.tool_use_id);
-		if (label === undefined) {
+		const name = this.toolNames.get(result.tool_use_id);
+		if (name === undefined) {
 			return undefined;
 		}
 
 		const settled = {
 			kind: "tool",
 			id: result.tool_use_id,
-			label,
+			name,
 			state: result.is_error ? "failed" : "done",
 			...(this.agentTools.has(result.tool_use_id) ? { agent: true } : {}),
 		} satisfies ConversationBlock;

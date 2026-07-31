@@ -1,6 +1,4 @@
 import { codexSessionsDir } from "@main/activity/codexConfig";
-import { codexLiveTrace } from "@main/activity/codexHooks";
-import { codexRead } from "@main/activity/codexHookTrace";
 import { codexRollouts } from "@main/activity/codexRollout";
 import { codexTitle } from "@main/activity/codexTranscript";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/activity/Harness";
@@ -123,8 +121,6 @@ export const CodexHarness: Harness = {
 	},
 	title: codexTitle,
 	proposeName: codexProposeName,
-	read: codexRead,
-	liveTrace: codexLiveTrace,
 	async discover() {
 		const pids = await procFs.named(CODEX_PROCESS);
 		const found = await Promise.all(pids.map((pid) => presenceOf(pid)));

@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import type { Project } from "@main/store/projects";
 import type { AgentActivityState } from "@shared/activity";
+import { ACTIVITY_LABEL } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { MobileSessionList } from "@renderer/routes/mobile/-components/mobile-session-list";
 import { LONG_PRESS_MS } from "@renderer/routes/mobile/-utils/use-long-press";
@@ -26,8 +27,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
 		activity: undefined,
-		trace: undefined,
-		traceSince: undefined,
+		since: undefined,
 		attention: undefined,
 		...patch,
 	};
@@ -97,32 +97,31 @@ test("the list paints the sessions in the order it was handed", () => {
 	expect(cards().map((entry) => entry.dataset.shellId)).toEqual(["waiting", "working", "idle"]);
 });
 
-test("a card reads project, session name and what the agent is doing", () => {
+test("a card reads project, session name and the state the agent is in", () => {
 	renderList([
 		row("s1", {
 			projectName: "ghostapi",
 			title: "refund webhook",
 			activity: "working",
-			trace: "Editing files",
 		}),
 	]);
 
 	expect(card("s1").textContent).toContain("ghostapi");
 	expect(card("s1").textContent).toContain("refund webhook");
-	expect(slot(card("s1"), "session-trace").textContent).toBe("Editing files");
+	expect(slot(card("s1"), "session-state").textContent).toBe(ACTIVITY_LABEL.working);
 });
 
-test("a card with no trace falls back to the branch, quietly", () => {
+test("a card with no activity falls back to the branch, quietly", () => {
 	renderList([row("s1", { branch: "feat/cron-queue" })]);
 
-	const trace = slot(card("s1"), "session-trace");
+	const state = slot(card("s1"), "session-state");
 
-	expect(trace.textContent).toBe("feat/cron-queue");
-	expect(trace.className).toContain("text-outline-strong");
+	expect(state.textContent).toBe("feat/cron-queue");
+	expect(state.className).toContain("text-outline-strong");
 });
 
 test("a running session says how long it has been at it", () => {
-	renderList([row("s1", { activity: "working", trace: "Thinking", traceSince: Date.now() - 74_000 })]);
+	renderList([row("s1", { activity: "working", since: Date.now() - 74_000 })]);
 
 	expect(slot(card("s1"), "session-elapsed").textContent).toContain("1m");
 });

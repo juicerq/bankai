@@ -1,5 +1,6 @@
 import { useId } from "react";
 import type { TerminalKey } from "@main/terminal/input";
+import { ACTIVITY_LABEL } from "@renderer/routes/-utils/agent-activity";
 import { useKeyAck } from "@renderer/routes/mobile/-utils/use-key-ack";
 import type { ShellAttention } from "@shared/activity";
 
@@ -13,18 +14,14 @@ const KEYPAD: { key: TerminalKey; label: string; name?: string }[] = [
 	{ key: "escape", label: "Esc" },
 ];
 
-const WAITING_LABEL = "Waiting on you";
-
 const ACTION_CLASS = "flex-1 py-3.5 text-body active:bg-surface-active";
 
 export function MobileAttention({
 	attention,
-	label,
 	signature,
 	onKey,
 }: {
 	attention: ShellAttention | undefined;
-	label: string | undefined;
 	signature: string;
 	onKey: (key: TerminalKey) => Promise<void>;
 }) {
@@ -40,7 +37,7 @@ export function MobileAttention({
 		>
 			{labelled
 				? <AttentionCard attention={labelled} onPress={ack.press} />
-				: <AttentionKeypad label={label ?? WAITING_LABEL} onPress={ack.press} />}
+				: <AttentionKeypad onPress={ack.press} />}
 			{ack.deaf && (
 				<p data-slot="hint" className="px-1 pt-2 text-outline-strong text-support">
 					No effect — use the keypad
@@ -64,11 +61,8 @@ function AttentionCard({
 				<span aria-hidden="true" className="size-1.5 rounded-full bg-terminal-blue" />
 				NEEDS ATTENTION
 			</div>
-			<div className="flex flex-col gap-0.5 px-3 py-2">
+			<div className="px-3 py-2">
 				<span data-slot="message" className="text-body text-primary">{attention.message}</span>
-				{attention.detail && (
-					<span data-slot="detail" className="truncate text-data text-secondary">{attention.detail}</span>
-				)}
 			</div>
 			<div className="flex border-outline border-t">
 				<button
@@ -105,13 +99,7 @@ function AttentionCard({
 	);
 }
 
-function AttentionKeypad({
-	label,
-	onPress,
-}: {
-	label: string;
-	onPress: (key: TerminalKey) => Promise<void>;
-}) {
+function AttentionKeypad({ onPress }: { onPress: (key: TerminalKey) => Promise<void> }) {
 	const labelId = useId();
 
 	return (
@@ -121,7 +109,7 @@ function AttentionKeypad({
 				data-slot="label"
 				className="block truncate border-outline border-b px-3 py-1.5 text-label text-terminal-blue uppercase"
 			>
-				{label}
+				{ACTIVITY_LABEL["needs-attention"]}
 			</span>
 			<div role="group" aria-labelledby={labelId} className="flex gap-1 p-2">
 				{KEYPAD.map((entry) => (

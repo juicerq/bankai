@@ -1,8 +1,6 @@
 export interface HookInstall {
 	scriptName: string;
 	events: string[];
-	matchedEvents: ReadonlySet<string>;
-	matcher: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -53,21 +51,12 @@ function withHooks(settings: Record<string, unknown>, hooks: Record<string, unkn
 	return next;
 }
 
-function bankaiEntry(event: string, command: string, install: HookInstall): Record<string, unknown> {
-	const hooks = [{ type: "command", command }];
-	if (install.matchedEvents.has(event)) {
-		return { matcher: install.matcher, hooks };
-	}
-
-	return { hooks };
-}
-
 export function installedSettings(current: unknown, command: string, install: HookInstall): Record<string, unknown> {
 	const settings = isRecord(current) ? current : {};
 	const hooks = withoutBankai(settings.hooks, install.scriptName);
 	for (const event of install.events) {
 		const groups = hooks[event];
-		hooks[event] = [...(Array.isArray(groups) ? groups : []), bankaiEntry(event, command, install)];
+		hooks[event] = [...(Array.isArray(groups) ? groups : []), { hooks: [{ type: "command", command }] }];
 	}
 
 	return withHooks(settings, hooks);

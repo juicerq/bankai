@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { type ConversationBlock, mergeConversationBlocks } from "@shared/conversation";
 
 const PROMPT: ConversationBlock = { kind: "user", id: "u1", text: "roda os testes" };
-const CALL: ConversationBlock = { kind: "tool", id: "toolu_1", label: "Running commands", state: "running" };
+const CALL: ConversationBlock = { kind: "tool", id: "toolu_1", name: "Bash", state: "running" };
 
 describe("how a client folds a push into the conversation it already has", () => {
 	it("appends what it has never seen, in the order the file wrote it", () => {

@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import type { TerminalKey } from "@main/terminal/input";
+import { ACTIVITY_LABEL } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { AGENT_START_MS } from "@renderer/routes/mobile/-components/mobile-composer";
 import { MobileConversation } from "@renderer/routes/mobile/-components/mobile-conversation";
@@ -46,8 +47,7 @@ function row(patch: Partial<SessionRow> = {}): SessionRow {
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
 		activity: undefined,
-		trace: undefined,
-		traceSince: undefined,
+		since: undefined,
 		attention: undefined,
 		...patch,
 	};
@@ -154,7 +154,7 @@ test("the conversation paints its blocks in the order the file wrote them", () =
 	renderConversation({
 		conversation: view([
 			{ kind: "user", id: "u1", text: "adiciona retry" },
-			{ kind: "tool", id: "t1", label: "Reading upload.ts", state: "done" },
+			{ kind: "tool", id: "t1", name: "Read", state: "done" },
 			{ kind: "agent", id: "m1", text: "O upload não tem retry." },
 		]),
 	});
@@ -167,8 +167,8 @@ test("the conversation paints its blocks in the order the file wrote them", () =
 test("a running tool pulses and a failed one turns red", () => {
 	renderConversation({
 		conversation: view([
-			{ kind: "tool", id: "t1", label: "Running commands", state: "running" },
-			{ kind: "tool", id: "t2", label: "Editing files", state: "failed" },
+			{ kind: "tool", id: "t1", name: "Bash", state: "running" },
+			{ kind: "tool", id: "t2", name: "Edit", state: "failed" },
 		]),
 	});
 
@@ -180,10 +180,10 @@ test("a running tool pulses and a failed one turns red", () => {
 test("consecutive steps hang off one rail, and a message breaks it into two", () => {
 	renderConversation({
 		conversation: view([
-			{ kind: "tool", id: "t1", label: "Reading upload.ts", state: "done" },
-			{ kind: "tool", id: "t2", label: "Editing upload.ts", state: "done" },
+			{ kind: "tool", id: "t1", name: "Read", state: "done" },
+			{ kind: "tool", id: "t2", name: "Edit", state: "done" },
 			{ kind: "agent", id: "m1", text: "Pronto." },
-			{ kind: "tool", id: "t3", label: "Running tests", state: "running" },
+			{ kind: "tool", id: "t3", name: "Bash", state: "running" },
 		]),
 	});
 	const rails = [...document.querySelectorAll<HTMLElement>('[data-component="tool-timeline"]')];
@@ -193,16 +193,16 @@ test("consecutive steps hang off one rail, and a message breaks it into two", ()
 	expect(blocks().map((block) => block.dataset.kind)).toEqual(["tool", "tool", "agent", "tool"]);
 });
 
-test("an edit says how many lines it moved, beside the file it moved them in", () => {
+test("an edit says how many lines it moved, beside the tool that moved them", () => {
 	renderConversation({
 		conversation: view([
-			{ kind: "tool", id: "t1", label: "Editing upload.ts", state: "done", edit: { added: 12, removed: 3 } },
+			{ kind: "tool", id: "t1", name: "Edit", state: "done", edit: { added: 12, removed: 3 } },
 		]),
 	});
 
 	expect(slot(block(0), "edit").textContent).toContain("+12");
 	expect(slot(block(0), "edit").textContent).toContain("3");
-	expect(block(0).textContent).toContain("Editing upload.ts");
+	expect(block(0).textContent).toContain("Edit");
 });
 
 test("the reasoning arrives folded and opens where it sits", () => {
@@ -223,8 +223,8 @@ test("a call that spawned a subagent opens it, while an ordinary tool stays put"
 	const opened: string[] = [];
 	renderConversation({
 		conversation: view([
-			{ kind: "tool", id: "t1", label: "Reading upload.ts", state: "done" },
-			{ kind: "tool", id: "toolu_a", label: "Exploring the parser", state: "running", agent: true },
+			{ kind: "tool", id: "t1", name: "Read", state: "done" },
+			{ kind: "tool", id: "toolu_a", name: "Agent", state: "running", agent: true },
 		]),
 		onOpenAgent: (toolUseId) => opened.push(toolUseId),
 	});
@@ -309,14 +309,14 @@ test("history landing above the reader keeps the block they were reading in plac
 	expect(element.scrollTop).toBe(410);
 });
 
-test("the parsed title wins over the session name, and the trace stays visible", () => {
+test("the parsed title wins over the session name, and the state stays visible", () => {
 	renderConversation({
-		row: row({ activity: "working", trace: "Editing files", traceSince: Date.now() - 74_000 }),
+		row: row({ activity: "working", since: Date.now() - 74_000 }),
 		conversation: view([], { title: "Retry no upload de fotos" }),
 	});
 
 	expect(slot(get("mobile-conversation"), "title").textContent).toBe("Retry no upload de fotos");
-	expect(slot(get("mobile-conversation"), "activity").textContent).toContain("Editing files");
+	expect(slot(get("mobile-conversation"), "activity").textContent).toContain(ACTIVITY_LABEL.working);
 	expect(slot(get("mobile-conversation"), "session-elapsed").textContent).toContain("1m");
 });
 
@@ -383,7 +383,7 @@ test("send stays out of reach until something is written", () => {
 });
 
 test("a working agent keeps its stop within reach even once the next prompt is written", () => {
-	renderConversation({ row: row({ activity: "working", trace: "Writing" }) });
+	renderConversation({ row: row({ activity: "working" }) });
 
 	expect(composer().dataset.state).toBe("working");
 	expect(slot(composer(), "stop")).toBeDefined();
@@ -451,30 +451,21 @@ test("a session that left the list says so once, with nothing left to type into"
 	expect(query("mobile-composer")).toBeNull();
 });
 
-test("a sent message is answered by a live trace instead of silence", () => {
+test("a sent message is answered by the state instead of silence", () => {
 	renderConversation({
-		row: row({ activity: "working", trace: "Reading upload.ts", traceSince: NOW }),
+		row: row({ activity: "working", since: NOW }),
 		conversation: view([{ kind: "user", id: "u1", text: "adiciona retry" }]),
 	});
 
-	expect(slot(get("mobile-conversation"), "waiting").textContent).toContain("Reading upload.ts");
-});
-
-test("the trace under the message names the wait even before a tool is observed", () => {
-	renderConversation({
-		row: row({ activity: "working" }),
-		conversation: view([{ kind: "user", id: "u1", text: "adiciona retry" }]),
-	});
-
-	expect(slot(get("mobile-conversation"), "waiting").textContent).toContain("Working");
+	expect(slot(get("mobile-conversation"), "waiting").textContent).toContain(ACTIVITY_LABEL.working);
 });
 
 test("the wait ends the moment the agent puts something on the page", () => {
 	renderConversation({
-		row: row({ activity: "working", trace: "Reading upload.ts" }),
+		row: row({ activity: "working" }),
 		conversation: view([
 			{ kind: "user", id: "u1", text: "adiciona retry" },
-			{ kind: "tool", id: "t1", label: "Reading upload.ts", state: "running" },
+			{ kind: "tool", id: "t1", name: "Read", state: "running" },
 		]),
 	});
 

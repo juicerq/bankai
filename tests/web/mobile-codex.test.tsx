@@ -33,8 +33,7 @@ function row(patch: Partial<SessionRow> = {}): SessionRow {
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
 		activity: undefined,
-		trace: undefined,
-		traceSince: undefined,
+		since: undefined,
 		attention: undefined,
 		...patch,
 	};
@@ -70,7 +69,7 @@ test("a codex session says its conversation lives on the desktop, in those exact
 });
 
 test("the desktop-only surface mounts nothing the user could type or send into", () => {
-	renderConversation({ activity: "working", trace: "Editing files", traceSince: NOW });
+	renderConversation({ activity: "working", since: NOW });
 
 	expect(query("mobile-composer")).toBeNull();
 	expect(query("mobile-attention")).toBeNull();

@@ -1,7 +1,7 @@
 ---
 title: Why Agent activity follows the turn while Done follows the Shell
 tags: [activity, ui]
-updated_at: 2026-07-29
+updated_at: 2026-07-30
 created_at: 2026-07-25
 ---
 
@@ -36,7 +36,7 @@ The completion push still follows the live `working` or `needs-attention` to `do
 
 Working and Needs attention remain PTY-derived. Done is joined from Continuity, so a cold Shell can still carry it. The renderer also reads `doneAt` from its Continuity value as a startup fallback while the activity stream connects.
 
-The sessions-first sidebar hit this twice. Its first prototype split `ACTIVE` from `IDLE` on `session.activity` being set, and the session being worked in fell into the shelf. The fix removed activity from the partition but left it choosing the row's height, so the session under the cursor still shrank the moment its turn ended — the same mistake, one layer down. Activity now decides paint only: a border colour, a dot, and what the card's trace line says. Placement comes from `createdAt`, and the open/archived split comes from the user (see `session-archiving.md`).
+The sessions-first sidebar hit this twice. Its first prototype split `ACTIVE` from `IDLE` on `session.activity` being set, and the session being worked in fell into the shelf. The fix removed activity from the partition but left it choosing the row's height, so the session under the cursor still shrank the moment its turn ended — the same mistake, one layer down. Activity now decides paint only: a border colour, a dot, and what the card's state line says. Placement comes from `createdAt`, and the open/archived split comes from the user (see `session-archiving.md`).
 
 The one thing activity still decides is a hold. The 3-day auto-archive will not file a Shell with any state. Done can hold it indefinitely because that is the decision queue: the Shell stays easy to reach until the user starts the next turn, archives it, or closes it. Explicit archive still wins over every activity state.
 

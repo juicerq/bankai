@@ -1,7 +1,7 @@
 ---
 title: How the phone reads a conversation and why pulling older history re-reads the whole window
 tags: [ui, activity]
-updated_at: 2026-07-28
+updated_at: 2026-07-31
 created_at: 2026-07-28
 ---
 
@@ -11,9 +11,13 @@ created_at: 2026-07-28
 
 ## The parser is sequential, so history is a reset and not a page
 
-`ConversationParser` carries state across lines: a tool row is labelled from the `tool_use` that preceded it, agent text and reasoning accumulate per `message.id`. A window parsed in isolation therefore strands every tool result whose call sits above it. Pulling older history re-opens the file at a lower offset, re-reads to the end, and pushes a whole `reset` — never a partial page prepended to what the client already has.
+`ConversationParser` carries state across lines: a tool row takes its name from the `tool_use` that preceded it, agent text and reasoning accumulate per `message.id`. A window parsed in isolation therefore strands every tool result whose call sits above it. Pulling older history re-opens the file at a lower offset, re-reads to the end, and pushes a whole `reset` — never a partial page prepended to what the client already has.
 
 Each pull steps back one backfill window at a time, up to `CONVERSATION_HISTORY_STEPS`, until the first block id changes or the file starts. Comparing the first block's id is what detects "this step yielded nothing new"; block counts cannot be used, because the live end of the file keeps growing while the step runs.
+
+## A tool row says the tool's name, not a phrase for it
+
+`ConversationBlock` carries `name` — the bare tool name, with an mcp server's `__` prefix cut off. It was a phrase built from the tool's input (`Editing upload.ts`, `Running commands`) until a 129-line vocabulary of families, verbs and subject shapes had to be kept per harness for it. The name is what the user's own agent prints, and the row already carries the state dot and the edit counts.
 
 ## A block id is a slot, and the backfill collapses onto it
 

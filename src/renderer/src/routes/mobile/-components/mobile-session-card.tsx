@@ -1,5 +1,5 @@
 import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
-import { ACTIVITY_BORDER_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
+import { ACTIVITY_BORDER_CLASS, ACTIVITY_LABEL, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { useLongPress } from "@renderer/routes/mobile/-utils/use-long-press";
 
@@ -33,13 +33,13 @@ export function MobileSessionCard({
 			<span className="w-full truncate text-data text-secondary">{row.projectName}</span>
 			<span className="w-full truncate text-primary text-subtitle">{row.title}</span>
 			<span
-				data-slot="session-trace"
+				data-slot="session-state"
 				className={`flex w-full items-baseline gap-1 text-support ${
-					row.trace && row.activity ? ACTIVITY_TEXT_CLASS[row.activity] : "text-outline-strong"
+					row.activity ? ACTIVITY_TEXT_CLASS[row.activity] : "text-outline-strong"
 				}`}
 			>
-				<span className="min-w-0 truncate">{row.trace ?? row.branch}</span>
-				{row.activity && row.traceSince ? <ElapsedClock since={row.traceSince} /> : null}
+				<span className="min-w-0 truncate">{row.activity ? ACTIVITY_LABEL[row.activity] : row.branch}</span>
+				{row.since ? <ElapsedClock since={row.since} /> : null}
 			</span>
 		</button>
 	);

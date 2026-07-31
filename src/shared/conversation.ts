@@ -12,7 +12,7 @@ export type ConversationBlock =
 	| {
 		kind: "tool";
 		id: string;
-		label: string;
+		name: string;
 		state: ConversationToolState;
 		edit?: ConversationEdit;
 		agent?: boolean;

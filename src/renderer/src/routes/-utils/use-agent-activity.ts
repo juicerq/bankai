@@ -6,8 +6,6 @@ import type { AgentActivityState, ProjectActivitySnapshot, ShellAttention } from
 export interface AgentActivities {
 	shells: ReadonlyMap<string, AgentActivityState>;
 	worktrees: ReadonlyMap<string, string>;
-	traces: ReadonlyMap<string, string>;
-	traceSince: ReadonlyMap<string, number>;
 	statusSince: ReadonlyMap<string, number>;
 	attention: ReadonlyMap<string, ShellAttention>;
 }
@@ -15,8 +13,6 @@ export interface AgentActivities {
 const EMPTY_ACTIVITIES: AgentActivities = {
 	shells: new Map(),
 	worktrees: new Map(),
-	traces: new Map(),
-	traceSince: new Map(),
 	statusSince: new Map(),
 	attention: new Map(),
 };
@@ -54,8 +50,6 @@ class AgentActivityObserver {
 	private generation = 0;
 	private readonly shells = new MergedByProject<AgentActivityState>();
 	private readonly worktrees = new MergedByProject<string>();
-	private readonly traces = new MergedByProject<string>();
-	private readonly traceSince = new MergedByProject<number>();
 	private readonly statusSince = new MergedByProject<number>();
 	private readonly attention = new MergedByProject<ShellAttention>();
 
@@ -103,8 +97,6 @@ class AgentActivityObserver {
 		this.snapshot = {
 			shells: this.shells.merge(projectId, this.snapshot.shells, snapshot.shells),
 			worktrees: this.worktrees.merge(projectId, this.snapshot.worktrees, snapshot.worktreeByShellId),
-			traces: this.traces.merge(projectId, this.snapshot.traces, snapshot.traceByShellId),
-			traceSince: this.traceSince.merge(projectId, this.snapshot.traceSince, snapshot.traceSinceByShellId),
 			statusSince: this.statusSince.merge(projectId, this.snapshot.statusSince, snapshot.statusSinceByShellId),
 			attention: this.attention.merge(projectId, this.snapshot.attention, snapshot.attentionByShellId),
 		};

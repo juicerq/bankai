@@ -1,6 +1,6 @@
 export type AgentActivityState = "working" | "needs-attention" | "done";
 
-export const DEFAULT_LIVE_TRACE = true;
+export const DEFAULT_HARNESS_HOOKS = true;
 
 export const DEFAULT_SESSION_NAMING = true;
 
@@ -19,14 +19,11 @@ export function aggregateActivity(states: AgentActivityState[]): AgentActivitySt
 export interface ShellAttention {
 	message: string;
 	at: number;
-	detail?: string;
 }
 
 export interface ProjectActivitySnapshot {
 	shells: Record<string, AgentActivityState>;
 	worktreeByShellId: Record<string, string>;
-	traceByShellId: Record<string, string>;
-	traceSinceByShellId: Record<string, number>;
 	statusSinceByShellId: Record<string, number>;
 	attentionByShellId: Record<string, ShellAttention>;
 }

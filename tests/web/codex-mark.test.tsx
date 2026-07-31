@@ -23,8 +23,7 @@ function row(shellId: string, harness: string): SessionRow {
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
 		activity: undefined,
-		trace: undefined,
-		traceSince: undefined,
+		since: undefined,
 		attention: undefined,
 	};
 }

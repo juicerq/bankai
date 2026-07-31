@@ -16,7 +16,7 @@ import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
 import { MenuItem } from "@renderer/routes/-components/menu-item";
 import { ProjectBadges } from "@renderer/routes/-components/project-badges";
 import { ShellGlyph } from "@renderer/routes/-components/shell-glyph";
-import { ACTIVITY_BORDER_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
+import { ACTIVITY_BORDER_CLASS, ACTIVITY_LABEL, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { useMenuDismissal } from "@renderer/routes/-utils/use-menu-dismissal";
 import type { useSessionList } from "@renderer/routes/-utils/use-session-list";
@@ -245,13 +245,13 @@ function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGest
 			</span>
 			<span className="w-full truncate text-body text-primary">{row.title}</span>
 			<span
-				data-slot="session-trace"
+				data-slot="session-state"
 				className={`flex h-3.5 w-full items-baseline gap-1 text-data ${
-					row.trace && row.activity ? ACTIVITY_TEXT_CLASS[row.activity] : "text-outline-strong"
+					row.activity ? ACTIVITY_TEXT_CLASS[row.activity] : "text-outline-strong"
 				}`}
 			>
-				<span className="min-w-0 truncate">{row.trace ?? row.branch}</span>
-				{row.activity && row.traceSince ? <ElapsedClock since={row.traceSince} /> : null}
+				<span className="min-w-0 truncate">{row.activity ? ACTIVITY_LABEL[row.activity] : row.branch}</span>
+				{row.since ? <ElapsedClock since={row.since} /> : null}
 			</span>
 		</SessionEntry>
 	);

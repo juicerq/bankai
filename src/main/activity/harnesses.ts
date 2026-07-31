@@ -11,10 +11,6 @@ export const DEFAULT_HARNESS_SETTINGS: HarnessSettings = {
 	id: ClaudeHarness.id,
 };
 
-export function harnessIds(): string[] {
-	return harnesses.map((harness) => harness.id);
-}
-
 export function launchableHarnesses() {
 	return harnesses.flatMap((harness) => {
 		const launch = harness.launch;
@@ -27,10 +23,15 @@ export function launchableHarnesses() {
 				id: harness.id,
 				label: harness.label,
 				conversation: harness.conversation,
+				hooks: !!harness.hooks,
 				file: launch().file,
 			},
 		];
 	});
+}
+
+export function hookableHarnessIds(): string[] {
+	return harnesses.flatMap((harness) => (harness.hooks ? [harness.id] : []));
 }
 
 export function harnessLaunch(harnessId: string): Harness["launch"] {
@@ -49,8 +50,8 @@ export function harnessProposeName(harnessId: string): Harness["proposeName"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.proposeName;
 }
 
-export function harnessLiveTrace(harnessId: string): Harness["liveTrace"] {
-	return harnesses.find((harness) => harness.id === harnessId)?.liveTrace;
+export function harnessHooks(harnessId: string): Harness["hooks"] {
+	return harnesses.find((harness) => harness.id === harnessId)?.hooks;
 }
 
 export function harnessReader(harnessId: string): Harness["read"] {

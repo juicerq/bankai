@@ -10,7 +10,7 @@ afterEach(cleanup);
 const BACKFILL: ConversationSnapshot = {
 	blocks: [
 		{ kind: "user", id: "u1", text: "adiciona retry" },
-		{ kind: "tool", id: "t1", label: "Editing files", state: "running" },
+		{ kind: "tool", id: "t1", name: "Edit", state: "running" },
 	],
 	title: "Retry no upload",
 	startOffset: 2048,
@@ -80,7 +80,7 @@ test("a pushed block lands at the end and a settled tool changes in place", asyn
 		streamTransport.push("conversation", "appended", {
 			shellId: "s1",
 			blocks: [
-				{ kind: "tool", id: "t1", label: "Editing files", state: "done" },
+				{ kind: "tool", id: "t1", name: "Edit", state: "done" },
 				{ kind: "agent", id: "m1", text: "Pronto." },
 			],
 			title: "Retry no upload de fotos",

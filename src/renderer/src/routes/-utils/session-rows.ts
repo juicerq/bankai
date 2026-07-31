@@ -13,49 +13,14 @@ export interface SessionRow {
 	lastTouchedAt: number | undefined;
 	archivedAt: number | undefined;
 	activity: AgentActivityState | undefined;
-	trace: string | undefined;
-	traceSince: number | undefined;
+	since: number | undefined;
 	attention: ShellAttention | undefined;
-}
-
-export function sessionTrace(
-	activity: AgentActivityState | undefined,
-	observed?: string,
-): string | undefined {
-	if (!activity) {
-		return undefined;
-	}
-	if (activity === "done") {
-		return "Done";
-	}
-	if (activity === "working") {
-		return observed ?? "Working";
-	}
-
-	return observed;
-}
-
-export function sessionSince(input: {
-	activity: AgentActivityState | undefined;
-	traceSince: number | undefined;
-	statusSince: number | undefined;
-}): number | undefined {
-	if (!input.activity) {
-		return undefined;
-	}
-	if (input.activity === "done") {
-		return input.statusSince;
-	}
-
-	return input.traceSince ?? input.statusSince;
 }
 
 export function sessionRows(input: {
 	continuity: ContinuityValue;
 	projects: { id: string; name: string }[];
 	shellActivity: ReadonlyMap<string, AgentActivityState>;
-	traces: ReadonlyMap<string, string>;
-	traceSince: ReadonlyMap<string, number>;
 	statusSince: ReadonlyMap<string, number>;
 	attention: ReadonlyMap<string, ShellAttention>;
 }): SessionRow[] {
@@ -83,12 +48,7 @@ export function sessionRows(input: {
 				lastTouchedAt: shell.lastTouchedAt,
 				archivedAt: shell.archivedAt,
 				activity,
-				trace: sessionTrace(activity, input.traces.get(shell.id)),
-				traceSince: sessionSince({
-					activity,
-					traceSince: input.traceSince.get(shell.id),
-					statusSince: input.statusSince.get(shell.id) ?? shell.doneAt,
-				}),
+				since: activity ? (input.statusSince.get(shell.id) ?? shell.doneAt) : undefined,
 				attention: input.attention.get(shell.id),
 			});
 		}

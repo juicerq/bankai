@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { spawn } from "node-pty";
-import { AgentActivity } from "@main/activity/AgentActivity";
 import { harnessResume } from "@main/activity/harnesses";
 import { Logger } from "@main/logger";
 import { Continuity } from "@main/store/continuity";
@@ -9,7 +8,6 @@ import { harnessCommandLine, shellLaunchLine } from "@main/terminal/autostart";
 import { shellArgs } from "@main/terminal/commandLine";
 import { terminalEnv } from "@main/terminal/env";
 import { SHELL } from "@main/terminal/shell";
-import { forgetShellOutput, noteShellOutput } from "@main/terminal/ShellOutputLines";
 import { type ShellAttachment, shellProcesses, type ShellRef } from "@main/terminal/ShellProcesses";
 import { forgetShellTitle, noteShellTitle } from "@main/terminal/ShellTitles";
 import type { TerminalAttached } from "@shared/terminal";
@@ -84,14 +82,11 @@ function spawnOrAttach(attachment: ShellAttachment, input: SpawnInput): Terminal
 	const replay = shellProcesses.attach(sessionId, attachment);
 
 	terminal.onData((data) => {
-		AgentActivity.noteData(sessionId, data);
 		noteShellTitle(input.shellId, data);
-		noteShellOutput(input.shellId, data);
 		shellProcesses.noteData(sessionId, data);
 	});
 	terminal.onExit(({ exitCode }) => {
 		forgetShellTitle(input.shellId);
-		forgetShellOutput(input.shellId);
 
 		if (shellProcesses.noteExit(sessionId, exitCode).spontaneous) {
 			Continuity.clearShellSession({ projectId: input.projectId, shellId: input.shellId }).catch((err) =>

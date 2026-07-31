@@ -18,6 +18,12 @@ export const ACTIVITY_TEXT_CLASS: Record<AgentActivityState, string> = {
 	"done": "text-added",
 };
 
+export const ACTIVITY_LABEL: Record<AgentActivityState, string> = {
+	working: "Working",
+	"needs-attention": "Waiting on you",
+	"done": "Done",
+};
+
 export function projectDotClass(activity: AgentActivityState | undefined): string {
 	if (!activity) {
 		return "bg-outline-strong";

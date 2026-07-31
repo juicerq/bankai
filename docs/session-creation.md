@@ -1,7 +1,7 @@
 ---
 title: How a new session is created and which project it lands in
 tags: [ui, continuity]
-updated_at: 2026-07-27
+updated_at: 2026-07-30
 created_at: 2026-07-27
 ---
 
@@ -13,7 +13,7 @@ Creating writes straight to continuity, so a project whose workspace is not moun
 
 The picker filters on `project.name` only. Every name is its directory's basename (`src/main/store/projects.ts`), so a path substring match makes `ju` hit every project under `/home/jui/projects`. The path stays rendered on the row, where it disambiguates two projects sharing a basename without polluting the search.
 
-Reusing an idle shell instead of opening another was considered and dropped. It is the right move in t3code, where an unsent draft thread is noise, but a Bankai shell sitting at a prompt is a usable terminal, and nothing here can tell one that was never used from one whose output has scrolled — `ShellOutputLines` only emits behind an activity state (`shell-output-lines.md`).
+Reusing an idle shell instead of opening another was considered and dropped. It is the right move in t3code, where an unsent draft thread is noise, but a Bankai shell sitting at a prompt is a usable terminal, and nothing here can tell one that was never used from one whose output has scrolled. Nothing in the store distinguishes them.
 
 The two overlays do not stack: `requestNewShell` bails while the Project picker is open, because both feed the rail's single `setPickerActive` flag and the second one to close would withdraw the rail out from under the first.
 

@@ -6,8 +6,9 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { type } from "arktype";
-import { CLAUDE_HOOK_INSTALL, claudeLiveTrace, HOOK_EVENTS, HOOK_SCRIPT_NAME } from "@main/activity/claudeHooks";
-import { CLAUDE_HARNESS_ID } from "@main/activity/harnessIds";
+import { CLAUDE_HOOK_INSTALL, claudeHooks, HOOK_EVENTS, HOOK_SCRIPT_NAME } from "@main/activity/claudeHooks";
+import { hookedHarnesses } from "@main/activity/harnessHooks";
+import { CLAUDE_HARNESS_ID, CODEX_HARNESS_ID } from "@main/activity/harnessIds";
 import { installedSettings, uninstalledSettings } from "@main/activity/hookSettings";
 import {
 	hookScript,
@@ -157,7 +158,7 @@ describe("installing the source", () => {
 	}
 
 	test("writes an executable script into bankai's data directory and points the harness at it", async () => {
-		await claudeLiveTrace.install();
+		await claudeHooks.install();
 
 		const commands = bankaiCommands(settings());
 		expect(commands).toHaveLength(HOOK_EVENTS.length);
@@ -167,31 +168,52 @@ describe("installing the source", () => {
 	});
 
 	test("repairs a script that was deleted", async () => {
-		await claudeLiveTrace.install();
+		await claudeHooks.install();
 		const script = (bankaiCommands(settings())[0] ?? "").replaceAll("'", "");
 		rmSync(script);
-		await claudeLiveTrace.install();
+		await claudeHooks.install();
 
 		expect(readFileSync(script, "utf8")).toBe(hookScript(hookSpoolDir(), spoolPrefix(CLAUDE_HARNESS_ID)));
 	});
 
 	test("uninstalling leaves the user's own hooks running", async () => {
 		writeFileSync(join(config, "settings.json"), JSON.stringify({ hooks: { PreToolUse: [USER_HOOK] } }));
-		await claudeLiveTrace.install();
-		await claudeLiveTrace.uninstall();
+		await claudeHooks.install();
+		await claudeHooks.uninstall();
 
 		expect(settings()).toEqual({ hooks: { PreToolUse: [USER_HOOK] } });
 	});
 
 	test("leaves an unreadable settings file untouched", async () => {
 		writeFileSync(join(config, "settings.json"), "{ not json");
-		const failed = await claudeLiveTrace
+		const failed = await claudeHooks
 			.install()
 			.then(() => false)
 			.catch(() => true);
 
 		expect(failed).toBe(true);
 		expect(readFileSync(join(config, "settings.json"), "utf8")).toBe("{ not json");
+	});
+});
+
+describe("choosing which harnesses install their hook", () => {
+	test("only a harness that has one is ever hooked, and the default is on", () => {
+		expect(hookedHarnesses({ autostart: true, id: CLAUDE_HARNESS_ID })).toEqual(new Set([CLAUDE_HARNESS_ID]));
+		expect(hookedHarnesses()).toEqual(new Set([CLAUDE_HARNESS_ID]));
+	});
+
+	test("the harness's own preference turns it off", () => {
+		expect(
+			hookedHarnesses({
+				autostart: true,
+				id: CLAUDE_HARNESS_ID,
+				profiles: { [CLAUDE_HARNESS_ID]: { hooks: false } },
+			}),
+		).toEqual(new Set());
+	});
+
+	test("a harness that was never chosen still hooks on its own preference", () => {
+		expect(hookedHarnesses({ autostart: true, id: CODEX_HARNESS_ID })).toEqual(new Set([CLAUDE_HARNESS_ID]));
 	});
 });
 

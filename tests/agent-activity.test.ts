@@ -8,19 +8,14 @@ import {
 	clockSince,
 	doneShells,
 	freshAttention,
-	nextCompactionAnchor,
 	nextShellActivity,
 	nextShellWorktrees,
-	sessionTraces,
-	type ShellTrace,
 	snapshotsByProject,
 	turnBaselineShells,
 	turnEnded,
 	turnStartShells,
 } from "@main/activity/AgentActivity";
-import type { HarnessTrace } from "@main/activity/Harness";
-import { ClaudeHarness, parseSessionRecord, WAITING_TRACE_FALLBACK } from "@main/activity/claude";
-import { COMPACTION_TRACE, matchesCompactionNotice } from "@main/activity/compaction";
+import { ClaudeHarness, parseSessionRecord } from "@main/activity/claude";
 import { procFs } from "@main/activity/procFs";
 import { bindShells, type ParentOf } from "@main/activity/SessionBinder";
 import { shellArgs } from "@main/terminal/commandLine";
@@ -30,8 +25,6 @@ const BUSY_RECORD =
 	'{"pid":141653,"sessionId":"67af1e51-358c-475f-b33a-7de1e199d0a5","cwd":"/home/jui/projects/bankai-2","startedAt":1784894292497,"procStart":"215800","version":"2.1.220","kind":"interactive","status":"busy","updatedAt":1784901075701,"statusUpdatedAt":1784901075701}';
 const IDLE_RECORD =
 	'{"pid":336333,"sessionId":"5daa2868-d467-4a46-b335-cd6405f22327","cwd":"/home/jui/dogama/app","startedAt":1784896966459,"procStart":"483184","version":"2.1.220","kind":"interactive","status":"idle","updatedAt":1784901169072,"statusUpdatedAt":1784901169072}';
-const WAITING_RECORD =
-	'{"pid":141653,"sessionId":"67af1e51-358c-475f-b33a-7de1e199d0a5","cwd":"/home/jui/projects/bankai-2","startedAt":1784894292497,"procStart":"215800","version":"2.1.220","kind":"interactive","status":"waiting","waitingFor":"permission prompt","updatedAt":1784901075701,"statusUpdatedAt":1784901075701}';
 
 describe("shell activity transitions", () => {
 	test("a bound working agent yields working regardless of prior state", () => {
@@ -281,7 +274,6 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working", "session-b": "needs-attention" }),
 			owners,
 			worktrees: new Map(),
-			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
 			doneShells: new Map(),
@@ -290,8 +282,6 @@ describe("project snapshots", () => {
 		expect(snapshots.get("p1")).toEqual({
 			shells: { "shell-a": "working", "shell-b": "needs-attention" },
 			worktreeByShellId: {},
-			traceByShellId: {},
-			traceSinceByShellId: {},
 			statusSinceByShellId: {},
 			attentionByShellId: {},
 		});
@@ -302,7 +292,6 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working", "session-c": "done" }),
 			owners,
 			worktrees: new Map(),
-			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
 			doneShells: new Map([["shell-c", { projectId: "p2", at: 1784901075701 }]]),
@@ -312,8 +301,6 @@ describe("project snapshots", () => {
 		expect(snapshots.get("p2")).toEqual({
 			shells: { "shell-c": "done" },
 			worktreeByShellId: {},
-			traceByShellId: {},
-			traceSinceByShellId: {},
 			statusSinceByShellId: { "shell-c": 1784901075701 },
 			attentionByShellId: {},
 		});
@@ -324,7 +311,6 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working", "session-loose": "working" }),
 			owners,
 			worktrees: new Map(),
-			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
 			doneShells: new Map(),
@@ -339,7 +325,6 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map([["shell-a", "/tmp/repo-slug"]]),
-			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
 			doneShells: new Map(),
@@ -348,8 +333,6 @@ describe("project snapshots", () => {
 		expect(snapshots.get("p1")).toEqual({
 			shells: { "shell-a": "working" },
 			worktreeByShellId: { "shell-a": "/tmp/repo-slug" },
-			traceByShellId: {},
-			traceSinceByShellId: {},
 			statusSinceByShellId: {},
 			attentionByShellId: {},
 		});
@@ -360,7 +343,6 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map(),
-			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
 			doneShells: new Map(),
@@ -374,7 +356,6 @@ describe("project snapshots", () => {
 			shellStates: new Map(),
 			owners,
 			worktrees: new Map([["shell-c", "/tmp/repo-slug"]]),
-			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
 			doneShells: new Map(),
@@ -383,45 +364,9 @@ describe("project snapshots", () => {
 		expect(snapshots.get("p2")).toEqual({
 			shells: {},
 			worktreeByShellId: { "shell-c": "/tmp/repo-slug" },
-			traceByShellId: {},
-			traceSinceByShellId: {},
 			statusSinceByShellId: {},
 			attentionByShellId: {},
 		});
-	});
-
-	test("the last output line rides along for a shell that has activity", () => {
-		const snapshots = snapshotsByProject({
-			shellStates: states({ "session-a": "working" }),
-			owners,
-			worktrees: new Map(),
-			traces: new Map([
-				["shell-a", { label: "Running bun run check" }],
-				["shell-b", { label: "vite ready in 412 ms" }],
-			]),
-			statusSince: new Map(),
-			attention: new Map(),
-			doneShells: new Map(),
-		});
-
-		expect(snapshots.get("p1")?.traceByShellId).toEqual({ "shell-a": "Running bun run check" });
-	});
-
-	test("the moment the trace became true rides along beside its label", () => {
-		const snapshots = snapshotsByProject({
-			shellStates: states({ "session-a": "working" }),
-			owners,
-			worktrees: new Map(),
-			traces: new Map([
-				["shell-a", { label: "Thinking", since: 1784901075701 }],
-				["shell-b", { label: "Thinking", since: 1784901169072 }],
-			]),
-			statusSince: new Map(),
-			attention: new Map(),
-			doneShells: new Map(),
-		});
-
-		expect(snapshots.get("p1")?.traceSinceByShellId).toEqual({ "shell-a": 1784901075701 });
 	});
 
 	test("the moment the status changed rides along for a shell that has activity", () => {
@@ -429,7 +374,6 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map(),
-			traces: new Map(),
 			statusSince: new Map([["shell-a", 1784901075701], ["shell-b", 1784901169072]]),
 			attention: new Map(),
 			doneShells: new Map(),
@@ -443,7 +387,6 @@ describe("project snapshots", () => {
 			shellStates: new Map(),
 			owners: new Map(),
 			worktrees: new Map(),
-			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
 			doneShells: new Map([["shell-c", { projectId: "p2", at: 1784901075701 }]]),
@@ -452,8 +395,6 @@ describe("project snapshots", () => {
 		expect(snapshots.get("p2")).toEqual({
 			shells: { "shell-c": "done" },
 			worktreeByShellId: {},
-			traceByShellId: {},
-			traceSinceByShellId: {},
 			statusSinceByShellId: { "shell-c": 1784901075701 },
 			attentionByShellId: {},
 		});
@@ -464,7 +405,6 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map(),
-			traces: new Map(),
 			statusSince: new Map([["shell-a", 1784901169072]]),
 			attention: new Map(),
 			doneShells: new Map([["shell-a", { projectId: "p1", at: 1784901075701 }]]),
@@ -479,7 +419,6 @@ describe("project snapshots", () => {
 			shellStates: states({ "session-c": "done" }),
 			owners,
 			worktrees: new Map(),
-			traces: new Map(),
 			statusSince: new Map([["shell-c", 1784901075701]]),
 			attention: new Map(),
 			doneShells: new Map(),
@@ -493,7 +432,6 @@ describe("project snapshots", () => {
 			shellStates: new Map(),
 			owners,
 			worktrees: new Map(),
-			traces: new Map(),
 			statusSince: new Map(),
 			attention: new Map(),
 			doneShells: new Map(),
@@ -517,128 +455,6 @@ describe("durable done state", () => {
 		});
 
 		expect(done).toEqual(new Map([["open", { projectId: "p1", at: 10 }]]));
-	});
-});
-
-describe("what a card says and since when", () => {
-	const TICK = 1784901180000;
-
-	function traced(input: {
-		compacting?: string[];
-		harnessTraces?: [string, HarnessTrace][];
-		waitingFor?: [string, string][];
-		statusSince?: [string, number][];
-		outputLines?: [string, string][];
-		agentShells?: string[];
-		held?: [string, ShellTrace][];
-		now?: number;
-	}) {
-		return sessionTraces({
-			compacting: new Set(input.compacting ?? []),
-			harnessTraces: new Map(input.harnessTraces ?? []),
-			waitingFor: new Map(input.waitingFor ?? []),
-			statusSince: new Map(input.statusSince ?? []),
-			outputLines: new Map(input.outputLines ?? []),
-			agentShells: new Set(input.agentShells ?? []),
-			held: new Map(input.held ?? []),
-			now: input.now ?? TICK,
-		});
-	}
-
-	test("a shell with an agent in it never shows its own output line", () => {
-		const traces = traced({
-			harnessTraces: [["shell-a", { label: "Running commands", recordId: "uuid-1" }]],
-			outputLines: [["shell-a", "-7"], ["shell-b", "vite ready in 412 ms"], ["shell-c", "5"]],
-			agentShells: ["shell-a", "shell-c"],
-		});
-
-		expect(traces.get("shell-a")?.label).toBe("Running commands");
-		expect(traces.get("shell-b")?.label).toBe("vite ready in 412 ms");
-		expect(traces.has("shell-c")).toBe(false);
-	});
-
-	test("a waiting reason wins over the transcript, which still names the last finished block", () => {
-		const traces = traced({
-			harnessTraces: [["shell-a", { label: "Running commands", recordId: "uuid-1" }]],
-			waitingFor: [["shell-a", "Needs permission"]],
-			agentShells: ["shell-a"],
-		});
-
-		expect(traces.get("shell-a")?.label).toBe("Needs permission");
-	});
-
-	test("compacting wins over the transcript, which is frozen while it runs", () => {
-		const traces = traced({
-			compacting: ["shell-a"],
-			harnessTraces: [
-				["shell-a", { label: "Running commands", recordId: "uuid-1" }],
-				["shell-b", { label: "Thinking", recordId: "uuid-2" }],
-			],
-			outputLines: [["shell-a", "-7"]],
-			agentShells: ["shell-a", "shell-b"],
-		});
-
-		expect(traces.get("shell-a")?.label).toBe(COMPACTION_TRACE);
-		expect(traces.get("shell-b")?.label).toBe("Thinking");
-	});
-
-	test("a label seen for the first time counts from the record that produced it", () => {
-		const traces = traced({
-			harnessTraces: [["shell-a", { label: "Thinking", recordId: "uuid-1", since: TICK - 4000 }]],
-			agentShells: ["shell-a"],
-		});
-
-		expect(traces.get("shell-a")).toEqual({ label: "Thinking", since: TICK - 4000 });
-	});
-
-	test("a record with no timestamp counts from the tick that observed it", () => {
-		const traces = traced({
-			harnessTraces: [["shell-a", { label: "Thinking", recordId: "uuid-1" }]],
-			agentShells: ["shell-a"],
-		});
-
-		expect(traces.get("shell-a")).toEqual({ label: "Thinking", since: TICK });
-	});
-
-	test("a new record carrying the same label does not restart the count", () => {
-		const traces = traced({
-			harnessTraces: [["shell-a", { label: "Thinking", recordId: "uuid-2", since: TICK - 1000 }]],
-			agentShells: ["shell-a"],
-			held: [["shell-a", { label: "Thinking", since: TICK - 44_000 }]],
-		});
-
-		expect(traces.get("shell-a")).toEqual({ label: "Thinking", since: TICK - 44_000 });
-	});
-
-	test("a label that changed adopts its own record's moment", () => {
-		const traces = traced({
-			harnessTraces: [["shell-a", { label: "Editing claudeTrace.ts", recordId: "uuid-3", since: TICK - 3000 }]],
-			agentShells: ["shell-a"],
-			held: [["shell-a", { label: "Thinking", since: TICK - 44_000 }]],
-		});
-
-		expect(traces.get("shell-a")).toEqual({ label: "Editing claudeTrace.ts", since: TICK - 3000 });
-	});
-
-	test("a session waiting on you counts from the moment it started waiting", () => {
-		const traces = traced({
-			harnessTraces: [["shell-a", { label: "Running commands", recordId: "uuid-1", since: TICK - 9000 }]],
-			waitingFor: [["shell-a", "Needs permission"]],
-			statusSince: [["shell-a", TICK - 2000]],
-			agentShells: ["shell-a"],
-		});
-
-		expect(traces.get("shell-a")).toEqual({ label: "Needs permission", since: TICK - 2000 });
-	});
-
-	test("compacting has no record behind it and counts from the tick that noticed", () => {
-		const traces = traced({
-			compacting: ["shell-a"],
-			harnessTraces: [["shell-a", { label: "Running commands", recordId: "uuid-1", since: TICK - 90_000 }]],
-			agentShells: ["shell-a"],
-		});
-
-		expect(traces.get("shell-a")).toEqual({ label: COMPACTION_TRACE, since: TICK });
 	});
 });
 
@@ -843,94 +659,6 @@ describe("claude harness discovery", () => {
 	test("yields nothing when the registry directory is absent", async () => {
 		process.env.CLAUDE_CONFIG_DIR = join(tmpdir(), "claude-config-missing-xyz");
 		expect(await ClaudeHarness.discover()).toEqual([]);
-	});
-});
-
-describe("what the agent is waiting for", () => {
-	function waitingFor(reason: string): string | undefined {
-		return parseSessionRecord(WAITING_RECORD.replace('"permission prompt"', JSON.stringify(reason)))?.waitingFor;
-	}
-
-	test("a permission prompt reads as needing permission", () => {
-		expect(parseSessionRecord(WAITING_RECORD)?.waitingFor).toBe("Needs permission");
-	});
-
-	test("each reason the registry writes gets its own label", () => {
-		expect(waitingFor("sandbox request")).toBe("Needs permission");
-		expect(waitingFor("input needed")).toBe("Needs input");
-		expect(waitingFor("worker request")).toBe("Needs input");
-		expect(waitingFor("dialog open")).toBe("Waiting on you");
-	});
-
-	test("a reason this version has never seen still says the agent is stopped", () => {
-		expect(waitingFor("holodeck request")).toBe(WAITING_TRACE_FALLBACK);
-	});
-
-	test("a waiting record with no reason at all still says the agent is stopped", () => {
-		const record = WAITING_RECORD.replace(',"waitingFor":"permission prompt"', "");
-		expect(parseSessionRecord(record)?.waitingFor).toBe(WAITING_TRACE_FALLBACK);
-	});
-
-	test("an agent that is not waiting carries no reason", () => {
-		expect(parseSessionRecord(BUSY_RECORD)?.waitingFor).toBeUndefined();
-		const stray = BUSY_RECORD.replace('"status":"busy"', '"status":"busy","waitingFor":"permission prompt"');
-		expect(parseSessionRecord(stray)?.waitingFor).toBeUndefined();
-	});
-});
-
-describe("how long a compaction lasts", () => {
-	const WORKING = { bound: "working", noticed: false, recordId: "uuid-1" } as const;
-
-	test("the notice anchors on the record the transcript stopped at", () => {
-		expect(nextCompactionAnchor({ ...WORKING, anchor: undefined, noticed: true })).toBe("uuid-1");
-	});
-
-	test("it holds for as long as the transcript stays frozen", () => {
-		expect(nextCompactionAnchor({ ...WORKING, anchor: "uuid-1" })).toBe("uuid-1");
-	});
-
-	test("it ends when the agent writes its next record", () => {
-		expect(nextCompactionAnchor({ ...WORKING, anchor: "uuid-1", recordId: "uuid-2" })).toBeUndefined();
-	});
-
-	test("it ends when the turn ends, even with the transcript still frozen", () => {
-		expect(nextCompactionAnchor({ ...WORKING, anchor: "uuid-1", bound: "idle" })).toBeUndefined();
-		expect(nextCompactionAnchor({ ...WORKING, anchor: "uuid-1", bound: undefined })).toBeUndefined();
-	});
-
-	test("a shell that never saw the notice is never compacting", () => {
-		expect(nextCompactionAnchor({ ...WORKING, anchor: undefined })).toBeUndefined();
-	});
-
-	test("a session with no transcript record yet still ends on the first one", () => {
-		const anchor = nextCompactionAnchor({ bound: "working", noticed: true, recordId: undefined, anchor: undefined });
-
-		expect(nextCompactionAnchor({ bound: "working", noticed: false, recordId: undefined, anchor })).toBe(anchor);
-		expect(nextCompactionAnchor({ bound: "working", noticed: false, recordId: "uuid-1", anchor })).toBeUndefined();
-	});
-});
-
-describe("compaction notice in the terminal stream", () => {
-	test("matches the spinner line the harness paints while it compacts", () => {
-		expect(matchesCompactionNotice("✳ Compacting conversation… (esc to interrupt · 42s)")).toBe(true);
-	});
-
-	test("matches the shimmer repaint that colours the message one character at a time", () => {
-		const shimmer = "Compacting conversation"
-			.split("")
-			.map((char, index) => `\x1b[38;5;${117 + (index % 3)}m${char}\x1b[39m`)
-			.join("");
-
-		expect(matchesCompactionNotice(`\x1b[2K\r✳ ${shimmer}\x1b[0m`)).toBe(true);
-	});
-
-	test("matches across the line break a repaint puts between the two words", () => {
-		expect(matchesCompactionNotice("✳ Compacting\r\n  conversation…")).toBe(true);
-	});
-
-	test("ignores ordinary output that never names the harness's own notice", () => {
-		expect(matchesCompactionNotice("$ bun run build\r\n✓ built in 1.42s\r\n")).toBe(false);
-		expect(matchesCompactionNotice("Compacted 12 files into one bundle")).toBe(false);
 	});
 });
 

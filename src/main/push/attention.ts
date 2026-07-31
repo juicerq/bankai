@@ -42,11 +42,8 @@ function attentionBody(attention: ShellAttention | undefined): string {
 	if (!attention?.message.trim()) {
 		return PUSH_DEFAULT_BODY;
 	}
-	if (!attention.detail?.trim()) {
-		return capped(attention.message);
-	}
 
-	return capped(`${attention.message} — ${attention.detail}`);
+	return capped(attention.message);
 }
 
 function capped(body: string): string {

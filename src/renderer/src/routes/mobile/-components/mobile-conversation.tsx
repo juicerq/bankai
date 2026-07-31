@@ -1,7 +1,7 @@
 import { ChevronLeftIcon } from "@heroicons/react/24/outline";
 import type { TerminalKey } from "@main/terminal/input";
 import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
-import { ACTIVITY_DOT_CLASS, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
+import { ACTIVITY_DOT_CLASS, ACTIVITY_LABEL, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import type { DesktopOnlyHarness } from "@renderer/routes/-utils/use-harness-conversation";
 import { MobileAttention } from "@renderer/routes/mobile/-components/mobile-attention";
@@ -28,11 +28,11 @@ function emptyNotice(agent: string | undefined, row: SessionRow | undefined): st
 	return "This session is no longer open.";
 }
 
-function MobileWaiting({ trace, since }: { trace: string | undefined; since: number | undefined }) {
+function MobileWaiting({ since }: { since: number | undefined }) {
 	return (
 		<p data-slot="waiting" className="flex items-center gap-2 px-4 text-support text-tertiary">
 			<span aria-hidden="true" className="pending-pulse size-1.5 shrink-0 rounded-full bg-tertiary" />
-			<span className="min-w-0 truncate">{trace ?? "Working"}</span>
+			<span className="min-w-0 truncate">{ACTIVITY_LABEL.working}</span>
 			{since ? <ElapsedClock since={since} /> : null}
 		</p>
 	);
@@ -107,7 +107,7 @@ export function MobileConversation({
 						</p>
 					)}
 					<MobileConversationBlocks blocks={conversation.blocks} onOpenAgent={onOpenAgent} />
-					{waiting && <MobileWaiting trace={row.trace} since={row.traceSince} />}
+					{waiting && <MobileWaiting since={row.since} />}
 					{conversation.blocks.length === 0 && !conversation.loading && (
 						<p data-slot="empty" className="px-4 py-8 text-center text-secondary text-support">
 							{emptyNotice(agent, row)}
@@ -118,8 +118,7 @@ export function MobileConversation({
 			{session?.row.activity === "needs-attention" && (
 				<MobileAttention
 					attention={session.row.attention}
-					label={session.row.trace}
-					signature={`${session.row.activity} ${session.row.trace} ${session.row.traceSince}`}
+					signature={`${session.row.activity} ${session.row.attention?.at ?? session.row.since}`}
 					onKey={session.onKey}
 				/>
 			)}
@@ -169,8 +168,8 @@ function MobileConversationHeader({
 									aria-hidden="true"
 									className={`size-1.5 shrink-0 rounded-full ${ACTIVITY_DOT_CLASS[row.activity]}`}
 								/>
-								<span className="min-w-0 truncate">{row.trace}</span>
-								{row.traceSince ? <ElapsedClock since={row.traceSince} /> : null}
+								<span className="min-w-0 truncate">{ACTIVITY_LABEL[row.activity]}</span>
+								{row.since ? <ElapsedClock since={row.since} /> : null}
 							</span>
 						)}
 						<span className="max-w-1/3 shrink-0 truncate text-secondary">{row.projectName}</span>

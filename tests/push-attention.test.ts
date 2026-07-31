@@ -46,22 +46,13 @@ describe("attention push payload", () => {
 		expect(payload.body).toBe("Claude needs your permission to use Bash");
 	});
 
-	test("a long tool detail is cut to what a notification can carry", () => {
+	test("a long message is cut to what a notification can carry", () => {
 		const payload = attentionPushPayload({
 			shellId: SHELL_ID,
-			attention: { message: "Permission required", at: 1, detail: "rm ".repeat(200) },
+			attention: { message: "rm ".repeat(200), at: 1 },
 		});
 
 		expect(payload.body).toHaveLength(PUSH_BODY_MAX_LENGTH);
-	});
-
-	test("the detail joins the message when the hook carried one", () => {
-		const payload = attentionPushPayload({
-			shellId: SHELL_ID,
-			attention: { message: "Permission required", at: 1, detail: "rm -rf out" },
-		});
-
-		expect(payload.body).toBe("Permission required — rm -rf out");
 	});
 });
 

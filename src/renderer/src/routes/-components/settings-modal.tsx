@@ -5,21 +5,12 @@ import { PickerHint } from "@renderer/routes/-components/picker-hint";
 import { Setting } from "@renderer/routes/-components/settings-controls";
 import { MobileAccessSetting } from "@renderer/routes/-components/settings-mobile-access";
 import { useHarnessSettings } from "@renderer/routes/-utils/use-harness-settings";
-import { DEFAULT_LIVE_TRACE, DEFAULT_SESSION_NAMING } from "@shared/activity";
-
-const DEFAULT_LIVE_TRACE_DESCRIPTION =
-	"Adds a hook to the harness so a card names every tool the moment it starts. Off, a card says only Working and Done.";
-
-const LIVE_TRACE_DESCRIPTION: Record<string, string> = {
-	claude:
-		"Adds a hook to Claude Code so a card names every tool the moment it starts. Off, a card says only Working and Done.",
-	codex:
-		"Adds a hook to Codex so a card names every tool the moment it starts. Codex may ask you to trust the hook once, through /hooks.",
-};
+import { DEFAULT_HARNESS_HOOKS, DEFAULT_SESSION_NAMING } from "@shared/activity";
 
 interface LaunchableHarness {
 	id: string;
 	label: string;
+	hooks: boolean;
 	available: boolean;
 }
 
@@ -88,8 +79,9 @@ function SettingsBody({
 	onSave: (patch: Partial<Pick<HarnessSettings, "autostart" | "id">>) => void;
 	onSaveProfile: (patch: Partial<HarnessProfile>) => void;
 }) {
-	const liveTrace = profile.liveTrace ?? DEFAULT_LIVE_TRACE;
+	const hooks = profile.hooks ?? DEFAULT_HARNESS_HOOKS;
 	const naming = profile.naming ?? DEFAULT_SESSION_NAMING;
+	const hookable = harnesses.some((entry) => entry.id === harness.id && entry.hooks);
 
 	return (
 		<div className="divide-y divide-outline">
@@ -119,13 +111,15 @@ function SettingsBody({
 					onCommit={(args) => onSaveProfile({ args })}
 				/>
 			</Setting>
-			<Setting
-				title="Read the trace from the harness, live"
-				description={LIVE_TRACE_DESCRIPTION[harness.id] ?? DEFAULT_LIVE_TRACE_DESCRIPTION}
-				slot="live-trace"
-				on={liveTrace}
-				onToggle={() => onSaveProfile({ liveTrace: !liveTrace })}
-			/>
+			{hookable && (
+				<Setting
+					title="Let the harness tell Bankai when it stops"
+					description="Adds a hook to the harness so a card turns Done, or asks for you, the moment it happens instead of on the next poll."
+					slot="harness-hooks"
+					on={hooks}
+					onToggle={() => onSaveProfile({ hooks: !hooks })}
+				/>
+			)}
 			<Setting
 				title="Name every session from its conversation"
 				description="Asks the harness for a short name a few times as a session grows. Off, a card keeps the first thing you typed."

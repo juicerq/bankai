@@ -8,7 +8,6 @@ export interface AgentPresence {
 	cwd: string;
 	status: "working" | "waiting" | "idle";
 	statusSince?: number;
-	waitingFor?: string;
 	publishedName?: string;
 }
 
@@ -17,19 +16,12 @@ export interface HarnessCommand {
 	args: string[];
 }
 
-export interface HarnessTrace {
-	label: string;
-	recordId: string;
-	since?: number;
-}
-
 export interface HarnessReading {
-	trace: HarnessTrace | null;
 	endedAt?: number;
 	attention?: ShellAttention;
 }
 
-export interface HarnessLiveTrace {
+export interface HarnessHooks {
 	install: () => Promise<void>;
 	uninstall: () => Promise<void>;
 }
@@ -43,6 +35,6 @@ export interface Harness {
 	resume?: (ref: { sessionId: string }) => HarnessCommand | null;
 	title?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
 	proposeName?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
-	read?: (ref: { sessionId: string; cwd: string }) => Promise<HarnessReading>;
-	liveTrace?: HarnessLiveTrace;
+	read?: (ref: { sessionId: string }) => Promise<HarnessReading>;
+	hooks?: HarnessHooks;
 }

@@ -116,7 +116,7 @@ describe("the history the phone gets when it opens a conversation", () => {
 		tail.stop();
 
 		expect(snapshot.blocks).toEqual([
-			{ kind: "tool", id: "t1", label: "Reading a.ts", state: "done" },
+			{ kind: "tool", id: "t1", name: "Read", state: "done" },
 			{ kind: "user", id: "u3", text: "obrigado" },
 		]);
 	});
@@ -172,7 +172,7 @@ describe("the history the phone asks for when it pulls the top", () => {
 		const stepped = await whole.start(0);
 		whole.stop();
 
-		expect(stepped.blocks.at(-1)).toEqual({ kind: "tool", id: "t1", label: "Reading a.ts", state: "done" });
+		expect(stepped.blocks.at(-1)).toEqual({ kind: "tool", id: "t1", name: "Read", state: "done" });
 	});
 });
 

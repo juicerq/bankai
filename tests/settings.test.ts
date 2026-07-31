@@ -70,8 +70,8 @@ describe("settings harness", () => {
 
 	it("keeps each harness profile apart", async () => {
 		const profiles = {
-			claude: { args: "--model opus", liveTrace: true },
-			codex: { args: "--model gpt-5.6", liveTrace: false, naming: false },
+			claude: { args: "--model opus", hooks: true },
+			codex: { args: "--model gpt-5.6", hooks: false, naming: false },
 		};
 		await Settings.updateHarness({ autostart: true, id: "codex", profiles });
 
@@ -91,7 +91,30 @@ describe("settings harness", () => {
 		expect((await Settings.get()).harness).toEqual({
 			autostart: true,
 			id: "claude",
-			profiles: { claude: { args: "--model opus", liveTrace: false } },
+			profiles: { claude: { args: "--model opus", hooks: false } },
+		});
+	});
+
+	it("reads a v5 live trace choice as the hook choice it became", async () => {
+		assertDefined(process.env.DATA_DIR);
+		writeFileSync(
+			join(process.env.DATA_DIR, "settings.json"),
+			JSON.stringify({
+				version: 5,
+				data: {
+					harness: {
+						autostart: true,
+						id: "claude",
+						profiles: { claude: { args: "--model opus", liveTrace: false }, codex: { naming: false } },
+					},
+				},
+			}),
+		);
+
+		expect((await Settings.get()).harness).toEqual({
+			autostart: true,
+			id: "claude",
+			profiles: { claude: { args: "--model opus", hooks: false }, codex: { naming: false } },
 		});
 	});
 

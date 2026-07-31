@@ -3,8 +3,8 @@ import { join } from "node:path";
 import { type } from "arktype";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/activity/Harness";
 import { claudeConfigDir } from "@main/activity/claudeConfig";
-import { claudeLiveTrace } from "@main/activity/claudeHooks";
-import { claudeRead } from "@main/activity/claudeTraceSource";
+import { claudeHooks } from "@main/activity/claudeHooks";
+import { claudeRead } from "@main/activity/claudeSpool";
 import { transcriptTitle } from "@main/activity/claudeTranscript";
 import { CLAUDE_HARNESS_ID } from "@main/activity/harnessIds";
 import { SESSION_UUID } from "@main/activity/SessionRefs";
@@ -16,16 +16,6 @@ const PRESENCE_STATUS: Record<string, AgentPresence["status"]> = {
 	waiting: "waiting",
 	idle: "idle",
 };
-
-const WAITING_TRACE: Record<string, string> = {
-	"permission prompt": "Needs permission",
-	"sandbox request": "Needs permission",
-	"input needed": "Needs input",
-	"worker request": "Needs input",
-	"dialog open": "Waiting on you",
-};
-
-export const WAITING_TRACE_FALLBACK = "Waiting on you";
 
 const PUBLISHED_NAME_SOURCES = new Set(["auto", "user"]);
 
@@ -40,7 +30,6 @@ const sessionRecordSchema = type({
 	procStart: "string",
 	"status?": "string",
 	"statusUpdatedAt?": "number",
-	"waitingFor?": "string",
 	"name?": "string",
 	"nameSource?": "string",
 }).pipe((raw): AgentPresence => {
@@ -55,7 +44,6 @@ const sessionRecordSchema = type({
 		cwd: raw.cwd,
 		status,
 		...(raw.statusUpdatedAt !== undefined && { statusSince: raw.statusUpdatedAt }),
-		...(status === "waiting" && { waitingFor: WAITING_TRACE[raw.waitingFor ?? ""] ?? WAITING_TRACE_FALLBACK }),
 		...(publishedName ? { publishedName } : {}),
 	};
 });
@@ -97,7 +85,7 @@ export const ClaudeHarness: Harness = {
 	title: transcriptTitle,
 	proposeName: claudeProposeName,
 	read: claudeRead,
-	liveTrace: claudeLiveTrace,
+	hooks: claudeHooks,
 	async discover() {
 		const directory = sessionsDirectory();
 		const files = await readdir(directory).catch((): string[] => []);

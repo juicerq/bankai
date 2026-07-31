@@ -92,7 +92,7 @@ function requireBrowse() {
 }
 
 export interface HarnessTransport {
-	harnesses: { id: string; label: string; conversation: boolean; available: boolean }[];
+	harnesses: { id: string; label: string; conversation: boolean; hooks: boolean; available: boolean }[];
 	harness: HarnessSettings;
 	updates: HarnessSettings[];
 	saveFailure?: string;

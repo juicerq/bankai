@@ -2,13 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { ContinuityValue } from "@main/store/continuity";
 import type { AgentActivityState } from "@shared/activity";
 import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity";
-import {
-	partitionSessions,
-	type SessionRow,
-	sessionRows,
-	sessionSince,
-	sessionTrace,
-} from "@renderer/routes/-utils/session-rows";
+import { partitionSessions, type SessionRow, sessionRows } from "@renderer/routes/-utils/session-rows";
 
 const PROJECTS = [
 	{ id: "p1", name: "bankai" },
@@ -20,15 +14,13 @@ const NOW = 1_800_000_000_000;
 function rowsOf(
 	continuity: ContinuityValue,
 	activity: Record<string, AgentActivityState> = {},
-	traces: Record<string, string> = {},
+	statusSince: Record<string, number> = {},
 ) {
 	return sessionRows({
 		continuity,
 		projects: PROJECTS,
 		shellActivity: new Map(Object.entries(activity)),
-		traces: new Map(Object.entries(traces)),
-		traceSince: new Map(),
-		statusSince: new Map(),
+		statusSince: new Map(Object.entries(statusSince)),
 		attention: new Map(),
 	});
 }
@@ -136,32 +128,24 @@ describe("building the flat list", () => {
 		expect(row?.title).toBe("Shell 4");
 	});
 
-	test("the last output line reaches a shell with activity", () => {
+	test("the moment the state changed reaches a shell with activity", () => {
 		const [row] = rowsOf(
 			{ workspaces: [{ projectId: "p1", shells: [{ id: "s1", label: "Shell 1", createdAt: 1 }] }] },
 			{ s1: "working" },
-			{ s1: "Running bun run check" },
+			{ s1: NOW - 6000 },
 		);
 
-		expect(row?.trace).toBe("Running bun run check");
+		expect(row?.since).toBe(NOW - 6000);
 	});
 
-	test("a shell with no activity carries no last output line", () => {
+	test("a shell with no activity carries no clock", () => {
 		const [row] = rowsOf(
 			{ workspaces: [{ projectId: "p1", shells: [{ id: "s1", label: "Shell 1", createdAt: 1 }] }] },
 			{},
-			{ s1: "vite ready in 412 ms" },
+			{ s1: NOW - 6000 },
 		);
 
-		expect(row?.trace).toBeUndefined();
-	});
-
-	test("a finished agent says so instead of replaying its last block", () => {
-		const stopped = {
-			workspaces: [{ projectId: "p1", shells: [{ id: "s1", label: "Shell 1", createdAt: 1 }] }],
-		};
-
-		expect(rowsOf(stopped, { s1: "done" }, { s1: "Writing" })[0]?.trace).toBe("Done");
+		expect(row?.since).toBeUndefined();
 	});
 
 	test("a persisted completion restores done and its clock without a live snapshot", () => {
@@ -170,19 +154,7 @@ describe("building the flat list", () => {
 			workspaces: [{ projectId: "p1", shells: [{ id: "s1", label: "Shell 1", createdAt: 1, doneAt }] }],
 		};
 
-		expect(rowsOf(stopped)[0]).toMatchObject({
-			activity: "done",
-			trace: "Done",
-			traceSince: doneAt,
-		});
-	});
-
-	test("a waiting agent shows the reason the main process read from the registry", () => {
-		const waiting = {
-			workspaces: [{ projectId: "p1", shells: [{ id: "s1", label: "Shell 1", createdAt: 1 }] }],
-		};
-
-		expect(rowsOf(waiting, { s1: "needs-attention" }, { s1: "Needs permission" })[0]?.trace).toBe("Needs permission");
+		expect(rowsOf(stopped)[0]).toMatchObject({ activity: "done", since: doneAt });
 	});
 
 	test("the harness comes from the persisted session ref", () => {
@@ -218,8 +190,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
 		activity: undefined,
-		trace: undefined,
-		traceSince: undefined,
+		since: undefined,
 		attention: undefined,
 		...patch,
 	};
@@ -298,50 +269,5 @@ describe("splitting the open list from the archive", () => {
 			"newer",
 			"older",
 		]);
-	});
-});
-
-describe("choosing what the trace slot says", () => {
-	test("a working agent shows what it is doing", () => {
-		expect(sessionTrace("working", "Running commands")).toBe("Running commands");
-	});
-
-	test("a finished agent names its state, whatever the transcript last held", () => {
-		expect(sessionTrace("done", "Writing")).toBe("Done");
-		expect(sessionTrace("done")).toBe("Done");
-	});
-
-	test("a waiting agent shows the reason it was handed, not the transcript's stale verb", () => {
-		expect(sessionTrace("needs-attention", "Needs permission")).toBe("Needs permission");
-	});
-
-	test("no activity means no trace, even with a line on hand", () => {
-		expect(sessionTrace(undefined, "vite ready in 412 ms")).toBeUndefined();
-	});
-
-	test("a working shell nobody is tracing still says it is working", () => {
-		expect(sessionTrace("working")).toBe("Working");
-	});
-});
-
-describe("choosing what the clock beside the trace counts from", () => {
-	test("a working agent counts from the trace, not from the turn it opened", () => {
-		expect(sessionSince({ activity: "working", traceSince: NOW - 6000, statusSince: NOW - 93_000 }))
-			.toBe(NOW - 6000);
-	});
-
-	test("a finished agent counts from the end of its turn", () => {
-		expect(sessionSince({ activity: "done", traceSince: NOW - 6000, statusSince: NOW - 1000 }))
-			.toBe(NOW - 1000);
-	});
-
-	test("a trace with no moment of its own falls back to the harness clock", () => {
-		expect(sessionSince({ activity: "working", traceSince: undefined, statusSince: NOW - 93_000 }))
-			.toBe(NOW - 93_000);
-	});
-
-	test("no activity means no clock", () => {
-		expect(sessionSince({ activity: undefined, traceSince: NOW - 6000, statusSince: NOW - 93_000 }))
-			.toBeUndefined();
 	});
 });

@@ -1,7 +1,7 @@
 ---
 title: How a shell is matched to the agent running inside it
 tags: [activity, fs]
-updated_at: 2026-07-27
+updated_at: 2026-07-30
 created_at: 2026-07-27
 ---
 
@@ -15,7 +15,7 @@ The only premise is that the agent is a **descendant** of the pid `TerminalSessi
 
 ## The process group is not a signal
 
-The binder used to look for the agent under the tty's foreground process group, and refused to bind when that group was the shell's own pid, reading it as "the shell is sitting at its prompt". Running the harness inside the shell (`-i -c '<cmd>; exec <shell>'`) invalidated that: `fish` starts `claude` without job control, so `claude` shares the shell's process group and the tty's foreground pgid **is** the shell's pid. Every real shell hit the refusal, nothing ever bound, and the whole activity signal — state, trace, waiting reason, elapsed clock — went silent while every test stayed green, because the tests encoded the old premise as a passing case.
+The binder used to look for the agent under the tty's foreground process group, and refused to bind when that group was the shell's own pid, reading it as "the shell is sitting at its prompt". Running the harness inside the shell (`-i -c '<cmd>; exec <shell>'`) invalidated that: `fish` starts `claude` without job control, so `claude` shares the shell's process group and the tty's foreground pgid **is** the shell's pid. Every real shell hit the refusal, nothing ever bound, and the whole activity signal — state and elapsed clock — went silent while every test stayed green, because the tests encoded the old premise as a passing case.
 
 Nothing in the binder reads `tpgid` any more. `procFs` lost `foreground`, `children`, `supportsChildren` and `pids` with it.
 

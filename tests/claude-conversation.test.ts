@@ -104,14 +104,22 @@ describe("what the phone reads out of an assistant record", () => {
 		expect(blocks.at(-1)).toEqual({ kind: "thinking", id: "thinking-msg_1", text: "primeiro\ndepois" });
 	});
 
-	it("labels a tool call the way the desktop trace labels it", () => {
+	it("names a tool call after the tool that ran", () => {
 		expect(
 			parse([
 				assistantRecord("msg_1", [
 					{ type: "tool_use", id: "toolu_1", name: "Read", input: { file_path: "/app/src/upload.ts" } },
 				]),
 			]).blocks,
-		).toEqual([{ kind: "tool", id: "toolu_1", label: "Reading upload.ts", state: "running" }]);
+		).toEqual([{ kind: "tool", id: "toolu_1", name: "Read", state: "running" }]);
+	});
+
+	it("drops the server prefix an mcp tool carries", () => {
+		expect(
+			parse([
+				assistantRecord("msg_1", [{ type: "tool_use", id: "toolu_1", name: "mcp__context7__query-docs", input: {} }]),
+			]).blocks,
+		).toEqual([{ kind: "tool", id: "toolu_1", name: "query-docs", state: "running" }]);
 	});
 
 	it("marks a call that spawned a subagent as one you can open", () => {
@@ -128,7 +136,7 @@ describe("what the phone reads out of an assistant record", () => {
 	it("leaves a tool without an answer running", () => {
 		expect(
 			parse([assistantRecord("msg_1", [{ type: "tool_use", id: "toolu_1", name: "Bash", input: {} }])]).blocks,
-		).toEqual([{ kind: "tool", id: "toolu_1", label: "Running commands", state: "running" }]);
+		).toEqual([{ kind: "tool", id: "toolu_1", name: "Bash", state: "running" }]);
 	});
 });
 
@@ -140,7 +148,7 @@ describe("how a tool call is answered", () => {
 	it("settles the row it belongs to instead of printing its output", () => {
 		const blocks = parse([call, userRecord([{ type: "tool_result", tool_use_id: "toolu_1", content: "ok" }])]).blocks;
 
-		expect(blocks.at(-1)).toEqual({ kind: "tool", id: "toolu_1", label: "Rodar os testes", state: "done" });
+		expect(blocks.at(-1)).toEqual({ kind: "tool", id: "toolu_1", name: "Bash", state: "done" });
 		expect(blocks).toHaveLength(2);
 	});
 
@@ -150,7 +158,7 @@ describe("how a tool call is answered", () => {
 		expect(parse([call, answer]).blocks.at(-1)).toEqual({
 			kind: "tool",
 			id: "toolu_1",
-			label: "Rodar os testes",
+			name: "Bash",
 			state: "failed",
 		});
 	});
@@ -172,7 +180,7 @@ describe("how a tool call is answered", () => {
 		expect(parse([edit, answer]).blocks.at(-1)).toEqual({
 			kind: "tool",
 			id: "toolu_2",
-			label: "Editing upload.ts",
+			name: "Edit",
 			state: "done",
 			edit: { added: 2, removed: 1 },
 		});
@@ -189,7 +197,7 @@ describe("how a tool call is answered", () => {
 		expect(parse([write, answer]).blocks.at(-1)).toEqual({
 			kind: "tool",
 			id: "toolu_2",
-			label: "Editing retry.ts",
+			name: "Write",
 			state: "done",
 			edit: { added: 2, removed: 0 },
 		});
@@ -203,7 +211,7 @@ describe("how a tool call is answered", () => {
 		expect(parse([call, answer]).blocks.at(-1)).toEqual({
 			kind: "tool",
 			id: "toolu_1",
-			label: "Rodar os testes",
+			name: "Bash",
 			state: "done",
 		});
 	});

@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { Project } from "@main/store/projects";
 import type { AgentActivityState } from "@shared/activity";
 import { SessionSidebar } from "@renderer/routes/-components/session-sidebar";
+import { ACTIVITY_LABEL } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
@@ -27,8 +28,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
 		activity: undefined,
-		trace: undefined,
-		traceSince: undefined,
+		since: undefined,
 		attention: undefined,
 		...patch,
 	};
@@ -130,7 +130,7 @@ test("an open session renders as a card carrying project, title and harness", ()
 	expect(card.textContent).toContain("flatten the sidebar");
 	expect(card.textContent).toContain("bankai");
 	expect(card.querySelector("[aria-label='Claude']")).not.toBeNull();
-	expect(slot(card, "session-trace").textContent).toBe("sessions-first-sidebar");
+	expect(slot(card, "session-state").textContent).toBe("sessions-first-sidebar");
 });
 
 test("a session with no activity keeps the card it had, only quieter", () => {
@@ -140,42 +140,38 @@ test("a session with no activity keeps the card it had, only quieter", () => {
 
 	expect(card.dataset.activity).toBeUndefined();
 	expect(card.dataset.archived).toBeUndefined();
-	expect(slot(card, "session-trace").className).toContain("text-outline-strong");
+	expect(slot(card, "session-state").className).toContain("text-outline-strong");
 });
 
-test("the output line takes the trace slot while the agent is running", () => {
+test("the state takes the branch's slot while the agent is running", () => {
 	renderSidebar({
-		open: [row("s1", { branch: "main", activity: "working", trace: "Editing index.tsx" })],
+		open: [row("s1", { branch: "main", activity: "working" })],
 	});
 
-	const trace = slot(sessionRow("s1"), "session-trace");
+	const state = slot(sessionRow("s1"), "session-state");
 
-	expect(trace.textContent).toBe("Editing index.tsx");
-	expect(trace.className).toContain("text-tertiary");
+	expect(state.textContent).toBe(ACTIVITY_LABEL.working);
+	expect(state.className).toContain("text-tertiary");
 });
 
-test("a running session says how long it has been doing the thing the trace names", () => {
+test("a running session says how long it has been working", () => {
 	renderSidebar({
-		open: [
-			row("s1", { activity: "working", trace: "Thinking", traceSince: Date.now() - 74_000 }),
-		],
+		open: [row("s1", { activity: "working", since: Date.now() - 74_000 })],
 	});
 
 	expect(slot(sessionRow("s1"), "session-elapsed").textContent).toContain("1m");
 });
 
-test("a trace stamped ahead of the clock reads as zero, never as a negative", () => {
+test("a state stamped ahead of the clock reads as zero, never as a negative", () => {
 	renderSidebar({
-		open: [
-			row("s1", { activity: "working", trace: "Thinking", traceSince: Date.now() + 5000 }),
-		],
+		open: [row("s1", { activity: "working", since: Date.now() + 5000 })],
 	});
 
 	expect(slot(sessionRow("s1"), "session-elapsed").textContent).toContain("0s");
 });
 
-test("a session the harness gave no clock for shows the verb alone", () => {
-	renderSidebar({ open: [row("s1", { activity: "working", trace: "Thinking" })] });
+test("a session the harness gave no clock for shows the state alone", () => {
+	renderSidebar({ open: [row("s1", { activity: "working" })] });
 
 	expect(sessionRow("s1").querySelector('[data-slot="session-elapsed"]')).toBeNull();
 });
@@ -293,13 +289,13 @@ test("the archive collapses and hides its rows", () => {
 	expect(query("session-row", { shellId: "s2" })).toBeNull();
 });
 
-test("an archived session renders slim, with no trace and nothing left to archive", () => {
+test("an archived session renders slim, with no state line and nothing left to archive", () => {
 	renderSidebar({ archived: [row("s1", { archivedAt: NOW, branch: "main" })] });
 
 	const filed = sessionRow("s1");
 
 	expect(filed.dataset.archived).toBe("");
-	expect(filed.querySelector('[data-slot="session-trace"]')).toBeNull();
+	expect(filed.querySelector('[data-slot="session-state"]')).toBeNull();
 	expect(filed.querySelector('[data-slot="archive-session"]')).toBeNull();
 });
 

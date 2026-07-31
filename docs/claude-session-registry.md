@@ -1,7 +1,7 @@
 ---
 title: What the Claude session registry publishes about a live session
 tags: [activity]
-updated_at: 2026-07-27
+updated_at: 2026-07-30
 created_at: 2026-07-26
 ---
 
@@ -38,12 +38,12 @@ A subagent counts: while the main agent waits on one, the parent session stays `
 
 Observed values: `permission prompt`, `dialog open`, `input needed`, `sandbox request`, `worker request`. In the harness binary the lookup falls back to `permission prompt` for any dialog it does not have a name for, over a read of the top of the dialog stack — so *any* open dialog sets `waitingFor`, and an unmapped one still arrives as a permission prompt rather than as nothing.
 
-`WAITING_TRACE` in `src/main/activity/claude.ts` maps them to card labels and falls back to `WAITING_TRACE_FALLBACK` ("Waiting on you"), so a value added by a later harness version degrades to a correct-but-vague label.
+Bankai reads none of them. `parseSessionRecord` takes `status: "waiting"` and stops there: the card has one thing to say — **Waiting on you** — and the phone's attention card says what was actually asked, from the hook's `Notification` message (`hook-spool.md`). A per-reason label mapped five registry strings onto four phrasings and told the user nothing the state did not.
 
 ## `statusUpdatedAt` is an exact turn clock
 
-Measured on this machine: it lands 12ms after a prompt is submitted, and a status transition is written to disk 70–90ms after it happens. That is two to three orders of magnitude tighter than the transcript's visibility lag (see `agent-trace.md`), which is why every question about the *turn* is keyed to it: when the residency grace starts counting, and how long a card has said "Done" or "Needs permission".
+Measured on this machine: it lands 12ms after a prompt is submitted, and a status transition is written to disk 70–90ms after it happens. That is two to three orders of magnitude tighter than the transcript's visibility lag — a record becomes visible on disk 0.24s after its own timestamp at p50, and 3.2s for an `assistant` record whose block is a `tool_use`. That is why every question about the *turn* is keyed to it: when the residency grace starts counting, and how long a card has said "Done" or "Needs permission".
 
 It restarts on every status edge, including `busy → shell → busy`. A clock keyed straight to it would reset to "0s" each time an agent ran a command mid-turn. `clockSince` in `src/main/activity/AgentActivity.ts` therefore holds the stamp it already had while the *card's* state is unchanged, and only adopts a new one when the card's state actually changes — so the number answers "how long has this card been in this state".
 
-What it cannot answer is how long the agent has been doing the thing the trace names, because a turn holds many traces. Keying the card's elapsed clock to it printed `Thinking · 1m` over a thought that was six seconds old. That number now comes from the trace itself — see `agent-trace.md`.
+So the number beside a card measures the state, not the work inside it: a turn that ran twenty tools reads as one span of Working.

@@ -18,8 +18,6 @@ export function useSessionRows({
 				continuity,
 				projects,
 				shellActivity: activity.shells,
-				traces: activity.traces,
-				traceSince: activity.traceSince,
 				statusSince: activity.statusSince,
 				attention: activity.attention,
 			}),

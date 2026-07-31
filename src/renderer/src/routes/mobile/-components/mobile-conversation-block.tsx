@@ -89,7 +89,7 @@ function ToolStep({
 			<span aria-hidden="true" className="flex w-2 shrink-0 justify-center">
 				<span data-slot="tool-dot" className={`shrink-0 self-center rounded-full ${TOOL_DOT_CLASS[block.state]}`} />
 			</span>
-			<span className="min-w-0 truncate">{block.label}</span>
+			<span className="min-w-0 truncate">{block.name}</span>
 			{block.edit && <EditCounts edit={block.edit} />}
 		</>
 	);

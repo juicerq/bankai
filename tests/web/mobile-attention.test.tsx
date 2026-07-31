@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import type { TerminalKey } from "@main/terminal/input";
+import { ACTIVITY_LABEL } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { MobileConversation } from "@renderer/routes/mobile/-components/mobile-conversation";
 import { KEY_ACK_MS, useKeyAck } from "@renderer/routes/mobile/-utils/use-key-ack";
@@ -15,7 +16,6 @@ const ACK_MS = 20;
 const ASKING: ShellAttention = {
 	message: "Claude needs your permission to use Bash",
 	at: NOW,
-	detail: "rm -rf out",
 };
 
 function row(patch: Partial<SessionRow> = {}): SessionRow {
@@ -30,8 +30,7 @@ function row(patch: Partial<SessionRow> = {}): SessionRow {
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
 		activity: "needs-attention",
-		trace: "Needs permission",
-		traceSince: NOW,
+		since: NOW,
 		attention: undefined,
 		...patch,
 	};
@@ -63,12 +62,11 @@ function card() {
 	return get("mobile-attention");
 }
 
-test("a labelled wait says what was asked and what it was asked about", () => {
+test("a labelled wait says what was asked", () => {
 	renderWaiting();
 
 	expect(card().dataset.mode).toBe("card");
 	expect(slot(card(), "message").textContent).toBe(ASKING.message);
-	expect(slot(card(), "detail").textContent).toBe("rm -rf out");
 });
 
 test("the three answers send the strokes the TUI accepts", async () => {
@@ -89,10 +87,10 @@ test("always says out loud that it lasts the whole session", () => {
 });
 
 test("a wait nothing labelled falls back to the keypad under its category", () => {
-	renderWaiting({ row: row({ trace: "Needs permission" }) });
+	renderWaiting({ row: row() });
 
 	expect(card().dataset.mode).toBe("keypad");
-	expect(slot(card(), "label").textContent).toBe("Needs permission");
+	expect(slot(card(), "label").textContent).toBe(ACTIVITY_LABEL["needs-attention"]);
 	expect(slot(card(), "label").className).toContain("uppercase");
 	expect(slot(card(), "key-enter")).toBeDefined();
 	expect(slot(card(), "key-up").getAttribute("aria-label")).toBe("Up");

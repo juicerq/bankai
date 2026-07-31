@@ -1,7 +1,7 @@
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { claudeConfigDir } from "@main/activity/claudeConfig";
-import type { HarnessLiveTrace } from "@main/activity/Harness";
+import type { HarnessHooks } from "@main/activity/Harness";
 import {
 	clearSpool,
 	hookScript,
@@ -17,20 +17,18 @@ import { type HookInstall, installedSettings, uninstalledSettings } from "@main/
 
 export const HOOK_SCRIPT_NAME = "bankai-trace.sh";
 
-export const HOOK_EVENTS = ["UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop", "Notification"];
+export const HOOK_EVENTS = ["Stop", "Notification"];
 
 export const CLAUDE_HOOK_INSTALL: HookInstall = {
 	scriptName: HOOK_SCRIPT_NAME,
 	events: HOOK_EVENTS,
-	matchedEvents: new Set(["PreToolUse", "PostToolUse"]),
-	matcher: "*",
 };
 
 function claudeSettingsPath(): string {
 	return join(claudeConfigDir(), "settings.json");
 }
 
-export const claudeLiveTrace: HarnessLiveTrace = {
+export const claudeHooks: HarnessHooks = {
 	async install(): Promise<void> {
 		await writeHookScript(HOOK_SCRIPT_NAME, hookScript(hookSpoolDir(), spoolPrefix(CLAUDE_HARNESS_ID)));
 		await rewriteJsonConfig(claudeSettingsPath(), (current) =>

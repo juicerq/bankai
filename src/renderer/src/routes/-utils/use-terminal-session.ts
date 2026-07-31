@@ -154,6 +154,7 @@ export class RendererTerminalSession {
 		this.resumeAttempt = options.resume;
 		this.terminal.loadAddon(this.fit);
 		this.terminal.open(container);
+		this.terminal.attachCustomKeyEventHandler((event) => this.handleClipboardChord(event));
 		this.removeDataListener = terminalStream.onData((event) => {
 			if (event.sessionId === this.sessionId) {
 				this.paint(event.data);
@@ -321,6 +322,42 @@ export class RendererTerminalSession {
 		}
 
 		return await terminalStream.open(projectId, shellId, this.terminal.cols, this.terminal.rows);
+	}
+
+	private handleClipboardChord(event: KeyboardEvent) {
+		if (!event.ctrlKey || !event.shiftKey || event.altKey || event.metaKey) {
+			return true;
+		}
+		if (event.code !== "KeyC" && event.code !== "KeyV") {
+			return true;
+		}
+		if (event.type !== "keydown") {
+			return false;
+		}
+
+		if (event.code === "KeyC") {
+			this.copySelection();
+		} else {
+			this.pasteClipboard();
+		}
+
+		return false;
+	}
+
+	private copySelection() {
+		const selection = this.terminal.getSelection();
+		if (!selection) {
+			return;
+		}
+
+		navigator.clipboard.writeText(selection).catch((err) => this.fail("Copy failed", err));
+	}
+
+	private pasteClipboard() {
+		navigator.clipboard
+			.readText()
+			.then((text) => this.terminal.paste(text))
+			.catch((err) => this.fail("Paste failed", err));
 	}
 
 	private paint(data: string) {

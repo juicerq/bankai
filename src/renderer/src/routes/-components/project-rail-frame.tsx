@@ -74,6 +74,7 @@ export function ProjectRailFrame({
 				}
 				onPointerEnter={projectRail.handleRailPointerEnter}
 				onPointerLeave={projectRail.handleRailPointerLeave}
+				onPointerDownCapture={projectRail.handleRailPointerDown}
 				onFocusCapture={projectRail.handleRailFocus}
 				onBlurCapture={projectRail.handleRailBlur}
 			>

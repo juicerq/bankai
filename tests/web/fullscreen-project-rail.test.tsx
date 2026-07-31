@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, jest, test } from "bun:test";
 import { useRef, useState } from "react";
 import type { Project } from "@main/store/projects";
 import { ProjectFooter } from "@renderer/routes/-components/project-footer";
@@ -12,7 +12,10 @@ import {
 	resolveRailWidth,
 } from "@renderer/routes/-utils/rail-layout";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
-import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
+import {
+	PROJECT_RAIL_WITHDRAW_DELAY_MS,
+	useFullscreenProjectRail,
+} from "@renderer/routes/-utils/use-fullscreen-project-rail";
 import { get, query, slot } from "./dom";
 import { act, cleanup, fireEvent, render } from "./testing-library";
 
@@ -23,7 +26,12 @@ const projects: Project[] = [
 
 afterEach(() => {
 	cleanup();
+	jest.useRealTimers();
 });
+
+function finishWithdrawDelay() {
+	void act(() => jest.advanceTimersByTime(PROJECT_RAIL_WITHDRAW_DELAY_MS));
+}
 
 function ProjectRailHarness() {
 	const [toggled, setToggled] = useState("");
@@ -147,18 +155,57 @@ describe("fullscreen Project rail", () => {
 		expect(frame.inert).toBe(false);
 	});
 
-	test("withdraws immediately when the pointer leaves", () => {
+	test("withdraws 100ms after the pointer leaves", () => {
+		jest.useFakeTimers();
 		render(<ProjectRailHarness />);
 		enterFullscreen();
 		revealFromEdge();
 
 		const frame = get("project-rail-frame");
 		fireEvent.pointerLeave(frame);
+		expect(frame.dataset.revealed).toBe("true");
+
+		void act(() => jest.advanceTimersByTime(PROJECT_RAIL_WITHDRAW_DELAY_MS - 1));
+		expect(frame.dataset.revealed).toBe("true");
+
+		void act(() => jest.advanceTimersByTime(1));
 		expect(frame.dataset.revealed).toBe("false");
 		expect(frame.inert).toBe(true);
 	});
 
+	test("cancels the pending withdrawal when the pointer returns", () => {
+		jest.useFakeTimers();
+		render(<ProjectRailHarness />);
+		enterFullscreen();
+		revealFromEdge();
+
+		const frame = get("project-rail-frame");
+		fireEvent.pointerLeave(frame);
+		fireEvent.pointerEnter(frame);
+		finishWithdrawDelay();
+
+		expect(frame.dataset.revealed).toBe("true");
+	});
+
+	test("pointer focus does not hold the rail open after the pointer leaves", () => {
+		jest.useFakeTimers();
+		render(<ProjectRailHarness />);
+		enterFullscreen();
+		revealFromEdge();
+
+		const frame = get("project-rail-frame");
+		const projectToggle = slot(get("project-footer"), "toggle-projects");
+		fireEvent.pointerDown(projectToggle);
+		fireEvent.focus(projectToggle);
+		fireEvent.click(projectToggle);
+		fireEvent.pointerLeave(frame);
+		finishWithdrawDelay();
+
+		expect(frame.dataset.revealed).toBe("false");
+	});
+
 	test("toggling a project badge and focus keep the rail available until interaction leaves it", () => {
+		jest.useFakeTimers();
 		render(<ProjectRailHarness />);
 		enterFullscreen();
 		revealFromEdge();
@@ -171,6 +218,7 @@ describe("fullscreen Project rail", () => {
 		const addProject = slot(get("project-footer"), "add-project");
 		fireEvent.focus(addProject);
 		fireEvent.pointerLeave(frame);
+		finishWithdrawDelay();
 		expect(frame.dataset.revealed).toBe("true");
 
 		fireEvent.blur(addProject, { relatedTarget: get("fullscreen-toggle") });
@@ -178,6 +226,7 @@ describe("fullscreen Project rail", () => {
 	});
 
 	test("an open row menu holds the rail open", () => {
+		jest.useFakeTimers();
 		render(<ProjectRailHarness />);
 		enterFullscreen();
 		revealFromEdge();
@@ -185,6 +234,7 @@ describe("fullscreen Project rail", () => {
 		const frame = get("project-rail-frame");
 		fireEvent.contextMenu(get("project-row", { projectId: "bankai" }), { clientX: 40, clientY: 40 });
 		fireEvent.pointerLeave(frame);
+		finishWithdrawDelay();
 		expect(frame.dataset.revealed).toBe("true");
 		expect(get("project-row-menu")).toBeDefined();
 

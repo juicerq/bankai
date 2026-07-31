@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 const PROJECT_RAIL_ACTIVATION_WIDTH = 8;
+export const PROJECT_RAIL_WITHDRAW_DELAY_MS = 100;
 
 export function useFullscreenProjectRail(
 	onRequestShellFocus: () => void,
@@ -11,9 +12,11 @@ export function useFullscreenProjectRail(
 	const [revealed, setRevealed] = useState(false);
 	const [animating, setAnimating] = useState(false);
 	const railRef = useRef<HTMLDivElement | null>(null);
+	const withdrawTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const edgeArmed = useRef(true);
 	const pointerInside = useRef(false);
 	const focusInside = useRef(false);
+	const pointerFocused = useRef(false);
 	const menuOpen = useRef(false);
 	const dismissMenu = useRef<(() => void) | null>(null);
 	const dragging = useRef(false);
@@ -35,9 +38,27 @@ export function useFullscreenProjectRail(
 		}
 	}, [canWithdraw]);
 
-	const reveal = useCallback(() => {
-		setRevealed(true);
+	const cancelWithdraw = useCallback(() => {
+		if (!withdrawTimer.current) {
+			return;
+		}
+
+		clearTimeout(withdrawTimer.current);
+		withdrawTimer.current = null;
 	}, []);
+
+	const scheduleWithdraw = useCallback(() => {
+		cancelWithdraw();
+		withdrawTimer.current = setTimeout(() => {
+			withdrawTimer.current = null;
+			withdraw();
+		}, PROJECT_RAIL_WITHDRAW_DELAY_MS);
+	}, [cancelWithdraw, withdraw]);
+
+	const reveal = useCallback(() => {
+		cancelWithdraw();
+		setRevealed(true);
+	}, [cancelWithdraw]);
 
 	const toggleFullscreen = useCallback((options?: { animate?: boolean }) => {
 		setAnimating(options?.animate !== false && !window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -88,11 +109,21 @@ export function useFullscreenProjectRail(
 
 	const handleRailPointerLeave = useCallback(() => {
 		pointerInside.current = false;
-		withdraw();
-	}, [withdraw]);
+		scheduleWithdraw();
+	}, [scheduleWithdraw]);
+
+	const handleRailPointerDown = useCallback(() => {
+		pointerFocused.current = true;
+		focusInside.current = false;
+	}, []);
+
+	const handleKeyboardInput = useCallback(() => {
+		pointerFocused.current = false;
+		focusInside.current = !!railRef.current?.contains(document.activeElement);
+	}, []);
 
 	const handleRailFocus = useCallback(() => {
-		focusInside.current = true;
+		focusInside.current = !pointerFocused.current;
 		reveal();
 	}, [reveal]);
 
@@ -102,6 +133,7 @@ export function useFullscreenProjectRail(
 		}
 
 		focusInside.current = false;
+		pointerFocused.current = false;
 		withdraw();
 	}, [withdraw]);
 
@@ -148,11 +180,13 @@ export function useFullscreenProjectRail(
 
 	const handleWindowBlur = useCallback(() => {
 		if (!pickerActive.current) {
+			cancelWithdraw();
 			pointerInside.current = false;
 			focusInside.current = false;
+			pointerFocused.current = false;
 			setRevealed(false);
 		}
-	}, []);
+	}, [cancelWithdraw]);
 	const registerRail = useCallback((rail: HTMLDivElement | null) => {
 		railRef.current = rail;
 		if (!rail) {
@@ -161,13 +195,16 @@ export function useFullscreenProjectRail(
 
 		const handlePointerMove = (event: PointerEvent) => trackPointer(event.clientX);
 		window.addEventListener("pointermove", handlePointerMove, true);
+		window.addEventListener("keydown", handleKeyboardInput, true);
 		window.addEventListener("blur", handleWindowBlur);
 		return () => {
+			cancelWithdraw();
 			railRef.current = null;
 			window.removeEventListener("pointermove", handlePointerMove, true);
+			window.removeEventListener("keydown", handleKeyboardInput, true);
 			window.removeEventListener("blur", handleWindowBlur);
 		};
-	}, [handleWindowBlur, trackPointer]);
+	}, [cancelWithdraw, handleKeyboardInput, handleWindowBlur, trackPointer]);
 
 	return {
 		fullscreen,
@@ -179,6 +216,7 @@ export function useFullscreenProjectRail(
 		handleEdgeEnter,
 		handleRailPointerEnter,
 		handleRailPointerLeave,
+		handleRailPointerDown,
 		handleRailFocus,
 		handleRailBlur,
 		setMenuOpen,

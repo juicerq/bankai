@@ -19,6 +19,7 @@ export function useSessionRows({
 				projects,
 				shellActivity: activity.shells,
 				statusSince: activity.statusSince,
+				harnesses: activity.harnesses,
 			}),
 		[continuity, projects, activity],
 	);

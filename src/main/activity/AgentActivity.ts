@@ -260,12 +260,14 @@ export function snapshotsByProject({
 	owners,
 	worktrees,
 	statusSince,
+	harnesses,
 	doneShells,
 }: {
 	shellStates: Map<string, AgentActivityState>;
 	owners: Map<string, ShellOwner>;
 	worktrees: Map<string, string>;
 	statusSince: ReadonlyMap<string, number>;
+	harnesses: ReadonlyMap<string, string>;
 	doneShells: ReadonlyMap<string, DoneShell>;
 }): Map<string, ProjectActivitySnapshot> {
 	const projectIds = new Set<string>();
@@ -304,6 +306,19 @@ export function snapshotsByProject({
 		projectIds.add(owner.projectId);
 	}
 
+	const harnessesByProject = new Map<string, Record<string, string>>();
+	for (const owner of owners.values()) {
+		const harness = harnesses.get(owner.shellId);
+		if (harness === undefined) {
+			continue;
+		}
+
+		const grouped = harnessesByProject.get(owner.projectId) ?? {};
+		grouped[owner.shellId] = harness;
+		harnessesByProject.set(owner.projectId, grouped);
+		projectIds.add(owner.projectId);
+	}
+
 	const snapshots = new Map<string, ProjectActivitySnapshot>();
 	for (const projectId of projectIds) {
 		const shells = shellsByProject.get(projectId) ?? {};
@@ -321,6 +336,7 @@ export function snapshotsByProject({
 			shells,
 			worktreeByShellId: worktreesByProject.get(projectId) ?? {},
 			statusSinceByShellId,
+			harnessByShellId: harnessesByProject.get(projectId) ?? {},
 		});
 	}
 
@@ -352,9 +368,18 @@ function sameSnapshot(
 		return false;
 	}
 
+	if (
+		!sameRecord(
+			before?.statusSinceByShellId ?? {},
+			after?.statusSinceByShellId ?? {},
+		)
+	) {
+		return false;
+	}
+
 	return sameRecord(
-		before?.statusSinceByShellId ?? {},
-		after?.statusSinceByShellId ?? {},
+		before?.harnessByShellId ?? {},
+		after?.harnessByShellId ?? {},
 	);
 }
 
@@ -363,6 +388,7 @@ function emptySnapshot(): ProjectActivitySnapshot {
 		shells: {},
 		worktreeByShellId: {},
 		statusSinceByShellId: {},
+		harnessByShellId: {},
 	};
 }
 
@@ -503,6 +529,7 @@ class AgentActivityTracker {
 				owners,
 				worktrees: new Map(),
 				statusSince: new Map(),
+				harnesses: new Map(),
 				publishedNames: new Map(),
 			});
 			return;
@@ -529,6 +556,7 @@ class AgentActivityTracker {
 		const nextStates = new Map<string, AgentActivityState>();
 		const statusSince = new Map<string, number>();
 		const publishedNames = new Map<string, string>();
+		const harnesses = new Map<string, string>();
 		for (const shell of shells) {
 			const boundPid = bindings.get(shell.sessionId);
 			const presence =
@@ -542,6 +570,9 @@ class AgentActivityTracker {
 			}
 			if (presence?.publishedName) {
 				publishedNames.set(shell.sessionId, presence.publishedName);
+			}
+			if (presence) {
+				harnesses.set(shell.shellId, presence.harness);
 			}
 
 			const since = clockSince({
@@ -563,6 +594,7 @@ class AgentActivityTracker {
 			owners,
 			worktrees,
 			statusSince,
+			harnesses,
 			publishedNames,
 		});
 	}
@@ -668,12 +700,14 @@ class AgentActivityTracker {
 		owners,
 		worktrees,
 		statusSince,
+		harnesses,
 		publishedNames,
 	}: {
 		shellStates: Map<string, AgentActivityState>;
 		owners: Map<string, ShellOwner>;
 		worktrees: Map<string, string>;
 		statusSince: Map<string, number>;
+		harnesses: Map<string, string>;
 		publishedNames: Map<string, string>;
 	}): void {
 		const previousStates = this.shellStates;
@@ -684,6 +718,7 @@ class AgentActivityTracker {
 			owners,
 			worktrees,
 			statusSince,
+			harnesses,
 			doneShells: this.doneShells,
 		});
 		this.shellStates = shellStates;

@@ -7,12 +7,14 @@ export interface AgentActivities {
 	shells: ReadonlyMap<string, AgentActivityState>;
 	worktrees: ReadonlyMap<string, string>;
 	statusSince: ReadonlyMap<string, number>;
+	harnesses: ReadonlyMap<string, string>;
 }
 
 const EMPTY_ACTIVITIES: AgentActivities = {
 	shells: new Map(),
 	worktrees: new Map(),
 	statusSince: new Map(),
+	harnesses: new Map(),
 };
 
 export function useAgentActivities(projectIds: string[]): AgentActivities {
@@ -49,6 +51,7 @@ class AgentActivityObserver {
 	private readonly shells = new MergedByProject<AgentActivityState>();
 	private readonly worktrees = new MergedByProject<string>();
 	private readonly statusSince = new MergedByProject<number>();
+	private readonly harnesses = new MergedByProject<string>();
 
 	constructor(private readonly projectIds: string[]) {}
 
@@ -95,6 +98,7 @@ class AgentActivityObserver {
 			shells: this.shells.merge(projectId, this.snapshot.shells, snapshot.shells),
 			worktrees: this.worktrees.merge(projectId, this.snapshot.worktrees, snapshot.worktreeByShellId),
 			statusSince: this.statusSince.merge(projectId, this.snapshot.statusSince, snapshot.statusSinceByShellId),
+			harnesses: this.harnesses.merge(projectId, this.snapshot.harnesses, snapshot.harnessByShellId),
 		};
 		this.notify?.();
 	}

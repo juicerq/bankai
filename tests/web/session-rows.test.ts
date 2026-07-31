@@ -15,12 +15,14 @@ function rowsOf(
 	continuity: ContinuityValue,
 	activity: Record<string, AgentActivityState> = {},
 	statusSince: Record<string, number> = {},
+	harnesses: Record<string, string> = {},
 ) {
 	return sessionRows({
 		continuity,
 		projects: PROJECTS,
 		shellActivity: new Map(Object.entries(activity)),
 		statusSince: new Map(Object.entries(statusSince)),
+		harnesses: new Map(Object.entries(harnesses)),
 	});
 }
 
@@ -174,6 +176,42 @@ describe("building the flat list", () => {
 		});
 
 		expect(row?.harness).toBe("claude");
+	});
+
+	test("a live agent names the harness before any session ref exists", () => {
+		const [row] = rowsOf(
+			{ workspaces: [{ projectId: "p1", shells: [{ id: "s1", label: "Shell 1", createdAt: 1 }] }] },
+			{},
+			{},
+			{ s1: "codex" },
+		);
+
+		expect(row?.harness).toBe("codex");
+	});
+
+	test("the agent running now outranks the ref of the one that ran before", () => {
+		const [row] = rowsOf(
+			{
+				workspaces: [
+					{
+						projectId: "p1",
+						shells: [
+							{
+								id: "s1",
+								label: "Shell 1",
+								createdAt: 1,
+								session: { harness: "claude", sessionId: "abc", cwd: "/tmp/p1" },
+							},
+						],
+					},
+				],
+			},
+			{},
+			{},
+			{ s1: "codex" },
+		);
+
+		expect(row?.harness).toBe("codex");
 	});
 });
 

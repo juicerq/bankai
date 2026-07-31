@@ -245,12 +245,31 @@ describe("project snapshots", () => {
 		return new Map<string, AgentActivityState>(Object.entries(entries));
 	}
 
+	test("names the harness of every bound shell, even one with no state yet", () => {
+		const snapshots = snapshotsByProject({
+			shellStates: new Map(),
+			owners,
+			worktrees: new Map(),
+			statusSince: new Map(),
+			harnesses: new Map([["shell-a", "codex"]]),
+			doneShells: new Map(),
+		});
+
+		expect(snapshots.get("p1")).toEqual({
+			shells: {},
+			worktreeByShellId: {},
+			statusSinceByShellId: {},
+			harnessByShellId: { "shell-a": "codex" },
+		});
+	});
+
 	test("gathers a project's shells under it", () => {
 		const snapshots = snapshotsByProject({
 			shellStates: states({ "session-a": "working", "session-b": "needs-attention" }),
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map(),
+			harnesses: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -258,6 +277,7 @@ describe("project snapshots", () => {
 			shells: { "shell-a": "working", "shell-b": "needs-attention" },
 			worktreeByShellId: {},
 			statusSinceByShellId: {},
+			harnessByShellId: {},
 		});
 	});
 
@@ -267,6 +287,7 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map(),
+			harnesses: new Map(),
 			doneShells: new Map([["shell-c", { projectId: "p2", at: 1784901075701 }]]),
 		});
 
@@ -275,6 +296,7 @@ describe("project snapshots", () => {
 			shells: { "shell-c": "done" },
 			worktreeByShellId: {},
 			statusSinceByShellId: { "shell-c": 1784901075701 },
+			harnessByShellId: {},
 		});
 	});
 
@@ -284,6 +306,7 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map(),
+			harnesses: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -297,6 +320,7 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map([["shell-a", "/tmp/repo-slug"]]),
 			statusSince: new Map(),
+			harnesses: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -304,6 +328,7 @@ describe("project snapshots", () => {
 			shells: { "shell-a": "working" },
 			worktreeByShellId: { "shell-a": "/tmp/repo-slug" },
 			statusSinceByShellId: {},
+			harnessByShellId: {},
 		});
 	});
 
@@ -313,6 +338,7 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map(),
+			harnesses: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -325,6 +351,7 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map([["shell-c", "/tmp/repo-slug"]]),
 			statusSince: new Map(),
+			harnesses: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -332,6 +359,7 @@ describe("project snapshots", () => {
 			shells: {},
 			worktreeByShellId: { "shell-c": "/tmp/repo-slug" },
 			statusSinceByShellId: {},
+			harnessByShellId: {},
 		});
 	});
 
@@ -341,6 +369,7 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map([["shell-a", 1784901075701], ["shell-b", 1784901169072]]),
+			harnesses: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -353,6 +382,7 @@ describe("project snapshots", () => {
 			owners: new Map(),
 			worktrees: new Map(),
 			statusSince: new Map(),
+			harnesses: new Map(),
 			doneShells: new Map([["shell-c", { projectId: "p2", at: 1784901075701 }]]),
 		});
 
@@ -360,6 +390,7 @@ describe("project snapshots", () => {
 			shells: { "shell-c": "done" },
 			worktreeByShellId: {},
 			statusSinceByShellId: { "shell-c": 1784901075701 },
+			harnessByShellId: {},
 		});
 	});
 
@@ -369,6 +400,7 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map([["shell-a", 1784901169072]]),
+			harnesses: new Map(),
 			doneShells: new Map([["shell-a", { projectId: "p1", at: 1784901075701 }]]),
 		});
 
@@ -382,6 +414,7 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map([["shell-c", 1784901075701]]),
+			harnesses: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -394,6 +427,7 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map(),
+			harnesses: new Map(),
 			doneShells: new Map(),
 		}).size).toBe(0);
 	});

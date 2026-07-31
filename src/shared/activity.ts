@@ -18,6 +18,7 @@ export interface ProjectActivitySnapshot {
 	shells: Record<string, AgentActivityState>;
 	worktreeByShellId: Record<string, string>;
 	statusSinceByShellId: Record<string, number>;
+	harnessByShellId: Record<string, string>;
 }
 
 export interface ActivityChangedEvent extends ProjectActivitySnapshot {

@@ -19,7 +19,9 @@ A TUI sitting at its prompt has written nothing. Measured on 0.146.0: a `codex` 
 
 The file name lies about this. `rollout-2026-07-31T07-20-00-<uuid>.jsonl` stamps the moment the session *opened*; the file itself appeared fourteen minutes later. Only the `timestamp` inside the `session_meta` record dates the file.
 
-So a Codex session id cannot be discovered before the user's first prompt — it lives in memory until then. `codexPresence` still reports the process as an idle Agent using `/proc/<pid>/cwd`, with no `sessionId`. That presence binds the card and starts its clock; `captureSessionRefs` skips it, so nothing resumable is persisted until the rollout exists. Claude differs here: it writes its registry file at startup, so its card carries a session id from the first tick.
+So a Codex session id cannot be discovered before the user's first prompt — it lives in memory until then. `codexPresence` still reports the process as an idle Agent using `/proc/<pid>/cwd`, with no `sessionId`. `captureSessionRefs` skips a presence with no session id, so nothing resumable is persisted until the rollout exists. Claude differs here: it writes its registry file at startup, so its card carries a session id from the first tick.
+
+That is why the sidebar's harness mark reads `harnessByShellId` from the activity snapshot and falls back to the persisted ref, never the reverse. The ref answers "what can I resume"; the snapshot answers "what is running now", and only the second one knows about a Codex that has not written anything yet.
 
 ## Turn edges are events, not process edges
 

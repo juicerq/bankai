@@ -21,6 +21,7 @@ export function sessionRows(input: {
 	projects: { id: string; name: string }[];
 	shellActivity: ReadonlyMap<string, AgentActivityState>;
 	statusSince: ReadonlyMap<string, number>;
+	harnesses: ReadonlyMap<string, string>;
 }): SessionRow[] {
 	const rows: SessionRow[] = [];
 
@@ -41,7 +42,7 @@ export function sessionRows(input: {
 				projectName: project.name,
 				title: [shell.title, shell.branch].find((value) => !!value?.trim()) ?? shell.label,
 				branch: shell.branch,
-				harness: shell.session?.harness,
+				harness: input.harnesses.get(shell.id) ?? shell.session?.harness,
 				createdAt: shell.createdAt,
 				lastTouchedAt: shell.lastTouchedAt,
 				archivedAt: shell.archivedAt,

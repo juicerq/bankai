@@ -9,6 +9,7 @@ import { resolveInstanceIdentity } from "@main/store/paths";
 import { type SettingsValue, Settings } from "@main/store/settings";
 import { restoreTailnetAccess } from "@main/tailscale/mobileAccess";
 import { setupUpdateIpc } from "@main/update/ipc";
+import { setupDesktopAttention } from "@main/window/attention";
 import { publishMaximizedState, setupWindowIpc } from "@main/window/ipc";
 import { AUTH_IPC } from "@shared/server";
 import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
@@ -84,6 +85,7 @@ async function createWindow() {
 	});
 
 	mainWindow = win;
+	setupDesktopAttention(win);
 	publishMaximizedState(win);
 	markStartup("window-created");
 	win.webContents.once("did-finish-load", () => markStartup("content-loaded"));

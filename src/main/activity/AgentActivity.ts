@@ -19,6 +19,7 @@ import { pushNeedsAttention, pushTurnDone } from "@main/push/notifyAttention";
 import { Continuity, type ContinuityValue } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { shellProcesses } from "@main/terminal/ShellProcesses";
+import { requestDesktopAttention } from "@main/window/attention";
 import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
 import { throttle } from "@shared/throttle";
 
@@ -767,7 +768,11 @@ class AgentActivityTracker {
 			SessionNamer.noteTurn(owner);
 		}
 
-		for (const sessionId of attentionEntryShells(previousStates, shellStates)) {
+		const attentionEntries = attentionEntryShells(previousStates, shellStates);
+		if (attentionEntries.length > 0) {
+			requestDesktopAttention();
+		}
+		for (const sessionId of attentionEntries) {
 			const owner = owners.get(sessionId);
 			if (!owner) {
 				continue;
@@ -778,7 +783,11 @@ class AgentActivityTracker {
 			);
 		}
 
-		for (const sessionId of doneEntryShells(previousStates, shellStates)) {
+		const doneEntries = doneEntryShells(previousStates, shellStates);
+		if (doneEntries.length > 0) {
+			requestDesktopAttention();
+		}
+		for (const sessionId of doneEntries) {
 			const owner = owners.get(sessionId);
 			if (!owner) {
 				continue;

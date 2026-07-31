@@ -42,17 +42,27 @@ class MockFitAddon {
 class MockTerminal {
 	cols = 80;
 	rows = 24;
+	pastes: string[] = [];
 	writes: string[] = [];
 	resets = 0;
+	private keyEventHandler: ((event: KeyboardEvent) => boolean) | undefined;
 
 	constructor() {
 		terminals.push(this);
 	}
 
 	loadAddon() {}
-	attachCustomKeyEventHandler() {}
+	attachCustomKeyEventHandler(handler: (event: KeyboardEvent) => boolean) {
+		this.keyEventHandler = handler;
+	}
 	open() {}
 	focus() {}
+	handleKey(event: KeyboardEvent) {
+		return this.keyEventHandler?.(event);
+	}
+	paste(data: string) {
+		this.pastes = [...this.pastes, data];
+	}
 	write(data: string) {
 		this.writes = [...this.writes, data];
 	}
@@ -226,6 +236,28 @@ test("opening a shell with nothing to replay leaves the screen untouched", async
 
 	expect(lastTerminal().resets).toBe(0);
 	expect(lastTerminal().writes).toEqual([]);
+
+	session.dispose();
+});
+
+test("Ctrl+Shift+V prevents the browser paste before pasting through xterm", async () => {
+	Object.defineProperty(navigator, "clipboard", {
+		configurable: true,
+		value: { readText: async () => "clipboard text" },
+	});
+	const session = await startSession();
+	const event = new KeyboardEvent("keydown", {
+		code: "KeyV",
+		ctrlKey: true,
+		shiftKey: true,
+		cancelable: true,
+	});
+
+	expect(lastTerminal().handleKey(event)).toBe(false);
+	await Promise.resolve();
+
+	expect(event.defaultPrevented).toBe(true);
+	expect(lastTerminal().pastes).toEqual(["clipboard text"]);
 
 	session.dispose();
 });

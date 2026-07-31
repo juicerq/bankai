@@ -335,6 +335,7 @@ export class RendererTerminalSession {
 			return false;
 		}
 
+		event.preventDefault();
 		if (event.code === "KeyC") {
 			this.copySelection();
 		} else {

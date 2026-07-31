@@ -660,6 +660,7 @@ class AgentActivityTracker {
 			return {
 				shellId: shell.shellId,
 				projectId: shell.projectId,
+				agentBound: presence !== undefined,
 				session: presence?.sessionId
 					? {
 							harness: presence.harness,

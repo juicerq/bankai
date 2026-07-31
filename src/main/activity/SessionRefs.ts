@@ -9,6 +9,7 @@ export interface SessionRef {
 export interface ShellSessionObservation {
 	shellId: string;
 	projectId: string;
+	agentBound: boolean;
 	session: SessionRef | undefined;
 }
 
@@ -45,6 +46,14 @@ export function reconcileSessionRefs(
 					shellId: observation.shellId,
 					session: observation.session,
 				});
+			}
+
+			continue;
+		}
+
+		if (observation.agentBound) {
+			if (remembered) {
+				next.set(observation.shellId, remembered);
 			}
 
 			continue;

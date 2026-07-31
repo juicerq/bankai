@@ -1,7 +1,7 @@
 ---
 title: What archiving a session means, from the two ways in to the one way out
 tags: [ui, continuity, activity]
-updated_at: 2026-07-29
+updated_at: 2026-07-31
 created_at: 2026-07-25
 ---
 
@@ -35,3 +35,9 @@ The mirror of that lives in `selectShell`, which pins a window-archived shell be
 ## Archiving the selected session moves the selection like closing does
 
 Archive, close and project removal all hand the selection over through the same reducer — see `session-selection.md`.
+
+## A bound agent without a readable conversation does not erase the resume target
+
+Agent discovery can identify a running harness before it can read that harness's native session id. Codex has this gap when its root rollout is temporarily unavailable. `reconcileSessionRefs` keeps the last resumable reference during that gap and replaces it when the bound harness publishes a session id. It clears the reference only after the shell has returned to its prompt with no agent bound.
+
+Without that distinction, an idle Codex could erase its own resume target before archive took the process down. Reopening the row would then follow new-shell autostart and could launch a blank Claude Code session instead of resuming Codex.

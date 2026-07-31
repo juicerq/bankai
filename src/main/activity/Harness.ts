@@ -1,3 +1,5 @@
+import type { ConversationLineParser } from "@main/activity/conversationTail";
+
 export interface AgentPresence {
 	harness: string;
 	sessionId?: string;
@@ -17,7 +19,11 @@ export interface HarnessCommand {
 export interface Harness {
 	id: string;
 	label: string;
-	conversation: boolean;
+	conversation?: {
+		transcript: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
+		parser: () => ConversationLineParser;
+		subagentTranscript?: (ref: { sessionId: string; cwd: string }, agent: string) => Promise<string | undefined>;
+	};
 	discover: () => Promise<AgentPresence[]>;
 	launch?: () => HarnessCommand;
 	resume?: (ref: { sessionId: string }) => HarnessCommand | null;

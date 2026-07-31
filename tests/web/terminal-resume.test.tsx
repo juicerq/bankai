@@ -17,6 +17,7 @@ class MockTerminal {
 	cols = 80;
 	rows = 24;
 	loadAddon() {}
+	attachCustomKeyEventHandler() {}
 	open() {}
 	focus() {}
 	write() {}

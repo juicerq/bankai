@@ -50,6 +50,7 @@ class MockTerminal {
 	}
 
 	loadAddon() {}
+	attachCustomKeyEventHandler() {}
 	open() {}
 	focus() {}
 	write(data: string) {

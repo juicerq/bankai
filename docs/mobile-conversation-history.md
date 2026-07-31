@@ -26,3 +26,7 @@ Each pull steps back one backfill window at a time, up to `CONVERSATION_HISTORY_
 ## One watch per address, and a subagent is an address
 
 A watch is keyed by connection, shell and optional agent (`${connection.id} ${shellId} ${agent ?? ""}`), so a shell and a subagent opened from inside it are two independent tails over two files. Every `reset`/`appended` event echoes the address back, and the client ignores any event whose address is not exactly its own — matching on `shellId` alone would feed a subagent's blocks into the parent screen.
+
+## The harness owns the transcript format
+
+`ConversationTail` owns byte windows, file growth and block merging, but it does not decide what a JSONL line means. The persisted session's harness supplies both the transcript locator and a fresh parser. Claude keeps its transcript and subagent rules; Codex locates its rollout by session id and parses only the validated records Mobile displays.

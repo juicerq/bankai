@@ -7,6 +7,11 @@ import { type ConversationBlock, type ConversationSnapshot, mergeConversationBlo
 
 export const CONVERSATION_BACKFILL_BYTES = 512 * 1024;
 
+export interface ConversationLineParser {
+	title: string | undefined;
+	consume: (line: string) => ConversationBlock[];
+}
+
 const READ_CHUNK_BYTES = 256 * 1024;
 const WATCH_INTERVAL_MS = 500;
 
@@ -23,7 +28,6 @@ async function openTranscript(path: string): Promise<FileHandle | undefined> {
 }
 
 export class ConversationTail {
-	private readonly parser = new ConversationParser();
 	private readonly decoder = new StringDecoder("utf8");
 	private pending = "";
 	private offset = 0;
@@ -38,6 +42,7 @@ export class ConversationTail {
 		private readonly path: string,
 		private readonly onAppended: (event: { blocks: ConversationBlock[]; title?: string }) => void,
 		private readonly watchIntervalMs: number = WATCH_INTERVAL_MS,
+		private readonly parser: ConversationLineParser = new ConversationParser(),
 	) {}
 
 	async start(from?: number): Promise<ConversationSnapshot> {

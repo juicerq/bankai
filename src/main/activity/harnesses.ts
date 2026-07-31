@@ -22,11 +22,15 @@ export function launchableHarnesses() {
 			{
 				id: harness.id,
 				label: harness.label,
-				conversation: harness.conversation,
+				conversation: !!harness.conversation,
 				file: launch().file,
 			},
 		];
 	});
+}
+
+export function harnessConversation(harnessId: string): Harness["conversation"] {
+	return harnesses.find((harness) => harness.id === harnessId)?.conversation;
 }
 
 export function harnessLaunch(harnessId: string): Harness["launch"] {

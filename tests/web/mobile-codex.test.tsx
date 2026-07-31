@@ -9,10 +9,6 @@ afterEach(cleanup);
 
 const NOW = 1_800_000_000_000;
 
-const DESKTOP_ONLY = { label: "Codex" };
-
-const NOTICE = "Conversas do Codex estão disponíveis apenas no desktop nesta versão.";
-
 class WatchedBox {
 	observe() {}
 	disconnect() {}
@@ -55,33 +51,29 @@ function renderConversation(patch: Partial<SessionRow> = {}) {
 			shellId={session.shellId}
 			session={{ row: session, onSend: async () => {}, onKey: async () => {} }}
 			conversation={CONVERSATION}
-			desktopOnly={DESKTOP_ONLY}
 			onBack={() => {}}
 		/>,
 	);
 }
 
-test("a codex session says its conversation lives on the desktop, in those exact words", () => {
+test("a Codex session paints its rollout and keeps the composer within reach", () => {
 	renderConversation();
 
-	expect(slot(get("mobile-conversation"), "desktop-only").textContent).toBe(NOTICE);
+	expect(query("desktop-only")).toBeNull();
+	expect(get("mobile-composer")).not.toBeNull();
+	expect(document.querySelector('[data-component="conversation-block"]')?.textContent).toContain("remover o debounce");
 });
 
-test("the desktop-only surface mounts nothing the user could type or send into", () => {
+test("a working Codex session can be interrupted from the phone", () => {
 	renderConversation({ activity: "working", since: NOW });
 
-	expect(query("mobile-composer")).toBeNull();
-	expect(query("mobile-attention")).toBeNull();
-	expect(query("mobile-keypad")).toBeNull();
-	expect(get("mobile-conversation").querySelector('[data-slot="reading"]')).toBeNull();
-	expect(document.querySelectorAll('[data-component="conversation-block"]')).toHaveLength(0);
+	expect(slot(get("mobile-composer"), "stop")).not.toBeNull();
 });
 
-test("a codex session waiting for the user still offers no attention card", () => {
+test("a Codex session waiting for the user offers the terminal choices", () => {
 	renderConversation({ activity: "needs-attention" });
 
-	expect(query("mobile-attention")).toBeNull();
-	expect(slot(get("mobile-conversation"), "desktop-only").textContent).toBe(NOTICE);
+	expect(get("mobile-attention")).not.toBeNull();
 });
 
 test("the session stays open and its back button still returns to the list", () => {
@@ -92,7 +84,6 @@ test("the session stays open and its back button still returns to the list", () 
 			shellId={session.shellId}
 			session={{ row: session, onSend: async () => {}, onKey: async () => {} }}
 			conversation={CONVERSATION}
-			desktopOnly={DESKTOP_ONLY}
 			onBack={() => {
 				left = true;
 			}}

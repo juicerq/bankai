@@ -31,9 +31,11 @@ A resumed session replays its whole history into the new rollout, and every repl
 
 Tool activity and subagent activity appear in the same stream, but the rollout format is external and unversioned. Every record has to be validated at the harness boundary. An unknown or malformed event costs that event's detail, never the Shell, Continuity, or the activity loop.
 
-## Naming needs one narrow message source, not a conversation parser
+## Naming and Mobile read different validated slices
 
-Observed root rollouts publish each submitted prompt as `event_msg` with `payload.type: "user_message"` and the text in `payload.message`. That is enough to build the bounded naming sample at a milestone. It does not justify feeding `response_item`, tool output, reasoning, or the whole rollout into Claude's conversation parser, and it does not establish a stable Mobile conversation contract.
+Observed root rollouts publish each submitted prompt as `event_msg` with `payload.type: "user_message"` and the text in `payload.message`. That is enough to build the bounded naming sample at a milestone. That observation alone does not justify feeding `response_item`, tool output, reasoning, or the whole rollout into Claude's conversation parser.
+
+Mobile has its own Codex parser at the harness boundary. It reads prompts from `event_msg.user_message`, assistant text from assistant `response_item.message` records, and tool state from matching function/custom call and output records. Developer and user response items are ignored so replayed context does not become visible conversation. Reasoning without a readable summary is ignored instead of exposing encrypted or opaque data.
 
 ## Interactive sessions are one Codex mode
 

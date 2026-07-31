@@ -21,7 +21,7 @@ describe("launchable harnesses", () => {
 	test("lists every harness that can be started", () => {
 		expect(launchableHarnesses()).toEqual([
 			{ id: ClaudeHarness.id, label: ClaudeHarness.label, conversation: true, file: "claude" },
-			{ id: CodexHarness.id, label: CodexHarness.label, conversation: false, file: "codex" },
+			{ id: CodexHarness.id, label: CodexHarness.label, conversation: true, file: "codex" },
 		]);
 	});
 

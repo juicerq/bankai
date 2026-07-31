@@ -1,6 +1,7 @@
+import { CodexConversationParser } from "@main/activity/codexConversation";
 import { codexSessionsDir } from "@main/activity/codexConfig";
 import { type CodexRolloutState, codexRollouts } from "@main/activity/codexRollout";
-import { codexTitle } from "@main/activity/codexTranscript";
+import { codexTitle, rolloutPath } from "@main/activity/codexTranscript";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/activity/Harness";
 import { CODEX_HARNESS_ID } from "@main/activity/harnessIds";
 import { procFs } from "@main/activity/procFs";
@@ -131,7 +132,10 @@ async function presenceOf(pid: number): Promise<CodexSighting | null> {
 export const CodexHarness: Harness = {
 	id: CODEX_HARNESS_ID,
 	label: "Codex",
-	conversation: false,
+	conversation: {
+		transcript: ({ sessionId }) => rolloutPath(sessionId),
+		parser: () => new CodexConversationParser(),
+	},
 	launch(): HarnessCommand {
 		return { file: "codex", args: [] };
 	},

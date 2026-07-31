@@ -2,8 +2,10 @@ import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { type } from "arktype";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/activity/Harness";
+import { ConversationParser } from "@main/activity/claudeConversation";
 import { claudeConfigDir } from "@main/activity/claudeConfig";
-import { transcriptTitle } from "@main/activity/claudeTranscript";
+import { locateTranscript, transcriptTitle } from "@main/activity/claudeTranscript";
+import { subagentTranscriptPath } from "@main/activity/subagentTranscript";
 import { CLAUDE_HARNESS_ID } from "@main/activity/harnessIds";
 import { SESSION_UUID } from "@main/activity/SessionRefs";
 import { claudeProposeName } from "@main/naming/claudeNamer";
@@ -69,7 +71,11 @@ function sessionsDirectory(): string {
 export const ClaudeHarness: Harness = {
 	id: CLAUDE_HARNESS_ID,
 	label: "Claude Code",
-	conversation: true,
+	conversation: {
+		transcript: locateTranscript,
+		parser: () => new ConversationParser(),
+		subagentTranscript: subagentTranscriptPath,
+	},
 	launch(): HarnessCommand {
 		return { file: "claude", args: [] };
 	},

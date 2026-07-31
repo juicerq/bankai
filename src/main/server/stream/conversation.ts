@@ -1,6 +1,5 @@
-import { locateTranscript } from "@main/activity/claudeTranscript";
+import { harnessConversation } from "@main/activity/harnesses";
 import { CONVERSATION_BACKFILL_BYTES, ConversationTail } from "@main/activity/conversationTail";
-import { subagentTranscriptPath } from "@main/activity/subagentTranscript";
 import { Logger } from "@main/logger";
 import type { StreamConnection } from "@main/server/stream/connection";
 import { releaseWatch, replaceWatch } from "@main/server/stream/connectionWatches";
@@ -151,19 +150,28 @@ class ConversationWatch {
 			return EMPTY_CONVERSATION;
 		}
 
+		const conversation = harnessConversation(session.harness);
+		if (!conversation) {
+			return EMPTY_CONVERSATION;
+		}
+
 		const path = this.address.agent
-			? await subagentTranscriptPath(session, this.address.agent)
-			: await locateTranscript(session);
+			? await conversation.subagentTranscript?.(session, this.address.agent)
+			: await conversation.transcript(session);
 
 		if (!path || generation !== this.generation) {
 			return EMPTY_CONVERSATION;
 		}
 
-		const tail = new ConversationTail(path, (event) =>
-			this.connection.send("conversation", "appended", {
-				...this.address,
-				...event,
-			} satisfies ConversationAppendedEvent),
+		const tail = new ConversationTail(
+			path,
+			(event) =>
+				this.connection.send("conversation", "appended", {
+					...this.address,
+					...event,
+				} satisfies ConversationAppendedEvent),
+			undefined,
+			conversation.parser(),
 		);
 		const snapshot = await tail.start(from);
 

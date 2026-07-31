@@ -254,12 +254,8 @@ function Bankai() {
 			requestNewShell,
 		],
 	);
-	const [numbersVisible, setNumbersVisible] = useState(false);
 	const holdModifier = useCallback(
-		(held: boolean) => {
-			setNumbersVisible(held);
-			projectRail.setModifierHeld(held);
-		},
+		(held: boolean) => projectRail.setModifierHeld(held),
 		[projectRail.setModifierHeld],
 	);
 	const jumpToRow = useCallback(
@@ -340,7 +336,6 @@ function Bankai() {
 					chosenProjectIds={chosen.projectIds}
 					selectedShellId={selectedShellId}
 					canCreateShell={availableProjects.length > 0}
-					numbersVisible={numbersVisible}
 					onSelect={selectSession}
 					onCreate={createShell}
 					onRequestShell={requestNewShell}

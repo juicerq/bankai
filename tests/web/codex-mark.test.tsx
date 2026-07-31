@@ -45,7 +45,6 @@ function renderCards(selectedShellId?: string) {
 			chosenProjectIds={new Set()}
 			selectedShellId={selectedShellId}
 			canCreateShell
-			numbersVisible={false}
 			onSelect={() => {}}
 			onCreate={() => {}}
 			onRequestShell={() => {}}

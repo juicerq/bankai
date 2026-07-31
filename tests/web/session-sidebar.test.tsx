@@ -45,7 +45,6 @@ function renderSidebar(
 		onRequestShell?: (plain: boolean) => void;
 		onToggleProject?: (projectId: string) => void;
 		canCreateShell?: boolean;
-		numbersVisible?: boolean;
 		projects?: Project[];
 		chosenProjectIds?: ReadonlySet<string>;
 	} = {},
@@ -70,7 +69,6 @@ function renderSidebar(
 				chosenProjectIds={handlers.chosenProjectIds ?? new Set()}
 				selectedShellId={undefined}
 				canCreateShell={handlers.canCreateShell ?? true}
-				numbersVisible={handlers.numbersVisible ?? false}
 				onSelect={handlers.onSelect ?? (() => {})}
 				onCreate={handlers.onCreate ?? (() => {})}
 				onRequestShell={handlers.onRequestShell ?? (() => {})}
@@ -501,28 +499,10 @@ test("a double click on a row does not start a rename", () => {
 	expect(sessionRow("s1").querySelector('[data-slot="rename-session"]')).toBeNull();
 });
 
-test("holding the modifier paints the numbers the keyboard reaches", () => {
-	renderSidebar(
-		{ open: [row("s1", { harness: "codex" })], archived: [row("s2", { archivedAt: NOW })] },
-		{ numbersVisible: true },
-	);
+test("session rows leave shortcut numbers out of project names", () => {
+	renderSidebar({ open: [row("s1", { harness: "codex" })], archived: [row("s2", { archivedAt: NOW })] });
 
-	expect(slot(sessionRow("s1"), "session-number").textContent).toBe("alt + 1");
-	expect(slot(sessionRow("s2"), "session-number").textContent).toBe("alt + 2");
+	expect(sessionRow("s1").textContent).not.toContain("alt +");
+	expect(sessionRow("s2").textContent).not.toContain("alt +");
 	expect(sessionRow("s1").querySelector("[aria-label='Codex']")).not.toBeNull();
-});
-
-test("releasing the modifier takes the numbers away", () => {
-	renderSidebar({ open: [row("s1")] }, { numbersVisible: false });
-
-	expect(sessionRow("s1").querySelector('[data-slot="session-number"]')).toBeNull();
-});
-
-test("a closed archive takes its rows out of the numbering", () => {
-	renderSidebar({ open: [row("s1")], archived: [row("s2", { archivedAt: NOW })] }, { numbersVisible: true });
-
-	fireEvent.click(get("session-shelf"));
-	fireEvent.click(get("session-shelf"));
-
-	expect(slot(sessionRow("s2"), "session-number").textContent).toBe("alt + 2");
 });

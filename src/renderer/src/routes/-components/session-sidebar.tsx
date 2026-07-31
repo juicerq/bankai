@@ -23,7 +23,6 @@ import type { useSessionList } from "@renderer/routes/-utils/use-session-list";
 
 interface SessionGestures {
 	selectedShellId: string | undefined;
-	numbers: ReadonlyMap<string, number>;
 	renamingShellId: string | undefined;
 	onSelect: (projectId: string, shellId: string) => void;
 	onClose: (projectId: string, shellId: string) => void;
@@ -40,7 +39,6 @@ export function SessionSidebar({
 	chosenProjectIds,
 	selectedShellId,
 	canCreateShell,
-	numbersVisible,
 	onSelect,
 	onCreate,
 	onRequestShell,
@@ -55,7 +53,6 @@ export function SessionSidebar({
 	projects: Project[];
 	chosenProjectIds: ReadonlySet<string>;
 	selectedShellId: string | undefined;
-	numbersVisible: boolean;
 	canCreateShell: boolean;
 	onSelect: (projectId: string, shellId: string) => void;
 	onCreate: (projectId: string) => void;
@@ -72,13 +69,8 @@ export function SessionSidebar({
 	const closeMenu = useCallback(() => setMenu(undefined), []);
 	const registerMenuDismissal = useMenuDismissal(closeMenu);
 
-	const numbers = new Map(
-		numbersVisible ? list.numbered.map((row, index) => [row.shellId, index + 1] as const) : [],
-	);
-
 	const gestures: SessionGestures = {
 		selectedShellId,
-		numbers,
 		renamingShellId,
 		onSelect,
 		onClose,
@@ -236,28 +228,11 @@ function HarnessMark({ harness, active }: { harness: string | undefined; active:
 	);
 }
 
-function SessionShortcutHint({ number }: { number: number | undefined }) {
-	if (number === undefined) {
-		return null;
-	}
-
-	return (
-		<span data-slot="session-number" className="shrink-0 text-tertiary" aria-hidden="true">
-			alt + {number}
-		</span>
-	);
-}
-
 function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGestures }) {
-	const number = row.shellId === gestures.selectedShellId ? undefined : gestures.numbers.get(row.shellId);
-
 	return (
 		<SessionEntry row={row} gestures={gestures} archived={false}>
 			<span className="flex w-full items-center gap-2">
-				<span className="flex min-w-0 flex-1 items-baseline gap-1 text-data">
-					<span className="min-w-0 truncate text-secondary">{row.projectName}</span>
-					<SessionShortcutHint number={number} />
-				</span>
+				<span className="min-w-0 flex-1 truncate text-data text-secondary">{row.projectName}</span>
 				<HarnessMark harness={row.harness} active={row.shellId === gestures.selectedShellId} />
 			</span>
 			<span className="w-full truncate text-body text-primary">{row.title}</span>
@@ -283,15 +258,10 @@ function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGest
 }
 
 function SessionShelfRow({ row, gestures }: { row: SessionRow; gestures: SessionGestures }) {
-	const number = row.shellId === gestures.selectedShellId ? undefined : gestures.numbers.get(row.shellId);
-
 	return (
 		<SessionEntry row={row} gestures={gestures} archived>
 			<span className="min-w-0 flex-1 truncate text-body text-secondary">{row.title}</span>
-			<span className="flex shrink-0 items-baseline gap-1 text-data group-hover:invisible">
-				<span className="text-outline-strong">{row.projectName}</span>
-				<SessionShortcutHint number={number} />
-			</span>
+			<span className="shrink-0 text-data text-outline-strong group-hover:invisible">{row.projectName}</span>
 		</SessionEntry>
 	);
 }

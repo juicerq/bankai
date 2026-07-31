@@ -1,7 +1,7 @@
 ---
 title: How to open the dev renderer on a phone, and why the packaged path refuses
 tags: [server, env]
-updated_at: 2026-07-28
+updated_at: 2026-07-31
 created_at: 2026-07-28
 ---
 
@@ -20,8 +20,6 @@ The equivalent by hand, if the toggle is not involved:
 ```sh
 tailscale serve --bg --https=443 http://127.0.0.1:4697
 ```
-
-Port 5173 is left alone on purpose: something else on this machine squats it.
 
 ## The plain tailnet listener forwards to vite instead of refusing
 

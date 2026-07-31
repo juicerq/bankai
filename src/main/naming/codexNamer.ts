@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { codexMaterial } from "@main/activity/codexTranscript";
 import type { HarnessCommand } from "@main/activity/Harness";
-import { NAMING_ENV } from "@main/activity/HookSource";
 import { Logger } from "@main/logger";
 import { acceptedName, NAME_TARGET_CHARS } from "@main/naming/nameContract";
 import { type } from "arktype";
@@ -28,7 +27,6 @@ interface NamingCall extends HarnessCommand {
 		timeout: number;
 		maxBuffer: number;
 		windowsHide: boolean;
-		env: NodeJS.ProcessEnv;
 	};
 }
 
@@ -75,7 +73,6 @@ export function namingCall(input: {
 			timeout: NAMING_TIMEOUT_MS,
 			maxBuffer: NAMING_OUTPUT_MAX_BYTES,
 			windowsHide: true,
-			env: { ...process.env, [NAMING_ENV]: "1" },
 		},
 	};
 }

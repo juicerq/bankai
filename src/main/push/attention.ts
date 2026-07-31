@@ -1,10 +1,6 @@
-import type { ShellAttention } from "@shared/activity";
-
 export const PUSH_DEFAULT_TITLE = "Bankai";
 
 export const PUSH_DEFAULT_BODY = "Needs attention";
-
-export const PUSH_BODY_MAX_LENGTH = 200;
 
 export interface AttentionPushPayload {
 	title: string;
@@ -30,28 +26,12 @@ function pushPayload(subject: PushSubject, body: string): AttentionPushPayload {
 	};
 }
 
-export function attentionPushPayload(input: PushSubject & { attention?: ShellAttention }): AttentionPushPayload {
-	return pushPayload(input, attentionBody(input.attention));
+export function attentionPushPayload(input: PushSubject): AttentionPushPayload {
+	return pushPayload(input, PUSH_DEFAULT_BODY);
 }
 
 export function donePushPayload(input: PushSubject & { project?: string }): AttentionPushPayload {
 	return pushPayload(input, input.project?.trim() ? `${PUSH_DONE_BODY} in ${input.project}` : PUSH_DONE_BODY);
-}
-
-function attentionBody(attention: ShellAttention | undefined): string {
-	if (!attention?.message.trim()) {
-		return PUSH_DEFAULT_BODY;
-	}
-
-	return capped(attention.message);
-}
-
-function capped(body: string): string {
-	if (body.length <= PUSH_BODY_MAX_LENGTH) {
-		return body;
-	}
-
-	return `${body.slice(0, PUSH_BODY_MAX_LENGTH - 1)}…`;
 }
 
 export function subscriptionGone(statusCode?: number): boolean {

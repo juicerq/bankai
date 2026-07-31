@@ -43,8 +43,8 @@ beforeEach(() => {
 	onClose.mockClear();
 	transport = {
 		harnesses: [
-			{ id: "claude", label: "Claude Code", conversation: true, hooks: true, available: true },
-			{ id: "codex", label: "Codex", conversation: false, hooks: false, available: true },
+			{ id: "claude", label: "Claude Code", conversation: true, available: true },
+			{ id: "codex", label: "Codex", conversation: false, available: true },
 		],
 		harness: { autostart: true, id: "claude" },
 		updates: [],
@@ -114,7 +114,7 @@ test("closes on Escape and on a click outside the panel", async () => {
 });
 
 test("marks a harness the shell cannot find and never calls it current", async () => {
-	transport.harnesses = [{ id: "claude", label: "Claude Code", conversation: true, hooks: true, available: false }];
+	transport.harnesses = [{ id: "claude", label: "Claude Code", conversation: true, available: false }];
 	await loadedModal();
 
 	const row = get("settings-harness", { id: "claude" });
@@ -333,22 +333,6 @@ test("keeps naming in the profile of the harness it was toggled on", async () =>
 		expect(transport.updates.at(-1)?.profiles).toEqual({ codex: { naming: false } });
 	});
 	expect(modal).not.toBeNull();
-});
-
-test("offers the hook only to the harness that has one, and saves it in that profile", async () => {
-	const modal = await loadedModal();
-
-	fireEvent.click(slot(modal, "harness-hooks"));
-
-	await waitFor(() => {
-		expect(transport.updates.at(-1)?.profiles).toEqual({ claude: { hooks: false } });
-	});
-
-	fireEvent.click(get("settings-harness", { id: "codex" }));
-
-	await waitFor(() => {
-		expect(get("settings-modal").querySelector('[data-slot="harness-hooks"]')).toBeNull();
-	});
 });
 
 test("hands each harness its own extra arguments field", async () => {

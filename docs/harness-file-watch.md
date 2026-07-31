@@ -32,4 +32,6 @@ A watcher that errors later (its file was deleted) closes itself and drops out o
 
 ## Why the full pass stays
 
+This replaced the hook Bankai used to install into a harness's own configuration — see `adr/0009-a-harness-is-watched-never-configured.md`. `removeInstalledHooks` in `src/main/activity/hookRemoval.ts` takes that hook back out on every start.
+
 The watchers only make the common edge fast. The periodic pass is what notices a dead session, a card whose state drifted, and any edge no watcher reported. With no watcher able to attach at all, every card still reaches every state — only slower.

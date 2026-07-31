@@ -48,7 +48,6 @@ function row(patch: Partial<SessionRow> = {}): SessionRow {
 		archivedAt: undefined,
 		activity: undefined,
 		since: undefined,
-		attention: undefined,
 		...patch,
 	};
 }

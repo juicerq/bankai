@@ -1,7 +1,5 @@
 export type AgentActivityState = "working" | "needs-attention" | "done";
 
-export const DEFAULT_HARNESS_HOOKS = true;
-
 export const DEFAULT_SESSION_NAMING = true;
 
 const AGGREGATE_PRIORITY: AgentActivityState[] = ["needs-attention", "done", "working"];
@@ -16,16 +14,10 @@ export function aggregateActivity(states: AgentActivityState[]): AgentActivitySt
 	return null;
 }
 
-export interface ShellAttention {
-	message: string;
-	at: number;
-}
-
 export interface ProjectActivitySnapshot {
 	shells: Record<string, AgentActivityState>;
 	worktreeByShellId: Record<string, string>;
 	statusSinceByShellId: Record<string, number>;
-	attentionByShellId: Record<string, ShellAttention>;
 }
 
 export interface ActivityChangedEvent extends ProjectActivitySnapshot {

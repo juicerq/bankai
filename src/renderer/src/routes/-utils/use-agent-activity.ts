@@ -1,20 +1,18 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { activityStream } from "@renderer/lib/stream/activity";
 import { streamResync } from "@renderer/lib/stream/resync";
-import type { AgentActivityState, ProjectActivitySnapshot, ShellAttention } from "@shared/activity";
+import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
 
 export interface AgentActivities {
 	shells: ReadonlyMap<string, AgentActivityState>;
 	worktrees: ReadonlyMap<string, string>;
 	statusSince: ReadonlyMap<string, number>;
-	attention: ReadonlyMap<string, ShellAttention>;
 }
 
 const EMPTY_ACTIVITIES: AgentActivities = {
 	shells: new Map(),
 	worktrees: new Map(),
 	statusSince: new Map(),
-	attention: new Map(),
 };
 
 export function useAgentActivities(projectIds: string[]): AgentActivities {
@@ -51,7 +49,6 @@ class AgentActivityObserver {
 	private readonly shells = new MergedByProject<AgentActivityState>();
 	private readonly worktrees = new MergedByProject<string>();
 	private readonly statusSince = new MergedByProject<number>();
-	private readonly attention = new MergedByProject<ShellAttention>();
 
 	constructor(private readonly projectIds: string[]) {}
 
@@ -98,7 +95,6 @@ class AgentActivityObserver {
 			shells: this.shells.merge(projectId, this.snapshot.shells, snapshot.shells),
 			worktrees: this.worktrees.merge(projectId, this.snapshot.worktrees, snapshot.worktreeByShellId),
 			statusSince: this.statusSince.merge(projectId, this.snapshot.statusSince, snapshot.statusSinceByShellId),
-			attention: this.attention.merge(projectId, this.snapshot.attention, snapshot.attentionByShellId),
 		};
 		this.notify?.();
 	}

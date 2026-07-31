@@ -21,7 +21,6 @@ function rowsOf(
 		projects: PROJECTS,
 		shellActivity: new Map(Object.entries(activity)),
 		statusSince: new Map(Object.entries(statusSince)),
-		attention: new Map(),
 	});
 }
 
@@ -191,7 +190,6 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		archivedAt: undefined,
 		activity: undefined,
 		since: undefined,
-		attention: undefined,
 		...patch,
 	};
 }

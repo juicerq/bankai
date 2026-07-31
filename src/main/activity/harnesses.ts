@@ -23,15 +23,10 @@ export function launchableHarnesses() {
 				id: harness.id,
 				label: harness.label,
 				conversation: harness.conversation,
-				hooks: !!harness.hooks,
 				file: launch().file,
 			},
 		];
 	});
-}
-
-export function hookableHarnessIds(): string[] {
-	return harnesses.flatMap((harness) => (harness.hooks ? [harness.id] : []));
 }
 
 export function harnessLaunch(harnessId: string): Harness["launch"] {
@@ -50,16 +45,8 @@ export function harnessProposeName(harnessId: string): Harness["proposeName"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.proposeName;
 }
 
-export function harnessHooks(harnessId: string): Harness["hooks"] {
-	return harnesses.find((harness) => harness.id === harnessId)?.hooks;
-}
-
 export function harnessWatchPaths(): string[] {
 	return harnesses.flatMap((harness) => harness.watch?.() ?? []);
-}
-
-export function harnessReader(harnessId: string): Harness["read"] {
-	return harnesses.find((harness) => harness.id === harnessId)?.read;
 }
 
 export async function discoverAgents(): Promise<AgentPresence[]> {

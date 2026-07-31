@@ -4,16 +4,11 @@ import { deliverAttentionPush } from "@main/push/deliver";
 import { type PushSender, sendWebPush, vapidKeys } from "@main/push/webPush";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
-import type { ShellAttention } from "@shared/activity";
 
 export const mobileTurnShells = new Set<string>();
 
 export async function pushNeedsAttention(
-	input: {
-		projectId: string;
-		shellId: string;
-		attention?: ShellAttention;
-	},
+	input: { projectId: string; shellId: string },
 	send: PushSender = sendWebPush,
 ): Promise<void> {
 	if (!mobileTurnShells.has(input.shellId) && shellFocused(input.shellId)) {
@@ -27,7 +22,6 @@ export async function pushNeedsAttention(
 			shellId: input.shellId,
 			...(shell?.title ? { title: shell.title } : {}),
 			...(shell?.branch ? { branch: shell.branch } : {}),
-			...(input.attention ? { attention: input.attention } : {}),
 		}),
 		vapid: vapidKeys,
 		send,

@@ -24,7 +24,6 @@ function row(shellId: string, harness: string): SessionRow {
 		archivedAt: undefined,
 		activity: undefined,
 		since: undefined,
-		attention: undefined,
 	};
 }
 

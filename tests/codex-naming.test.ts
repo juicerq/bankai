@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { CodexHarness } from "@main/activity/codex";
 import { codexSessionsDir } from "@main/activity/codexConfig";
 import { codexMaterial, codexTitle, messageIntent, rolloutPath } from "@main/activity/codexTranscript";
-import { NAMING_ENV } from "@main/activity/HookSource";
 import { MATERIAL_EDGE_COUNT, MATERIAL_MESSAGE_LIMIT, MATERIAL_TOTAL_LIMIT } from "@main/activity/transcriptMaterial";
 import { codexProposeName, namingCall, NAMING_TIMEOUT_MS, proposedName } from "@main/naming/codexNamer";
 import { NAME_MAX_CHARS } from "@main/naming/nameContract";
@@ -127,10 +126,6 @@ describe("the naming call", () => {
 		expect(call.options.timeout).toBe(NAMING_TIMEOUT_MS);
 	});
 
-	test("tells the hook script this process is the namer, not a session", () => {
-		expect(call.options.env[NAMING_ENV]).toBe("1");
-	});
-
 	test("carries the messages it is naming", () => {
 		expect(call.args.at(-1)).toContain("remover o debounce do resize");
 	});
@@ -199,7 +194,6 @@ describe("a real bounded naming call", () => {
 				});
 				const child = Bun.spawn([call.file, ...call.args], {
 					cwd: call.options.cwd,
-					env: call.options.env,
 					stdin: "ignore",
 					stdout: "ignore",
 					stderr: "ignore",

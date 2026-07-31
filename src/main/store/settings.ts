@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { type } from "arktype";
 import { Store } from "@main/store/Store";
-import { DEFAULT_HARNESS_HOOKS, DEFAULT_SESSION_NAMING } from "@shared/activity";
+import { DEFAULT_SESSION_NAMING } from "@shared/activity";
 import { SERVER_DEFAULT_PORT, SERVER_TOKEN_BYTES, type ServerReach } from "@shared/server";
 
 const windowBoundsSchema = type({
@@ -26,8 +26,8 @@ export type LayoutSettings = typeof layoutSchema.infer;
 
 const harnessProfileSchema = type({
 	"args?": "string",
-	"hooks?": "boolean",
 	"naming?": "boolean",
+	"+": "delete",
 });
 export type HarnessProfile = typeof harnessProfileSchema.infer;
 
@@ -53,10 +53,6 @@ export type HarnessSettings = typeof harnessSchema.infer;
 
 export function harnessProfile(harness: HarnessSettings | undefined, harnessId: string): HarnessProfile {
 	return harness?.profiles?.[harnessId] ?? {};
-}
-
-export function harnessHooksEnabled(profile: HarnessProfile): boolean {
-	return profile.hooks ?? DEFAULT_HARNESS_HOOKS;
 }
 
 export function sessionNamingEnabled(profile: HarnessProfile): boolean {
@@ -122,47 +118,6 @@ function withHarnessProfiles(raw: unknown): unknown {
 	return { ...rest, harness: { autostart, id, profiles: { [id]: profile } } };
 }
 
-const tracedProfileSchema = type({
-	"args?": "string",
-	"liveTrace?": "boolean",
-	"naming?": "boolean",
-}).pipe(({ liveTrace, ...profile }): HarnessProfile => ({
-	...profile,
-	...(liveTrace !== undefined && { hooks: liveTrace }),
-}));
-
-const tracedHarnessSchema = type({
-	autostart: "boolean",
-	id: "string",
-	"profiles?": type("object").pipe((raw): Record<string, HarnessProfile> => {
-		const profiles: Record<string, HarnessProfile> = {};
-
-		for (const [harnessId, value] of Object.entries(raw)) {
-			const profile = tracedProfileSchema(value);
-			if (!(profile instanceof type.errors)) {
-				profiles[harnessId] = profile;
-			}
-		}
-
-		return profiles;
-	}),
-});
-
-function withHarnessHooks(raw: unknown): unknown {
-	if (typeof raw !== "object" || raw === null || !("harness" in raw)) {
-		return raw;
-	}
-
-	const harness = tracedHarnessSchema(raw.harness);
-	if (harness instanceof type.errors) {
-		const { harness: _dropped, ...rest } = raw;
-
-		return rest;
-	}
-
-	return { ...raw, harness };
-}
-
 const store = new Store({
 	name: "settings",
 	version: 6,
@@ -175,7 +130,7 @@ const store = new Store({
 		2: (raw) => raw,
 		3: (raw) => raw,
 		4: withHarnessProfiles,
-		5: withHarnessHooks,
+		5: (raw) => raw,
 	},
 	seed: (): SettingsValue => ({}),
 });

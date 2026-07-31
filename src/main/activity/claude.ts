@@ -3,8 +3,6 @@ import { join } from "node:path";
 import { type } from "arktype";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/activity/Harness";
 import { claudeConfigDir } from "@main/activity/claudeConfig";
-import { claudeHooks } from "@main/activity/claudeHooks";
-import { claudeRead } from "@main/activity/claudeSpool";
 import { transcriptTitle } from "@main/activity/claudeTranscript";
 import { CLAUDE_HARNESS_ID } from "@main/activity/harnessIds";
 import { SESSION_UUID } from "@main/activity/SessionRefs";
@@ -84,8 +82,6 @@ export const ClaudeHarness: Harness = {
 	},
 	title: transcriptTitle,
 	proposeName: claudeProposeName,
-	read: claudeRead,
-	hooks: claudeHooks,
 	watch: () => [sessionsDirectory()],
 	async discover() {
 		const directory = sessionsDirectory();

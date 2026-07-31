@@ -3,16 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import {
-	ATTENTION_SKEW_MS,
 	attentionEntryShells,
 	clockSince,
 	doneShells,
-	freshAttention,
 	nextShellActivity,
 	nextShellWorktrees,
 	snapshotsByProject,
 	turnBaselineShells,
-	turnEnded,
 	turnStartShells,
 } from "@main/activity/AgentActivity";
 import { ClaudeHarness, parseSessionRecord } from "@main/activity/claude";
@@ -73,28 +70,6 @@ describe("needs-attention", () => {
 		expect(nextShellActivity(undefined, "waiting")).toBe("needs-attention");
 	});
 
-});
-
-describe("the harness reporting the end of its own turn", () => {
-	const working = { status: "working", statusSince: 1784901075701 } as const;
-
-	test("an end newer than the reported status finishes the turn before the poll sees it", () => {
-		expect(turnEnded(working, 1784901076200)).toBe(true);
-		expect(nextShellActivity("working", "idle")).toBe("done");
-	});
-
-	test("the end of the previous turn does not finish the one running now", () => {
-		expect(turnEnded(working, 1784901075000)).toBe(false);
-	});
-
-	test("a shell with no end reported keeps the status the poll found", () => {
-		expect(turnEnded(working)).toBe(false);
-		expect(turnEnded(undefined, 1784901076200)).toBe(false);
-	});
-
-	test("an open prompt outranks the end of a turn", () => {
-		expect(turnEnded({ status: "waiting", statusSince: 1784901075701 }, 1784901076200)).toBe(false);
-	});
 });
 
 describe("project aggregation", () => {
@@ -276,7 +251,6 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map(),
-			attention: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -284,7 +258,6 @@ describe("project snapshots", () => {
 			shells: { "shell-a": "working", "shell-b": "needs-attention" },
 			worktreeByShellId: {},
 			statusSinceByShellId: {},
-			attentionByShellId: {},
 		});
 	});
 
@@ -294,7 +267,6 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map(),
-			attention: new Map(),
 			doneShells: new Map([["shell-c", { projectId: "p2", at: 1784901075701 }]]),
 		});
 
@@ -303,7 +275,6 @@ describe("project snapshots", () => {
 			shells: { "shell-c": "done" },
 			worktreeByShellId: {},
 			statusSinceByShellId: { "shell-c": 1784901075701 },
-			attentionByShellId: {},
 		});
 	});
 
@@ -313,7 +284,6 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map(),
-			attention: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -327,7 +297,6 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map([["shell-a", "/tmp/repo-slug"]]),
 			statusSince: new Map(),
-			attention: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -335,7 +304,6 @@ describe("project snapshots", () => {
 			shells: { "shell-a": "working" },
 			worktreeByShellId: { "shell-a": "/tmp/repo-slug" },
 			statusSinceByShellId: {},
-			attentionByShellId: {},
 		});
 	});
 
@@ -345,7 +313,6 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map(),
-			attention: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -358,7 +325,6 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map([["shell-c", "/tmp/repo-slug"]]),
 			statusSince: new Map(),
-			attention: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -366,7 +332,6 @@ describe("project snapshots", () => {
 			shells: {},
 			worktreeByShellId: { "shell-c": "/tmp/repo-slug" },
 			statusSinceByShellId: {},
-			attentionByShellId: {},
 		});
 	});
 
@@ -376,7 +341,6 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map([["shell-a", 1784901075701], ["shell-b", 1784901169072]]),
-			attention: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -389,7 +353,6 @@ describe("project snapshots", () => {
 			owners: new Map(),
 			worktrees: new Map(),
 			statusSince: new Map(),
-			attention: new Map(),
 			doneShells: new Map([["shell-c", { projectId: "p2", at: 1784901075701 }]]),
 		});
 
@@ -397,7 +360,6 @@ describe("project snapshots", () => {
 			shells: { "shell-c": "done" },
 			worktreeByShellId: {},
 			statusSinceByShellId: { "shell-c": 1784901075701 },
-			attentionByShellId: {},
 		});
 	});
 
@@ -407,7 +369,6 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map([["shell-a", 1784901169072]]),
-			attention: new Map(),
 			doneShells: new Map([["shell-a", { projectId: "p1", at: 1784901075701 }]]),
 		});
 
@@ -421,7 +382,6 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map([["shell-c", 1784901075701]]),
-			attention: new Map(),
 			doneShells: new Map(),
 		});
 
@@ -434,7 +394,6 @@ describe("project snapshots", () => {
 			owners,
 			worktrees: new Map(),
 			statusSince: new Map(),
-			attention: new Map(),
 			doneShells: new Map(),
 		}).size).toBe(0);
 	});
@@ -689,35 +648,5 @@ describe("how long the card has held its state", () => {
 
 	test("a harness with no clock leaves the card without one", () => {
 		expect(clockSince({ previous: undefined, next: "working", held: undefined, reported: undefined })).toBeUndefined();
-	});
-});
-
-describe("labelling the wait the phone is looking at", () => {
-	const WAIT_STARTED = 1784901075701;
-	const ASKING = { message: "Claude needs your permission to use Bash", at: WAIT_STARTED + 40 };
-
-	test("a notification from this wait labels it", () => {
-		expect(freshAttention({ attention: ASKING, bound: "waiting", statusSince: WAIT_STARTED })).toEqual(ASKING);
-	});
-
-	test("a notification left over from an earlier wait is not offered", () => {
-		const stale = { ...ASKING, at: WAIT_STARTED - ATTENTION_SKEW_MS - 1 };
-
-		expect(freshAttention({ attention: stale, bound: "waiting", statusSince: WAIT_STARTED })).toBeUndefined();
-	});
-
-	test("a hook that ran just before the registry moved still counts as this wait", () => {
-		const early = { ...ASKING, at: WAIT_STARTED - ATTENTION_SKEW_MS + 1 };
-
-		expect(freshAttention({ attention: early, bound: "waiting", statusSince: WAIT_STARTED })).toEqual(early);
-	});
-
-	test("an agent that is not waiting has nothing to ask", () => {
-		expect(freshAttention({ attention: ASKING, bound: "working", statusSince: WAIT_STARTED })).toBeUndefined();
-		expect(freshAttention({ attention: undefined, bound: "waiting", statusSince: WAIT_STARTED })).toBeUndefined();
-	});
-
-	test("a wait with no clock trusts the notification it has", () => {
-		expect(freshAttention({ attention: ASKING, bound: "waiting", statusSince: undefined })).toEqual(ASKING);
 	});
 });

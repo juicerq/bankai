@@ -1,5 +1,5 @@
 import type { ContinuityValue } from "@main/store/continuity";
-import type { AgentActivityState, ShellAttention } from "@shared/activity";
+import type { AgentActivityState } from "@shared/activity";
 import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity";
 
 export interface SessionRow {
@@ -14,7 +14,6 @@ export interface SessionRow {
 	archivedAt: number | undefined;
 	activity: AgentActivityState | undefined;
 	since: number | undefined;
-	attention: ShellAttention | undefined;
 }
 
 export function sessionRows(input: {
@@ -22,7 +21,6 @@ export function sessionRows(input: {
 	projects: { id: string; name: string }[];
 	shellActivity: ReadonlyMap<string, AgentActivityState>;
 	statusSince: ReadonlyMap<string, number>;
-	attention: ReadonlyMap<string, ShellAttention>;
 }): SessionRow[] {
 	const rows: SessionRow[] = [];
 
@@ -49,7 +47,6 @@ export function sessionRows(input: {
 				archivedAt: shell.archivedAt,
 				activity,
 				since: activity ? (input.statusSince.get(shell.id) ?? shell.doneAt) : undefined,
-				attention: input.attention.get(shell.id),
 			});
 		}
 	}

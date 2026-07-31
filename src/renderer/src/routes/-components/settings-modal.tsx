@@ -5,12 +5,11 @@ import { PickerHint } from "@renderer/routes/-components/picker-hint";
 import { Setting } from "@renderer/routes/-components/settings-controls";
 import { MobileAccessSetting } from "@renderer/routes/-components/settings-mobile-access";
 import { useHarnessSettings } from "@renderer/routes/-utils/use-harness-settings";
-import { DEFAULT_HARNESS_HOOKS, DEFAULT_SESSION_NAMING } from "@shared/activity";
+import { DEFAULT_SESSION_NAMING } from "@shared/activity";
 
 interface LaunchableHarness {
 	id: string;
 	label: string;
-	hooks: boolean;
 	available: boolean;
 }
 
@@ -79,9 +78,7 @@ function SettingsBody({
 	onSave: (patch: Partial<Pick<HarnessSettings, "autostart" | "id">>) => void;
 	onSaveProfile: (patch: Partial<HarnessProfile>) => void;
 }) {
-	const hooks = profile.hooks ?? DEFAULT_HARNESS_HOOKS;
 	const naming = profile.naming ?? DEFAULT_SESSION_NAMING;
-	const hookable = harnesses.some((entry) => entry.id === harness.id && entry.hooks);
 
 	return (
 		<div className="divide-y divide-outline">
@@ -111,15 +108,6 @@ function SettingsBody({
 					onCommit={(args) => onSaveProfile({ args })}
 				/>
 			</Setting>
-			{hookable && (
-				<Setting
-					title="Let the harness tell Bankai when it stops"
-					description="Adds a hook to the harness so a card turns Done, or asks for you, the moment it happens instead of on the next poll."
-					slot="harness-hooks"
-					on={hooks}
-					onToggle={() => onSaveProfile({ hooks: !hooks })}
-				/>
-			)}
 			<Setting
 				title="Name every session from its conversation"
 				description="Asks the harness for a short name a few times as a session grows. Off, a card keeps the first thing you typed."

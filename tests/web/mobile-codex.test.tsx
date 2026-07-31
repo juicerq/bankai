@@ -34,7 +34,6 @@ function row(patch: Partial<SessionRow> = {}): SessionRow {
 		archivedAt: undefined,
 		activity: undefined,
 		since: undefined,
-		attention: undefined,
 		...patch,
 	};
 }
@@ -79,7 +78,7 @@ test("the desktop-only surface mounts nothing the user could type or send into",
 });
 
 test("a codex session waiting for the user still offers no attention card", () => {
-	renderConversation({ activity: "needs-attention", attention: { message: "Allow?", at: NOW } });
+	renderConversation({ activity: "needs-attention" });
 
 	expect(query("mobile-attention")).toBeNull();
 	expect(slot(get("mobile-conversation"), "desktop-only").textContent).toBe(NOTICE);

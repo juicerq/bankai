@@ -20,8 +20,8 @@ describe("claude launch command", () => {
 describe("launchable harnesses", () => {
 	test("lists every harness that can be started", () => {
 		expect(launchableHarnesses()).toEqual([
-			{ id: ClaudeHarness.id, label: ClaudeHarness.label, conversation: true, hooks: true, file: "claude" },
-			{ id: CodexHarness.id, label: CodexHarness.label, conversation: false, hooks: false, file: "codex" },
+			{ id: ClaudeHarness.id, label: ClaudeHarness.label, conversation: true, file: "claude" },
+			{ id: CodexHarness.id, label: CodexHarness.label, conversation: false, file: "codex" },
 		]);
 	});
 

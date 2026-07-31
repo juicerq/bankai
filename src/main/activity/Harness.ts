@@ -1,5 +1,3 @@
-import type { ShellAttention } from "@shared/activity";
-
 export interface AgentPresence {
 	harness: string;
 	sessionId: string;
@@ -16,16 +14,6 @@ export interface HarnessCommand {
 	args: string[];
 }
 
-export interface HarnessReading {
-	endedAt?: number;
-	attention?: ShellAttention;
-}
-
-export interface HarnessHooks {
-	install: () => Promise<void>;
-	uninstall: () => Promise<void>;
-}
-
 export interface Harness {
 	id: string;
 	label: string;
@@ -35,7 +23,5 @@ export interface Harness {
 	resume?: (ref: { sessionId: string }) => HarnessCommand | null;
 	title?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
 	proposeName?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
-	read?: (ref: { sessionId: string }) => Promise<HarnessReading>;
-	hooks?: HarnessHooks;
 	watch?: () => string[];
 }

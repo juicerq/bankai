@@ -117,8 +117,7 @@ export function MobileConversation({
 			</div>
 			{session?.row.activity === "needs-attention" && (
 				<MobileAttention
-					attention={session.row.attention}
-					signature={`${session.row.activity} ${session.row.attention?.at ?? session.row.since}`}
+					signature={`${session.row.activity} ${session.row.since}`}
 					onKey={session.onKey}
 				/>
 			)}

@@ -1,7 +1,7 @@
 ---
 title: How the Claude Code TUI accepts input written blindly to its PTY
 tags: [terminal, activity]
-updated_at: 2026-07-27
+updated_at: 2026-07-31
 created_at: 2026-07-27
 ---
 
@@ -25,4 +25,4 @@ Every key that had an effect moved the status file within 36–163ms; the dead k
 
 ## Reading the dialog is not an option
 
-The TUI repaints only changed cells, so a dialog's text is written to the PTY once and never again while it is on screen (ADR 0005 — this killed `attention.ts`). Labelling a dialog needs a data source outside the PTY: the hook spool and the registry's `waitingFor` category.
+The TUI repaints only changed cells, so a dialog's text is written to the PTY once and never again while it is on screen (ADR 0005 — this killed `attention.ts`). Labelling a dialog needs a data source outside the PTY, and the only one left is the registry's `waitingFor` category, which Bankai does not read.

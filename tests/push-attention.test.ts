@@ -5,7 +5,6 @@ import type { AgentActivityState } from "@shared/activity";
 import {
 	attentionPushPayload,
 	donePushPayload,
-	PUSH_BODY_MAX_LENGTH,
 	PUSH_DEFAULT_BODY,
 	PUSH_DEFAULT_TITLE,
 	PUSH_DONE_BODY,
@@ -37,23 +36,6 @@ describe("attention push payload", () => {
 		expect(attentionPushPayload({ shellId: SHELL_ID }).title).toBe(PUSH_DEFAULT_TITLE);
 	});
 
-	test("the attention message becomes the body", () => {
-		const payload = attentionPushPayload({
-			shellId: SHELL_ID,
-			attention: { message: "Claude needs your permission to use Bash", at: 1 },
-		});
-
-		expect(payload.body).toBe("Claude needs your permission to use Bash");
-	});
-
-	test("a long message is cut to what a notification can carry", () => {
-		const payload = attentionPushPayload({
-			shellId: SHELL_ID,
-			attention: { message: "rm ".repeat(200), at: 1 },
-		});
-
-		expect(payload.body).toHaveLength(PUSH_BODY_MAX_LENGTH);
-	});
 });
 
 describe("done push payload", () => {

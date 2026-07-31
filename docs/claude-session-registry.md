@@ -1,7 +1,7 @@
 ---
 title: What the Claude session registry publishes about a live session
 tags: [activity]
-updated_at: 2026-07-30
+updated_at: 2026-07-31
 created_at: 2026-07-26
 ---
 
@@ -38,7 +38,7 @@ A subagent counts: while the main agent waits on one, the parent session stays `
 
 Observed values: `permission prompt`, `dialog open`, `input needed`, `sandbox request`, `worker request`. In the harness binary the lookup falls back to `permission prompt` for any dialog it does not have a name for, over a read of the top of the dialog stack — so *any* open dialog sets `waitingFor`, and an unmapped one still arrives as a permission prompt rather than as nothing.
 
-Bankai reads none of them. `parseSessionRecord` takes `status: "waiting"` and stops there: the card has one thing to say — **Waiting on you** — and the phone's attention card says what was actually asked, from the hook's `Notification` message (`hook-spool.md`). A per-reason label mapped five registry strings onto four phrasings and told the user nothing the state did not.
+Bankai reads none of them. `parseSessionRecord` takes `status: "waiting"` and stops there: the card, the phone and the push notification all have one thing to say — **Waiting on you**. A per-reason label mapped five registry strings onto four phrasings and told the user nothing the state did not. Nothing tells Bankai what was actually asked; the hook that once did was removed with `adr/0009-a-harness-is-watched-never-configured.md`.
 
 ## `statusUpdatedAt` is an exact turn clock
 

@@ -1,8 +1,6 @@
 import { type FSWatcher, watch } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import type { AgentPresence, HarnessReading } from "@main/activity/Harness";
-import { hookSpoolDir, pruneSpool, spoolKey } from "@main/activity/HookSource";
-import { discoverAgents, harnessReader, harnessWatchPaths } from "@main/activity/harnesses";
+import type { AgentPresence } from "@main/activity/Harness";
+import { discoverAgents, harnessWatchPaths } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
 import { bindShells } from "@main/activity/SessionBinder";
 import {
@@ -21,14 +19,12 @@ import { pushNeedsAttention, pushTurnDone } from "@main/push/notifyAttention";
 import { Continuity, type ContinuityValue } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { shellProcesses } from "@main/terminal/ShellProcesses";
-import type { AgentActivityState, ProjectActivitySnapshot, ShellAttention } from "@shared/activity";
+import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
 import { throttle } from "@shared/throttle";
 
 const ACTIVITY_POLL_MS = 1500;
 
 const EVENT_PASS_MS = 150;
-
-const SPOOL_PRUNE_MS = 5 * 60 * 1000;
 
 type ActivityPass = "full" | "event";
 
@@ -79,23 +75,6 @@ export function clockSince(input: {
 	}
 
 	return input.held ?? input.reported;
-}
-
-export const ATTENTION_SKEW_MS = 2000;
-
-export function freshAttention(input: {
-	attention: ShellAttention | undefined;
-	bound: BoundStatus | undefined;
-	statusSince: number | undefined;
-}): ShellAttention | undefined {
-	if (!input.attention || input.bound !== "waiting") {
-		return undefined;
-	}
-	if (input.statusSince !== undefined && input.attention.at < input.statusSince - ATTENTION_SKEW_MS) {
-		return undefined;
-	}
-
-	return input.attention;
 }
 
 function turnOpen(state: AgentActivityState | undefined): boolean {
@@ -242,45 +221,6 @@ export function turnBaselineShells(input: {
 	});
 }
 
-async function observeReadings(
-	shells: { sessionId: string; shellId: string }[],
-	bindings: Map<string, number>,
-	liveByPid: Map<number, AgentPresence>,
-	hooked: ReadonlySet<string>,
-): Promise<Map<string, HarnessReading>> {
-	const readings = new Map<string, HarnessReading>();
-
-	await Promise.all(
-		shells.map(async (shell) => {
-			const boundPid = bindings.get(shell.sessionId);
-			const presence = boundPid === undefined ? undefined : liveByPid.get(boundPid);
-			if (!presence || !hooked.has(presence.harness)) {
-				return;
-			}
-
-			const read = harnessReader(presence.harness);
-			if (!read) {
-				return;
-			}
-
-			readings.set(shell.shellId, await read(presence));
-		}),
-	);
-
-	return readings;
-}
-
-export function turnEnded(
-	presence?: { status: BoundStatus; statusSince?: number },
-	endedAt?: number,
-): boolean {
-	if (presence?.status !== "working" || endedAt === undefined) {
-		return false;
-	}
-
-	return endedAt > (presence.statusSince ?? 0);
-}
-
 async function locateWorktree(
 	projectPath: string,
 	cwd: string,
@@ -320,14 +260,12 @@ export function snapshotsByProject({
 	owners,
 	worktrees,
 	statusSince,
-	attention,
 	doneShells,
 }: {
 	shellStates: Map<string, AgentActivityState>;
 	owners: Map<string, ShellOwner>;
 	worktrees: Map<string, string>;
 	statusSince: ReadonlyMap<string, number>;
-	attention: ReadonlyMap<string, ShellAttention>;
 	doneShells: ReadonlyMap<string, DoneShell>;
 }): Map<string, ProjectActivitySnapshot> {
 	const projectIds = new Set<string>();
@@ -370,7 +308,6 @@ export function snapshotsByProject({
 	for (const projectId of projectIds) {
 		const shells = shellsByProject.get(projectId) ?? {};
 		const statusSinceByShellId: Record<string, number> = {};
-		const attentionByShellId: Record<string, ShellAttention> = {};
 		for (const shellId of Object.keys(shells)) {
 			const since =
 				statusSince.get(shellId) ??
@@ -378,18 +315,12 @@ export function snapshotsByProject({
 			if (since !== undefined) {
 				statusSinceByShellId[shellId] = since;
 			}
-
-			const waiting = attention.get(shellId);
-			if (waiting) {
-				attentionByShellId[shellId] = waiting;
-			}
 		}
 
 		snapshots.set(projectId, {
 			shells,
 			worktreeByShellId: worktreesByProject.get(projectId) ?? {},
 			statusSinceByShellId,
-			attentionByShellId,
 		});
 	}
 
@@ -399,24 +330,13 @@ export function snapshotsByProject({
 function sameRecord<T>(
 	before: Record<string, T>,
 	after: Record<string, T>,
-	same: (left: T | undefined, right: T | undefined) => boolean = (
-		left,
-		right,
-	) => left === right,
 ): boolean {
 	const keys = Object.keys(before);
 	if (keys.length !== Object.keys(after).length) {
 		return false;
 	}
 
-	return keys.every((key) => same(before[key], after[key]));
-}
-
-function sameAttention(
-	before: ShellAttention | undefined,
-	after: ShellAttention | undefined,
-): boolean {
-	return before?.message === after?.message && before?.at === after?.at;
+	return keys.every((key) => before[key] === after[key]);
 }
 
 function sameSnapshot(
@@ -431,19 +351,10 @@ function sameSnapshot(
 	) {
 		return false;
 	}
-	if (
-		!sameRecord(
-			before?.statusSinceByShellId ?? {},
-			after?.statusSinceByShellId ?? {},
-		)
-	) {
-		return false;
-	}
 
 	return sameRecord(
-		before?.attentionByShellId ?? {},
-		after?.attentionByShellId ?? {},
-		sameAttention,
+		before?.statusSinceByShellId ?? {},
+		after?.statusSinceByShellId ?? {},
 	);
 }
 
@@ -452,7 +363,6 @@ function emptySnapshot(): ProjectActivitySnapshot {
 		shells: {},
 		worktreeByShellId: {},
 		statusSinceByShellId: {},
-		attentionByShellId: {},
 	};
 }
 
@@ -470,19 +380,9 @@ class AgentActivityTracker {
 	private agentCwds = new Map<string, string>();
 	private readonly noteWrite = throttle(() => this.runTick("event"), EVENT_PASS_MS);
 	private readonly harnessWatchers = new Map<string, FSWatcher>();
-	private hooked: ReadonlySet<string> = new Set();
 	private timer: ReturnType<typeof setInterval> | undefined;
-	private spoolWatcher: FSWatcher | undefined;
 	private ticking = false;
 	private queuedPass: ActivityPass | undefined;
-	private prunedAt = 0;
-
-	setHookedHarnesses(hooked: ReadonlySet<string>): void {
-		this.hooked = hooked;
-		if (this.timer) {
-			this.runTick("event");
-		}
-	}
 
 	start(): void {
 		if (process.platform !== "linux" || this.timer) {
@@ -497,9 +397,6 @@ class AgentActivityTracker {
 			.catch((err) =>
 				Logger.error("activity:continuity-load-failed", { err: String(err) }),
 			);
-		this.watchSpool().catch((err) =>
-			Logger.warn("activity:spool-watch-failed", { err: String(err) }),
-		);
 	}
 
 	private noteContinuity(value: ContinuityValue): void {
@@ -510,12 +407,6 @@ class AgentActivityTracker {
 
 		this.doneShells = next;
 		this.runTick("event");
-	}
-
-	private async watchSpool(): Promise<void> {
-		await mkdir(hookSpoolDir(), { recursive: true });
-		this.spoolWatcher = watch(hookSpoolDir(), () => this.noteWrite());
-		this.spoolWatcher.unref();
 	}
 
 	private watchHarnessFiles(declared: string[]): void {
@@ -611,7 +502,6 @@ class AgentActivityTracker {
 				shellStates: new Map(),
 				owners,
 				worktrees: new Map(),
-				attention: new Map(),
 				statusSince: new Map(),
 				publishedNames: new Map(),
 			});
@@ -632,24 +522,18 @@ class AgentActivityTracker {
 		this.boundSessions = new Set(bindings.keys());
 
 		this.captureSessionRefs(shells, bindings, liveByPid);
-		const [worktrees, readings] = await Promise.all([
-			pass === "full" ? this.observeWorktrees(shells, bindings, liveByPid) : this.shellWorktrees,
-			this.hooked.size === 0
-				? new Map<string, HarnessReading>()
-				: observeReadings(shells, bindings, liveByPid, this.hooked),
-		]);
+		const worktrees = pass === "full"
+			? await this.observeWorktrees(shells, bindings, liveByPid)
+			: this.shellWorktrees;
 
 		const nextStates = new Map<string, AgentActivityState>();
-		const attention = new Map<string, ShellAttention>();
 		const statusSince = new Map<string, number>();
 		const publishedNames = new Map<string, string>();
 		for (const shell of shells) {
 			const boundPid = bindings.get(shell.sessionId);
 			const presence =
 				boundPid === undefined ? undefined : liveByPid.get(boundPid);
-			const endedAt = readings.get(shell.shellId)?.endedAt;
-			const ended = turnEnded(presence, endedAt);
-			const status = ended ? "idle" : presence?.status;
+			const status = presence?.status;
 
 			const previous = this.shellStates.get(shell.sessionId);
 			const next = nextShellActivity(previous, status);
@@ -664,46 +548,23 @@ class AgentActivityTracker {
 				previous,
 				next,
 				held: this.statusSince.get(shell.shellId),
-				reported: ended ? endedAt : presence?.statusSince,
+				reported: presence?.statusSince,
 			});
 			if (since) {
 				statusSince.set(shell.shellId, since);
-			}
-
-			const asking = freshAttention({
-				attention: readings.get(shell.shellId)?.attention,
-				bound: status,
-				statusSince: since,
-			});
-			if (asking) {
-				attention.set(shell.shellId, asking);
 			}
 		}
 
 		if (pass === "full") {
 			this.watchHarnessFiles(harnessWatchPaths());
-			this.prune(new Set(presences.map((presence) => spoolKey(presence))));
 		}
 		this.commit({
 			shellStates: nextStates,
 			owners,
 			worktrees,
-			attention,
 			statusSince,
 			publishedNames,
 		});
-	}
-
-	private prune(live: Set<string>): void {
-		const now = Date.now();
-		if (now - this.prunedAt < SPOOL_PRUNE_MS) {
-			return;
-		}
-
-		this.prunedAt = now;
-		pruneSpool(live).catch((err) =>
-			Logger.warn("activity:spool-prune-failed", { err: String(err) }),
-		);
 	}
 
 	private async observeWorktrees(
@@ -806,14 +667,12 @@ class AgentActivityTracker {
 		shellStates,
 		owners,
 		worktrees,
-		attention,
 		statusSince,
 		publishedNames,
 	}: {
 		shellStates: Map<string, AgentActivityState>;
 		owners: Map<string, ShellOwner>;
 		worktrees: Map<string, string>;
-		attention: Map<string, ShellAttention>;
 		statusSince: Map<string, number>;
 		publishedNames: Map<string, string>;
 	}): void {
@@ -825,7 +684,6 @@ class AgentActivityTracker {
 			owners,
 			worktrees,
 			statusSince,
-			attention,
 			doneShells: this.doneShells,
 		});
 		this.shellStates = shellStates;
@@ -880,8 +738,7 @@ class AgentActivityTracker {
 				continue;
 			}
 
-			const needsAttention = attention.get(owner.shellId);
-			pushNeedsAttention({ ...owner, ...(needsAttention ? { attention: needsAttention } : {}) }).catch((err) =>
+			pushNeedsAttention(owner).catch((err) =>
 				Logger.error("push:attention-failed", { ...owner, err: String(err) })
 			);
 		}

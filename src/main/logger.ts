@@ -40,8 +40,8 @@ function write(severity: Severity, message: string, data?: unknown): void {
 	const line = `${JSON.stringify(event)}\n`;
 	const lineBytes = Buffer.byteLength(line);
 	if (lineBytes <= LOGGER_MAX_SIZE_BYTES) {
-		const path = resolveLogPath();
 		try {
+			const path = resolveLogPath();
 			mkdirSync(dirname(path), { recursive: true });
 			rotateBeforeAppend(path, lineBytes);
 			appendFileSync(path, line);

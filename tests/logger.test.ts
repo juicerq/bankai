@@ -46,6 +46,15 @@ describe("logger", () => {
 		expect(event.severity).toBe("info");
 	});
 
+	it("stays quiet when it can resolve no path to write to", () => {
+		const restore = process.env.DATA_DIR;
+		delete process.env.DATA_DIR;
+
+		expect(() => Logger.info("nowhere to write")).not.toThrow();
+
+		process.env.DATA_DIR = restore;
+	});
+
 	it("rotates before an append would exceed the size limit", () => {
 		assertDefined(process.env.DATA_DIR);
 		const path = join(process.env.DATA_DIR, "log.ndjson");

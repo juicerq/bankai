@@ -610,7 +610,7 @@ describe("claude harness discovery", () => {
 
 		const presences = await ClaudeHarness.discover();
 
-		expect(presences.map((presence) => presence.sessionId).sort()).toEqual([
+		expect(presences.flatMap((presence) => presence.sessionId ?? []).sort()).toEqual([
 			"5daa2868-d467-4a46-b335-cd6405f22327",
 			"67af1e51-358c-475f-b33a-7de1e199d0a5",
 		]);

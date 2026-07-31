@@ -627,7 +627,7 @@ class AgentActivityTracker {
 			return {
 				shellId: shell.shellId,
 				projectId: shell.projectId,
-				session: presence
+				session: presence?.sessionId
 					? {
 							harness: presence.harness,
 							sessionId: presence.sessionId,

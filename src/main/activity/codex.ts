@@ -1,5 +1,5 @@
 import { codexSessionsDir } from "@main/activity/codexConfig";
-import { codexRollouts } from "@main/activity/codexRollout";
+import { type CodexRolloutState, codexRollouts } from "@main/activity/codexRollout";
 import { codexTitle } from "@main/activity/codexTranscript";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/activity/Harness";
 import { CODEX_HARNESS_ID } from "@main/activity/harnessIds";
@@ -74,38 +74,58 @@ async function rootRollout(candidates: string[]) {
 
 let rootRollouts: string[] = [];
 
-async function presenceOf(pid: number): Promise<{ presence: AgentPresence; rollouts: string[]; root: string } | null> {
-	const [argv, procStart, openFiles] = await Promise.all([
-		procFs.commandLine(pid),
-		procFs.procStart(pid),
-		procFs.openFiles(pid),
-	]);
-	if (!interactiveCommandLine(argv) || procStart === null) {
+interface CodexSighting {
+	presence: AgentPresence;
+	rollouts: string[];
+	root?: string;
+}
+
+export function codexPresence(input: {
+	pid: number;
+	argv: string[] | null;
+	procStart: string | null;
+	cwd: string | null;
+	session?: { sessionId: string; cwd: string; state: CodexRolloutState };
+}): AgentPresence | null {
+	if (!interactiveCommandLine(input.argv) || input.procStart === null || input.cwd === null) {
 		return null;
 	}
 
-	const rollouts = rolloutCandidates(openFiles);
-	const root = await rootRollout(rollouts);
-	if (!root) {
-		return null;
+	const base = { harness: CODEX_HARNESS_ID, pid: input.pid, procStart: input.procStart };
+	if (!input.session) {
+		return { ...base, cwd: input.cwd, status: "idle" };
 	}
 
-	const state = await codexRollouts.state(root.path);
+	const { sessionId, cwd, state } = input.session;
 	const since = state.turn?.startedAt ?? state.endedAt;
 
 	return {
-		rollouts,
-		root: root.path,
-		presence: {
-			harness: CODEX_HARNESS_ID,
-			sessionId: root.meta.sessionId,
-			pid,
-			procStart,
-			cwd: root.meta.cwd,
-			status: state.turn ? "working" : "idle",
-			...(since !== undefined && { statusSince: since }),
-		},
+		...base,
+		sessionId,
+		cwd,
+		status: state.turn ? "working" : "idle",
+		...(since !== undefined && { statusSince: since }),
 	};
+}
+
+async function presenceOf(pid: number): Promise<CodexSighting | null> {
+	const [argv, procStart, openFiles, cwd] = await Promise.all([
+		procFs.commandLine(pid),
+		procFs.procStart(pid),
+		procFs.openFiles(pid),
+		procFs.workingDirectory(pid),
+	]);
+	const rollouts = rolloutCandidates(openFiles);
+	const root = interactiveCommandLine(argv) ? await rootRollout(rollouts) : null;
+	const session = root
+		? { sessionId: root.meta.sessionId, cwd: root.meta.cwd, state: await codexRollouts.state(root.path) }
+		: undefined;
+	const presence = codexPresence({ pid, argv, procStart, cwd, ...(session && { session }) });
+	if (!presence) {
+		return null;
+	}
+
+	return { presence, rollouts, ...(root && { root: root.path }) };
 }
 
 export const CodexHarness: Harness = {
@@ -130,7 +150,7 @@ export const CodexHarness: Harness = {
 		const found = await Promise.all(pids.map((pid) => presenceOf(pid)));
 		const live = found.flatMap((entry) => entry?.rollouts ?? []);
 		codexRollouts.forget(new Set(live));
-		rootRollouts = found.flatMap((entry) => (entry ? [entry.root] : []));
+		rootRollouts = found.flatMap((entry) => (entry?.root ? [entry.root] : []));
 
 		return found.flatMap((entry) => entry?.presence ?? []);
 	},

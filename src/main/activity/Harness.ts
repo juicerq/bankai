@@ -1,6 +1,6 @@
 export interface AgentPresence {
 	harness: string;
-	sessionId: string;
+	sessionId?: string;
 	pid: number;
 	procStart: string;
 	cwd: string;

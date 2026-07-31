@@ -1,7 +1,7 @@
 ---
 title: How a live Codex TUI exposes its root session and turn edges
 tags: [activity, terminal]
-updated_at: 2026-07-30
+updated_at: 2026-07-31
 created_at: 2026-07-29
 ---
 
@@ -12,6 +12,14 @@ Codex 0.146.0 launches a Node wrapper and a native `codex` child. The native pro
 One native process can hold several rollout files at once. A live sample held one root and three subagent rollouts simultaneously, so selecting the first open JSONL can bind the Shell to a subagent.
 
 The first record of every observed rollout was `session_meta`. The root carried `source: "cli"` and `parent_thread_id: null`; each subagent carried its root in `parent_thread_id` plus `source.subagent.thread_spawn`, `agent_path`, and `agent_nickname`. Discovery has to validate every candidate's first record and select the root explicitly.
+
+## The rollout is born with the first turn, not with the TUI
+
+A TUI sitting at its prompt has written nothing. Measured on 0.146.0: a `codex` started at 09:06:42 still held no rollout, no descriptor and no session file four minutes later. Two live sessions started at 07:19:59 and 08:18:56 wrote their first byte at 07:33:50 and 08:20:40 — the same millisecond as their first `task_started`.
+
+The file name lies about this. `rollout-2026-07-31T07-20-00-<uuid>.jsonl` stamps the moment the session *opened*; the file itself appeared fourteen minutes later. Only the `timestamp` inside the `session_meta` record dates the file.
+
+So a Codex session id cannot be discovered before the user's first prompt — it lives in memory until then. `codexPresence` still reports the process as an idle Agent using `/proc/<pid>/cwd`, with no `sessionId`. That presence binds the card and starts its clock; `captureSessionRefs` skips it, so nothing resumable is persisted until the rollout exists. Claude differs here: it writes its registry file at startup, so its card carries a session id from the first tick.
 
 ## Turn edges are events, not process edges
 

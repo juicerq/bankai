@@ -11,6 +11,7 @@ const IDLE_RECORD =
 function refFrom(record: string): SessionRef {
 	const presence = parseSessionRecord(record);
 	assertDefined(presence);
+	assertDefined(presence.sessionId);
 	return { harness: presence.harness, sessionId: presence.sessionId, cwd: presence.cwd };
 }
 

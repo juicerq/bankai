@@ -22,7 +22,7 @@ An event pass reuses the worktree map already held, so a cold Git call can never
 ## What each harness declares
 
 - **Claude Code** declares `<CLAUDE_CONFIG_DIR>/sessions`, the registry directory it also discovers from. Claude rewrites the session file on every card-level status edge, so one directory watcher covers every live session.
-- **Codex** declares the root rollout of each live session. `discover()` already resolves that path, so it keeps the list from the last pass and hands it back.
+- **Codex** declares the root rollout of each live session. `discover()` already resolves that path, so it keeps the list from the last pass and hands it back. A TUI that has not taken a turn yet declares nothing — its rollout does not exist, see `codex-session-runtime.md`.
 
 ## A declared path that does not exist
 

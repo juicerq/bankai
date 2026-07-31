@@ -64,6 +64,10 @@ async function commandLine(pid: number): Promise<string[] | null> {
 	return raw.split("\0").filter((argument) => argument !== "");
 }
 
+async function workingDirectory(pid: number): Promise<string | null> {
+	return await readlink(`/proc/${pid}/cwd`).catch(() => null);
+}
+
 async function openFiles(pid: number): Promise<string[]> {
 	const descriptors = await readdir(`/proc/${pid}/fd`).catch((): string[] => []);
 	const targets = await Promise.all(
@@ -73,4 +77,4 @@ async function openFiles(pid: number): Promise<string[]> {
 	return targets.flatMap((target) => target ?? []);
 }
 
-export const procFs = { parent, procStart, named, commandLine, openFiles };
+export const procFs = { parent, procStart, named, commandLine, openFiles, workingDirectory };

@@ -62,11 +62,13 @@ test("a command opens a plain shell that launches it and wears its name", async 
 
 	act(() => result.current.openCommandShell("p1", { label: "Dev server", command: "bun run dev" }));
 
-	const [opened] = cached().workspaces[0]?.shells ?? [];
-	expect(opened?.title).toBe("Dev server");
-	expect(cached().selectedShellId).toBe(opened?.id);
+	expect(cached().workspaces[0]?.shells).toEqual([]);
 
 	await waitFor(() => {
+		const [opened] = cached().workspaces[0]?.shells ?? [];
+
+		expect(opened?.title).toBe("Dev server");
+		expect(cached().selectedShellId).toBe(opened?.id);
 		expect(transport.calls).toEqual([{
 			procedure: "openShell",
 			input: {
@@ -88,9 +90,10 @@ test("a shell opened without a harness carries the request to the main process",
 
 	act(() => result.current.openShell("p1", true));
 
-	expect(cached().workspaces[0]?.shells[0]?.plain).toBe(true);
+	expect(cached().workspaces).toEqual([]);
 
 	await waitFor(() => {
+		expect(cached().workspaces[0]?.shells[0]?.plain).toBe(true);
 		expect(transport.calls[0]?.input).toEqual({ projectId: "p1", shell: { id: expect.any(String), plain: true } });
 	});
 });

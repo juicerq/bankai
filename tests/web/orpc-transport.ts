@@ -173,6 +173,7 @@ function requirePush() {
 
 export interface CommandsTransport {
 	commands: ProjectCommand[];
+	listFailure?: string;
 	saveFailure?: string;
 }
 
@@ -210,9 +211,14 @@ function recordContinuity(procedure: string) {
 
 const router = {
 	commands: {
-		list: os.input(type({ projectId: "string" })).handler(({ input }) =>
-			requireCommands().commands.filter((command) => command.projectId === input.projectId)
-		),
+		list: os.input(type({ projectId: "string" })).handler(({ input }) => {
+			const transport = requireCommands();
+			if (transport.listFailure) {
+				throw new Error(transport.listFailure);
+			}
+
+			return transport.commands.filter((command) => command.projectId === input.projectId);
+		}),
 		add: os
 			.input(commandDraftSchema.and({ projectId: "string" }))
 			.handler(({ input }) => {

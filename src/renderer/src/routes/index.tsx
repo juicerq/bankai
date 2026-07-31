@@ -218,22 +218,21 @@ function Bankai() {
 		(projectId: string) => createShell(projectId, plainRequest.current),
 		[createShell],
 	);
-	const closeShellHere = useCallback(() => {
+	const archiveShellHere = useCallback(() => {
 		if (selectedProjectId && selectedShellId) {
-			sessions.closeShell(selectedProjectId, selectedShellId);
+			sessions.archiveShell(selectedProjectId, selectedShellId);
 		}
-	}, [selectedProjectId, sessions.closeShell, selectedShellId]);
+	}, [selectedProjectId, sessions.archiveShell, selectedShellId]);
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const openSettings = useCallback(() => setSettingsOpen(true), []);
 	const closeSettings = useCallback(() => setSettingsOpen(false), []);
-	const activeProject = availableProjects.find((project) => project.id === activeProjectId);
 	const [commandsOpen, setCommandsOpen] = useState(false);
 	const openCommands = useCallback(() => setCommandsOpen(true), []);
 	const closeCommands = useCallback(() => setCommandsOpen(false), []);
 	const runCommand = useCallback(
 		(projectId: string, command: Pick<ProjectCommand, "label" | "command">) => {
-			sessions.openCommandShell(projectId, command);
 			activateProject(projectId);
+			sessions.openCommandShell(projectId, command);
 		},
 		[activateProject, sessions.openCommandShell],
 	);
@@ -288,7 +287,7 @@ function Bankai() {
 	const registerShortcuts = useBankaiShortcuts({
 		onToggleFullscreen: projectRail.toggleFullscreen,
 		onNewShell: requestNewShell,
-		onCloseShell: closeShellHere,
+		onArchiveShell: archiveShellHere,
 		onOpenSettings: openSettings,
 		onModifierHold: holdModifier,
 		onJumpToRow: jumpToRow,
@@ -428,8 +427,8 @@ function Bankai() {
 				/>
 			)}
 			{settingsOpen && <SettingsModal onClose={closeSettings} />}
-			{commandsOpen && activeProject && (
-				<CommandsModal project={activeProject} onRun={runCommand} onClose={closeCommands} />
+			{commandsOpen && (
+				<CommandsModal projects={availableProjects} onRun={runCommand} onClose={closeCommands} />
 			)}
 			{pickerOpen && (
 				<ProjectPicker

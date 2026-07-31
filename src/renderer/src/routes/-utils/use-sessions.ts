@@ -46,15 +46,33 @@ export function useSessions() {
 		},
 		[queryClient],
 	);
+	const openConfirmed = useCallback(
+		(projectId: string, shell: OpenedShell) => {
+			open(
+				{ projectId, shell },
+				{
+					onSuccess: () => {
+						project((value) => ContinuityReducers.openShell(value, { projectId, shell, now: Date.now() }));
+					},
+				},
+			);
+		},
+		[open, project],
+	);
 
 	const openShell = useCallback(
 		(projectId: string, plain?: boolean) => {
 			const shell = newShell(plain);
 
+			if (plain) {
+				openConfirmed(projectId, shell);
+				return;
+			}
+
 			project((value) => ContinuityReducers.openShell(value, { projectId, shell, now: Date.now() }));
 			open({ projectId, shell });
 		},
-		[open, project],
+		[open, openConfirmed, project],
 	);
 
 	// The command rides on the shell record instead of being typed into a live
@@ -70,10 +88,9 @@ export function useSessions() {
 				titleSource: "user",
 			};
 
-			project((value) => ContinuityReducers.openShell(value, { projectId, shell, now: Date.now() }));
-			open({ projectId, shell });
+			openConfirmed(projectId, shell);
 		},
-		[open, project],
+		[openConfirmed],
 	);
 
 	const openShellAsync = useCallback(

@@ -1,25 +1,49 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import type { ProjectCommandDraft } from "@main/store/commands";
+import type { ProjectCommand, ProjectCommandDraft } from "@main/store/commands";
+import type { Project } from "@main/store/projects";
 import { orpc } from "@renderer/lib/api";
 
-export function useProjectCommands(projectId: string) {
+export function useProjectCommands(projects: readonly Project[]) {
 	const queryClient = useQueryClient();
-	const listed = useQuery(orpc.commands.list.queryOptions({ input: { projectId } }));
-	const refresh = useCallback(
-		() => queryClient.invalidateQueries({ queryKey: orpc.commands.list.key() }),
-		[queryClient],
-	);
-	const add = useMutation(orpc.commands.add.mutationOptions({ onSuccess: refresh }));
-	const update = useMutation(orpc.commands.update.mutationOptions({ onSuccess: refresh }));
-	const remove = useMutation(orpc.commands.remove.mutationOptions({ onSuccess: refresh }));
+	const listed = useQueries({
+		queries: projects.map((project) => orpc.commands.list.queryOptions({ input: { projectId: project.id } })),
+	});
+	const { mutate: add, error: addError } = useMutation(orpc.commands.add.mutationOptions({
+		onSuccess: (command) => {
+			queryClient.setQueryData<ProjectCommand[]>(
+				orpc.commands.list.queryOptions({ input: { projectId: command.projectId } }).queryKey,
+				(current) => [...(current ?? []), command],
+			);
+		},
+	}));
+	const { mutate: update, error: updateError } = useMutation(orpc.commands.update.mutationOptions({
+		onSuccess: (command) => {
+			queryClient.setQueriesData<ProjectCommand[]>(
+				{ queryKey: orpc.commands.list.key() },
+				(current) => current?.map((entry) => entry.id === command.id ? command : entry),
+			);
+		},
+	}));
+	const { mutate: remove, error: removeError } = useMutation(orpc.commands.remove.mutationOptions({
+		onSuccess: (_, input) => {
+			queryClient.setQueriesData<ProjectCommand[]>(
+				{ queryKey: orpc.commands.list.key() },
+				(current) => current?.filter((command) => command.id !== input.id),
+			);
+		},
+	}));
 
 	return {
-		commands: listed.data,
-		loading: listed.isPending,
-		saveError: add.error ?? update.error ?? remove.error,
-		add: useCallback((draft: ProjectCommandDraft) => add.mutate({ ...draft, projectId }), [add.mutate, projectId]),
-		update: useCallback((id: string, draft: ProjectCommandDraft) => update.mutate({ ...draft, id }), [update.mutate]),
-		remove: useCallback((id: string) => remove.mutate({ id }), [remove.mutate]),
+		commands: listed.flatMap((query) => query.data ?? []),
+		pendingProjectIds: projects.filter((_, index) => listed[index]?.isPending).map((project) => project.id),
+		failedProjectIds: projects.filter((_, index) => listed[index]?.isError).map((project) => project.id),
+		saveError: addError ?? updateError ?? removeError,
+		add: useCallback(
+			(projectId: string, draft: ProjectCommandDraft) => add({ ...draft, projectId }),
+			[add],
+		),
+		update: useCallback((id: string, draft: ProjectCommandDraft) => update({ ...draft, id }), [update]),
+		remove: useCallback((id: string) => remove({ id }), [remove]),
 	};
 }

@@ -5,7 +5,7 @@ const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
 export function useBankaiShortcuts({
 	onToggleFullscreen,
 	onNewShell,
-	onCloseShell,
+	onArchiveShell,
 	onOpenSettings,
 	onModifierHold,
 	onJumpToRow,
@@ -13,7 +13,7 @@ export function useBankaiShortcuts({
 }: {
 	onToggleFullscreen: () => void;
 	onNewShell: (plain: boolean) => void;
-	onCloseShell: () => void;
+	onArchiveShell: () => void;
 	onOpenSettings: () => void;
 	onModifierHold: (held: boolean) => void;
 	onJumpToRow: (index: number) => void;
@@ -32,7 +32,7 @@ export function useBankaiShortcuts({
 					return () => onNewShell(event.shiftKey);
 				}
 				if (event.code === "KeyX") {
-					return onCloseShell;
+					return onArchiveShell;
 				}
 				if (event.code === "Comma") {
 					return onOpenSettings;
@@ -100,5 +100,5 @@ export function useBankaiShortcuts({
 			window.removeEventListener("keyup", handleKeyUp, true);
 			window.removeEventListener("blur", handleWindowBlur);
 		};
-	}, [onToggleFullscreen, onNewShell, onCloseShell, onOpenSettings, onModifierHold, onJumpToRow, onJumpToWaiting]);
+	}, [onToggleFullscreen, onNewShell, onArchiveShell, onOpenSettings, onModifierHold, onJumpToRow, onJumpToWaiting]);
 }

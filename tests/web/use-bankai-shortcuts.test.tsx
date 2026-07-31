@@ -9,13 +9,17 @@ afterEach(cleanup);
 function ShortcutHarness() {
 	const [fullscreenToggles, setFullscreenToggles] = useState(0);
 	const [shells, setShells] = useState<string[]>([]);
+	const [archivedShells, setArchivedShells] = useState<string[]>([]);
 	const [modifierHeld, setModifierHeld] = useState(false);
 	const [jumped, setJumped] = useState("");
 	const [settingsOpens, setSettingsOpens] = useState(0);
 	const registerShortcuts = useBankaiShortcuts({
 		onToggleFullscreen: () => setFullscreenToggles((current) => current + 1),
 		onNewShell: () => setShells((current) => [...current, `shell-${current.length + 1}`]),
-		onCloseShell: () => setShells((current) => current.slice(0, -1)),
+		onArchiveShell: () => {
+			setShells((current) => current.slice(0, -1));
+			setArchivedShells((current) => [...current, "shell-1"]);
+		},
 		onOpenSettings: () => setSettingsOpens((current) => current + 1),
 		onModifierHold: setModifierHeld,
 		onJumpToRow: (index) => setJumped(`row-${index}`),
@@ -28,6 +32,7 @@ function ShortcutHarness() {
 			data-component="shortcut-state"
 			data-fullscreen-toggles={fullscreenToggles}
 			data-shells={shells.join(",")}
+			data-archived-shells={archivedShells.join(",")}
 			data-modifier-held={modifierHeld}
 			data-jumped={jumped}
 			data-settings-opens={settingsOpens}
@@ -67,16 +72,17 @@ test("the leader followed by t opens a shell against the selected session", () =
 	expect(get("shortcut-state").dataset.shells).toBe("shell-1");
 });
 
-test("the leader followed by x closes the selected session", () => {
+test("the leader followed by x archives the selected session", () => {
 	render(<ShortcutHarness />);
 
 	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
 	fireEvent.keyDown(window, { key: "t", code: "KeyT" });
 	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
-	const closePassedThrough = fireEvent.keyDown(window, { key: "x", code: "KeyX" });
+	const archivePassedThrough = fireEvent.keyDown(window, { key: "x", code: "KeyX" });
 
-	expect(closePassedThrough).toBe(false);
+	expect(archivePassedThrough).toBe(false);
 	expect(get("shortcut-state").dataset.shells).toBe("");
+	expect(get("shortcut-state").dataset.archivedShells).toBe("shell-1");
 });
 
 test("the leader followed by a comma opens settings", () => {

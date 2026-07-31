@@ -63,14 +63,8 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 
 	const handleToggleReviewExpanded = useCallback(() => {
 		startMotion("expand");
-		if (!reviewOpen) {
-			control.onReviewOpenChange(true);
-			control.onReviewExpandedChange(true);
-			return;
-		}
-
-		control.onReviewExpandedChange(!reviewExpanded);
-	}, [control.onReviewExpandedChange, control.onReviewOpenChange, reviewExpanded, reviewOpen, startMotion]);
+		control.onToggleReviewFocus();
+	}, [control.onToggleReviewFocus, startMotion]);
 
 	const registerWorkspaceShortcuts = useProjectWorkspaceShortcuts({
 		active,

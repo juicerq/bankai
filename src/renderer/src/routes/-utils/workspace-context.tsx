@@ -12,6 +12,7 @@ interface WorkspaceControl {
 	onPersistLayout: (patch: LayoutSettings) => void;
 	onReviewOpenChange: (open: boolean) => void;
 	onReviewExpandedChange: (expanded: boolean) => void;
+	onToggleReviewFocus: () => void;
 	onTreeOpenChange: (open: boolean) => void;
 	onRequestShell: (plain: boolean) => void;
 }

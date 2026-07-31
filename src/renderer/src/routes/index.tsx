@@ -30,6 +30,7 @@ import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { useFocusTopBand } from "@renderer/routes/-utils/use-focus-top-band";
 import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
 import { useLayoutPreferences } from "@renderer/routes/-utils/use-layout-preferences";
+import { useReviewPanelState } from "@renderer/routes/-utils/use-review-panel-state";
 import { useChosenProjects } from "@renderer/routes/-utils/use-chosen-projects";
 import { useSessionList } from "@renderer/routes/-utils/use-session-list";
 import { useShellFocus } from "@renderer/routes/-utils/use-shell-focus";
@@ -70,22 +71,11 @@ function Bankai() {
 		},
 		[topBand.handleFullscreenChange, layout.persist],
 	);
-	const [reviewOpen, setReviewOpen] = useState(layout.initial.reviewOpen);
-	const handleReviewOpenChange = useCallback(
-		(open: boolean) => {
-			setReviewOpen(open);
-			layout.persist({ reviewOpen: open });
-		},
-		[layout.persist],
-	);
-	const [reviewExpanded, setReviewExpanded] = useState(layout.initial.reviewExpanded);
-	const handleReviewExpandedChange = useCallback(
-		(expanded: boolean) => {
-			setReviewExpanded(expanded);
-			layout.persist({ reviewExpanded: expanded });
-		},
-		[layout.persist],
-	);
+	const reviewPanel = useReviewPanelState({
+		initialOpen: layout.initial.reviewOpen,
+		initialExpanded: layout.initial.reviewExpanded,
+		persist: layout.persist,
+	});
 	const [projectsOpen, setProjectsOpen] = useState(layout.initial.projectsOpen);
 	const toggleProjects = useCallback(() => {
 		setProjectsOpen(!projectsOpen);
@@ -244,8 +234,9 @@ function Bankai() {
 			onOpenSettings: openSettings,
 			onOpenCommands: openCommands,
 			onPersistLayout: layout.persist,
-			onReviewOpenChange: handleReviewOpenChange,
-			onReviewExpandedChange: handleReviewExpandedChange,
+			onReviewOpenChange: reviewPanel.changeOpen,
+			onReviewExpandedChange: reviewPanel.changeExpanded,
+			onToggleReviewFocus: reviewPanel.toggleFocus,
 			onTreeOpenChange: handleTreeOpenChange,
 			onRequestShell: requestNewShell,
 		}),
@@ -256,8 +247,9 @@ function Bankai() {
 			projectRail.toggleFullscreen,
 			openSettings,
 			openCommands,
-			handleReviewExpandedChange,
-			handleReviewOpenChange,
+			reviewPanel.changeExpanded,
+			reviewPanel.changeOpen,
+			reviewPanel.toggleFocus,
 			handleTreeOpenChange,
 			requestNewShell,
 		],
@@ -406,8 +398,8 @@ function Bankai() {
 								fullscreen={projectRail.fullscreen}
 								fullscreenAnimating={projectRail.animating}
 								railResizing={railDivider.resizing}
-								reviewOpen={reviewOpen}
-								reviewExpanded={reviewExpanded}
+								reviewOpen={reviewPanel.open}
+								reviewExpanded={reviewPanel.expanded}
 								treeOpen={treeOpen}
 								shells={workspace?.shells ?? NO_SHELLS}
 								selectedShellId={selectedShellId}

@@ -25,6 +25,6 @@ Ordering matches the sidebar (`session-rows.ts`): newest `createdAt` first, ties
 
 `ProjectFooter` is pinned under the session list, sorted by name, closed by default, its open state persisted as `layout.projectsOpen`. Sorting is by name and not by store order because project order no longer exists: it was array order in the store, so removing it migrated nothing.
 
-Clicking a project row narrows the session list and nothing else (`project-badges.md`). Selecting, opening and creating are gestures on sessions; the Active project is a consequence of the selection, never a thing the user sets (`session-creation.md`).
+Clicking a project row narrows the session list and nothing else (`project-narrowing.md`). Selecting, opening and creating are gestures on sessions; the Active project is a consequence of the selection, never a thing the user sets (`session-creation.md`).
 
 Removing a project with open shells asks first, naming the count. Removing the one that owns the selected session moves the selection through `purgeProject`, so the route hands nothing over; with no projects left the workspace region is empty and the existing `EmptyState` takes over.

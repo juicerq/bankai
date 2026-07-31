@@ -14,7 +14,7 @@ import { ClaudeGlyph } from "@renderer/routes/-components/claude-glyph";
 import { CodexGlyph } from "@renderer/routes/-components/codex-glyph";
 import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
 import { MenuItem } from "@renderer/routes/-components/menu-item";
-import { ProjectBadges } from "@renderer/routes/-components/project-badges";
+import { ProjectNarrowing } from "@renderer/routes/-components/project-narrowing";
 import { ShellGlyph } from "@renderer/routes/-components/shell-glyph";
 import { ACTIVITY_BORDER_CLASS, ACTIVITY_LABEL, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
@@ -111,7 +111,7 @@ export function SessionSidebar({
 					<PlusIcon className="size-4" aria-hidden="true" />
 				</button>
 			</div>
-			<ProjectBadges
+			<ProjectNarrowing
 				projects={projects}
 				openProjectIds={list.openProjectIds}
 				chosenProjectIds={chosenProjectIds}
@@ -236,32 +236,62 @@ function HarnessMark({ harness, active }: { harness: string | undefined; active:
 	);
 }
 
+function SessionShortcutHint({ number }: { number: number | undefined }) {
+	if (number === undefined) {
+		return null;
+	}
+
+	return (
+		<span data-slot="session-number" className="shrink-0 text-tertiary" aria-hidden="true">
+			alt + {number}
+		</span>
+	);
+}
+
 function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGestures }) {
+	const number = row.shellId === gestures.selectedShellId ? undefined : gestures.numbers.get(row.shellId);
+
 	return (
 		<SessionEntry row={row} gestures={gestures} archived={false}>
 			<span className="flex w-full items-center gap-2">
-				<span className="min-w-0 flex-1 truncate text-data text-secondary">{row.projectName}</span>
+				<span className="flex min-w-0 flex-1 items-baseline gap-1 text-data">
+					<span className="min-w-0 truncate text-secondary">{row.projectName}</span>
+					<SessionShortcutHint number={number} />
+				</span>
 				<HarnessMark harness={row.harness} active={row.shellId === gestures.selectedShellId} />
 			</span>
 			<span className="w-full truncate text-body text-primary">{row.title}</span>
 			<span
 				data-slot="session-state"
-				className={`flex h-3.5 w-full items-baseline gap-1 text-data ${
-					row.activity ? ACTIVITY_TEXT_CLASS[row.activity] : "text-outline-strong"
-				}`}
+				className="flex h-3.5 w-full items-baseline justify-between gap-2 text-data"
 			>
-				<span className="min-w-0 truncate">{row.activity ? ACTIVITY_LABEL[row.activity] : row.branch}</span>
-				{row.since ? <ElapsedClock since={row.since} /> : null}
+				<span data-slot="session-branch" className="min-w-0 truncate text-outline-strong">{row.branch}</span>
+				{row.activity
+					? (
+						<span
+							data-slot="session-activity"
+							className={`flex shrink-0 items-baseline ${ACTIVITY_TEXT_CLASS[row.activity]}`}
+						>
+							{ACTIVITY_LABEL[row.activity]}
+							{row.since ? <ElapsedClock since={row.since} /> : null}
+						</span>
+					)
+					: null}
 			</span>
 		</SessionEntry>
 	);
 }
 
 function SessionShelfRow({ row, gestures }: { row: SessionRow; gestures: SessionGestures }) {
+	const number = row.shellId === gestures.selectedShellId ? undefined : gestures.numbers.get(row.shellId);
+
 	return (
 		<SessionEntry row={row} gestures={gestures} archived>
 			<span className="min-w-0 flex-1 truncate text-body text-secondary">{row.title}</span>
-			<span className="shrink-0 text-data text-outline-strong group-hover:invisible">{row.projectName}</span>
+			<span className="flex shrink-0 items-baseline gap-1 text-data group-hover:invisible">
+				<span className="text-outline-strong">{row.projectName}</span>
+				<SessionShortcutHint number={number} />
+			</span>
 		</SessionEntry>
 	);
 }
@@ -278,7 +308,6 @@ function SessionEntry({
 	children: ReactNode;
 }) {
 	const selected = row.shellId === gestures.selectedShellId;
-	const number = gestures.numbers.get(row.shellId);
 
 	return (
 		<div
@@ -311,15 +340,6 @@ function SessionEntry({
 						{children}
 					</button>
 				)}
-			{number !== undefined && !selected && (
-				<span
-					data-slot="session-number"
-					className="absolute top-0 right-0 flex h-7 w-7 items-center justify-center bg-tertiary text-data text-surface"
-					aria-hidden="true"
-				>
-					{number}
-				</span>
-			)}
 			<span className="absolute top-0 right-0 hidden bg-inherit group-hover:flex">
 				{archived
 					? (

@@ -21,7 +21,7 @@ The open list orders by creation; the archive orders by when the work ended — 
 
 ## Every open session is a card; activity only decorates it
 
-A card is three lines at a fixed height: project and harness, then the title, then a state line. That line names the activity — Working, Done, Waiting on you — while there is one, and the branch otherwise, so the row never changes height as a turn starts and ends. The left edge is a permanent 2px border, transparent without activity and coloured by state with it.
+A card is three lines at a fixed height: project and harness, then the title, then branch and activity. The branch stays at the left of the last line and truncates when space runs out; transient activity — Working, Done, Waiting on you — and its clock stay fixed at the right. The row never changes height as a turn starts and ends. The left edge is a permanent 2px border, transparent without activity and coloured by state with it.
 
 The earlier list made the card conditional on activity, so the session the user was reading shrank to a 28px row the moment its turn ended. That was the same mistake `agent-activity-lifetime.md` records for partitioning, one layer down: activity decides paint, never size or place.
 

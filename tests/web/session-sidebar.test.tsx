@@ -91,12 +91,12 @@ function sessionRow(shellId: string) {
 	return get("session-row", { shellId });
 }
 
-function badges() {
-	return [...get("project-badges").querySelectorAll<HTMLElement>('[data-component="project-badge"]')];
+function projectChoices() {
+	return [...get("project-narrowing").querySelectorAll<HTMLElement>('[data-component="project-choice"]')];
 }
 
-function badgeNames() {
-	return badges().map((badge) => badge.textContent);
+function projectChoiceNames() {
+	return projectChoices().map((choice) => choice.textContent);
 }
 
 function menuItems() {
@@ -139,18 +139,19 @@ test("a session with no activity keeps the card it had, only quieter", () => {
 
 	expect(card.dataset.activity).toBeUndefined();
 	expect(card.dataset.archived).toBeUndefined();
-	expect(slot(card, "session-state").className).toContain("text-outline-strong");
+	expect(slot(card, "session-branch").className).toContain("text-outline-strong");
 });
 
-test("the state takes the branch's slot while the agent is running", () => {
+test("a running session keeps its branch beside the state", () => {
 	renderSidebar({
 		open: [row("s1", { branch: "main", activity: "working" })],
 	});
 
-	const state = slot(sessionRow("s1"), "session-state");
+	const card = sessionRow("s1");
 
-	expect(state.textContent).toBe(ACTIVITY_LABEL.working);
-	expect(state.className).toContain("text-tertiary");
+	expect(slot(card, "session-branch").textContent).toBe("main");
+	expect(slot(card, "session-activity").textContent).toBe(ACTIVITY_LABEL.working);
+	expect(slot(card, "session-activity").className).toContain("text-tertiary");
 });
 
 test("a running session says how long it has been working", () => {
@@ -190,39 +191,42 @@ test("the header counts the open sessions, not the filed ones", () => {
 	expect(get("session-sidebar").textContent).toContain("SESSIONS 2");
 });
 
-test("a badge per project sits above the list, named and in project order", () => {
+test("project choices sit above the list in project order", () => {
 	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] });
 
-	expect(badgeNames()).toEqual(["bankai", "dogama"]);
-	expect(badges().every((badge) => badge.getAttribute("aria-pressed") === "false")).toBe(true);
+	expect(projectChoiceNames()).toEqual(["bankai", "dogama"]);
+	expect(projectChoices().every((choice) => choice.getAttribute("aria-pressed") === "false")).toBe(true);
 });
 
-test("the badges sit on one scrolling line", () => {
+test("project choices use the review header pattern on one scrolling line", () => {
 	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] });
 
-	expect(get("project-badges").className).toContain("overflow-x-auto");
-	expect(get("project-badges").className).not.toContain("flex-wrap");
+	const narrowing = get("project-narrowing");
+
+	expect(narrowing.className).toContain("h-7");
+	expect(narrowing.className).toContain("overflow-x-auto");
+	expect(projectChoices().every((choice) => choice.className.includes("border-r") && choice.className.includes("text-data"))).toBe(true);
 });
 
-test("a project with nothing but archived sessions loses its badge", () => {
+test("a project with nothing but archived sessions leaves the header", () => {
 	renderSidebar({
 		open: [row("s1")],
 		archived: [row("s2", { projectId: "p2", projectName: "dogama", archivedAt: NOW })],
 	});
 
-	expect(query("project-badges")).toBeNull();
+	expect(query("project-narrowing")).toBeNull();
 });
 
-test("a chosen project keeps its badge after its last session is archived", () => {
+test("a chosen project stays in the header after its last session is archived", () => {
 	renderSidebar({
 		open: [row("s1")],
 		archived: [row("s2", { projectId: "p2", projectName: "dogama", archivedAt: NOW })],
 	}, { chosenProjectIds: new Set(["p2"]) });
 
-	expect(badgeNames()).toEqual(["bankai", "dogama"]);
+	expect(projectChoiceNames()).toEqual(["bankai", "dogama"]);
 });
 
-test("clicking a badge names its project instead of touching the sessions", () => {
+test("clicking a project choice names its project instead of touching the sessions", () => {
 	const toggled: string[] = [];
 	const selected: string[] = [];
 	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] }, {
@@ -230,19 +234,19 @@ test("clicking a badge names its project instead of touching the sessions", () =
 		onSelect: (projectId, shellId) => selected.push(`${projectId}/${shellId}`),
 	});
 
-	fireEvent.click(get("project-badge", { projectId: "p2" }));
+	fireEvent.click(get("project-choice", { projectId: "p2" }));
 
 	expect(toggled).toEqual(["p2"]);
 	expect(selected).toEqual([]);
 });
 
-test("a chosen project wears its badge pressed", () => {
+test("a chosen project choice reads as pressed", () => {
 	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] }, {
 		chosenProjectIds: new Set(["p1"]),
 	});
 
-	expect(get("project-badge", { projectId: "p1" }).getAttribute("aria-pressed")).toBe("true");
-	expect(get("project-badge", { projectId: "p2" }).getAttribute("aria-pressed")).toBe("false");
+	expect(get("project-choice", { projectId: "p1" }).getAttribute("aria-pressed")).toBe("true");
+	expect(get("project-choice", { projectId: "p2" }).getAttribute("aria-pressed")).toBe("false");
 });
 
 test("an empty list asks for a session without naming a project", () => {
@@ -266,10 +270,10 @@ test("with no project mounted there is no session to ask for", () => {
 	expect(get("session-sidebar").querySelector('[data-slot="start-session"]')).toBeNull();
 });
 
-test("a single project has nothing to narrow, so no badges appear", () => {
+test("a single project has nothing to narrow, so no project header appears", () => {
 	renderSidebar({ open: [row("s1")] }, { projects: [BANKAI] });
 
-	expect(query("project-badges")).toBeNull();
+	expect(query("project-narrowing")).toBeNull();
 });
 
 test("an empty archive means no archive section", () => {
@@ -499,12 +503,13 @@ test("a double click on a row does not start a rename", () => {
 
 test("holding the modifier paints the numbers the keyboard reaches", () => {
 	renderSidebar(
-		{ open: [row("s1")], archived: [row("s2", { archivedAt: NOW })] },
+		{ open: [row("s1", { harness: "codex" })], archived: [row("s2", { archivedAt: NOW })] },
 		{ numbersVisible: true },
 	);
 
-	expect(slot(sessionRow("s1"), "session-number").textContent).toBe("1");
-	expect(slot(sessionRow("s2"), "session-number").textContent).toBe("2");
+	expect(slot(sessionRow("s1"), "session-number").textContent).toBe("alt + 1");
+	expect(slot(sessionRow("s2"), "session-number").textContent).toBe("alt + 2");
+	expect(sessionRow("s1").querySelector("[aria-label='Codex']")).not.toBeNull();
 });
 
 test("releasing the modifier takes the numbers away", () => {
@@ -519,5 +524,5 @@ test("a closed archive takes its rows out of the numbering", () => {
 	fireEvent.click(get("session-shelf"));
 	fireEvent.click(get("session-shelf"));
 
-	expect(slot(sessionRow("s2"), "session-number").textContent).toBe("2");
+	expect(slot(sessionRow("s2"), "session-number").textContent).toBe("alt + 2");
 });

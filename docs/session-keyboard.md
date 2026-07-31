@@ -1,13 +1,13 @@
 ---
 title: How the keyboard reaches the session list
 tags: [ui, window]
-updated_at: 2026-07-27
+updated_at: 2026-07-31
 created_at: 2026-07-25
 ---
 
 ## Keyboard reach stops at what is rendered
 
-Holding `Alt` paints `1..9` over the rendered rows in visual order: the open list, then the archive if it is open, capped at nine — Project badges narrow that numbering with the list they narrow. `Ctrl+Tab` jumps to the first `needs-attention` session in the open list, badges or no badges (`project-badges.md`). There is no bonus band any more: a waiting session cannot be archived, so it is already in the open list where its border and dot mark it.
+Holding `Alt` writes `alt + 1..9` beside each rendered row's project name in visual order: the open list, then the archive if it is open, capped at nine. The hint stays in the identity line so it never covers the harness mark. Project narrowing narrows that numbering with the list it narrows. `Ctrl+Tab` jumps to the first `needs-attention` session in the open list, narrowed or not (`project-narrowing.md`). There is no bonus band any more: a waiting session cannot be archived, so it is already in the open list where its border and dot mark it.
 
 `Alt` and not `Ctrl`: holding `Ctrl` collides with `Ctrl+C`, `Ctrl+D`, `Ctrl+L` and `Ctrl+R` inside an agent, which would paint numbers and throw the sidebar open on every interruption. There is no native menu bar for `Alt` to focus. No timing threshold gates the paint — a quick `Alt+1` simply jumps and the numbers are gone by the time `Alt` comes up. The wider constraint this follows from is in `shortcuts.md`.
 

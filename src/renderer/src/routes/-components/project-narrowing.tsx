@@ -1,6 +1,6 @@
 import type { Project } from "@main/store/projects";
 
-export function ProjectBadges({
+export function ProjectNarrowing({
 	projects,
 	openProjectIds,
 	chosenProjectIds,
@@ -21,10 +21,10 @@ export function ProjectBadges({
 
 	return (
 		<div
-			data-component="project-badges"
+			data-component="project-narrowing"
 			role="group"
 			aria-label="Narrow sessions to projects"
-			className="badge-strip flex shrink-0 gap-1 overflow-x-auto border-b border-outline px-3 py-1.5"
+			className="flex h-7 shrink-0 overflow-x-auto border-b border-outline"
 		>
 			{listed.map((project) => {
 				const chosen = chosenProjectIds.has(project.id);
@@ -33,14 +33,14 @@ export function ProjectBadges({
 					<button
 						key={project.id}
 						type="button"
-						data-component="project-badge"
+						data-component="project-choice"
 						data-project-id={project.id}
 						aria-pressed={chosen}
 						title={project.path}
-						className={`flex h-5 max-w-32 shrink-0 items-center border px-1.5 text-label uppercase ${
+						className={`flex h-full max-w-40 shrink-0 items-center border-r border-outline px-3 text-data focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
 							chosen
-								? "border-tertiary bg-tertiary text-surface"
-								: "border-outline text-secondary hover:border-outline-strong hover:text-primary"
+								? "bg-surface-active text-primary"
+								: "text-secondary hover:bg-surface-hover hover:text-primary"
 						}`}
 						onClick={() => onToggle(project.id)}
 					>

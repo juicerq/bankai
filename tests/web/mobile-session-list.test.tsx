@@ -1,3 +1,4 @@
+import "./register-dom";
 import { afterEach, expect, test } from "bun:test";
 import type { Project } from "@main/store/projects";
 import type { AgentActivityState } from "@shared/activity";
@@ -101,22 +102,24 @@ test("a card reads project, session name and the state the agent is in", () => {
 		row("s1", {
 			projectName: "ghostapi",
 			title: "refund webhook",
+			branch: "feat/refund-webhook",
 			activity: "working",
 		}),
 	]);
 
 	expect(card("s1").textContent).toContain("ghostapi");
 	expect(card("s1").textContent).toContain("refund webhook");
-	expect(slot(card("s1"), "session-state").textContent).toBe(ACTIVITY_LABEL.working);
+	expect(slot(card("s1"), "session-branch").textContent).toBe("feat/refund-webhook");
+	expect(slot(card("s1"), "session-activity").textContent).toBe(ACTIVITY_LABEL.working);
 });
 
 test("a card with no activity falls back to the branch, quietly", () => {
 	renderList([row("s1", { branch: "feat/cron-queue" })]);
 
-	const state = slot(card("s1"), "session-state");
+	const branch = slot(card("s1"), "session-branch");
 
-	expect(state.textContent).toBe("feat/cron-queue");
-	expect(state.className).toContain("text-outline-strong");
+	expect(branch.textContent).toBe("feat/cron-queue");
+	expect(branch.className).toContain("text-outline-strong");
 });
 
 test("a running session says how long it has been at it", () => {

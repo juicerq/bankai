@@ -34,12 +34,20 @@ export function MobileSessionCard({
 			<span className="w-full truncate text-primary text-subtitle">{row.title}</span>
 			<span
 				data-slot="session-state"
-				className={`flex w-full items-baseline gap-1 text-support ${
-					row.activity ? ACTIVITY_TEXT_CLASS[row.activity] : "text-outline-strong"
-				}`}
+				className="flex w-full items-baseline justify-between gap-2 text-support"
 			>
-				<span className="min-w-0 truncate">{row.activity ? ACTIVITY_LABEL[row.activity] : row.branch}</span>
-				{row.since ? <ElapsedClock since={row.since} /> : null}
+				<span data-slot="session-branch" className="min-w-0 truncate text-outline-strong">{row.branch}</span>
+				{row.activity
+					? (
+						<span
+							data-slot="session-activity"
+							className={`flex shrink-0 items-baseline ${ACTIVITY_TEXT_CLASS[row.activity]}`}
+						>
+							{ACTIVITY_LABEL[row.activity]}
+							{row.since ? <ElapsedClock since={row.since} /> : null}
+						</span>
+					)
+					: null}
 			</span>
 		</button>
 	);

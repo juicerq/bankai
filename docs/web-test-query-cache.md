@@ -1,7 +1,7 @@
 ---
 title: Why a query-cache write in a web test does not reach the component inside act
 tags: [test, ui]
-updated_at: 2026-07-27
+updated_at: 2026-07-31
 created_at: 2026-07-27
 ---
 
@@ -22,6 +22,24 @@ await waitFor(() => {
 ```
 
 This is what a continuity push looks like from the renderer's side (`continuity-freshness.md`), so every test that simulates one pays it.
+
+## A mutation's refetch needs its own wait before the DOM one
+
+A `useMutation` whose `onSuccess` invalidates a list takes two hops to reach the DOM: the handler writes, then the invalidated query refetches, then the observer re-renders. One `waitFor` on the rendered result intermittently fails to see the second hop and times out at 5000ms, even though the DOM is correct 28ms in — `tests/web/commands-modal.test.tsx` did this on roughly one run in twenty, and on every run when the machine was under load. Wait on the store first, then on the DOM:
+
+```ts
+fireEvent.click(action("Delete Dev server"));
+
+await waitFor(() => {
+	expect(transport.commands.map((command) => command.id)).not.toContain("c1");
+});
+
+await waitFor(() => {
+	expect(query("command-row", { id: "c1" })).toBeNull();
+});
+```
+
+The first wait is an assertion in its own right — it is what proves the delete reached the store rather than only the screen. Raising the timeout is the wrong repair: the wait is not slow, it is unobserved.
 
 ## Structural sharing is what makes a push cheap
 

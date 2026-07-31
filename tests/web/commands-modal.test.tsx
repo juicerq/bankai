@@ -150,6 +150,10 @@ test("deleting a command drops it from the list", async () => {
 	fireEvent.click(action("Delete Dev server"));
 
 	await waitFor(() => {
+		expect(transport.commands.map((command) => command.id)).not.toContain("c1");
+	});
+
+	await waitFor(() => {
 		expect(query("command-row", { id: "c1" })).toBeNull();
 	});
 });

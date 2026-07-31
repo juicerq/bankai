@@ -22,7 +22,7 @@ Auto-archive is a net, not the mechanism. It exists so an abandoned session even
 
 ## Archiving is not closing, and nothing undoes it by accident
 
-Closing tears the PTY down and drops the Shell from Continuity. Archiving writes `archivedAt` and removes `doneAt` — but the row leaving the open list also takes its process down, after a grace window. See `shell-residency.md`; the Shell record and its session ref survive either way, which is what makes waking possible.
+Closing tears the PTY down and drops the Shell from Continuity. Archiving first captures the current agent session, then begins the intentional PTY shutdown and writes `archivedAt` while removing `doneAt`. See `shell-residency.md`; the Shell record and its final session ref survive, which is what makes waking possible.
 
 A row leaves the archive only through `Unarchive` — the row's own hover button, left of the cross, or the same item in its context menu. **Selecting an archived row opens it and leaves it archived.** That is deliberate and it is where this diverges from the model it was taken from, which un-settles a thread on any real activity: a glance at a filed session should not refile the list.
 

@@ -410,6 +410,7 @@ class AgentActivityTracker {
 	private timer: ReturnType<typeof setInterval> | undefined;
 	private ticking = false;
 	private queuedPass: ActivityPass | undefined;
+	private tickWaiters: (() => void)[] = [];
 
 	start(): void {
 		if (process.platform !== "linux" || this.timer) {
@@ -479,6 +480,13 @@ class AgentActivityTracker {
 		return this.boundSessions;
 	}
 
+	refresh(): Promise<void> {
+		return new Promise((resolve) => {
+			this.tickWaiters.push(resolve);
+			this.runTick("full");
+		});
+	}
+
 	subscribe(projectId: string, listener: ActivityListener): () => void {
 		const set = this.listeners.get(projectId) ?? new Set<ActivityListener>();
 		set.add(listener);
@@ -513,6 +521,11 @@ class AgentActivityTracker {
 				this.queuedPass = undefined;
 				if (queued) {
 					this.runTick(queued);
+					return;
+				}
+
+				for (const resolve of this.tickWaiters.splice(0)) {
+					resolve();
 				}
 			});
 	}

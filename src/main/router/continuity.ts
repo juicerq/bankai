@@ -1,3 +1,4 @@
+import { AgentActivity } from "@main/activity/AgentActivity";
 import { stampShell } from "@main/continuity/ShellFacts";
 import { GitProcess } from "@main/git/GitProcess";
 import { Logger } from "@main/logger";
@@ -56,10 +57,11 @@ export const continuityRouter = {
 		.handler(({ input }) => Continuity.renameShell(input)),
 	archiveShell: base
 		.input(type({ projectId: "string", shellId: "string" }))
-		.handler(({ input }) => {
+		.handler(async ({ input }) => {
+			await AgentActivity.refresh();
 			shellProcesses.closeShell(input);
 
-			return Continuity.archiveShell(input);
+			return await Continuity.archiveShell(input);
 		}),
 	unarchiveShell: base
 		.input(type({ projectId: "string", shellId: "string" }))

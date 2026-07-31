@@ -160,6 +160,7 @@ test("closing the shell kills its process and frees the shell for a fresh one", 
 
 	expect(terminal.killed).toBe(1);
 	expect(processes.find(SHELL)).toBeUndefined();
+	expect(processes.list()).toEqual([]);
 });
 
 test("an exit the app asked for does not read as the agent session dying on its own", () => {

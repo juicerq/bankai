@@ -151,6 +151,10 @@ export class ShellProcesses {
 		const infos: TerminalSessionInfo[] = [];
 
 		for (const [sessionId, session] of this.sessions) {
+			if (session.closing) {
+				continue;
+			}
+
 			infos.push({
 				sessionId,
 				projectId: session.projectId,

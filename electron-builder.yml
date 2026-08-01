@@ -32,5 +32,5 @@ nsis:
 publish:
   provider: github
   owner: juicerq
-  repo: bankai-2
+  repo: bankai
   releaseType: release

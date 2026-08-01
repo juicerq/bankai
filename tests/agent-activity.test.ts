@@ -20,7 +20,7 @@ import { shellArgs } from "@main/terminal/commandLine";
 import { aggregateActivity, type AgentActivityState } from "@shared/activity";
 
 const BUSY_RECORD =
-	'{"pid":141653,"sessionId":"67af1e51-358c-475f-b33a-7de1e199d0a5","cwd":"/home/jui/projects/bankai-2","startedAt":1784894292497,"procStart":"215800","version":"2.1.220","kind":"interactive","status":"busy","updatedAt":1784901075701,"statusUpdatedAt":1784901075701}';
+	'{"pid":141653,"sessionId":"67af1e51-358c-475f-b33a-7de1e199d0a5","cwd":"/home/jui/projects/bankai","startedAt":1784894292497,"procStart":"215800","version":"2.1.220","kind":"interactive","status":"busy","updatedAt":1784901075701,"statusUpdatedAt":1784901075701}';
 const IDLE_RECORD =
 	'{"pid":336333,"sessionId":"5daa2868-d467-4a46-b335-cd6405f22327","cwd":"/home/jui/dogama/app","startedAt":1784896966459,"procStart":"483184","version":"2.1.220","kind":"interactive","status":"idle","updatedAt":1784901169072,"statusUpdatedAt":1784901169072}';
 
@@ -569,7 +569,7 @@ describe("claude session registry parsing", () => {
 			sessionId: "67af1e51-358c-475f-b33a-7de1e199d0a5",
 			pid: 141653,
 			procStart: "215800",
-			cwd: "/home/jui/projects/bankai-2",
+			cwd: "/home/jui/projects/bankai",
 			status: "working",
 			statusSince: 1784901075701,
 		});
@@ -610,11 +610,11 @@ describe("claude session registry parsing", () => {
 	});
 
 	test("a name derived from the working directory never reaches the presence", () => {
-		expect(publishedNameOf({ name: "bankai-2-94", nameSource: "derived" })).toBeUndefined();
+		expect(publishedNameOf({ name: "bankai-94", nameSource: "derived" })).toBeUndefined();
 	});
 
 	test("a name with no source behind it never reaches the presence", () => {
-		expect(publishedNameOf({ name: "bankai-2-94" })).toBeUndefined();
+		expect(publishedNameOf({ name: "bankai-94" })).toBeUndefined();
 	});
 
 	test("a blank published name is no name at all", () => {

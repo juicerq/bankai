@@ -95,7 +95,7 @@ describe("transcript material", () => {
 		delete process.env.CLAUDE_CONFIG_DIR;
 	});
 
-	const REF = { sessionId: "8a8f0838-5ef9-40a6-bdef-706514079823", cwd: "/home/jui/projects/bankai-2" };
+	const REF = { sessionId: "8a8f0838-5ef9-40a6-bdef-706514079823", cwd: "/home/jui/projects/bankai" };
 
 	function userRecord(content: unknown, extra: Record<string, unknown> = {}): string {
 		return JSON.stringify({ type: "user", message: { content }, ...extra });

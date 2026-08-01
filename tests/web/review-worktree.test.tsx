@@ -9,8 +9,8 @@ import { cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 afterEach(cleanup);
 
-const PROJECT = "/home/jui/projects/bankai-2";
-const SOLO = "/tmp/bankai-2-worktrees";
+const PROJECT = "/home/jui/projects/bankai";
+const SOLO = "/tmp/bankai-worktrees";
 
 const WORKTREES: Worktree[] = [
 	{ path: PROJECT, branch: "main" },
@@ -93,7 +93,7 @@ test("a project with no extra worktrees still names the checkout being read", ()
 test("a listing that has not arrived yet falls back to the checkout's folder", () => {
 	render(<ReviewWorktreeHarness worktrees={[]} />);
 
-	expect(get("review-worktree").textContent).toBe("bankai-2");
+	expect(get("review-worktree").textContent).toBe("bankai");
 	expect(get("review-worktree").getAttribute("title")).toBe(PROJECT);
 });
 

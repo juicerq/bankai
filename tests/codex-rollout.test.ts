@@ -6,7 +6,7 @@ import { codexRollouts, IDLE_ROLLOUT, rolloutMeta, turnAfter } from "@main/activ
 
 const SESSION = "019f898d-719d-7811-9b34-86470df90a52";
 
-const CWD = "/home/jui/projects/bankai-2";
+const CWD = "/home/jui/projects/bankai";
 
 const OPENED_AT = 1784901075;
 

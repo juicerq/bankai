@@ -1,20 +1,20 @@
 {
-	"name": "bankai-2",
+	"name": "bankai",
 	"version": "0.2.46",
 	"private": true,
 	"license": "MIT",
 	"description": "Focused Electron workspace for persistent project shell sessions",
-	"homepage": "https://github.com/juicerq/bankai-2",
+	"homepage": "https://github.com/juicerq/bankai",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/juicerq/bankai-2.git"
+		"url": "https://github.com/juicerq/bankai.git"
 	},
 	"author": {
 		"name": "juicerq",
 		"email": "julio.cerqueiira@gmail.com"
 	},
 	"productName": "Bankai",
-	"appId": "io.github.juicerq.bankai2",
+	"appId": "io.github.juicerq.bankai",
 	"type": "module",
 	"main": "./out/main/index.js",
 	"engines": {

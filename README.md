@@ -20,7 +20,7 @@ On Arch Linux, install [`bankai-bin`](https://aur.archlinux.org/packages/bankai-
 yay -S bankai-bin
 ```
 
-Anywhere else, download the latest `.AppImage` from the [releases page](https://github.com/juicerq/bankai-2/releases), then run it:
+Anywhere else, download the latest `.AppImage` from the [releases page](https://github.com/juicerq/bankai/releases), then run it:
 
 ```sh
 chmod +x Bankai-*.AppImage
@@ -62,4 +62,4 @@ bun run dist:linux  # x64 AppImage
 bun run dist:win    # x64 NSIS
 ```
 
-Pushing a `v*` tag triggers the release workflow, which builds the Linux AppImage and publishes it to a GitHub release on `juicerq/bankai-2`. Run the `release windows` workflow with that tag to attach the Windows NSIS installer. Code signing and macOS packaging are not configured.
+Pushing a `v*` tag triggers the release workflow, which builds the Linux AppImage and publishes it to a GitHub release on `juicerq/bankai`. Run the `release windows` workflow with that tag to attach the Windows NSIS installer. Code signing and macOS packaging are not configured.

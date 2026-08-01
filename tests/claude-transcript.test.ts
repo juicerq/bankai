@@ -97,13 +97,13 @@ describe("transcriptTitle", () => {
 		writeFileSync(path, `${lines.join("\n")}\n`);
 	}
 
-	const REF = { sessionId: "8a8f0838-5ef9-40a6-bdef-706514079823", cwd: "/home/jui/projects/bankai-2" };
+	const REF = { sessionId: "8a8f0838-5ef9-40a6-bdef-706514079823", cwd: "/home/jui/projects/bankai" };
 
 	it("slugs the working directory into the transcript's folder", () => {
 		process.env.CLAUDE_CONFIG_DIR = "/config";
 
 		expect(transcriptPath(REF)).toBe(
-			"/config/projects/-home-jui-projects-bankai-2/8a8f0838-5ef9-40a6-bdef-706514079823.jsonl",
+			"/config/projects/-home-jui-projects-bankai/8a8f0838-5ef9-40a6-bdef-706514079823.jsonl",
 		);
 		expect(transcriptPath({ ...REF, cwd: "/home/jui/app/.claude-worktrees/x" })).toContain(
 			"-home-jui-app--claude-worktrees-x",
@@ -160,7 +160,7 @@ describe("locateTranscript", () => {
 
 	it("returns the cwd-derived path when the transcript lives there", async () => {
 		freshConfigDir();
-		const ref = { sessionId: "11f0838a-5ef9-40a6-bdef-706514079823", cwd: "/home/jui/projects/bankai-2" };
+		const ref = { sessionId: "11f0838a-5ef9-40a6-bdef-706514079823", cwd: "/home/jui/projects/bankai" };
 		const path = write(ref, [userRecord("oi")]);
 
 		expect(await locateTranscript(ref)).toBe(path);

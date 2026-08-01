@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render } from "./testing-library";
 
 afterEach(cleanup);
 
-const PROJECT = "/home/jui/projects/bankai-2";
+const PROJECT = "/home/jui/projects/bankai";
 
 function renderHeader({ filesClosed, expanded = false, onToggleAllFiles = () => {}, onToggleExpanded = () => {} }: {
 	filesClosed: boolean;

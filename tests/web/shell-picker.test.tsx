@@ -8,7 +8,7 @@ afterEach(cleanup);
 
 const PROJECTS: Project[] = [
 	{ id: "p1", name: "workbench", path: "/home/jui/projects/workbench", createdAt: 1 },
-	{ id: "p2", name: "bankai", path: "/home/jui/projects/bankai-2", createdAt: 2 },
+	{ id: "p2", name: "bankai", path: "/home/jui/projects/bankai", createdAt: 2 },
 	{ id: "p3", name: "jubby", path: "/home/jui/projects/jubby", createdAt: 3 },
 ];
 

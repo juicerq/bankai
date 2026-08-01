@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { worktreeActivity } from "@renderer/routes/-utils/worktree-activity";
 
-const SOLO = "/tmp/bankai-2-worktrees";
-const PROJECT = "/home/jui/projects/bankai-2";
+const SOLO = "/tmp/bankai-worktrees";
+const PROJECT = "/home/jui/projects/bankai";
 
 test("a shell's state reaches the worktree its agent runs in", () => {
 	const activity = worktreeActivity({

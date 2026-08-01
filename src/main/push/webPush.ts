@@ -4,7 +4,7 @@ import { type AttentionPushPayload, subscriptionGone } from "@main/push/attentio
 import type { PushSubscription } from "@main/store/push";
 import { Settings, type VapidKeys } from "@main/store/settings";
 
-const VAPID_SUBJECT = "https://github.com/juicerq/bankai-2";
+const VAPID_SUBJECT = "https://github.com/juicerq/bankai";
 
 const PUSH_TTL_SECONDS = 600;
 

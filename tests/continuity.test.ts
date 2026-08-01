@@ -462,7 +462,7 @@ describe("continuity live session refs", () => {
 	const CLAUDE_REF = {
 		harness: "claude",
 		sessionId: "67af1e51-358c-475f-b33a-7de1e199d0a5",
-		cwd: "/home/jui/projects/bankai-2/src/main",
+		cwd: "/home/jui/projects/bankai/src/main",
 	};
 
 	it("stores a live session ref on the owning shell", async () => {

@@ -2,8 +2,8 @@ import { expect, test } from "bun:test";
 import type { AgentActivityState } from "@shared/activity";
 import { sharedWorktreeShells } from "@renderer/routes/-utils/shared-worktree";
 
-const PROJECT = "/home/jui/projects/bankai-2";
-const SOLO = "/tmp/bankai-2-worktrees";
+const PROJECT = "/home/jui/projects/bankai";
+const SOLO = "/tmp/bankai-worktrees";
 
 const TABS = [
 	{ id: "shell-1", label: "Shell 1" },

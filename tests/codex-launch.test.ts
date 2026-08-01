@@ -75,7 +75,7 @@ describe("rollout candidates among open files", () => {
 			rolloutCandidates([
 				`${sessions}/2026/07/22/rollout-2026-07-22T08-19-36-${SESSION}.jsonl`,
 				`${sessions}/2026/07/22/notes.txt`,
-				"/home/jui/projects/bankai-2/src/main/index.ts",
+				"/home/jui/projects/bankai/src/main/index.ts",
 				"/tmp/rollout-fake.jsonl",
 			]),
 		).toEqual([`${sessions}/2026/07/22/rollout-2026-07-22T08-19-36-${SESSION}.jsonl`]);

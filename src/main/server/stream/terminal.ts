@@ -25,6 +25,17 @@ export async function handleTerminalMessage(
 				connection,
 				await TerminalSessions.resume(attachmentOf(connection), TerminalSchemas.resume.assert(message.payload)),
 			);
+		case "attach": {
+			const input = TerminalSchemas.attach.assert(message.payload);
+			const sessionId = shellProcesses.find(input);
+			if (!sessionId) {
+				throw new Error("This process is not running");
+			}
+
+			const replay = shellProcesses.attach(sessionId, attachmentOf(connection));
+
+			return detachOnClose(connection, replay ? { sessionId, replay } : { sessionId });
+		}
 		case "write": {
 			const input = TerminalSchemas.write.assert(message.payload);
 

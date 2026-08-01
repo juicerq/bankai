@@ -1,6 +1,6 @@
 import { ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
 import type { ReviewMode } from "@main/git/contracts";
-import { HeaderMenu, HeaderMenuItem } from "@renderer/routes/-components/header-menu";
+import { DropdownMenu, DropdownMenuItem } from "@renderer/routes/-components/dropdown-menu";
 import { REVIEW_SCOPE_ORDER, REVIEW_SCOPES, sharedWorktreeNotice } from "@renderer/routes/-utils/review-scope";
 
 export function ReviewScope({
@@ -16,7 +16,7 @@ export function ReviewScope({
 	const shared = mode === "last-turn" && sharedWith.length > 0 ? sharedWorktreeNotice(sharedWith) : undefined;
 
 	return (
-		<HeaderMenu
+		<DropdownMenu
 			component="review-scope"
 			icon={<ArrowsRightLeftIcon className="size-4 shrink-0" aria-hidden="true" />}
 			label={current.label}
@@ -29,7 +29,7 @@ export function ReviewScope({
 			title={current.detail}
 		>
 			{REVIEW_SCOPE_ORDER.map((scope) => (
-				<HeaderMenuItem
+				<DropdownMenuItem
 					key={scope}
 					label={REVIEW_SCOPES[scope].label}
 					detail={REVIEW_SCOPES[scope].detail}
@@ -37,6 +37,6 @@ export function ReviewScope({
 					onClick={() => onSelect(scope)}
 				/>
 			))}
-		</HeaderMenu>
+		</DropdownMenu>
 	);
 }

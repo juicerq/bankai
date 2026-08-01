@@ -1,5 +1,6 @@
 import { type } from "arktype";
 import { base } from "@main/router/_base";
+import { Services } from "@main/services/Services";
 import { commandDraftSchema, ProjectCommands } from "@main/store/commands";
 import { Projects } from "@main/store/projects";
 
@@ -15,5 +16,9 @@ export const commandsRouter = {
 	update: base
 		.input(commandDraftSchema.and({ id: "string" }))
 		.handler(({ input }) => ProjectCommands.update(input)),
-	remove: base.input(type({ id: "string" })).handler(({ input }) => ProjectCommands.remove(input.id)),
+	remove: base.input(type({ id: "string" })).handler(({ input }) => {
+		Services.stop(input.id);
+
+		return ProjectCommands.remove(input.id);
+	}),
 };

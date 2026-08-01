@@ -1,14 +1,12 @@
-import { randomUUID } from "node:crypto";
-import { spawn } from "node-pty";
 import { harnessResume } from "@main/activity/harnesses";
 import { Logger } from "@main/logger";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { harnessCommandLine, shellLaunchLine } from "@main/terminal/autostart";
 import { shellArgs } from "@main/terminal/commandLine";
-import { terminalEnv } from "@main/terminal/env";
 import { SHELL } from "@main/terminal/shell";
 import { type ShellAttachment, shellProcesses, type ShellRef } from "@main/terminal/ShellProcesses";
+import { ShellSpawn } from "@main/terminal/ShellSpawn";
 import { forgetShellTitle, noteShellTitle } from "@main/terminal/ShellTitles";
 import type { TerminalAttached } from "@shared/terminal";
 
@@ -59,43 +57,26 @@ function spawnOrAttach(attachment: ShellAttachment, input: SpawnInput): Terminal
 		return attached(running, shellProcesses.attach(running, attachment));
 	}
 
-	const sessionId = randomUUID();
-	const terminal = spawn(SHELL, shellArgs(SHELL, input.launch), {
-		name: "xterm-256color",
-		cols: input.cols,
-		rows: input.rows,
-		cwd: input.cwd,
-		env: terminalEnv(process.env),
-	});
-
-	shellProcesses.register({
-		sessionId,
+	const { sessionId } = ShellSpawn.run({
 		projectId: input.projectId,
 		shellId: input.shellId,
-		process: {
-			pid: terminal.pid,
-			write: (data) => terminal.write(data),
-			resize: (cols, rows) => terminal.resize(cols, rows),
-			kill: (signal) => terminal.kill(signal),
+		cwd: input.cwd,
+		cols: input.cols,
+		rows: input.rows,
+		args: shellArgs(SHELL, input.launch),
+		onData: (data) => noteShellTitle(input.shellId, data),
+		onExit: ({ spontaneous }) => {
+			forgetShellTitle(input.shellId);
+
+			if (spontaneous) {
+				Continuity.clearShellSession({ projectId: input.projectId, shellId: input.shellId }).catch((err) =>
+					Logger.error("terminal:exit-clear-session-failed", { sessionId, err: String(err) }),
+				);
+			}
 		},
 	});
-	const replay = shellProcesses.attach(sessionId, attachment);
 
-	terminal.onData((data) => {
-		noteShellTitle(input.shellId, data);
-		shellProcesses.noteData(sessionId, data);
-	});
-	terminal.onExit(({ exitCode }) => {
-		forgetShellTitle(input.shellId);
-
-		if (shellProcesses.noteExit(sessionId, exitCode).spontaneous) {
-			Continuity.clearShellSession({ projectId: input.projectId, shellId: input.shellId }).catch((err) =>
-				Logger.error("terminal:exit-clear-session-failed", { sessionId, err: String(err) }),
-			);
-		}
-	});
-
-	return attached(sessionId, replay);
+	return attached(sessionId, shellProcesses.attach(sessionId, attachment));
 }
 
 function attached(sessionId: string, replay: string | undefined): TerminalAttached {

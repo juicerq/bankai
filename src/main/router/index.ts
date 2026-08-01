@@ -5,6 +5,7 @@ import { mobileRouter } from "@main/router/mobile";
 import { projectsRouter } from "@main/router/projects";
 import { pushRouter } from "@main/router/push";
 import { reviewRouter } from "@main/router/review";
+import { servicesRouter } from "@main/router/services";
 import { settingsRouter } from "@main/router/settings";
 
 export const router = {
@@ -15,6 +16,7 @@ export const router = {
 	projects: projectsRouter,
 	push: pushRouter,
 	review: reviewRouter,
+	services: servicesRouter,
 	settings: settingsRouter,
 };
 

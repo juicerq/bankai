@@ -5,9 +5,11 @@ import { ProjectWorkspaceHeader } from "@renderer/routes/-components/project-wor
 import { ProjectWorkspaceShells } from "@renderer/routes/-components/project-workspace-shells";
 import { ReviewPanel } from "@renderer/routes/-components/review-panel";
 import { ReviewPanelFrame, type ReviewPanelMotion } from "@renderer/routes/-components/review-panel-frame";
+import { ServiceLogPane } from "@renderer/routes/-components/service-log-pane";
 import { useProjectWorkspaceShortcuts } from "@renderer/routes/-utils/use-project-workspace-shortcuts";
 import { useReviewGeometry } from "@renderer/routes/-utils/use-review-geometry";
 import { useWorkspaceControl } from "@renderer/routes/-utils/workspace-context";
+import type { ServiceStatus } from "@shared/services";
 
 export const ProjectWorkspace = memo(function ProjectWorkspace({
 	project,
@@ -21,6 +23,8 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	treeOpen,
 	shells,
 	selectedShellId,
+	serviceLog,
+	onCloseServiceLog,
 }: {
 	project: Project;
 	active: boolean;
@@ -33,6 +37,8 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	treeOpen: boolean;
 	shells: ContinuityShell[];
 	selectedShellId: string | undefined;
+	serviceLog: { commandId: string; label: string; status: ServiceStatus } | undefined;
+	onCloseServiceLog: () => void;
 }) {
 	const control = useWorkspaceControl();
 	// A workspace that does not own the selection still has to name a shell for
@@ -100,6 +106,16 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					active={active}
 					focusRequest={shellFocusRequest}
 					resizeDeferred={fullscreenAnimating || motion !== undefined || geometry.resizing || railResizing}
+					serviceLog={serviceLog && (
+						<ServiceLogPane
+							projectId={project.id}
+							commandId={serviceLog.commandId}
+							label={serviceLog.label}
+							status={serviceLog.status}
+							resizeDeferred={fullscreenAnimating || motion !== undefined || geometry.resizing || railResizing}
+							onClose={onCloseServiceLog}
+						/>
+					)}
 				/>
 				<ReviewPanelFrame
 					open={reviewOpen}

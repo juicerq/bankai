@@ -30,3 +30,7 @@ export function shellArgs(shell: string, launch?: string): string[] {
 
 	return ["-i", "-c", `${launch}; exec ${quote(shell)}`];
 }
+
+export function serviceArgs(launch: string): string[] {
+	return ["-l", "-c", launch];
+}

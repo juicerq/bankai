@@ -115,6 +115,7 @@ async function startSession() {
 		projectId: "project-1",
 		shellId: "shell-1",
 		resume: false,
+		attachOnly: false,
 		resizeDeferred: false,
 		onResumeOutcome: () => {},
 		onFirstOutput: () => {},

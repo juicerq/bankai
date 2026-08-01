@@ -9,6 +9,7 @@ import { installReviewPrewarm } from "@renderer/lib/prewarm-reviews";
 import { installPushSync } from "@renderer/lib/push";
 import { queryClient } from "@renderer/lib/query-client";
 import { router } from "@renderer/lib/router";
+import { installServicesPush } from "@renderer/lib/services-push";
 import { installServiceWorker } from "@renderer/lib/service-worker";
 import { installStartupTiming, markStartup } from "@renderer/lib/startup";
 import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-utils/review-scope";
@@ -19,6 +20,7 @@ installStartupTiming({ queryClient });
 
 installLoggerBridge();
 installContinuityPush({ queryClient });
+installServicesPush({ queryClient });
 installReviewPrewarm({ queryClient, mode: DEFAULT_REVIEW_MODE });
 installServiceWorker();
 installPushSync();

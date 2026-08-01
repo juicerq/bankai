@@ -1,4 +1,9 @@
-import { type CommandsTransport, setCommandsTransport } from "./orpc-transport";
+import {
+	type CommandsTransport,
+	type ServicesTransport,
+	setCommandsTransport,
+	setServicesTransport,
+} from "./orpc-transport";
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Project } from "@main/store/projects";
@@ -14,6 +19,7 @@ const PROJECTS: Project[] = [
 const onRun = jest.fn();
 const onClose = jest.fn();
 let transport: CommandsTransport;
+let services: ServicesTransport;
 
 function renderModal() {
 	const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
@@ -42,6 +48,18 @@ function scope(id: string) {
 	return get("command-scope", { scopeId: id });
 }
 
+function chooseProject(name: string) {
+	fireEvent.click(get("project-select"));
+	const option = [...get("project-select-menu").querySelectorAll("button")]
+		.find((button) => button.textContent?.startsWith(name));
+
+	if (!option) {
+		throw new Error(`No project option named ${name}`);
+	}
+
+	fireEvent.click(option);
+}
+
 function type(input: HTMLElement, value: string) {
 	input.focus();
 	fireEvent.input(input, { target: { value } });
@@ -52,12 +70,14 @@ beforeEach(() => {
 	onClose.mockClear();
 	transport = {
 		commands: [
-			{ id: "c1", projectId: "p1", label: "Dev server", command: "bun run dev", createdAt: 0 },
-			{ id: "c2", projectId: "p1", label: "Tests", command: "bun test", createdAt: 0 },
-			{ id: "c3", projectId: "p2", label: "Package", command: "make package", createdAt: 0 },
+			{ id: "c1", projectId: "p1", label: "Dev server", command: "bun run dev", kind: "service", createdAt: 0 },
+			{ id: "c2", projectId: "p1", label: "Tests", command: "bun test", kind: "task", createdAt: 0 },
+			{ id: "c3", projectId: "p2", label: "Package", command: "make package", kind: "task", createdAt: 0 },
 		],
 	};
+	services = { states: [], calls: [] };
 	setCommandsTransport(transport);
+	setServicesTransport(services);
 });
 
 afterEach(cleanup);
@@ -83,21 +103,6 @@ test("selecting a project narrows commands and removes repeated ownership", asyn
 	expect(row("c3").dataset.projectName).toBeUndefined();
 });
 
-test("search matches label, command line, and project name inside the scope", async () => {
-	const modal = await listedModal();
-	const input = slot(modal, "filter-input");
-
-	type(input, "run dev");
-	expect(query("command-row", { commandId: "c1" })).not.toBeNull();
-	expect(query("command-row", { commandId: "c2" })).toBeNull();
-
-	type(input, "atlas");
-	expect(query("command-row", { commandId: "c3" })).not.toBeNull();
-
-	fireEvent.click(scope("p1"));
-	expect(query("command-row", { commandId: "c3" })).toBeNull();
-});
-
 test("running from all projects dispatches the command stored project and closes", async () => {
 	await listedModal();
 
@@ -109,15 +114,34 @@ test("running from all projects dispatches the command stored project and closes
 
 test("keyboard changes project scope separately from result navigation", async () => {
 	const modal = await listedModal();
-	const input = slot(modal, "filter-input");
 
-	fireEvent.keyDown(input, { key: "ArrowRight", ctrlKey: true });
+	fireEvent.keyDown(modal, { key: "ArrowRight", ctrlKey: true });
 	expect(modal.dataset.scope).toBe("p1");
 
-	fireEvent.keyDown(input, { key: "ArrowDown" });
-	fireEvent.keyDown(input, { key: "Enter" });
+	fireEvent.keyDown(modal, { key: "Enter" });
 
 	expect(onRun).toHaveBeenCalledWith("p1", expect.objectContaining({ label: "Tests" }));
+	expect(onClose).toHaveBeenCalled();
+});
+
+test("lists tasks and services in separate groups", async () => {
+	await listedModal();
+
+	expect(query("command-group", { group: "TASKS" })).not.toBeNull();
+	expect(query("command-group", { group: "SERVICES" })).not.toBeNull();
+	expect(row("c1").dataset.status).toBe("stopped");
+	expect(row("c2").dataset.status).toBeUndefined();
+});
+
+test("Enter on a service toggles it and keeps the palette open", async () => {
+	const modal = await listedModal();
+
+	fireEvent.keyDown(modal, { key: "ArrowRight", ctrlKey: true });
+	fireEvent.keyDown(modal, { key: "ArrowDown" });
+	fireEvent.keyDown(modal, { key: "Enter" });
+
+	expect(onRun).toHaveBeenCalledWith("p1", expect.objectContaining({ label: "Dev server", kind: "service" }));
+	expect(onClose).not.toHaveBeenCalled();
 });
 
 test("a project-scoped new command inherits the visible project", async () => {
@@ -136,6 +160,17 @@ test("a project-scoped new command inherits the visible project", async () => {
 	});
 });
 
+test("choosing a project while creating moves the new command to it", async () => {
+	const modal = await listedModal();
+	fireEvent.click(slot(modal, "new-command"));
+
+	const editor = get("command-editor");
+	expect(editor.dataset.projectId).toBeUndefined();
+
+	fireEvent.click(scope("p2"));
+	expect(get("command-editor").dataset.projectId).toBe("p2");
+});
+
 test("a global new command requires an explicit project", async () => {
 	const modal = await listedModal();
 	fireEvent.click(slot(modal, "new-command"));
@@ -146,7 +181,7 @@ test("a global new command requires an explicit project", async () => {
 	const save = slot<HTMLButtonElement>(editor, "save-command");
 	expect(save.disabled).toBe(true);
 
-	fireEvent.change(slot(editor, "project-select"), { target: { value: "p2" } });
+	chooseProject("atlas");
 	expect(save.disabled).toBe(false);
 	fireEvent.click(save);
 
@@ -214,8 +249,19 @@ test("a rejected save keeps the palette open and reports the failure", async () 
 test("Escape closes the palette", async () => {
 	const modal = await listedModal();
 
-	fireEvent.keyDown(slot(modal, "filter-input"), { key: "Escape" });
+	fireEvent.keyDown(modal, { key: "Escape" });
 
+	expect(onClose).toHaveBeenCalled();
+});
+
+test("leaving the editor gives the palette its keyboard back", async () => {
+	const modal = await listedModal();
+	fireEvent.click(slot(modal, "new-command"));
+
+	fireEvent.keyDown(get("command-editor"), { key: "Escape" });
+
+	expect(document.activeElement).toBe(modal);
+	fireEvent.keyDown(document.activeElement ?? modal, { key: "Escape" });
 	expect(onClose).toHaveBeenCalled();
 });
 

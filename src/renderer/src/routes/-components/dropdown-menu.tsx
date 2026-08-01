@@ -9,8 +9,24 @@ const MENU_MARGIN = 4;
 const MENU_BORDER = 1;
 const REMOVE_CONFIRM_MS = 1000;
 
-export function HeaderMenu({
+const TRIGGER_SHAPE = {
+	header: "h-full border-outline border-r px-3",
+	field: "w-full border border-outline bg-surface px-2 py-1.5",
+} as const;
+
+const TRIGGER_OPEN = {
+	header: "bg-surface-active text-primary",
+	field: "border-tertiary text-primary",
+} as const;
+
+const TRIGGER_CLOSED = {
+	header: "text-secondary hover:bg-surface-hover hover:text-primary",
+	field: "text-primary hover:border-outline-strong",
+} as const;
+
+export function DropdownMenu({
 	component,
+	variant = "header",
 	icon,
 	label,
 	ariaLabel,
@@ -21,6 +37,7 @@ export function HeaderMenu({
 	children,
 }: {
 	component: string;
+	variant?: keyof typeof TRIGGER_SHAPE;
 	icon: ReactNode;
 	label: string;
 	ariaLabel: string;
@@ -32,27 +49,24 @@ export function HeaderMenu({
 }) {
 	const [menu, setMenu] = useState<{ x: number; y: number; width: number }>();
 	const closeMenu = useCallback(() => setMenu(undefined), []);
-	const registerMenuDismissal = useMenuDismissal(closeMenu);
+	const triggerRef = useRef<HTMLButtonElement>(null);
+	const registerMenuDismissal = useMenuDismissal(closeMenu, triggerRef);
 
-	const trigger = `flex h-full items-center gap-2 border-outline border-r px-3 text-body ${
+	const trigger = `flex items-center gap-2 text-body ${TRIGGER_SHAPE[variant]} ${
 		truncate ? "min-w-0 shrink" : "shrink-0"
-	} ${menu ? "bg-surface-active text-primary" : "text-secondary hover:bg-surface-hover hover:text-primary"}`;
+	} ${menu ? TRIGGER_OPEN[variant] : TRIGGER_CLOSED[variant]}`;
 
 	return (
 		<>
 			<button
 				type="button"
+				ref={triggerRef}
 				data-component={component}
 				className={trigger}
 				aria-haspopup="menu"
 				aria-expanded={!!menu}
 				aria-label={ariaLabel}
 				title={title ?? ariaLabel}
-				onPointerDown={(event) => {
-					if (menu) {
-						event.stopPropagation();
-					}
-				}}
 				onClick={(event) => {
 					if (menu) {
 						closeMenu();
@@ -68,7 +82,7 @@ export function HeaderMenu({
 				}}
 			>
 				{icon}
-				<span className="min-w-0 truncate">{label}</span>
+				<span className="min-w-0 flex-1 truncate text-left">{label}</span>
 				{badge}
 				<ChevronDownIcon
 					data-slot="chevron"
@@ -109,7 +123,7 @@ export function HeaderMenu({
 	);
 }
 
-export function HeaderMenuItem({
+export function DropdownMenuItem({
 	label,
 	detail,
 	detailTone,
@@ -156,13 +170,13 @@ export function HeaderMenuItem({
 						aria-hidden="true"
 					/>
 				)}
-				{remove && <HeaderMenuRemove label={remove.label} onConfirm={remove.onConfirm} />}
+				{remove && <DropdownMenuRemove label={remove.label} onConfirm={remove.onConfirm} />}
 			</span>
 		</div>
 	);
 }
 
-function HeaderMenuRemove({ label, onConfirm }: { label: string; onConfirm: () => void }) {
+function DropdownMenuRemove({ label, onConfirm }: { label: string; onConfirm: () => void }) {
 	const [armed, setArmed] = useState(false);
 	const disarm = useRef<{ timer?: ReturnType<typeof setTimeout> }>({});
 	const action = armed ? `Confirm: ${label}` : label;
@@ -194,6 +208,6 @@ function HeaderMenuRemove({ label, onConfirm }: { label: string; onConfirm: () =
 	);
 }
 
-export function HeaderMenuSeparator() {
+export function DropdownMenuSeparator() {
 	return <div className="border-outline border-t" />;
 }

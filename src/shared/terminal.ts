@@ -28,6 +28,7 @@ export interface TerminalAttached {
 export interface BankaiTerminalApi {
 	open: (projectId: string, shellId: string, cols: number, rows: number) => Promise<TerminalAttached>;
 	resume: (projectId: string, shellId: string, cols: number, rows: number) => Promise<TerminalAttached>;
+	attach: (projectId: string, shellId: string) => Promise<TerminalAttached>;
 	write: (sessionId: string, data: string) => void;
 	resize: (sessionId: string, cols: number, rows: number) => void;
 	close: (sessionId: string) => void;

@@ -13,6 +13,7 @@ import { ProjectPicker } from "@renderer/routes/-components/project-picker";
 import { ProjectFooter } from "@renderer/routes/-components/project-footer";
 import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
 import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
+import { ServicesFooter } from "@renderer/routes/-components/services-footer";
 import { SessionSidebar } from "@renderer/routes/-components/session-sidebar";
 import { SettingsModal } from "@renderer/routes/-components/settings-modal";
 import { ShellPicker } from "@renderer/routes/-components/shell-picker";
@@ -34,6 +35,8 @@ import { useReviewPanelState } from "@renderer/routes/-utils/use-review-panel-st
 import { useChosenProjects } from "@renderer/routes/-utils/use-chosen-projects";
 import { useSessionList } from "@renderer/routes/-utils/use-session-list";
 import { useShellFocus } from "@renderer/routes/-utils/use-shell-focus";
+import { useProjectCommands } from "@renderer/routes/-utils/use-project-commands";
+import { useServices } from "@renderer/routes/-utils/use-services";
 import { useSessions } from "@renderer/routes/-utils/use-sessions";
 import {
 	restoredResidentProjectIds,
@@ -219,12 +222,50 @@ function Bankai() {
 	const [commandsOpen, setCommandsOpen] = useState(false);
 	const openCommands = useCallback(() => setCommandsOpen(true), []);
 	const closeCommands = useCallback(() => setCommandsOpen(false), []);
+	const commands = useProjectCommands(availableProjects);
+	const services = useServices();
 	const runCommand = useCallback(
-		(projectId: string, command: Pick<ProjectCommand, "label" | "command">) => {
+		(projectId: string, command: ProjectCommand) => {
+			if (command.kind === "service") {
+				services.toggle(command.id);
+
+				return;
+			}
+
 			activateProject(projectId);
 			sessions.openCommandShell(projectId, command);
 		},
-		[activateProject, sessions.openCommandShell],
+		[activateProject, services.toggle, sessions.openCommandShell],
+	);
+	const [servicesOpen, setServicesOpen] = useState(true);
+	const toggleServices = useCallback(() => setServicesOpen((open) => !open), []);
+	const [openedService, setOpenedService] = useState<{ projectId: string; commandId: string }>();
+	const closeServiceLog = useCallback(() => setOpenedService(undefined), []);
+	const openServiceLog = useCallback(
+		(projectId: string, commandId: string) => {
+			setOpenedService((current) => current?.commandId === commandId ? undefined : { projectId, commandId });
+			activateProject(projectId);
+		},
+		[activateProject],
+	);
+	const serviceCommands = useMemo(
+		() => commands.commands.filter((command) => command.kind === "service"),
+		[commands.commands],
+	);
+	const serviceLogOf = useCallback(
+		(projectId: string) => {
+			if (openedService?.projectId !== projectId) {
+				return;
+			}
+
+			const command = serviceCommands.find((service) => service.id === openedService.commandId);
+			if (!command) {
+				return;
+			}
+
+			return { commandId: command.id, label: command.label, status: services.statusOf(command.id) };
+		},
+		[openedService, serviceCommands, services.statusOf],
 	);
 	const control = useMemo(
 		() => ({
@@ -345,7 +386,18 @@ function Bankai() {
 					onUnarchive={sessions.unarchiveShell}
 					onRename={sessions.renameShell}
 					footer={
-						<ProjectFooter
+						<>
+							<ServicesFooter
+								services={serviceCommands}
+								projects={availableProjects}
+								open={servicesOpen}
+								states={services.states}
+								openedCommandId={openedService?.commandId}
+								onToggle={toggleServices}
+								onToggleService={services.toggle}
+								onOpenLog={openServiceLog}
+							/>
+							<ProjectFooter
 							projects={availableProjects}
 							loading={projects.isPending}
 							open={projectsOpen}
@@ -357,7 +409,8 @@ function Bankai() {
 							onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
 							onRemove={(projectId) => removeProject.mutate({ projectId })}
 							onOverlayChange={projectRail.setMenuOpen}
-						/>
+							/>
+						</>
 					}
 				/>
 			</ProjectRailFrame>
@@ -398,6 +451,8 @@ function Bankai() {
 								treeOpen={treeOpen}
 								shells={workspace?.shells ?? NO_SHELLS}
 								selectedShellId={selectedShellId}
+								serviceLog={serviceLogOf(project.id)}
+								onCloseServiceLog={closeServiceLog}
 							/>
 						);
 					})}

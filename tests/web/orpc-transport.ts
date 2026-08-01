@@ -7,6 +7,7 @@ import type { ContinuityValue } from "@main/store/continuity";
 import type { MobileAccess } from "@main/tailscale/access";
 import { type HarnessSettings, harnessSchema } from "@main/store/settings";
 import { SERVER_DEFAULT_PORT, SERVER_RPC_PREFIX } from "@shared/server";
+import type { ServiceState, ServiceStatus } from "@shared/services";
 
 export type ReviewProcedure = "worktrees" | "snapshot" | "files" | "file" | "fullFile";
 
@@ -200,6 +201,31 @@ function requireWritableCommands() {
 	return transport;
 }
 
+export interface ServicesTransport {
+	states: ServiceState[];
+	calls: { procedure: "start" | "stop"; commandId: string }[];
+}
+
+let currentServices: ServicesTransport | undefined;
+
+export function setServicesTransport(transport: ServicesTransport) {
+	currentServices = transport;
+}
+
+function recordService(procedure: "start" | "stop", status: ServiceStatus) {
+	return os.input(type({ commandId: "string" })).handler(({ input }) => {
+		if (!currentServices) {
+			return;
+		}
+
+		currentServices.calls.push({ procedure, commandId: input.commandId });
+		currentServices.states = [
+			...currentServices.states.filter((state) => state.commandId !== input.commandId),
+			{ commandId: input.commandId, projectId: "p1", status },
+		];
+	});
+}
+
 function recordContinuity(procedure: string) {
 	return os.handler(({ input }) => {
 		const transport = requireContinuity();
@@ -242,6 +268,11 @@ const router = {
 			const transport = requireWritableCommands();
 			transport.commands = transport.commands.filter((command) => command.id !== input.id);
 		}),
+	},
+	services: {
+		list: os.handler(() => currentServices?.states ?? []),
+		start: recordService("start", "running"),
+		stop: recordService("stop", "stopped"),
 	},
 	continuity: {
 		get: os.handler(() => ({ value: requireContinuity().value, failed: false })),

@@ -39,10 +39,11 @@ export function useTerminalSession(options: {
 	focusRequest: number;
 	resizeDeferred: boolean;
 	resumeOnMount: boolean;
-	onResumeOutcome: (outcome: ResumeOutcome) => void;
-	onFirstOutput: () => void;
+	attachOnly?: boolean;
+	onResumeOutcome?: (outcome: ResumeOutcome) => void;
+	onFirstOutput?: () => void;
 }) {
-	const { projectId, shellId, focusRequest, resizeDeferred, resumeOnMount } = options;
+	const { projectId, shellId, focusRequest, resizeDeferred, resumeOnMount, attachOnly } = options;
 	const sessionRef = useRef<RendererTerminalSession | null>(null);
 	const activeRef = useRef(false);
 	const activationRef = useRef<symbol | null>(null);
@@ -65,9 +66,10 @@ export function useTerminalSession(options: {
 				projectId,
 				shellId,
 				resume: resumeOnMountRef.current,
+				attachOnly: attachOnly === true,
 				resizeDeferred: resizeDeferredRef.current,
-				onResumeOutcome: (outcome) => onResumeOutcomeRef.current(outcome),
-				onFirstOutput: () => onFirstOutputRef.current(),
+				onResumeOutcome: (outcome) => onResumeOutcomeRef.current?.(outcome),
+				onFirstOutput: () => onFirstOutputRef.current?.(),
 			});
 			sessionRef.current = session;
 			session.setActive(activeRef.current);
@@ -83,7 +85,7 @@ export function useTerminalSession(options: {
 			}
 			session.dispose();
 		};
-	}, [projectId, shellId]);
+	}, [projectId, shellId, attachOnly]);
 	const retryResume = useCallback(() => sessionRef.current?.retryResume(), []);
 	const registerActivation = useCallback(() => {
 		const activation = Symbol("terminal-activation");
@@ -118,13 +120,14 @@ interface RendererTerminalOptions {
 	projectId: string;
 	shellId: string;
 	resume: boolean;
+	attachOnly: boolean;
 	resizeDeferred: boolean;
 	onResumeOutcome: (outcome: ResumeOutcome) => void;
 	onFirstOutput: () => void;
 }
 
 export class RendererTerminalSession {
-	private readonly terminal = new Terminal({ ...TERMINAL_OPTIONS, ...readTerminalStyle() });
+	private readonly terminal: Terminal;
 	private readonly fit = new FitAddon();
 	private readonly resizeProcess;
 	private readonly resizeObserver;
@@ -150,6 +153,12 @@ export class RendererTerminalSession {
 		private readonly container: HTMLDivElement,
 		private readonly options: RendererTerminalOptions,
 	) {
+		this.terminal = new Terminal({
+			...TERMINAL_OPTIONS,
+			...readTerminalStyle(),
+			cursorBlink: !options.attachOnly,
+			disableStdin: options.attachOnly,
+		});
 		this.resizeDeferred = options.resizeDeferred;
 		this.resumeAttempt = options.resume;
 		this.terminal.loadAddon(this.fit);
@@ -171,7 +180,7 @@ export class RendererTerminalSession {
 			}
 		});
 		this.input = this.terminal.onData((data) => {
-			if (this.sessionId) {
+			if (this.sessionId && !this.options.attachOnly) {
 				terminalStream.write(this.sessionId, data);
 			}
 		});
@@ -305,6 +314,10 @@ export class RendererTerminalSession {
 
 	private async spawn(): Promise<TerminalAttached> {
 		const { projectId, shellId } = this.options;
+		if (this.options.attachOnly) {
+			return await terminalStream.attach(projectId, shellId);
+		}
+
 		if (this.resumeAttempt) {
 			this.resumeAttempt = false;
 			try {
@@ -388,6 +401,10 @@ export class RendererTerminalSession {
 	}
 
 	private syncProcessDimensions() {
+		if (this.options.attachOnly) {
+			return;
+		}
+
 		if (this.sessionId && (this.terminal.cols !== this.lastCols || this.terminal.rows !== this.lastRows)) {
 			this.lastCols = this.terminal.cols;
 			this.lastRows = this.terminal.rows;

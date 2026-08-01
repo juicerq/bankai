@@ -4,6 +4,7 @@ import { GitProcess } from "@main/git/GitProcess";
 import { Logger } from "@main/logger";
 import { startLoopbackServer } from "@main/server";
 import { serverReach } from "@main/server/reach";
+import { Services } from "@main/services/Services";
 import { markStartup, scheduleStartupReport } from "@main/startup";
 import { resolveInstanceIdentity } from "@main/store/paths";
 import { type SettingsValue, Settings } from "@main/store/settings";
@@ -134,6 +135,7 @@ async function start() {
 		});
 
 		startAgentActivity();
+		Services.autostart().catch((err) => Logger.error("services:autostart-failed", { err: String(err) }));
 		setupWindowIpc();
 		setupUpdateIpc();
 		markStartup("ipc-ready");
@@ -177,6 +179,9 @@ if (identity.singleInstanceLock && !app.requestSingleInstanceLock()) {
 	app.on("ready", () => {
 		start().catch((err) => Logger.error("app:start-failed", { err: String(err) }));
 	});
-	app.on("before-quit", () => GitProcess.close());
+	app.on("before-quit", () => {
+		Services.stopAll();
+		GitProcess.close();
+	});
 	app.on("window-all-closed", () => app.quit());
 }

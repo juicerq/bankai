@@ -1,7 +1,7 @@
 import { Square3Stack3DIcon } from "@heroicons/react/24/outline";
 import type { Worktree } from "@main/git/contracts";
 import type { AgentActivityState } from "@shared/activity";
-import { HeaderMenu, HeaderMenuItem, HeaderMenuSeparator } from "@renderer/routes/-components/header-menu";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from "@renderer/routes/-components/dropdown-menu";
 import { ACTIVITY_DOT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import { worktreeLabel } from "@renderer/routes/-utils/review-worktree";
 
@@ -33,7 +33,7 @@ export function ReviewWorktree({
 	const following = pinnedPath === undefined;
 
 	return (
-		<HeaderMenu
+		<DropdownMenu
 			component="review-worktree"
 			icon={<Square3Stack3DIcon className="size-4 shrink-0" aria-hidden="true" />}
 			label={label}
@@ -42,13 +42,13 @@ export function ReviewWorktree({
 			truncate
 			pinned={
 				<>
-					<HeaderMenuItem
+					<DropdownMenuItem
 						label="Follow shell"
 						detail={shellPath ?? "No agent worktree yet"}
 						selected={following}
 						onClick={() => onSelect()}
 					/>
-					{worktrees.length > 0 && <HeaderMenuSeparator />}
+					{worktrees.length > 0 && <DropdownMenuSeparator />}
 				</>
 			}
 		>
@@ -58,7 +58,7 @@ export function ReviewWorktree({
 				const state = activity.get(worktree.path);
 
 				return (
-					<HeaderMenuItem
+					<DropdownMenuItem
 						key={worktree.path}
 						label={worktreeLabel(worktree)}
 						detail={failure ?? (root ? `root · ${worktree.path}` : worktree.path)}
@@ -77,6 +77,6 @@ export function ReviewWorktree({
 					/>
 				);
 			})}
-		</HeaderMenu>
+		</DropdownMenu>
 	);
 }

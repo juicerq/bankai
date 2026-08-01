@@ -92,6 +92,28 @@ test("a prompt is refused when no agent is listening to the shell", async () => 
 	expect(terminal.writes).toEqual([]);
 });
 
+test("attaching reads a running process without opening a new one", async () => {
+	const { sessionId } = running("service-log");
+	shellProcesses.noteData(sessionId, "listening on 4700");
+	await flushed();
+
+	const attached = await handleTerminalMessage(
+		connected(),
+		envelope("attach", { projectId: "p1", shellId: "service-log" }),
+	);
+
+	expect(attached).toEqual({ sessionId, replay: "listening on 4700" });
+});
+
+test("attaching to a process that is not running is refused instead of spawning one", async () => {
+	const refused = await handleTerminalMessage(
+		connected(),
+		envelope("attach", { projectId: "p1", shellId: "never-started" }),
+	).catch((err) => String(err));
+
+	expect(refused).toInclude("This process is not running");
+});
+
 test("a key press reaches the shell whether or not an agent is running", async () => {
 	const { terminal } = running("keys");
 

@@ -21,6 +21,7 @@ const shellInput = shellAddress.and({ cols: terminalColumnsSchema, rows: termina
 export const TerminalSchemas = {
 	open: shellInput,
 	resume: shellInput,
+	attach: shellAddress,
 	write: type({ sessionId: "string", data: type("string").atMostLength(TERMINAL_WRITE_MAX_LENGTH) }),
 	resize: type({ sessionId: "string", cols: terminalColumnsSchema, rows: terminalRowsSchema }),
 	session: type({ sessionId: "string" }),

@@ -12,6 +12,7 @@ import { handleConversationMessage } from "@main/server/stream/conversation";
 import { watchLiveness } from "@main/server/stream/heartbeat";
 import { STREAM_MAX_PAYLOAD_BYTES, streamEnvelopeSchema } from "@main/server/stream/messages";
 import { handleReviewMessage } from "@main/server/stream/review";
+import { handleServicesMessage } from "@main/server/stream/services";
 import { handleTerminalMessage } from "@main/server/stream/terminal";
 import { STREAM_HELLO, type StreamChannel, type StreamEnvelope, type StreamHello } from "@shared/stream";
 
@@ -24,6 +25,7 @@ const CHANNEL_HANDLERS: Record<
 	review: handleReviewMessage,
 	continuity: handleContinuityMessage,
 	conversation: handleConversationMessage,
+	services: handleServicesMessage,
 	system: () => {
 		throw new Error("The system channel only carries server announcements");
 	},

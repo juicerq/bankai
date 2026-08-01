@@ -128,7 +128,7 @@ export function ReviewPanel({
 	};
 
 	return (
-		<aside className="flex bg-surface-raised" aria-label="Review">
+		<aside className="flex grow bg-surface-raised" aria-label="Review">
 			{treeOpen && (
 				<ReviewTree
 					key={readingKey}
@@ -141,7 +141,7 @@ export function ReviewPanel({
 				/>
 			)}
 
-			<div style={{ width: REVIEW_DIFF_WIDTH_VALUE, minWidth: MIN_DIFF_WIDTH }} className="flex flex-col">
+			<div style={{ width: REVIEW_DIFF_WIDTH_VALUE, minWidth: MIN_DIFF_WIDTH }} className="flex grow flex-col">
 				<ReviewHeader
 					mode={mode}
 					sharedWith={sharedWith}

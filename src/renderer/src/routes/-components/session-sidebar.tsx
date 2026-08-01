@@ -1,9 +1,11 @@
 import {
 	ArchiveBoxArrowDownIcon,
 	ArrowUturnUpIcon,
+	CheckIcon,
 	ChevronDownIcon,
 	ChevronRightIcon,
 	PlusIcon,
+	TrashIcon,
 	XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { type ReactElement, type ReactNode, useCallback, useState } from "react";
@@ -123,18 +125,16 @@ export function SessionSidebar({
 				)}
 				{list.open.map((row) => <SessionCard key={row.shellId} row={row} gestures={gestures} />)}
 				{list.archived.length > 0 && (
-					<button
-						type="button"
-						data-component="session-shelf"
-						className="flex h-7 w-full items-center gap-1 px-3 text-label text-secondary hover:text-primary"
-						aria-expanded={list.archivedOpen}
-						onClick={list.toggleArchived}
-					>
-						{list.archivedOpen
-							? <ChevronDownIcon className="size-3" aria-hidden="true" />
-							: <ChevronRightIcon className="size-3" aria-hidden="true" />}
-						ARCHIVED <span className="text-outline-strong">{list.archived.length}</span>
-					</button>
+					<ArchivedShelfHeader
+						count={list.archived.length}
+						open={list.archivedOpen}
+						onToggle={list.toggleArchived}
+						onClear={() => {
+							for (const row of list.archived) {
+								onClose(row.projectId, row.shellId);
+							}
+						}}
+					/>
 				)}
 				{list.archivedOpen
 					&& list.archived.map((row) => <SessionShelfRow key={row.shellId} row={row} gestures={gestures} />)}
@@ -199,6 +199,67 @@ export function SessionSidebar({
 				document.body,
 			)}
 		</aside>
+	);
+}
+
+function ArchivedShelfHeader({
+	count,
+	open,
+	onToggle,
+	onClear,
+}: {
+	count: number;
+	open: boolean;
+	onToggle: () => void;
+	onClear: () => void;
+}) {
+	const [armed, setArmed] = useState(false);
+
+	return (
+		<div
+			className="group flex h-7 w-full items-center pr-2 text-label text-secondary"
+			onMouseLeave={() => setArmed(false)}
+		>
+			<button
+				type="button"
+				data-component="session-shelf"
+				className="flex h-7 min-w-0 flex-1 items-center gap-1 px-3 text-left hover:text-primary"
+				aria-expanded={open}
+				onClick={onToggle}
+			>
+				{open
+					? <ChevronDownIcon className="size-3" aria-hidden="true" />
+					: <ChevronRightIcon className="size-3" aria-hidden="true" />}
+				ARCHIVED <span className="text-outline-strong">{count}</span>
+			</button>
+			{armed
+				? (
+					<button
+						type="button"
+						data-slot="confirm-clear-archived"
+						className="flex size-5 shrink-0 items-center justify-center text-removed"
+						aria-label={`Confirm closing ${count} archived sessions`}
+						onClick={() => {
+							setArmed(false);
+							onClear();
+						}}
+					>
+						<CheckIcon className="size-3.5" aria-hidden="true" />
+					</button>
+				)
+				: (
+					<button
+						type="button"
+						data-slot="clear-archived"
+						className="hidden size-5 shrink-0 items-center justify-center text-secondary hover:text-removed group-hover:flex"
+						aria-label="Clear archived sessions"
+						title="Clear archived sessions"
+						onClick={() => setArmed(true)}
+					>
+						<TrashIcon className="size-3.5" aria-hidden="true" />
+					</button>
+				)}
+		</div>
 	);
 }
 

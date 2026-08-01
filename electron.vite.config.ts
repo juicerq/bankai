@@ -6,6 +6,7 @@ import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 import { SERVER_DEFAULT_PORT } from "./src/shared/server";
 
 const serverPort = process.env.SERVER_PORT ?? String(SERVER_DEFAULT_PORT);
+const rendererPort = Number(process.env.RENDERER_PORT ?? 4697);
 
 const aliasNode = {
 	"@main": resolve(import.meta.dirname, "./src/main"),
@@ -54,7 +55,7 @@ export default defineConfig({
 		worker: { format: "es" },
 		server: {
 			host: "127.0.0.1",
-			port: 4697,
+			port: rendererPort,
 			strictPort: true,
 			allowedHosts: [".ts.net"],
 			proxy: {

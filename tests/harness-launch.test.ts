@@ -180,11 +180,11 @@ describe("shell arguments", () => {
 	});
 
 	test("runs the command and then replaces itself with the shell", () => {
-		expect(shellArgs("/usr/bin/fish", "claude")).toEqual(["-i", "-c", 'claude; exec /usr/bin/fish']);
+		expect(shellArgs("/usr/bin/fish", "claude")).toEqual(["-i", "-c", `${process.platform === "linux" ? "setsid " : ""}claude; exec /usr/bin/fish`]);
 	});
 
 	test("quotes a shell path a shell would otherwise split", () => {
-		expect(shellArgs("/opt/my shell/fish", "claude")).toEqual(["-i", "-c", "claude; exec '/opt/my shell/fish'"]);
+		expect(shellArgs("/opt/my shell/fish", "claude")).toEqual(["-i", "-c", `${process.platform === "linux" ? "setsid " : ""}claude; exec '/opt/my shell/fish'`]);
 	});
 });
 

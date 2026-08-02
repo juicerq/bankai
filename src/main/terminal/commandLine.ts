@@ -28,7 +28,7 @@ export function shellArgs(shell: string, launch?: string): string[] {
 		return [];
 	}
 
-	return ["-i", "-c", `${launch}; exec ${quote(shell)}`];
+	return ["-i", "-c", `${process.platform === "linux" ? "setsid " : ""}${launch}; exec ${quote(shell)}`];
 }
 
 export function serviceArgs(launch: string): string[] {

@@ -7,3 +7,4 @@ dist/
 .tanstack/
 src/renderer/src/routeTree.gen.ts
 grill/
+.opencode/skills

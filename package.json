@@ -63,7 +63,7 @@
 	},
 	"devDependencies": {
 		"@happy-dom/global-registrator": "^20.11.1",
-		"@juicerq/check": "file:../agent-setup/check",
+		"@juicerq/check": "^0.2.1",
 		"@tailwindcss/vite": "^4.2.4",
 		"@tanstack/router-cli": "^1.167.21",
 		"@tanstack/router-plugin": "^1.167.22",

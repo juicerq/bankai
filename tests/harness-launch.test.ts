@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { ClaudeHarness } from "@main/activity/claude";
-import { CodexHarness } from "@main/activity/codex";
+import { ClaudeHarness } from "@main/activity/claude/ClaudeHarness";
+import { CodexHarness } from "@main/activity/codex/CodexHarness";
 import { DEFAULT_HARNESS_SETTINGS, harnessLaunch, launchableHarnesses } from "@main/activity/harnesses";
 import { Settings } from "@main/store/settings";
 import { autostartCommandLine, harnessCommandLine, shellLaunchLine } from "@main/terminal/autostart";

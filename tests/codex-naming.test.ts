@@ -2,9 +2,9 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { CodexHarness } from "@main/activity/codex";
-import { codexSessionsDir } from "@main/activity/codexConfig";
-import { codexMaterial, codexTitle, messageIntent, rolloutPath } from "@main/activity/codexTranscript";
+import { CodexHarness } from "@main/activity/codex/CodexHarness";
+import { codexSessionsDir } from "@main/activity/codex/codexConfig";
+import { codexMaterial, codexTitle, messageIntent, rolloutPath } from "@main/activity/codex/codexTranscript";
 import { MATERIAL_EDGE_COUNT, MATERIAL_MESSAGE_LIMIT, MATERIAL_TOTAL_LIMIT } from "@main/activity/transcriptMaterial";
 import { codexProposeName, namingCall, NAMING_TIMEOUT_MS, proposedName } from "@main/naming/codexNamer";
 import { NAME_MAX_CHARS } from "@main/naming/nameContract";

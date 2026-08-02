@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { base } from "@main/router/_base";
+import { base } from "@main/router/base";
 import { regenerateServerToken } from "@main/server/reach";
 import { mobileAccess, setMobileAccess } from "@main/tailscale/mobileAccess";
 

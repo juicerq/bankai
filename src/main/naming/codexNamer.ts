@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { codexMaterial } from "@main/activity/codexTranscript";
+import { codexMaterial } from "@main/activity/codex/codexTranscript";
 import type { HarnessCommand } from "@main/activity/Harness";
 import { Logger } from "@main/logger";
 import { acceptedName, NAME_TARGET_CHARS } from "@main/naming/nameContract";

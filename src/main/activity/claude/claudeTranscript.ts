@@ -3,7 +3,7 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { type } from "arktype";
-import { claudeConfigDir } from "@main/activity/claudeConfig";
+import { claudeConfigDir } from "@main/activity/claude/claudeConfig";
 import { MATERIAL_EDGE_COUNT, MATERIAL_MESSAGE_LIMIT, withinTotal } from "@main/activity/transcriptMaterial";
 import { Logger } from "@main/logger";
 

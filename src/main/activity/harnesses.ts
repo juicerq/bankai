@@ -1,6 +1,6 @@
 import type { AgentPresence, Harness } from "@main/activity/Harness";
-import { ClaudeHarness } from "@main/activity/claude";
-import { CodexHarness } from "@main/activity/codex";
+import { ClaudeHarness } from "@main/activity/claude/ClaudeHarness";
+import { CodexHarness } from "@main/activity/codex/CodexHarness";
 import { Logger } from "@main/logger";
 import type { HarnessSettings } from "@main/store/settings";
 

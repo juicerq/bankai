@@ -2,7 +2,7 @@ import { createReadStream } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import { codexSessionsDir } from "@main/activity/codexConfig";
+import { codexSessionsDir } from "@main/activity/codex/codexConfig";
 import { MATERIAL_EDGE_COUNT, MATERIAL_MESSAGE_LIMIT, withinTotal } from "@main/activity/transcriptMaterial";
 import { Logger } from "@main/logger";
 import { type } from "arktype";

@@ -1,3 +1,5 @@
+export const CONVERSATION_LINE_LIMIT = 128 * 1024;
+
 export type ConversationToolState = "running" | "done" | "failed";
 
 export interface ConversationEdit {

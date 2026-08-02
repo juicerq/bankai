@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { base } from "@main/router/_base";
+import { base } from "@main/router/base";
 import { Services } from "@main/services/Services";
 import { commandDraftSchema, ProjectCommands } from "@main/store/commands";
 import { Projects } from "@main/store/projects";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ClaudeHarness } from "@main/activity/claude";
+import { ClaudeHarness } from "@main/activity/claude/ClaudeHarness";
 import { harnessResume } from "@main/activity/harnesses";
 import { assertDefined } from "./utils/assertions";
 

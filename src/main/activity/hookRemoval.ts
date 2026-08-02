@@ -1,7 +1,7 @@
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { claudeConfigDir } from "@main/activity/claudeConfig";
-import { codexConfigDir } from "@main/activity/codexConfig";
+import { claudeConfigDir } from "@main/activity/claude/claudeConfig";
+import { codexConfigDir } from "@main/activity/codex/codexConfig";
 import { atomicWrite } from "@main/store/atomic";
 import { resolveDataDir } from "@main/store/paths";
 

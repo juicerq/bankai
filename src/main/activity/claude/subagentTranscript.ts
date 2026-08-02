@@ -3,8 +3,8 @@ import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { type } from "arktype";
-import { AGENT_TOOL_NAMES } from "@main/activity/claudeConversation";
-import { locateTranscript } from "@main/activity/claudeTranscript";
+import { AGENT_TOOL_NAMES } from "@main/activity/claude/claudeConversation";
+import { locateTranscript } from "@main/activity/claude/claudeTranscript";
 import { Logger } from "@main/logger";
 
 const SUBAGENT_META_SUFFIX = ".meta.json";

@@ -1,5 +1,6 @@
-import { Git } from "@main/git/Git";
+import { filesWithContent, readFileDiff } from "@main/git/fileDiff";
 import { gitRequestSchema, type GitResponse } from "@main/git/protocol";
+import { snapshot } from "@main/git/reviewSnapshot";
 import { captureTurnBaseline, turnBaselines } from "@main/git/TurnBaseline";
 import { readWorktrees, removeWorktree } from "@main/git/Worktrees";
 
@@ -27,13 +28,13 @@ process.parentPort.on("message", (event) => {
 async function execute(request: typeof gitRequestSchema.infer) {
 	switch (request.operation) {
 		case "snapshot":
-			return await Git.snapshot(request);
+			return await snapshot(request);
 		case "files":
-			return await Git.files(request);
+			return await filesWithContent(request);
 		case "file":
-			return await Git.file(request);
+			return await readFileDiff({ scope: request, file: request.file, full: false });
 		case "fullFile":
-			return await Git.fullFile(request);
+			return await readFileDiff({ scope: request, file: request.file, full: true });
 		case "worktrees":
 			return await readWorktrees(request.path);
 		case "removeWorktree":

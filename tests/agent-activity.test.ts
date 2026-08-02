@@ -5,14 +5,12 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
 	attentionEntryShells,
 	clockSince,
-	doneShells,
 	nextShellActivity,
-	nextShellWorktrees,
-	snapshotsByProject,
-	turnBaselineShells,
 	turnStartShells,
-} from "@main/activity/AgentActivity";
-import { ClaudeHarness, parseSessionRecord } from "@main/activity/claude";
+} from "@main/activity/ShellActivity";
+import { doneShells, snapshotsByProject } from "@main/activity/ProjectSnapshots";
+import { nextShellWorktrees, turnBaselineShells } from "@main/activity/ShellWorktrees";
+import { ClaudeHarness, parseSessionRecord } from "@main/activity/claude/ClaudeHarness";
 import { harnessWatchPaths } from "@main/activity/harnesses";
 import { procFs } from "@main/activity/procFs";
 import { bindShells, type ParentOf } from "@main/activity/SessionBinder";

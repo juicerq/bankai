@@ -1,6 +1,6 @@
 import { type } from "arktype";
 import { Logger } from "@main/logger";
-import { base } from "@main/router/_base";
+import { base } from "@main/router/base";
 import { markRendererStartup } from "@main/startup";
 
 const rendererErrorInput = type({

@@ -2,7 +2,7 @@ import { stat } from "node:fs/promises";
 import { type } from "arktype";
 import { dialog, shell } from "electron";
 import { browseDirectories, expandUserPath } from "@main/fs/directories";
-import { base } from "@main/router/_base";
+import { base } from "@main/router/base";
 import { Services } from "@main/services/Services";
 import { ProjectCommands } from "@main/store/commands";
 import { Continuity } from "@main/store/continuity";

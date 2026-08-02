@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { transcriptPath } from "@main/activity/claudeTranscript";
+import { transcriptPath } from "@main/activity/claude/claudeTranscript";
 import { stampShell } from "@main/continuity/ShellFacts";
 import { branchLabel } from "@main/git/branch";
 import { Continuity } from "@main/store/continuity";

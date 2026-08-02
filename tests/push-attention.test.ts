@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { doneEntryShells } from "@main/activity/AgentActivity";
+import { doneEntryShells } from "@main/activity/ShellActivity";
 import { focusShell, shellFocused } from "@main/activity/ShellFocus";
 import type { AgentActivityState } from "@shared/activity";
 import {

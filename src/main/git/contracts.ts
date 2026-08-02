@@ -48,3 +48,9 @@ export const reviewSnapshotSchema = type({
 });
 export type ReviewSnapshot = typeof reviewSnapshotSchema.infer;
 export type FullFile = ReviewContent;
+
+export interface ReviewScope {
+	path: string;
+	mode: ReviewMode;
+	shellId?: string;
+}

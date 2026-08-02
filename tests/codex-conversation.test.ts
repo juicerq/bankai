@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CodexConversationParser } from "@main/activity/codexConversation";
+import { CodexConversationParser } from "@main/activity/codex/codexConversation";
 import type { ConversationBlock } from "@shared/conversation";
 
 function record(type: string, payload: Record<string, unknown>, timestamp = "2026-07-31T12:00:00.000Z"): string {

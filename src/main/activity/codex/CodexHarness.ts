@@ -1,7 +1,8 @@
-import { CodexConversationParser } from "@main/activity/codexConversation";
-import { codexSessionsDir } from "@main/activity/codexConfig";
-import { type CodexRolloutState, codexRollouts } from "@main/activity/codexRollout";
-import { codexTitle, rolloutPath } from "@main/activity/codexTranscript";
+import { CodexConversationParser } from "@main/activity/codex/codexConversation";
+import { codexSessionsDir } from "@main/activity/codex/codexConfig";
+import { codexRollouts } from "@main/activity/codex/codexRollout";
+import type { CodexRolloutState } from "@main/activity/codex/rolloutState";
+import { codexTitle, rolloutPath } from "@main/activity/codex/codexTranscript";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/activity/Harness";
 import { CODEX_HARNESS_ID } from "@main/activity/harnessIds";
 import { procFs } from "@main/activity/procFs";

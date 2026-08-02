@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { base } from "@main/router/_base";
+import { base } from "@main/router/base";
 import { Services } from "@main/services/Services";
 
 const serviceInput = type({ commandId: "string" });

@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import type { HarnessCommand } from "@main/activity/Harness";
-import { transcriptMaterial } from "@main/activity/claudeTranscript";
+import { transcriptMaterial } from "@main/activity/claude/claudeTranscript";
 import { Logger } from "@main/logger";
 import { NAME_TARGET_CHARS, acceptedName } from "@main/naming/nameContract";
 

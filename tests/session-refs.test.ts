@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseSessionRecord } from "@main/activity/claude";
+import { parseSessionRecord } from "@main/activity/claude/ClaudeHarness";
 import { reconcileSessionRefs, type SessionRef } from "@main/activity/SessionRefs";
 import { assertDefined } from "./utils/assertions";
 

@@ -3,7 +3,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, expect, test } from "bun:test";
 import { type } from "arktype";
-import { ClaudeHarness } from "@main/activity/claude";
+import { ClaudeHarness } from "@main/activity/claude/ClaudeHarness";
 import { assertDefined } from "./utils/assertions";
 
 const SMOKE_ENABLED = process.env.BANKAI_CLAUDE_SMOKE === "1";

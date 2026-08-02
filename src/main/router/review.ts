@@ -2,7 +2,7 @@ import { type } from "arktype";
 import { reviewModeSchema, type ReviewMode } from "@main/git/contracts";
 import { GitProcess } from "@main/git/GitProcess";
 import { projectWorktrees, resolveProjectWorktree } from "@main/git/ProjectWorktrees";
-import { base } from "@main/router/_base";
+import { base } from "@main/router/base";
 import { Projects } from "@main/store/projects";
 
 const scopeInput = type({

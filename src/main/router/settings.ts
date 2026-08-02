@@ -1,5 +1,5 @@
 import { DEFAULT_HARNESS_SETTINGS, launchableHarnesses } from "@main/activity/harnesses";
-import { base } from "@main/router/_base";
+import { base } from "@main/router/base";
 import { harnessSchema, layoutSchema, Settings } from "@main/store/settings";
 import { harnessAvailable } from "@main/terminal/harnessAvailability";
 

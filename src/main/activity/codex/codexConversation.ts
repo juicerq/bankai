@@ -1,8 +1,6 @@
 import { type } from "arktype";
 import type { ConversationLineParser } from "@main/activity/conversationTail";
-import type { ConversationBlock } from "@shared/conversation";
-
-const CONVERSATION_LINE_LIMIT = 128 * 1024;
+import { CONVERSATION_LINE_LIMIT, type ConversationBlock } from "@shared/conversation";
 
 const userMessageSchema = type({
 	timestamp: "string",

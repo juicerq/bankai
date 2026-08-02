@@ -2,7 +2,8 @@ import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { codexRollouts, IDLE_ROLLOUT, rolloutMeta, turnAfter } from "@main/activity/codexRollout";
+import { codexRollouts } from "@main/activity/codex/codexRollout";
+import { IDLE_ROLLOUT, rolloutMeta, turnAfter } from "@main/activity/codex/rolloutState";
 
 const SESSION = "019f898d-719d-7811-9b34-86470df90a52";
 

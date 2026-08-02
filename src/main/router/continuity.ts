@@ -2,7 +2,7 @@ import { AgentActivity } from "@main/activity/AgentActivity";
 import { stampShell } from "@main/continuity/ShellFacts";
 import { GitProcess } from "@main/git/GitProcess";
 import { Logger } from "@main/logger";
-import { base } from "@main/router/_base";
+import { base } from "@main/router/base";
 import { Continuity, type ContinuityValue } from "@main/store/continuity";
 import { shellProcesses } from "@main/terminal/ShellProcesses";
 import { type } from "arktype";

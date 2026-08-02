@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { CodexHarness, interactiveCommandLine, rolloutCandidates } from "@main/activity/codex";
-import { codexSessionsDir } from "@main/activity/codexConfig";
+import { CodexHarness, interactiveCommandLine, rolloutCandidates } from "@main/activity/codex/CodexHarness";
+import { codexSessionsDir } from "@main/activity/codex/codexConfig";
 import { Settings } from "@main/store/settings";
 import { harnessCommandLine } from "@main/terminal/autostart";
 import { assertDefined } from "./utils/assertions";

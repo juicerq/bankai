@@ -1,7 +1,7 @@
 import { unwatchFile, watchFile } from "node:fs";
 import { type FileHandle, open } from "node:fs/promises";
 import { StringDecoder } from "node:string_decoder";
-import { ConversationParser } from "@main/activity/claudeConversation";
+import { ConversationParser } from "@main/activity/claude/claudeConversation";
 import { Logger } from "@main/logger";
 import { type ConversationBlock, type ConversationSnapshot, mergeConversationBlocks } from "@shared/conversation";
 

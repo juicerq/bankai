@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { type } from "arktype";
 import { WebSocket } from "ws";
-import { transcriptPath } from "@main/activity/claudeTranscript";
+import { transcriptPath } from "@main/activity/claude/claudeTranscript";
 import { CONVERSATION_BACKFILL_BYTES } from "@main/activity/conversationTail";
 import { StreamConnection } from "@main/server/stream/connection";
 import { handleConversationMessage } from "@main/server/stream/conversation";

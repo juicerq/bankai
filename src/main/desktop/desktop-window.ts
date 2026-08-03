@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain } from "electron";
 
-export function setupWindowIpc() {
+function setupWindowIpc() {
 	ipcMain.on("window:minimize", (event) => {
 		BrowserWindow.fromWebContents(event.sender)?.minimize();
 	});
@@ -22,10 +22,15 @@ export function setupWindowIpc() {
 	});
 }
 
-export function publishMaximizedState(win: BrowserWindow) {
+function publishMaximizedState(win: BrowserWindow) {
 	const send = () => win.webContents.send("window:maximized", win.isMaximized());
 
 	win.on("maximize", send);
 	win.on("unmaximize", send);
 	win.webContents.on("did-finish-load", send);
 }
+
+export const DesktopWindow = {
+	setup: setupWindowIpc,
+	publishMaximized: publishMaximizedState,
+};

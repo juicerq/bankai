@@ -1,13 +1,13 @@
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { claudeConfigDir } from "@main/agents/harness/claude/claude-config";
-import { codexConfigDir } from "@main/agents/harness/codex/codex-config";
-import { atomicWrite } from "@main/store/atomic";
-import { resolveDataDir } from "@main/store/store-paths";
+import { ClaudeConfig } from "@main/agents/harness/claude/claude-config";
+import { CodexConfig } from "@main/agents/harness/codex/codex-config";
+import { AtomicFile } from "@main/infra/atomic-file";
+import { StorePaths } from "@main/store/store-paths";
 
 const INSTALLED_HOOKS = [
-	{ config: () => join(claudeConfigDir(), "settings.json"), scriptName: "bankai-trace.sh" },
-	{ config: () => join(codexConfigDir(), "hooks.json"), scriptName: "bankai-codex-trace.sh" },
+	{ config: () => join(ClaudeConfig.dir(), "settings.json"), scriptName: "bankai-trace.sh" },
+	{ config: () => join(CodexConfig.dir(), "hooks.json"), scriptName: "bankai-codex-trace.sh" },
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -24,7 +24,7 @@ function bankaiGroup(group: unknown, scriptName: string): boolean {
 	);
 }
 
-export function settingsWithoutBankaiHooks(current: unknown, scriptName: string): Record<string, unknown> {
+function settingsWithoutBankaiHooks(current: unknown, scriptName: string): Record<string, unknown> {
 	const settings = isRecord(current) ? current : {};
 	const hooks: Record<string, unknown> = {};
 
@@ -70,10 +70,15 @@ async function removeFromConfig(path: string, scriptName: string): Promise<void>
 		return;
 	}
 
-	await atomicWrite(path, written);
+	await AtomicFile.write(path, written);
 }
 
-export async function removeInstalledHooks(): Promise<void> {
+async function removeInstalledHooks(): Promise<void> {
 	await Promise.all(INSTALLED_HOOKS.map(({ config, scriptName }) => removeFromConfig(config(), scriptName)));
-	await rm(join(resolveDataDir(), "hooks"), { recursive: true, force: true });
+	await rm(join(StorePaths.dataDir(), "hooks"), { recursive: true, force: true });
 }
+
+export const ClaudeHooks = {
+	settingsWithout: settingsWithoutBankaiHooks,
+	removeInstalled: removeInstalledHooks,
+};

@@ -6,7 +6,7 @@ const TITLE_TAIL = 256;
 const tails = new Map<string, string>();
 const titles = new Map<string, string>();
 
-export function noteShellTitle(shellId: string, data: string): void {
+function noteShellTitle(shellId: string, data: string): void {
 	const combined = (tails.get(shellId) ?? "") + data;
 	const latest = [...combined.matchAll(OSC_TITLE)].at(-1)?.[1]?.trim();
 
@@ -17,9 +17,15 @@ export function noteShellTitle(shellId: string, data: string): void {
 	tails.set(shellId, combined.slice(-TITLE_TAIL));
 }
 
-export const shellTitles: ReadonlyMap<string, string> = titles;
+const shellTitles: ReadonlyMap<string, string> = titles;
 
-export function forgetShellTitle(shellId: string): void {
+function forgetShellTitle(shellId: string): void {
 	titles.delete(shellId);
 	tails.delete(shellId);
 }
+
+export const ShellTitles = {
+	note: noteShellTitle,
+	byShell: shellTitles,
+	forget: forgetShellTitle,
+};

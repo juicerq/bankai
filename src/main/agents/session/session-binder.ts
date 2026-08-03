@@ -1,4 +1,4 @@
-export interface ShellProc {
+interface ShellProc {
 	sessionId: string;
 	pid: number;
 }
@@ -36,7 +36,7 @@ async function bindAgent(
 	return null;
 }
 
-export async function bindShells(
+async function bindShells(
 	shells: ShellProc[],
 	agents: Iterable<number>,
 	parentOf: ParentOf,
@@ -58,3 +58,7 @@ export async function bindShells(
 
 	return bindings;
 }
+
+export const SessionBinder = {
+	bind: bindShells,
+};

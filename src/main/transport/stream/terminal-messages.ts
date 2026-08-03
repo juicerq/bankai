@@ -1,17 +1,17 @@
 import { AgentActivity } from "@main/agents/agent-activity";
 import { Logger } from "@main/infra/logger";
-import { mobileTurnShells } from "@main/push/notify-attention";
+import { NotifyAttention } from "@main/push/notify-attention";
 import type { StreamConnection } from "@main/transport/stream/stream-connection";
 import { TerminalSchemas } from "@main/transport/stream/stream-messages";
 import { Continuity } from "@main/store/continuity";
-import { bracketedPaste, TERMINAL_KEY_BYTES } from "@main/terminal/terminal-input";
+import { TerminalInput } from "@main/terminal/terminal-input";
 import type { ShellAttachment, ShellRef } from "@main/terminal/shell-processes";
 import { shellProcesses } from "@main/terminal/shell-processes";
 import { TerminalSessions } from "@main/terminal/terminal-sessions";
 import type { StreamEnvelope } from "@shared/stream";
 import type { TerminalAttached, TerminalCommandErrorEvent } from "@shared/terminal";
 
-export async function handleTerminalMessage(
+async function handleTerminalMessage(
 	connection: StreamConnection,
 	message: StreamEnvelope,
 ): Promise<unknown> {
@@ -48,7 +48,7 @@ export async function handleTerminalMessage(
 					return;
 				}
 
-				mobileTurnShells.delete(ref.shellId);
+				NotifyAttention.mobileShells.delete(ref.shellId);
 
 				if (submitsTurn(input.data)) {
 					void unarchiveSender(ref);
@@ -83,18 +83,18 @@ export async function handleTerminalMessage(
 				throw new Error("No agent is listening to this shell");
 			}
 
-			shellProcesses.write(sessionId, bracketedPaste(input.text));
+			shellProcesses.write(sessionId, TerminalInput.bracketedPaste(input.text));
 			shellProcesses.write(sessionId, "\r");
-			mobileTurnShells.add(input.shellId);
+			NotifyAttention.mobileShells.add(input.shellId);
 			await unarchiveSender({ projectId: input.projectId, shellId: input.shellId });
 
 			return undefined;
 		}
 		case "key": {
 			const input = TerminalSchemas.key.assert(message.payload);
-			const bytes = TERMINAL_KEY_BYTES[input.key];
+			const bytes = TerminalInput.TERMINAL_KEY_BYTES[input.key];
 			shellProcesses.write(liveSession(input), bytes);
-			mobileTurnShells.add(input.shellId);
+			NotifyAttention.mobileShells.add(input.shellId);
 
 			if (submitsTurn(bytes)) {
 				await unarchiveSender(input);
@@ -107,7 +107,7 @@ export async function handleTerminalMessage(
 	}
 }
 
-export function detachOnClose(connection: StreamConnection, attached: TerminalAttached): TerminalAttached {
+function detachOnClose(connection: StreamConnection, attached: TerminalAttached): TerminalAttached {
 	connection.onClose(() => shellProcesses.detach(attached.sessionId, connection.id));
 
 	return attached;
@@ -172,3 +172,8 @@ function run(
 
 	return undefined;
 }
+
+export const TerminalMessages = {
+	handle: handleTerminalMessage,
+	detachOnClose,
+};

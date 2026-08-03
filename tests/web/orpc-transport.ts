@@ -4,7 +4,7 @@ import { RPCHandler } from "@orpc/server/fetch";
 import { type } from "arktype";
 import { commandDraftSchema, type ProjectCommand } from "@main/store/project-commands";
 import type { ContinuityValue } from "@main/store/continuity";
-import type { MobileAccess } from "@main/infra/tailscale/tailscale-access";
+import type { MobileAccessStatus } from "@main/infra/tailscale/tailscale-access";
 import { type HarnessSettings, harnessSchema } from "@main/store/settings";
 import { SERVER_DEFAULT_PORT, SERVER_RPC_PREFIX } from "@shared/server";
 import type { ServiceState, ServiceStatus } from "@shared/services";
@@ -114,7 +114,7 @@ function requireHarness() {
 }
 
 export interface MobileTransport {
-	access: MobileAccess;
+	access: MobileAccessStatus;
 	exposeCalls: boolean[];
 	plainOnly?: boolean;
 	regenerations: number;

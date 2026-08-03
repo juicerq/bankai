@@ -1,10 +1,10 @@
 import { type } from "arktype";
 import { base } from "@main/transport/rpc/rpc-base";
-import { vapidKeys } from "@main/push/web-push";
+import { WebPush } from "@main/push/web-push";
 import { PushSubscriptions, pushSubscriptionSchema } from "@main/store/push-subscriptions";
 
 export const pushRouter = {
-	getPublicKey: base.handler(async () => (await vapidKeys()).publicKey),
+	getPublicKey: base.handler(async () => (await WebPush.vapid()).publicKey),
 	subscribe: base.input(pushSubscriptionSchema).handler(({ input }) => PushSubscriptions.save(input)),
 	unsubscribe: base
 		.input(type({ endpoint: "string" }))

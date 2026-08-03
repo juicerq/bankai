@@ -2,13 +2,13 @@ import { execFile } from "node:child_process";
 
 const TAILSCALE_TIMEOUT_MS = 8000;
 
-export interface TailscaleResult {
+interface TailscaleResult {
 	stdout: string;
 	stderr: string;
 	failed: boolean;
 }
 
-export function tailscale(args: string[]): Promise<TailscaleResult> {
+function tailscale(args: string[]): Promise<TailscaleResult> {
 	return new Promise((resolve) => {
 		execFile(
 			"tailscale",
@@ -20,3 +20,7 @@ export function tailscale(args: string[]): Promise<TailscaleResult> {
 		);
 	});
 }
+
+export const Tailscale = {
+	run: tailscale,
+};

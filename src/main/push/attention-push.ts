@@ -1,6 +1,6 @@
-export const PUSH_DEFAULT_TITLE = "Bankai";
+const PUSH_DEFAULT_TITLE = "Bankai";
 
-export const PUSH_DEFAULT_BODY = "Needs attention";
+const PUSH_DEFAULT_BODY = "Needs attention";
 
 export interface AttentionPushPayload {
 	title: string;
@@ -8,7 +8,7 @@ export interface AttentionPushPayload {
 	data: { shellId: string };
 }
 
-export const PUSH_DONE_BODY = "Done";
+const PUSH_DONE_BODY = "Done";
 
 interface PushSubject {
 	shellId: string;
@@ -26,14 +26,23 @@ function pushPayload(subject: PushSubject, body: string): AttentionPushPayload {
 	};
 }
 
-export function attentionPushPayload(input: PushSubject): AttentionPushPayload {
+function attentionPushPayload(input: PushSubject): AttentionPushPayload {
 	return pushPayload(input, PUSH_DEFAULT_BODY);
 }
 
-export function donePushPayload(input: PushSubject & { project?: string }): AttentionPushPayload {
+function donePushPayload(input: PushSubject & { project?: string }): AttentionPushPayload {
 	return pushPayload(input, input.project?.trim() ? `${PUSH_DONE_BODY} in ${input.project}` : PUSH_DONE_BODY);
 }
 
-export function subscriptionGone(statusCode?: number): boolean {
+function subscriptionGone(statusCode?: number): boolean {
 	return statusCode === 404 || statusCode === 410;
 }
+
+export const AttentionPush = {
+	PUSH_DEFAULT_TITLE,
+	PUSH_DEFAULT_BODY,
+	PUSH_DONE_BODY,
+	payload: attentionPushPayload,
+	donePayload: donePushPayload,
+	isGone: subscriptionGone,
+};

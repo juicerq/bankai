@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ClaudeHarness } from "@main/agents/harness/claude/claude-harness";
-import { harnessResume } from "@main/agents/harness/harnesses";
+import { Harnesses } from "@main/agents/harness/harnesses";
 import { assertDefined } from "./utils/assertions";
 
 const VALID_SESSION_ID = "67af1e51-358c-475f-b33a-7de1e199d0a5";
@@ -31,10 +31,10 @@ describe("claude resume command", () => {
 
 describe("harness resume lookup", () => {
 	test("resolves the claude resume capability", () => {
-		expect(harnessResume("claude")).toBe(ClaudeHarness.resume);
+		expect(Harnesses.resume("claude")).toBe(ClaudeHarness.resume);
 	});
 
 	test("returns nothing for an unknown harness", () => {
-		expect(harnessResume("aider")).toBeUndefined();
+		expect(Harnesses.resume("aider")).toBeUndefined();
 	});
 });

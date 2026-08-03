@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { type } from "arktype";
 import { WebSocket } from "ws";
 import { StreamConnection } from "@main/transport/stream/stream-connection";
-import { handleConversationMessage } from "@main/transport/stream/conversation-messages";
+import { ConversationMessages } from "@main/transport/stream/conversation-messages";
 
 const SESSION_ID = "019fb897-3f89-77e0-9fea-5f059c48f5a3";
 
@@ -81,7 +81,7 @@ test("the conversation stream serves a persisted Codex session to the phone", as
 	);
 
 	const connection = new StreamConnection({ readyState: WebSocket.OPEN, send: () => {} });
-	const snapshot = snapshotSchema.assert(await handleConversationMessage(connection, {
+	const snapshot = snapshotSchema.assert(await ConversationMessages.handle(connection, {
 		channel: "conversation",
 		type: "subscribe",
 		payload: { shellId: "s1" },
@@ -92,7 +92,7 @@ test("the conversation stream serves a persisted Codex session to the phone", as
 		{ kind: "agent", id: "m1", text: "Pronto." },
 	]);
 
-	handleConversationMessage(connection, {
+	ConversationMessages.handle(connection, {
 		channel: "conversation",
 		type: "unsubscribe",
 		payload: { shellId: "s1" },

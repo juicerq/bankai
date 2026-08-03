@@ -2,13 +2,13 @@ import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { codexMaterial } from "@main/agents/harness/codex/codex-transcript";
+import { CodexTranscript } from "@main/agents/harness/codex/codex-transcript";
 import type { HarnessCommand } from "@main/agents/harness/harness";
 import { Logger } from "@main/infra/logger";
-import { acceptedName, NAME_TARGET_CHARS } from "@main/agents/naming/name-contract";
+import { NameContract } from "@main/agents/naming/name-contract";
 import { type } from "arktype";
 
-export const NAMING_TIMEOUT_MS = 30000;
+const NAMING_TIMEOUT_MS = 30000;
 const NAMING_OUTPUT_MAX_BYTES = 64 * 1024;
 const NAMING_REASONING_EFFORT = "low";
 
@@ -34,7 +34,7 @@ function namingPrompt(material: string[]): string {
 	return [
 		"These are the messages a user wrote in a coding session, oldest first.",
 		"Name the session after what it is about as a whole, not after any single message.",
-		`Use at most ${NAME_TARGET_CHARS} characters.`,
+		`Use at most ${NameContract.NAME_TARGET_CHARS} characters.`,
 		"Write the name in the same language the messages are written in.",
 		"Answer with the name alone, with no quotes and no trailing punctuation.",
 		"",
@@ -42,7 +42,7 @@ function namingPrompt(material: string[]): string {
 	].join("\n");
 }
 
-export function namingCall(input: {
+function namingCall(input: {
 	material: string[];
 	workspace: string;
 	schema: string;
@@ -91,7 +91,7 @@ function runWithoutStdin(call: NamingCall): Promise<null> {
 	});
 }
 
-export function proposedName(raw: string): string | null {
+function proposedName(raw: string): string | null {
 	let value: unknown;
 	try {
 		value = JSON.parse(raw);
@@ -104,11 +104,11 @@ export function proposedName(raw: string): string | null {
 		return null;
 	}
 
-	return acceptedName(name);
+	return NameContract.accept(name);
 }
 
-export async function codexProposeName(ref: { sessionId: string }): Promise<string | null> {
-	const material = await codexMaterial(ref);
+async function codexProposeName(ref: { sessionId: string }): Promise<string | null> {
+	const material = await CodexTranscript.material(ref);
 	if (material.length === 0) {
 		Logger.warn("codex:naming-no-material", { sessionId: ref.sessionId });
 
@@ -146,3 +146,10 @@ export async function codexProposeName(ref: { sessionId: string }): Promise<stri
 		});
 	}
 }
+
+export const CodexNamer = {
+	NAMING_TIMEOUT_MS,
+	call: namingCall,
+	parseName: proposedName,
+	proposeName: codexProposeName,
+};

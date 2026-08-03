@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { CodexHarness, interactiveCommandLine, rolloutCandidates } from "@main/agents/harness/codex/codex-harness";
-import { codexSessionsDir } from "@main/agents/harness/codex/codex-config";
+import { CodexConfig } from "@main/agents/harness/codex/codex-config";
 import { Settings } from "@main/store/settings";
-import { harnessCommandLine } from "@main/terminal/shell-autostart";
+import { ShellAutostart } from "@main/terminal/shell-autostart";
 import { assertDefined } from "./utils/assertions";
 
 const SESSION = "019f898d-719d-7811-9b34-86470df90a52";
@@ -39,7 +39,7 @@ describe("codex resume command", () => {
 			profiles: { [CodexHarness.id]: { args: "--config 'a b'" } },
 		});
 
-		expect(await harnessCommandLine({ file: "codex", args: ["resume", SESSION] }, CodexHarness.id)).toBe(
+		expect(await ShellAutostart.harnessLine({ file: "codex", args: ["resume", SESSION] }, CodexHarness.id)).toBe(
 			`codex resume ${SESSION} --config 'a b'`,
 		);
 	});
@@ -69,7 +69,7 @@ describe("codex process roles", () => {
 
 describe("rollout candidates among open files", () => {
 	test("keeps only rollout files under the codex sessions directory", () => {
-		const sessions = codexSessionsDir();
+		const sessions = CodexConfig.sessionsDir();
 
 		expect(
 			rolloutCandidates([

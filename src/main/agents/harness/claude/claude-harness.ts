@@ -3,12 +3,12 @@ import { join } from "node:path";
 import { type } from "arktype";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/agents/harness/harness";
 import { ConversationParser } from "@main/agents/harness/claude/claude-conversation";
-import { claudeConfigDir } from "@main/agents/harness/claude/claude-config";
-import { locateTranscript, transcriptTitle } from "@main/agents/harness/claude/claude-transcript";
-import { subagentTranscriptPath } from "@main/agents/transcript/subagent-transcript";
-import { CLAUDE_HARNESS_ID } from "@main/agents/harness/harness-ids";
-import { SESSION_UUID } from "@main/agents/session/session-refs";
-import { claudeProposeName } from "@main/agents/harness/claude/claude-namer";
+import { ClaudeConfig } from "@main/agents/harness/claude/claude-config";
+import { ClaudeTranscript } from "@main/agents/harness/claude/claude-transcript";
+import { SubagentTranscript } from "@main/agents/transcript/subagent-transcript";
+import { CLAUDE_HARNESS_ID } from "@main/agents/harness/harness";
+import { SessionRefs } from "@main/agents/session/session-refs";
+import { ClaudeNamer } from "@main/agents/harness/claude/claude-namer";
 
 const PRESENCE_STATUS: Record<string, AgentPresence["status"]> = {
 	busy: "working",
@@ -65,29 +65,29 @@ export function parseSessionRecord(raw: string): AgentPresence | null {
 }
 
 function sessionsDirectory(): string {
-	return join(claudeConfigDir(), "sessions");
+	return join(ClaudeConfig.dir(), "sessions");
 }
 
 export const ClaudeHarness: Harness = {
 	id: CLAUDE_HARNESS_ID,
 	label: "Claude Code",
 	conversation: {
-		transcript: locateTranscript,
+		transcript: ClaudeTranscript.locate,
 		parser: () => new ConversationParser(),
-		subagentTranscript: subagentTranscriptPath,
+		subagentTranscript: SubagentTranscript.path,
 	},
 	launch(): HarnessCommand {
 		return { file: "claude", args: [] };
 	},
 	resume(ref): HarnessCommand | null {
-		if (!SESSION_UUID.test(ref.sessionId)) {
+		if (!SessionRefs.SESSION_UUID.test(ref.sessionId)) {
 			return null;
 		}
 
 		return { file: "claude", args: ["--resume", ref.sessionId] };
 	},
-	title: transcriptTitle,
-	proposeName: claudeProposeName,
+	title: ClaudeTranscript.title,
+	proposeName: ClaudeNamer.proposeName,
 	watch: () => [sessionsDirectory()],
 	async discover() {
 		const directory = sessionsDirectory();

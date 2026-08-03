@@ -1,7 +1,7 @@
 import { Logger } from "@main/infra/logger";
 import { ProjectCommands } from "@main/store/project-commands";
 import { Projects } from "@main/store/projects";
-import { serviceArgs } from "@main/terminal/shell-command-line";
+import { ShellCommandLine } from "@main/terminal/shell-command-line";
 import { shellProcesses } from "@main/terminal/shell-processes";
 import { ShellSpawn } from "@main/terminal/shell-spawn";
 import type { ServiceState, ServiceStatus } from "@shared/services";
@@ -50,7 +50,7 @@ async function start(commandId: string): Promise<void> {
 			cwd: project.path,
 			cols: SERVICE_COLS,
 			rows: SERVICE_ROWS,
-			args: serviceArgs(command.command),
+			args: ShellCommandLine.serviceArgs(command.command),
 			killGroup: true,
 			onExit: ({ exitCode, spontaneous }) => {
 				publish({

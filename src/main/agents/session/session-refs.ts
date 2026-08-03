@@ -1,4 +1,4 @@
-export const SESSION_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SESSION_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface SessionRef {
 	harness: string;
@@ -6,14 +6,14 @@ export interface SessionRef {
 	cwd: string;
 }
 
-export interface ShellSessionObservation {
+interface ShellSessionObservation {
 	shellId: string;
 	projectId: string;
 	agentBound: boolean;
 	session: SessionRef | undefined;
 }
 
-export type SessionRefChange =
+type SessionRefChange =
 	| { kind: "upsert"; projectId: string; shellId: string; session: SessionRef }
 	| { kind: "clear"; projectId: string; shellId: string };
 
@@ -27,7 +27,7 @@ function sameRef(remembered: SessionRef | undefined, observed: SessionRef): bool
 		&& remembered.cwd === observed.cwd;
 }
 
-export function reconcileSessionRefs(
+function reconcileSessionRefs(
 	previous: Map<string, SessionRef>,
 	observations: ShellSessionObservation[],
 ): { changes: SessionRefChange[]; next: Map<string, SessionRef> } {
@@ -66,3 +66,8 @@ export function reconcileSessionRefs(
 
 	return { changes, next };
 }
+
+export const SessionRefs = {
+	SESSION_UUID,
+	reconcile: reconcileSessionRefs,
+};

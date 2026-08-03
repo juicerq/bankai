@@ -2,7 +2,7 @@ import { expect, spyOn, test } from "bun:test";
 import { WebSocket } from "ws";
 import { AgentActivity } from "@main/agents/agent-activity";
 import { StreamConnection } from "@main/transport/stream/stream-connection";
-import { detachOnClose, handleTerminalMessage } from "@main/transport/stream/terminal-messages";
+import { TerminalMessages } from "@main/transport/stream/terminal-messages";
 import { Continuity } from "@main/store/continuity";
 import { shellProcesses, type TerminalProcess } from "@main/terminal/shell-processes";
 import { TERMINAL_DATA_FLUSH_MS } from "@main/terminal/buffer/terminal-data-buffer";
@@ -57,7 +57,7 @@ test("an attachment that landed after its connection closed lets go of the shell
 
 	const missed = attach(sessionId, gone);
 	const seen = attach(sessionId, connected());
-	detachOnClose(gone, { sessionId });
+	TerminalMessages.detachOnClose(gone, { sessionId });
 	shellProcesses.noteData(sessionId, "output the phone will never see");
 	await flushed();
 
@@ -70,7 +70,7 @@ test("an attachment made while the connection was open is let go when it closes"
 	const { sessionId } = running("close-later");
 
 	const events = attach(sessionId, connection);
-	detachOnClose(connection, { sessionId });
+	TerminalMessages.detachOnClose(connection, { sessionId });
 	connection.close();
 	shellProcesses.noteData(sessionId, "output after the phone went away");
 	await flushed();
@@ -85,7 +85,7 @@ function envelope(type: string, payload: unknown): StreamEnvelope {
 test("a prompt is refused when no agent is listening to the shell", async () => {
 	const { terminal } = running("no-agent");
 
-	const refused = await handleTerminalMessage(
+	const refused = await TerminalMessages.handle(
 		connected(),
 		envelope("prompt", { projectId: "p1", shellId: "no-agent", text: "hello" }),
 	).catch((err) => String(err));
@@ -99,7 +99,7 @@ test("attaching reads a running process without opening a new one", async () => 
 	shellProcesses.noteData(sessionId, "listening on 4700");
 	await flushed();
 
-	const attached = await handleTerminalMessage(
+	const attached = await TerminalMessages.handle(
 		connected(),
 		envelope("attach", { projectId: "p1", shellId: "service-log" }),
 	);
@@ -108,7 +108,7 @@ test("attaching reads a running process without opening a new one", async () => 
 });
 
 test("attaching to a process that is not running is refused instead of spawning one", async () => {
-	const refused = await handleTerminalMessage(
+	const refused = await TerminalMessages.handle(
 		connected(),
 		envelope("attach", { projectId: "p1", shellId: "never-started" }),
 	).catch((err) => String(err));
@@ -142,7 +142,7 @@ test("a prompt to an archived shell brings it back out of the archive", async ()
 	await archived("prompt-archived");
 	spyOn(AgentActivity, "liveAgentSessions").mockReturnValue(new Set([sessionId]));
 
-	await handleTerminalMessage(
+	await TerminalMessages.handle(
 		connected(),
 		envelope("prompt", { projectId: "p1", shellId: "prompt-archived", text: "hello" }),
 	);
@@ -155,7 +155,7 @@ test("typing Enter into an archived shell brings it back out of the archive", as
 	const { sessionId } = running("write-enter");
 	await archived("write-enter");
 
-	await handleTerminalMessage(connected(), envelope("write", { sessionId, data: "ls\r" }));
+	await TerminalMessages.handle(connected(), envelope("write", { sessionId, data: "ls\r" }));
 
 	expect(await unarchived("write-enter")).toBe(true);
 });
@@ -164,7 +164,7 @@ test("typing without Enter leaves an archived shell archived", async () => {
 	const { sessionId } = running("write-keys");
 	await archived("write-keys");
 
-	await handleTerminalMessage(connected(), envelope("write", { sessionId, data: "ls" }));
+	await TerminalMessages.handle(connected(), envelope("write", { sessionId, data: "ls" }));
 	await Bun.sleep(50);
 
 	expect(await stillArchived("write-keys")).toBe(true);
@@ -174,7 +174,7 @@ test("the Enter key brings an archived shell back out of the archive", async () 
 	running("key-enter");
 	await archived("key-enter");
 
-	await handleTerminalMessage(connected(), envelope("key", { projectId: "p1", shellId: "key-enter", key: "enter" }));
+	await TerminalMessages.handle(connected(), envelope("key", { projectId: "p1", shellId: "key-enter", key: "enter" }));
 
 	expect(await stillArchived("key-enter")).toBe(false);
 });
@@ -183,7 +183,7 @@ test("an arrow key leaves an archived shell archived", async () => {
 	running("key-up");
 	await archived("key-up");
 
-	await handleTerminalMessage(connected(), envelope("key", { projectId: "p1", shellId: "key-up", key: "up" }));
+	await TerminalMessages.handle(connected(), envelope("key", { projectId: "p1", shellId: "key-up", key: "up" }));
 
 	expect(await stillArchived("key-up")).toBe(true);
 });
@@ -191,7 +191,7 @@ test("an arrow key leaves an archived shell archived", async () => {
 test("a key press reaches the shell whether or not an agent is running", async () => {
 	const { terminal } = running("keys");
 
-	await handleTerminalMessage(connected(), envelope("key", { projectId: "p1", shellId: "keys", key: "enter" }));
+	await TerminalMessages.handle(connected(), envelope("key", { projectId: "p1", shellId: "keys", key: "enter" }));
 
 	expect(terminal.writes).toEqual(["\r"]);
 });

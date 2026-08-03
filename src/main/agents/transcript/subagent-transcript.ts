@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { type } from "arktype";
 import { AGENT_TOOL_NAMES } from "@main/agents/harness/claude/claude-conversation";
-import { locateTranscript } from "@main/agents/harness/claude/claude-transcript";
+import { ClaudeTranscript } from "@main/agents/harness/claude/claude-transcript";
 import { Logger } from "@main/infra/logger";
 
 const SUBAGENT_META_SUFFIX = ".meta.json";
@@ -35,7 +35,7 @@ interface SessionRef {
 type AgentCall = typeof agentUseSchema.infer.input;
 
 async function agentCall(ref: SessionRef, toolUseId: string): Promise<AgentCall | undefined> {
-	const path = await locateTranscript(ref);
+	const path = await ClaudeTranscript.locate(ref);
 	const stream = createReadStream(path, { encoding: "utf8" });
 	const lines = createInterface({ input: stream, crlfDelay: Number.POSITIVE_INFINITY });
 
@@ -86,8 +86,8 @@ async function metaOf(directory: string, file: string): Promise<typeof subagentM
 	return meta;
 }
 
-export async function subagentTranscriptPath(ref: SessionRef, toolUseId: string): Promise<string | undefined> {
-	const directory = join(dirname(await locateTranscript(ref)), ref.sessionId, "subagents");
+async function subagentTranscriptPath(ref: SessionRef, toolUseId: string): Promise<string | undefined> {
+	const directory = join(dirname(await ClaudeTranscript.locate(ref)), ref.sessionId, "subagents");
 	const files = await readdir(directory).catch(() => []);
 	const metas = files.filter((file) => file.endsWith(SUBAGENT_META_SUFFIX));
 	if (metas.length === 0) {
@@ -119,3 +119,7 @@ export async function subagentTranscriptPath(ref: SessionRef, toolUseId: string)
 
 	return matched[0];
 }
+
+export const SubagentTranscript = {
+	path: subagentTranscriptPath,
+};

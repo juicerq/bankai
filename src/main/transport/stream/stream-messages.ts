@@ -1,6 +1,6 @@
 import { type } from "arktype";
 import { terminalColumnsSchema, terminalRowsSchema } from "@main/terminal/terminal-dimensions";
-import { TERMINAL_KEYS } from "@main/terminal/terminal-input";
+import { TerminalInput } from "@main/terminal/terminal-input";
 import { STREAM_CHANNELS } from "@shared/stream";
 
 export const TERMINAL_WRITE_MAX_LENGTH = 65_536;
@@ -26,7 +26,7 @@ export const TerminalSchemas = {
 	resize: type({ sessionId: "string", cols: terminalColumnsSchema, rows: terminalRowsSchema }),
 	session: type({ sessionId: "string" }),
 	prompt: shellAddress.and({ text: type("string").atMostLength(TERMINAL_WRITE_MAX_LENGTH) }),
-	key: shellAddress.and({ key: type.enumerated(...TERMINAL_KEYS) }),
+	key: shellAddress.and({ key: type.enumerated(...TerminalInput.TERMINAL_KEYS) }),
 };
 
 export const ActivitySchemas = {

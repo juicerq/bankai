@@ -9,16 +9,12 @@ import type {
 	ReviewMode,
 	ReviewSnapshot,
 } from "@main/git/git-contracts";
+import { GitRun } from "@main/git/git-run";
 import {
-	gitText,
-	isGitOutputOverflow,
-	isNoIndexDifference,
-	isNoIndexPatch,
-	isRepo,
-	NULL_FILE,
-	nulSeparatedPaths,
-} from "@main/git/git-run";
-import { turnBaselines, withBaselineFile, type TurnBaseline, type TurnBaselineFile } from "@main/git/review/turn-baseline";
+	TurnBaseline,
+	type Baseline,
+	type BaselineFile,
+} from "@main/git/review/turn-baseline";
 
 export const FULL_FILE_MAX_LINES = 3000;
 const NEW_FILE_COUNT_CONCURRENCY = 16;
@@ -31,7 +27,7 @@ export interface ReviewScope {
 
 export const Git = {
 	snapshot: async (scope: ReviewScope): Promise<ReviewSnapshot> => {
-		const inside = await isRepo(scope.path);
+		const inside = await GitRun.isRepo(scope.path);
 		if (!inside) {
 			return { state: "not-a-repo", files: [], totals: { additions: 0, deletions: 0, files: 0 } };
 		}
@@ -51,9 +47,9 @@ export const Git = {
 
 		const base = await resolveBase(input);
 		const raw: unknown = base
-			? await gitText(input.path, ["diff", base, "-M", "--no-color", "--no-ext-diff"]).catch((err) => err)
+			? await GitRun.text(input.path, ["diff", base, "-M", "--no-color", "--no-ext-diff"]).catch((err) => err)
 			: "";
-		if (typeof raw !== "string" || isGitOutputOverflow(raw)) {
+		if (typeof raw !== "string" || GitRun.isGitOutputOverflow(raw)) {
 			return await readFilesIndividually(input);
 		}
 
@@ -98,12 +94,12 @@ export const Git = {
 	},
 };
 
-function turnBaseline(scope: ReviewScope): TurnBaseline | undefined {
+function turnBaseline(scope: ReviewScope): Baseline | undefined {
 	if (scope.mode !== "last-turn" || scope.shellId === undefined) {
 		return undefined;
 	}
 
-	const baseline = turnBaselines.get(scope.shellId);
+	const baseline = TurnBaseline.byShell.get(scope.shellId);
 	if (baseline?.path !== resolve(scope.path)) {
 		return undefined;
 	}
@@ -128,7 +124,7 @@ async function resolveBase(scope: ReviewScope): Promise<string | null> {
 		return turnBaseline(scope)?.head ?? null;
 	}
 
-	const hasHead = await gitText(scope.path, ["rev-parse", "--verify", "--quiet", "HEAD"])
+	const hasHead = await GitRun.text(scope.path, ["rev-parse", "--verify", "--quiet", "HEAD"])
 		.then(() => true)
 		.catch(() => false);
 	if (!hasHead) {
@@ -142,7 +138,7 @@ async function resolveBase(scope: ReviewScope): Promise<string | null> {
 }
 
 async function branchBase(path: string): Promise<string> {
-	const origin = await gitText(path, ["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"])
+	const origin = await GitRun.text(path, ["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"])
 		.then((out) => out.trim())
 		.catch(() => null);
 
@@ -150,7 +146,7 @@ async function branchBase(path: string): Promise<string> {
 		if (!ref) {
 			continue;
 		}
-		const base = await gitText(path, ["merge-base", ref, "HEAD"])
+		const base = await GitRun.text(path, ["merge-base", ref, "HEAD"])
 			.then((out) => out.trim())
 			.catch(() => null);
 		if (base) {
@@ -161,7 +157,7 @@ async function branchBase(path: string): Promise<string> {
 	return "HEAD";
 }
 
-async function turnSnapshot(path: string, baseline: TurnBaseline | undefined): Promise<ReviewSnapshot> {
+async function turnSnapshot(path: string, baseline: Baseline | undefined): Promise<ReviewSnapshot> {
 	if (!baseline) {
 		return { state: "no-turn", files: [], totals: { additions: 0, deletions: 0, files: 0 } };
 	}
@@ -177,7 +173,7 @@ async function turnSnapshot(path: string, baseline: TurnBaseline | undefined): P
 
 async function turnChanges(
 	path: string,
-	baseline: TurnBaseline,
+	baseline: Baseline,
 	untrackedNow: ReadonlySet<string>,
 ): Promise<FileChange[]> {
 	const entries = [...baseline.files];
@@ -197,7 +193,7 @@ async function turnChanges(
 async function turnChange(input: {
 	root: string;
 	file: string;
-	before: TurnBaselineFile;
+	before: BaselineFile;
 	untrackedNow: ReadonlySet<string>;
 }): Promise<FileChange | undefined> {
 	const target = resolve(input.root, input.file);
@@ -264,8 +260,8 @@ async function turnCounts(input: {
 	before: Buffer;
 	present: boolean;
 }): Promise<{ additions: number; deletions: number }> {
-	const raw = await withBaselineFile(input.before, (base) =>
-		gitText(input.root, [
+	const raw = await TurnBaseline.withFile(input.before, (base) =>
+		GitRun.text(input.root, [
 			"diff",
 			"--no-index",
 			"--numstat",
@@ -273,9 +269,9 @@ async function turnCounts(input: {
 			"--no-ext-diff",
 			"--",
 			base,
-			input.present ? input.file : NULL_FILE,
+			input.present ? input.file : GitRun.NULL_FILE,
 		]).catch((err) => {
-			if (isNoIndexDifference(err)) {
+			if (GitRun.isNoIndexDifference(err)) {
 				return err.stdout;
 			}
 
@@ -288,17 +284,17 @@ async function turnCounts(input: {
 }
 
 async function diffFiles(path: string, base: string): Promise<FileChange[]> {
-	const raw = await gitText(path, ["diff", base, "-M", "--raw", "--numstat", "-z", "--no-ext-diff"]);
+	const raw = await GitRun.text(path, ["diff", base, "-M", "--raw", "--numstat", "-z", "--no-ext-diff"]);
 	return parseTrackedMetadata(raw);
 }
 
 async function indexedFiles(path: string): Promise<FileChange[]> {
-	const files = await gitText(path, ["ls-files", "--cached", "-z"]).then(nulSeparatedPaths);
+	const files = await GitRun.text(path, ["ls-files", "--cached", "-z"]).then(GitRun.nulPaths);
 	return await addedFileMetadata(path, files, "added");
 }
 
 async function untrackedFiles(path: string): Promise<FileChange[]> {
-	const files = await gitText(path, ["ls-files", "--others", "--exclude-standard", "-z"]).then(nulSeparatedPaths);
+	const files = await GitRun.text(path, ["ls-files", "--others", "--exclude-standard", "-z"]).then(GitRun.nulPaths);
 	return await addedFileMetadata(path, files, "untracked");
 }
 
@@ -388,7 +384,7 @@ async function readFileDiff({
 	}
 
 	const raw: unknown = await fileDiff({ scope, file, full }).catch((err) => err);
-	if (isGitOutputOverflow(raw)) {
+	if (GitRun.isGitOutputOverflow(raw)) {
 		return { status: "too-large" };
 	}
 	if (typeof raw !== "string") {
@@ -421,7 +417,7 @@ async function fileDiff({ scope, file, full }: { scope: ReviewScope; file: strin
 
 	const base = await resolveBase(scope);
 	if (base) {
-		const tracked = await gitText(scope.path, [
+		const tracked = await GitRun.text(scope.path, [
 			"diff",
 			base,
 			"-M",
@@ -440,9 +436,9 @@ async function fileDiff({ scope, file, full }: { scope: ReviewScope; file: strin
 }
 
 async function newFilePatch(root: string, file: string): Promise<string> {
-	return await gitText(root, ["diff", "--no-index", "--no-color", "--no-ext-diff", "--", NULL_FILE, file])
+	return await GitRun.text(root, ["diff", "--no-index", "--no-color", "--no-ext-diff", "--", GitRun.NULL_FILE, file])
 		.catch((err) => {
-			if (isNoIndexPatch(err)) {
+			if (GitRun.isNoIndexPatch(err)) {
 				return err.stdout;
 			}
 
@@ -453,8 +449,8 @@ async function newFilePatch(root: string, file: string): Promise<string> {
 async function turnPatch(input: { root: string; file: string; before: Buffer; full: boolean }): Promise<string> {
 	const present = await lstat(resolve(input.root, input.file)).then((stats) => stats.isFile()).catch(() => false);
 
-	return await withBaselineFile(input.before, (base) =>
-		gitText(input.root, [
+	return await TurnBaseline.withFile(input.before, (base) =>
+		GitRun.text(input.root, [
 			"diff",
 			"--no-index",
 			"--no-color",
@@ -462,9 +458,9 @@ async function turnPatch(input: { root: string; file: string; before: Buffer; fu
 			...(input.full ? ["-U100000"] : []),
 			"--",
 			base,
-			present ? input.file : NULL_FILE,
+			present ? input.file : GitRun.NULL_FILE,
 		]).catch((err) => {
-			if (isNoIndexPatch(err)) {
+			if (GitRun.isNoIndexPatch(err)) {
 				return err.stdout;
 			}
 

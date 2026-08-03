@@ -1,9 +1,9 @@
 import { resolve, sep } from "node:path";
 import type { Worktree } from "@main/git/git-contracts";
-import { gitText } from "@main/git/git-run";
+import { GitRun } from "@main/git/git-run";
 
-export async function readWorktrees(path: string): Promise<Worktree[]> {
-	const raw = await gitText(path, ["worktree", "list", "--porcelain"]).catch(() => null);
+async function readWorktrees(path: string): Promise<Worktree[]> {
+	const raw = await GitRun.text(path, ["worktree", "list", "--porcelain"]).catch(() => null);
 	if (raw === null) {
 		return [];
 	}
@@ -11,13 +11,13 @@ export async function readWorktrees(path: string): Promise<Worktree[]> {
 	return parseWorktrees(raw);
 }
 
-export async function removeWorktree(repo: string, worktree: string): Promise<void> {
-	await gitText(repo, ["worktree", "remove", worktree]).catch((err: unknown) => {
+async function removeWorktree(repo: string, worktree: string): Promise<void> {
+	await GitRun.text(repo, ["worktree", "remove", worktree]).catch((err: unknown) => {
 		throw new Error(worktreeFailure(err));
 	});
 }
 
-export function worktreeFailure(err: unknown): string {
+function worktreeFailure(err: unknown): string {
 	if (typeof err === "object" && err !== null && "stderr" in err && typeof err.stderr === "string") {
 		const stderr = err.stderr.trim();
 		if (stderr) {
@@ -32,7 +32,7 @@ export function worktreeFailure(err: unknown): string {
 	return String(err);
 }
 
-export function parseWorktrees(raw: string): Worktree[] {
+function parseWorktrees(raw: string): Worktree[] {
 	const worktrees: Worktree[] = [];
 	let path: string | undefined;
 	let branch: string | undefined;
@@ -66,7 +66,7 @@ export function parseWorktrees(raw: string): Worktree[] {
 	return worktrees;
 }
 
-export function worktreeContaining(worktrees: Worktree[], path: string): Worktree | undefined {
+function worktreeContaining(worktrees: Worktree[], path: string): Worktree | undefined {
 	const target = resolve(path);
 
 	return worktrees
@@ -74,3 +74,11 @@ export function worktreeContaining(worktrees: Worktree[], path: string): Worktre
 		.sort((left, right) => right.path.length - left.path.length)
 		.at(0);
 }
+
+export const Worktrees = {
+	read: readWorktrees,
+	remove: removeWorktree,
+	failure: worktreeFailure,
+	parse: parseWorktrees,
+	containing: worktreeContaining,
+};

@@ -1,17 +1,18 @@
 import { join } from "node:path";
-import { startAgentActivity } from "@main/agents/start-agent-activity";
+import { AgentActivity } from "@main/agents/agent-activity";
+import { ClaudeHooks } from "@main/agents/harness/claude/claude-hooks";
 import { GitProcess } from "@main/git/git-process";
 import { Logger } from "@main/infra/logger";
-import { startLoopbackServer } from "@main/transport/server/bankai-server";
-import { serverReach } from "@main/transport/server/server-reach";
+import { BankaiServer } from "@main/transport/server/bankai-server";
+import { Reach } from "@main/transport/server/server-reach";
 import { Services } from "@main/services";
-import { markStartup, scheduleStartupReport } from "@main/startup";
-import { resolveInstanceIdentity } from "@main/store/store-paths";
+import { Startup } from "@main/startup";
+import { StorePaths } from "@main/store/store-paths";
 import { type SettingsValue, Settings } from "@main/store/settings";
-import { restoreTailnetAccess } from "@main/infra/tailscale/mobile-access";
-import { setupUpdateIpc } from "@main/desktop/update-ipc";
-import { setupDesktopAttention } from "@main/desktop/desktop-attention";
-import { publishMaximizedState, setupWindowIpc } from "@main/desktop/desktop-window";
+import { MobileAccess } from "@main/infra/tailscale/mobile-access";
+import { UpdateIpc } from "@main/desktop/update-ipc";
+import { DesktopAttention } from "@main/desktop/desktop-attention";
+import { DesktopWindow } from "@main/desktop/desktop-window";
 import { AUTH_IPC } from "@shared/server";
 import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 
@@ -64,7 +65,7 @@ async function createWindow() {
 			return {};
 		},
 	);
-	markStartup("settings-read");
+	Startup.mark("settings-read");
 
 	const saved = visibleBounds(settings.windowBounds);
 
@@ -86,13 +87,13 @@ async function createWindow() {
 	});
 
 	mainWindow = win;
-	setupDesktopAttention(win);
-	publishMaximizedState(win);
-	markStartup("window-created");
-	win.webContents.once("did-finish-load", () => markStartup("content-loaded"));
+	DesktopAttention.setup(win);
+	DesktopWindow.publishMaximized(win);
+	Startup.mark("window-created");
+	win.webContents.once("did-finish-load", () => Startup.mark("content-loaded"));
 	win.once("ready-to-show", () => {
-		markStartup("ready-to-show");
-		scheduleStartupReport();
+		Startup.mark("ready-to-show");
+		Startup.scheduleReport();
 	});
 
 	if (saved?.maximized) {
@@ -124,21 +125,24 @@ async function createWindow() {
 }
 
 async function start() {
-	markStartup("app-ready");
+	Startup.mark("app-ready");
 	try {
-		await startLoopbackServer();
-		ipcMain.handle(AUTH_IPC.getToken, () => serverReach());
-		markStartup("server-ready");
+		await BankaiServer.startLoopback();
+		ipcMain.handle(AUTH_IPC.getToken, () => Reach.current());
+		Startup.mark("server-ready");
 
-		restoreTailnetAccess().catch((err) => {
+		MobileAccess.restore().catch((err) => {
 			Logger.warn("tailscale:tailnet-restore-failed", { err: String(err) });
 		});
 
-		startAgentActivity();
+		AgentActivity.start();
+		ClaudeHooks.removeInstalled().catch((err) => {
+			Logger.warn("hooks:removal-failed", { err: String(err) });
+		});
 		Services.autostart().catch((err) => Logger.error("services:autostart-failed", { err: String(err) }));
-		setupWindowIpc();
-		setupUpdateIpc();
-		markStartup("ipc-ready");
+		DesktopWindow.setup();
+		UpdateIpc.setup();
+		Startup.mark("ipc-ready");
 		await createWindow();
 	} catch (err) {
 		Logger.error("startup:failed", { err: String(err) });
@@ -159,9 +163,9 @@ function focusMainWindow() {
 	mainWindow.focus();
 }
 
-markStartup("main-module");
+Startup.mark("main-module");
 
-const identity = resolveInstanceIdentity({
+const identity = StorePaths.resolveIdentity({
 	packaged: app.isPackaged,
 	prodUserDataDir: app.getPath("userData"),
 });

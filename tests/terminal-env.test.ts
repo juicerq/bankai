@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { terminalEnv } from "@main/terminal/terminal-env";
+import { TerminalEnv } from "@main/terminal/terminal-env";
 
 describe("terminal environment", () => {
 	it("keeps the inherited environment a shell needs", () => {
-		const env = terminalEnv({ PATH: "/usr/bin", HOME: "/home/jui", EMPTY: undefined });
+		const env = TerminalEnv.of({ PATH: "/usr/bin", HOME: "/home/jui", EMPTY: undefined });
 
 		expect(env.PATH).toBe("/usr/bin");
 		expect(env.HOME).toBe("/home/jui");
@@ -11,14 +11,14 @@ describe("terminal environment", () => {
 	});
 
 	it("forces its own terminal capabilities", () => {
-		const env = terminalEnv({ TERM: "dumb", COLORTERM: "" });
+		const env = TerminalEnv.of({ TERM: "dumb", COLORTERM: "" });
 
 		expect(env.TERM).toBe("xterm-256color");
 		expect(env.COLORTERM).toBe("truecolor");
 	});
 
 	it("drops the markers that make a spawned agent behave as a nested child session", () => {
-		const env = terminalEnv({
+		const env = TerminalEnv.of({
 			CLAUDECODE: "1",
 			CLAUDE_CODE_CHILD_SESSION: "1",
 			CLAUDE_CODE_ENTRYPOINT: "cli",
@@ -31,7 +31,7 @@ describe("terminal environment", () => {
 	});
 
 	it("keeps agent configuration that is not a session marker", () => {
-		const env = terminalEnv({ CLAUDE_CONFIG_DIR: "/home/jui/.claude" });
+		const env = TerminalEnv.of({ CLAUDE_CONFIG_DIR: "/home/jui/.claude" });
 
 		expect(env.CLAUDE_CONFIG_DIR).toBe("/home/jui/.claude");
 	});

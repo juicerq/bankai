@@ -2,11 +2,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { type RendererBundle, readRendererBundle, resolveBundleAsset } from "@main/transport/server/renderer-bundle";
+import { type BundleAssets } from "@main/transport/server/renderer-bundle";
+import { RendererBundle } from "@main/transport/server/renderer-bundle";
 import { assertDefined } from "./utils/assertions";
 
 let root: string;
-let bundle: RendererBundle;
+let bundle: BundleAssets;
 
 beforeAll(async () => {
 	root = mkdtempSync(join(tmpdir(), "bankai-bundle-"));
@@ -21,7 +22,7 @@ beforeAll(async () => {
 	writeFileSync(join(root, "icon-192.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
 	writeFileSync(join(root, "assets", "index-a1b2c3.js"), "export default 1;");
 
-	bundle = await readRendererBundle(root);
+	bundle = await RendererBundle.read(root);
 });
 
 afterAll(() => {
@@ -40,7 +41,7 @@ describe("renderer bundle read", () => {
 	});
 
 	it("reads binary files without corrupting them", () => {
-		const asset = resolveBundleAsset(bundle, "/icon-192.png");
+		const asset = RendererBundle.resolveAsset(bundle, "/icon-192.png");
 
 		assertDefined(asset);
 		expect([...asset.body]).toEqual([0x89, 0x50, 0x4e, 0x47]);
@@ -48,13 +49,13 @@ describe("renderer bundle read", () => {
 	});
 
 	it("types the manifest as a web app manifest", () => {
-		expect(resolveBundleAsset(bundle, "/manifest.webmanifest")?.contentType).toBe(
+		expect(RendererBundle.resolveAsset(bundle, "/manifest.webmanifest")?.contentType).toBe(
 			"application/manifest+json; charset=utf-8",
 		);
 	});
 
 	it("anchors the index to the root so its relative assets survive a deep route", () => {
-		expect(resolveBundleAsset(bundle, "/session/abc")?.body.toString()).toContain(
+		expect(RendererBundle.resolveAsset(bundle, "/session/abc")?.body.toString()).toContain(
 			'<head><base href="/" />',
 		);
 	});
@@ -63,46 +64,46 @@ describe("renderer bundle read", () => {
 		const broken = mkdtempSync(join(tmpdir(), "bankai-bundle-broken-"));
 		writeFileSync(join(broken, "index.html"), "<!doctype html>");
 
-		expect(() => readRendererBundle(broken)).toThrow("no <head>");
+		expect(() => RendererBundle.read(broken)).toThrow("no <head>");
 
 		rmSync(broken, { recursive: true, force: true });
 	});
 
 	it("lets hashed assets be cached forever and revalidates everything else", () => {
-		expect(resolveBundleAsset(bundle, "/assets/index-a1b2c3.js")?.cacheControl).toBe(
+		expect(RendererBundle.resolveAsset(bundle, "/assets/index-a1b2c3.js")?.cacheControl).toBe(
 			"public, max-age=31536000, immutable",
 		);
-		expect(resolveBundleAsset(bundle, "/sw.js")?.cacheControl).toBe("no-cache");
+		expect(RendererBundle.resolveAsset(bundle, "/sw.js")?.cacheControl).toBe("no-cache");
 	});
 });
 
 describe("renderer bundle routing", () => {
 	it("serves the index for an unknown extensionless route", () => {
-		expect(resolveBundleAsset(bundle, "/session/abc")?.contentType).toBe(
+		expect(RendererBundle.resolveAsset(bundle, "/session/abc")?.contentType).toBe(
 			"text/html; charset=utf-8",
 		);
 	});
 
 	it("serves the index for the root", () => {
-		expect(resolveBundleAsset(bundle, "/")).toBe(resolveBundleAsset(bundle, "/index.html"));
+		expect(RendererBundle.resolveAsset(bundle, "/")).toBe(RendererBundle.resolveAsset(bundle, "/index.html"));
 	});
 
 	it("ignores the query string and the fragment", () => {
-		expect(resolveBundleAsset(bundle, "/sw.js?v=2")?.body.toString()).toBe("self.skipWaiting();");
+		expect(RendererBundle.resolveAsset(bundle, "/sw.js?v=2")?.body.toString()).toBe("self.skipWaiting();");
 	});
 
 	it("misses a missing file instead of answering with the index", () => {
-		expect(resolveBundleAsset(bundle, "/assets/gone-000000.js")).toBeUndefined();
+		expect(RendererBundle.resolveAsset(bundle, "/assets/gone-000000.js")).toBeUndefined();
 	});
 
 	it("answers a traversal with the index instead of a file outside the bundle", () => {
-		const index = resolveBundleAsset(bundle, "/index.html");
+		const index = RendererBundle.resolveAsset(bundle, "/index.html");
 
-		expect(resolveBundleAsset(bundle, "/assets/../../../etc/passwd")).toBe(index);
-		expect(resolveBundleAsset(bundle, "/..%2f..%2fetc%2fhosts")).toBe(index);
+		expect(RendererBundle.resolveAsset(bundle, "/assets/../../../etc/passwd")).toBe(index);
+		expect(RendererBundle.resolveAsset(bundle, "/..%2f..%2fetc%2fhosts")).toBe(index);
 	});
 
 	it("misses a malformed escape instead of throwing", () => {
-		expect(resolveBundleAsset(bundle, "/%E0%A4%A")).toBeUndefined();
+		expect(RendererBundle.resolveAsset(bundle, "/%E0%A4%A")).toBeUndefined();
 	});
 });

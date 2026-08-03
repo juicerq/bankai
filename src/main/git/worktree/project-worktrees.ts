@@ -7,7 +7,7 @@ const WORKTREE_LIST_TTL_MS = 2000;
 
 const listings = new Map<string, { readAt: number; worktrees: Promise<Worktree[]> }>();
 
-export async function projectWorktrees(projectPath: string, options?: { fresh: boolean }): Promise<Worktree[]> {
+async function projectWorktrees(projectPath: string, options?: { fresh: boolean }): Promise<Worktree[]> {
 	const cached = listings.get(projectPath);
 	if (cached && !options?.fresh && Date.now() - cached.readAt < WORKTREE_LIST_TTL_MS) {
 		return await cached.worktrees;
@@ -22,7 +22,7 @@ export async function projectWorktrees(projectPath: string, options?: { fresh: b
 	});
 }
 
-export async function resolveProjectWorktree(input: { projectId: string; worktree?: string }): Promise<string> {
+async function resolveProjectWorktree(input: { projectId: string; worktree?: string }): Promise<string> {
 	const project = await Projects.find(input.projectId);
 	if (!input.worktree) {
 		return project.path;
@@ -40,3 +40,8 @@ export async function resolveProjectWorktree(input: { projectId: string; worktre
 
 	return requested;
 }
+
+export const ProjectWorktrees = {
+	list: projectWorktrees,
+	resolve: resolveProjectWorktree,
+};

@@ -1,7 +1,7 @@
 import { type } from "arktype";
 import { Logger } from "@main/infra/logger";
 import { base } from "@main/transport/rpc/rpc-base";
-import { markRendererStartup } from "@main/startup";
+import { Startup } from "@main/startup";
 
 const rendererErrorInput = type({
 	message: "string",
@@ -23,7 +23,7 @@ export const loggerRouter = {
 	}),
 
 	startup: base.input(startupInput).handler(({ input }) => {
-		markRendererStartup(input.marks);
+		Startup.markRenderer(input.marks);
 		return null;
 	}),
 };

@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { noisyText } from "@main/agents/harness/claude/claude-transcript";
+import { ClaudeTranscript } from "@main/agents/harness/claude/claude-transcript";
 import type { ConversationBlock, ConversationEdit } from "@shared/conversation";
 
 export const CONVERSATION_LINE_LIMIT = 128 * 1024;
@@ -266,7 +266,7 @@ export class ConversationParser {
 			return [];
 		}
 
-		const said = texts.filter((text) => !noisyText(text.trim())).join("\n").trim();
+		const said = texts.filter((text) => !ClaudeTranscript.noisyText(text.trim())).join("\n").trim();
 		if (!said) {
 			return [];
 		}

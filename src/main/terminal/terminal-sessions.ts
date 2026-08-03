@@ -1,13 +1,13 @@
-import { harnessResume } from "@main/agents/harness/harnesses";
+import { Harnesses } from "@main/agents/harness/harnesses";
 import { Logger } from "@main/infra/logger";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
-import { harnessCommandLine, shellLaunchLine } from "@main/terminal/shell-autostart";
-import { shellArgs } from "@main/terminal/shell-command-line";
+import { ShellAutostart } from "@main/terminal/shell-autostart";
+import { ShellCommandLine } from "@main/terminal/shell-command-line";
 import { SHELL } from "@main/terminal/shell-binary";
 import { type ShellAttachment, shellProcesses, type ShellRef } from "@main/terminal/shell-processes";
 import { ShellSpawn } from "@main/terminal/shell-spawn";
-import { forgetShellTitle, noteShellTitle } from "@main/terminal/shell-titles";
+import { ShellTitles } from "@main/terminal/shell-titles";
 import type { TerminalAttached } from "@shared/terminal";
 
 interface OpenInput extends ShellRef {
@@ -24,7 +24,7 @@ export const TerminalSessions = {
 	open: async (attachment: ShellAttachment, input: OpenInput): Promise<TerminalAttached> => {
 		const [project, shell] = await Promise.all([Projects.find(input.projectId), Continuity.findShell(input)]);
 
-		return spawnOrAttach(attachment, { ...input, cwd: project.path, launch: await shellLaunchLine(shell) });
+		return spawnOrAttach(attachment, { ...input, cwd: project.path, launch: await ShellAutostart.launchLine(shell) });
 	},
 	resume: async (attachment: ShellAttachment, input: OpenInput): Promise<TerminalAttached> => {
 		const shell = await Continuity.findShell(input);
@@ -33,7 +33,7 @@ export const TerminalSessions = {
 			throw new Error("No resumable agent session for this shell");
 		}
 
-		const resume = harnessResume(session.harness);
+		const resume = Harnesses.resume(session.harness);
 		if (!resume) {
 			throw new Error(`Resume is not supported for harness "${session.harness}"`);
 		}
@@ -46,7 +46,7 @@ export const TerminalSessions = {
 		return spawnOrAttach(attachment, {
 			...input,
 			cwd: session.cwd,
-			launch: await harnessCommandLine(command, session.harness),
+			launch: await ShellAutostart.harnessLine(command, session.harness),
 		});
 	},
 };
@@ -63,10 +63,10 @@ function spawnOrAttach(attachment: ShellAttachment, input: SpawnInput): Terminal
 		cwd: input.cwd,
 		cols: input.cols,
 		rows: input.rows,
-		args: shellArgs(SHELL, input.launch),
-		onData: (data) => noteShellTitle(input.shellId, data),
+		args: ShellCommandLine.shellArgs(SHELL, input.launch),
+		onData: (data) => ShellTitles.note(input.shellId, data),
 		onExit: ({ spontaneous }) => {
-			forgetShellTitle(input.shellId);
+			ShellTitles.forget(input.shellId);
 
 			if (spontaneous) {
 				Continuity.clearShellSession({ projectId: input.projectId, shellId: input.shellId }).catch((err) =>

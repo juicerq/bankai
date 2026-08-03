@@ -3,7 +3,7 @@ import { readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
-export function expandUserPath(path: string) {
+function expandUserPath(path: string) {
 	if (path === "~") {
 		return homedir();
 	}
@@ -29,7 +29,7 @@ async function leadsToDirectory(parent: string, entry: Dirent) {
 	return !!target?.isDirectory();
 }
 
-export async function browseDirectories(path: string) {
+async function browseDirectories(path: string) {
 	const parent = expandUserPath(path);
 	const entries = await readdir(parent, { withFileTypes: true }).catch((err: NodeJS.ErrnoException) => {
 		if (err.code === "EACCES" || err.code === "EPERM") {
@@ -48,3 +48,8 @@ export async function browseDirectories(path: string) {
 			.toSorted((left, right) => left.localeCompare(right)),
 	};
 }
+
+export const Directories = {
+	expandUser: expandUserPath,
+	browse: browseDirectories,
+};

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { codexPresence } from "@main/agents/harness/codex/codex-harness";
-import { CODEX_HARNESS_ID } from "@main/agents/harness/harness-ids";
-import { IDLE_ROLLOUT } from "@main/agents/harness/codex/codex-rollout";
+import { CODEX_HARNESS_ID } from "@main/agents/harness/harness";
+import { CodexRollout } from "@main/agents/harness/codex/codex-rollout";
 
 const SESSION = "019fb811-0fc5-7a41-a882-c9124384c979";
 
@@ -43,7 +43,7 @@ describe("a codex the process table shows", () => {
 	test("prefers the rollout's own directory over the one the process reports", () => {
 		const presence = codexPresence({
 			...PROCESS,
-			session: { sessionId: SESSION, cwd: "/home/jui/projects/other", state: IDLE_ROLLOUT },
+			session: { sessionId: SESSION, cwd: "/home/jui/projects/other", state: CodexRollout.IDLE_ROLLOUT },
 		});
 
 		expect(presence?.cwd).toBe("/home/jui/projects/other");

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseWorktrees, worktreeContaining, worktreeFailure } from "@main/git/worktree/worktrees";
+import { Worktrees } from "@main/git/worktree/worktrees";
 
 const PORCELAIN = `worktree /home/jui/projects/bankai
 HEAD 4b04c676ca56b7f470e6b66efbf9502393160b2e
@@ -17,30 +17,30 @@ branch refs/heads/feat/last-turn-review-scope
 
 describe("worktree listing", () => {
 	test("reads every usable worktree with its branch, main tree first", () => {
-		expect(parseWorktrees(PORCELAIN)).toEqual([
+		expect(Worktrees.parse(PORCELAIN)).toEqual([
 			{ path: "/home/jui/projects/bankai", branch: "main" },
 			{ path: "/tmp/bankai-last-turn-scope", branch: "feat/last-turn-review-scope" },
 		]);
 	});
 
 	test("a worktree whose directory is gone is not offered", () => {
-		expect(parseWorktrees(PORCELAIN).map((worktree) => worktree.path)).not.toContain(
+		expect(Worktrees.parse(PORCELAIN).map((worktree) => worktree.path)).not.toContain(
 			"/tmp/bankai-dnd-projects-tabs",
 		);
 	});
 
 	test("a bare repository is not a place to read a diff from", () => {
-		expect(parseWorktrees("worktree /srv/bankai.git\nbare\n")).toEqual([]);
+		expect(Worktrees.parse("worktree /srv/bankai.git\nbare\n")).toEqual([]);
 	});
 
 	test("a detached worktree is usable and carries no branch", () => {
-		expect(parseWorktrees("worktree /tmp/detached\nHEAD 454be98\ndetached\n")).toEqual([
+		expect(Worktrees.parse("worktree /tmp/detached\nHEAD 454be98\ndetached\n")).toEqual([
 			{ path: "/tmp/detached" },
 		]);
 	});
 
 	test("an empty listing yields no worktrees", () => {
-		expect(parseWorktrees("")).toEqual([]);
+		expect(Worktrees.parse("")).toEqual([]);
 	});
 });
 
@@ -50,7 +50,7 @@ describe("reporting a refused removal", () => {
 			stderr: "fatal: '/tmp/bankai-solo' contains modified or untracked files, use --force to delete it\n",
 		});
 
-		expect(worktreeFailure(err)).toBe(
+		expect(Worktrees.failure(err)).toBe(
 			"'/tmp/bankai-solo' contains modified or untracked files, use --force to delete it",
 		);
 	});
@@ -58,43 +58,43 @@ describe("reporting a refused removal", () => {
 	test("only the first line of a multi-line failure is reported", () => {
 		const err = Object.assign(new Error("Command failed"), { stderr: "fatal: not a working tree\nhint: run prune\n" });
 
-		expect(worktreeFailure(err)).toBe("not a working tree");
+		expect(Worktrees.failure(err)).toBe("not a working tree");
 	});
 
 	test("a failure git said nothing about falls back to the error itself", () => {
-		expect(worktreeFailure(Object.assign(new Error("spawn git ENOENT"), { stderr: "  " }))).toBe("spawn git ENOENT");
+		expect(Worktrees.failure(Object.assign(new Error("spawn git ENOENT"), { stderr: "  " }))).toBe("spawn git ENOENT");
 	});
 });
 
 describe("locating an agent inside a worktree", () => {
-	const worktrees = parseWorktrees(PORCELAIN);
+	const worktrees = Worktrees.parse(PORCELAIN);
 
 	test("a cwd below a worktree belongs to it", () => {
-		expect(worktreeContaining(worktrees, "/tmp/bankai-last-turn-scope/src/main")).toEqual({
+		expect(Worktrees.containing(worktrees, "/tmp/bankai-last-turn-scope/src/main")).toEqual({
 			path: "/tmp/bankai-last-turn-scope",
 			branch: "feat/last-turn-review-scope",
 		});
 	});
 
 	test("the worktree root itself belongs to it", () => {
-		expect(worktreeContaining(worktrees, "/tmp/bankai-last-turn-scope")?.path).toBe(
+		expect(Worktrees.containing(worktrees, "/tmp/bankai-last-turn-scope")?.path).toBe(
 			"/tmp/bankai-last-turn-scope",
 		);
 	});
 
 	test("a sibling directory sharing a name prefix does not match", () => {
-		expect(worktreeContaining(worktrees, "/tmp/bankai-last-turn-scope-old")).toBeUndefined();
+		expect(Worktrees.containing(worktrees, "/tmp/bankai-last-turn-scope-old")).toBeUndefined();
 	});
 
 	test("a cwd outside every worktree matches none", () => {
-		expect(worktreeContaining(worktrees, "/home/jui/dogama/app")).toBeUndefined();
+		expect(Worktrees.containing(worktrees, "/home/jui/dogama/app")).toBeUndefined();
 	});
 
 	test("the deepest containing worktree wins when one nests inside another", () => {
-		const nested = parseWorktrees(
+		const nested = Worktrees.parse(
 			"worktree /repo\nbranch refs/heads/main\n\nworktree /repo/nested\nbranch refs/heads/feature\n",
 		);
 
-		expect(worktreeContaining(nested, "/repo/nested/src")?.branch).toBe("feature");
+		expect(Worktrees.containing(nested, "/repo/nested/src")?.branch).toBe("feature");
 	});
 });

@@ -1,7 +1,7 @@
 import electronUpdater from "electron-updater";
 import { app, BrowserWindow, ipcMain } from "electron";
 import { Logger } from "@main/infra/logger";
-import { canSelfUpdate } from "@main/desktop/self-update";
+import { SelfUpdate } from "@main/desktop/self-update";
 import { UPDATE_IPC, type UpdateDownloadedEvent } from "@shared/update";
 
 const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
@@ -10,7 +10,7 @@ const UPDATE_CHECK_TTL_MS = 5 * 60 * 1000;
 let pending: UpdateDownloadedEvent | undefined;
 let checkedAt = 0;
 
-export function setupUpdateIpc(): void {
+function setupUpdateIpc(): void {
 	const { autoUpdater } = electronUpdater;
 
 	ipcMain.handle(UPDATE_IPC.getPending, () => pending ?? null);
@@ -31,7 +31,7 @@ export function setupUpdateIpc(): void {
 	}
 
 	if (
-		!canSelfUpdate({
+		!SelfUpdate.allowed({
 			platform: process.platform,
 			execPath: process.execPath,
 			appImage: process.env.APPIMAGE,
@@ -78,3 +78,7 @@ function checkForUpdates(autoUpdater: electronUpdater.AppUpdater): void {
 	checkedAt = now;
 	autoUpdater.checkForUpdates().catch((err) => Logger.error("update:check-failed", { err: String(err) }));
 }
+
+export const UpdateIpc = {
+	setup: setupUpdateIpc,
+};

@@ -1,6 +1,6 @@
 import { Logger } from "@main/infra/logger";
 
-export interface StartupStep {
+interface StartupStep {
 	stage: string;
 	elapsedMs: number;
 	stepMs: number;
@@ -11,7 +11,7 @@ const STARTUP_REPORT_GRACE_MS = 15_000;
 const marks: { stage: string; elapsedMs: number }[] = [];
 let reported = false;
 
-export function markStartup(stage: string): void {
+function markStartup(stage: string): void {
 	const processStart = process.getCreationTime();
 	if (processStart === null) {
 		return;
@@ -20,7 +20,7 @@ export function markStartup(stage: string): void {
 	marks.push({ stage, elapsedMs: Math.round(Date.now() - processStart) });
 }
 
-export function startupSteps(elapsed: { stage: string; elapsedMs: number }[]): StartupStep[] {
+function startupSteps(elapsed: { stage: string; elapsedMs: number }[]): StartupStep[] {
 	const ordered = [...elapsed].sort((left, right) => left.elapsedMs - right.elapsedMs);
 
 	return ordered.map((mark, index) => ({
@@ -30,7 +30,7 @@ export function startupSteps(elapsed: { stage: string; elapsedMs: number }[]): S
 	}));
 }
 
-export function markRendererStartup(reported: { stage: string; at: number }[]): void {
+function markRendererStartup(reported: { stage: string; at: number }[]): void {
 	const processStart = process.getCreationTime();
 	if (processStart === null) {
 		return;
@@ -43,7 +43,7 @@ export function markRendererStartup(reported: { stage: string; at: number }[]): 
 	reportStartup();
 }
 
-export function scheduleStartupReport(): void {
+function scheduleStartupReport(): void {
 	setTimeout(reportStartup, STARTUP_REPORT_GRACE_MS).unref();
 }
 
@@ -58,3 +58,10 @@ function reportStartup(): void {
 	Logger.info("startup:timing", { totalMs: last.elapsedMs, steps });
 	marks.length = 0;
 }
+
+export const Startup = {
+	mark: markStartup,
+	steps: startupSteps,
+	markRenderer: markRendererStartup,
+	scheduleReport: scheduleStartupReport,
+};

@@ -6,12 +6,12 @@ import type { HarnessSettings } from "@main/store/settings";
 
 const harnesses: Harness[] = [ClaudeHarness, CodexHarness];
 
-export const DEFAULT_HARNESS_SETTINGS: HarnessSettings = {
+const DEFAULT_HARNESS_SETTINGS: HarnessSettings = {
 	autostart: true,
 	id: ClaudeHarness.id,
 };
 
-export function launchableHarnesses() {
+function launchableHarnesses() {
 	return harnesses.flatMap((harness) => {
 		const launch = harness.launch;
 		if (!launch) {
@@ -29,31 +29,31 @@ export function launchableHarnesses() {
 	});
 }
 
-export function harnessConversation(harnessId: string): Harness["conversation"] {
+function harnessConversation(harnessId: string): Harness["conversation"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.conversation;
 }
 
-export function harnessLaunch(harnessId: string): Harness["launch"] {
+function harnessLaunch(harnessId: string): Harness["launch"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.launch;
 }
 
-export function harnessResume(harnessId: string): Harness["resume"] {
+function harnessResume(harnessId: string): Harness["resume"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.resume;
 }
 
-export function harnessTitle(harnessId: string): Harness["title"] {
+function harnessTitle(harnessId: string): Harness["title"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.title;
 }
 
-export function harnessProposeName(harnessId: string): Harness["proposeName"] {
+function harnessProposeName(harnessId: string): Harness["proposeName"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.proposeName;
 }
 
-export function harnessWatchPaths(): string[] {
+function harnessWatchPaths(): string[] {
 	return harnesses.flatMap((harness) => harness.watch?.() ?? []);
 }
 
-export async function discoverAgents(): Promise<AgentPresence[]> {
+async function discoverAgents(): Promise<AgentPresence[]> {
 	const discovered = await Promise.all(
 		harnesses.map((harness) =>
 			harness.discover().catch((err) => {
@@ -65,3 +65,15 @@ export async function discoverAgents(): Promise<AgentPresence[]> {
 
 	return discovered.flat();
 }
+
+export const Harnesses = {
+	DEFAULT_HARNESS_SETTINGS,
+	launchable: launchableHarnesses,
+	conversation: harnessConversation,
+	launch: harnessLaunch,
+	resume: harnessResume,
+	title: harnessTitle,
+	proposeName: harnessProposeName,
+	watchPaths: harnessWatchPaths,
+	discoverAgents,
+};

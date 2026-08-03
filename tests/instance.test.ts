@@ -1,11 +1,11 @@
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { DEV_DESKTOP_NAME, resolveDataDir, resolveInstanceIdentity } from "@main/store/store-paths";
+import { StorePaths } from "@main/store/store-paths";
 import { assertDefined } from "./utils/assertions";
 
 describe("instance identity", () => {
 	it("keeps the production data identity and takes the single-instance lock", () => {
-		const identity = resolveInstanceIdentity({
+		const identity = StorePaths.resolveIdentity({
 			packaged: true,
 			prodUserDataDir: "/home/op/.config/Bankai",
 		});
@@ -18,7 +18,7 @@ describe("instance identity", () => {
 
 	it("isolates development onto a sibling directory and never locks", () => {
 		const prodUserDataDir = "/home/op/.config/Bankai";
-		const identity = resolveInstanceIdentity({ packaged: false, prodUserDataDir });
+		const identity = StorePaths.resolveIdentity({ packaged: false, prodUserDataDir });
 
 		expect(identity.singleInstanceLock).toBe(false);
 		expect(identity.userDataDir).not.toBe(prodUserDataDir);
@@ -26,12 +26,12 @@ describe("instance identity", () => {
 	});
 
 	it("gives development its own desktop name so the taskbar resolves a separate icon", () => {
-		const identity = resolveInstanceIdentity({
+		const identity = StorePaths.resolveIdentity({
 			packaged: false,
 			prodUserDataDir: "/home/op/.config/Bankai",
 		});
 
-		expect(identity.desktopName).toBe(DEV_DESKTOP_NAME);
+		expect(identity.desktopName).toBe(StorePaths.DEV_DESKTOP_NAME);
 	});
 });
 
@@ -39,7 +39,7 @@ describe("data dir resolution", () => {
 	it("lets an explicit DATA_DIR win over the electron identity", () => {
 		assertDefined(process.env.DATA_DIR);
 
-		expect(resolveDataDir()).toBe(process.env.DATA_DIR);
+		expect(StorePaths.dataDir()).toBe(process.env.DATA_DIR);
 	});
 
 	it("resolves distinct stores for distinct DATA_DIRs", () => {
@@ -47,10 +47,10 @@ describe("data dir resolution", () => {
 		assertDefined(original);
 
 		process.env.DATA_DIR = join(original, "alpha");
-		const first = resolveDataDir();
+		const first = StorePaths.dataDir();
 
 		process.env.DATA_DIR = join(original, "beta");
-		const second = resolveDataDir();
+		const second = StorePaths.dataDir();
 
 		process.env.DATA_DIR = original;
 

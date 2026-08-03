@@ -4,15 +4,15 @@ import type * as ElectronModule from "electron";
 
 const require = createRequire(import.meta.url);
 
-export const DEV_DESKTOP_NAME = "bankai-dev.desktop";
+const DEV_DESKTOP_NAME = "bankai-dev.desktop";
 
-export interface InstanceIdentity {
+interface InstanceIdentity {
 	userDataDir: string;
 	singleInstanceLock: boolean;
 	desktopName?: string;
 }
 
-export function resolveInstanceIdentity(input: {
+function resolveInstanceIdentity(input: {
 	packaged: boolean;
 	prodUserDataDir: string;
 }): InstanceIdentity {
@@ -28,7 +28,7 @@ export function resolveInstanceIdentity(input: {
 	return { userDataDir: devDir, singleInstanceLock: false, desktopName: DEV_DESKTOP_NAME };
 }
 
-export function resolveDataDir(): string {
+function resolveDataDir(): string {
 	const fromEnv = process.env.DATA_DIR;
 	if (fromEnv) {
 		return fromEnv;
@@ -37,3 +37,9 @@ export function resolveDataDir(): string {
 	const { app }: typeof ElectronModule = require("electron");
 	return join(app.getPath("userData"), "store");
 }
+
+export const StorePaths = {
+	DEV_DESKTOP_NAME,
+	resolveIdentity: resolveInstanceIdentity,
+	dataDir: resolveDataDir,
+};

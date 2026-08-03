@@ -2,15 +2,15 @@ import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import type { HarnessCommand } from "@main/agents/harness/harness";
-import { transcriptMaterial } from "@main/agents/harness/claude/claude-transcript";
+import { ClaudeTranscript } from "@main/agents/harness/claude/claude-transcript";
 import { Logger } from "@main/infra/logger";
-import { NAME_TARGET_CHARS, acceptedName } from "@main/agents/naming/name-contract";
+import { NameContract } from "@main/agents/naming/name-contract";
 
-export const NAMING_MODEL = "haiku";
-export const NAMING_TIMEOUT_MS = 30000;
-export const NAMING_OUTPUT_MAX_BYTES = 64 * 1024;
+const NAMING_MODEL = "haiku";
+const NAMING_TIMEOUT_MS = 30000;
+const NAMING_OUTPUT_MAX_BYTES = 64 * 1024;
 
-export const NAMING_DISALLOWED_TOOLS = [
+const NAMING_DISALLOWED_TOOLS = [
 	"Bash",
 	"BashOutput",
 	"Edit",
@@ -38,7 +38,7 @@ function namingPrompt(material: string[]): string {
 	return [
 		"These are the messages a user wrote in a coding session, oldest first.",
 		"Name the session after what it is about as a whole, not after any single message.",
-		`Use at most ${NAME_TARGET_CHARS} characters.`,
+		`Use at most ${NameContract.NAME_TARGET_CHARS} characters.`,
 		"Write the name in the same language the messages are written in.",
 		"Answer with the name alone, on one line, with no quotes, no trailing punctuation and no explanation.",
 		"",
@@ -46,7 +46,7 @@ function namingPrompt(material: string[]): string {
 	].join("\n");
 }
 
-export function namingCall(material: string[]): NamingCall {
+function namingCall(material: string[]): NamingCall {
 	return {
 		file: "claude",
 		args: [
@@ -68,8 +68,8 @@ export function namingCall(material: string[]): NamingCall {
 	};
 }
 
-export async function claudeProposeName(ref: { sessionId: string; cwd: string }): Promise<string | null> {
-	const material = await transcriptMaterial(ref);
+async function claudeProposeName(ref: { sessionId: string; cwd: string }): Promise<string | null> {
+	const material = await ClaudeTranscript.material(ref);
 	if (material.length === 0) {
 		Logger.warn("naming:no-material", { sessionId: ref.sessionId });
 		return null;
@@ -85,7 +85,7 @@ export async function claudeProposeName(ref: { sessionId: string; cwd: string })
 		return null;
 	}
 
-	const name = acceptedName(output.stdout);
+	const name = NameContract.accept(output.stdout);
 	if (!name) {
 		Logger.warn("naming:name-rejected", { sessionId: ref.sessionId, raw: output.stdout.trim() });
 		return null;
@@ -93,3 +93,12 @@ export async function claudeProposeName(ref: { sessionId: string; cwd: string })
 
 	return name;
 }
+
+export const ClaudeNamer = {
+	NAMING_MODEL,
+	NAMING_TIMEOUT_MS,
+	NAMING_OUTPUT_MAX_BYTES,
+	NAMING_DISALLOWED_TOOLS,
+	call: namingCall,
+	proposeName: claudeProposeName,
+};

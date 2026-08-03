@@ -1,8 +1,8 @@
-export const MATERIAL_MESSAGE_LIMIT = 400;
-export const MATERIAL_TOTAL_LIMIT = 1600;
-export const MATERIAL_EDGE_COUNT = 3;
+const MATERIAL_MESSAGE_LIMIT = 400;
+const MATERIAL_TOTAL_LIMIT = 1600;
+const MATERIAL_EDGE_COUNT = 3;
 
-export function withinTotal(messages: string[]): string[] {
+function withinTotal(messages: string[]): string[] {
 	const kept = [...messages];
 
 	while (kept.join("\n").length > MATERIAL_TOTAL_LIMIT && kept.length > 1) {
@@ -11,3 +11,10 @@ export function withinTotal(messages: string[]): string[] {
 
 	return kept;
 }
+
+export const TranscriptMaterial = {
+	MATERIAL_MESSAGE_LIMIT,
+	MATERIAL_TOTAL_LIMIT,
+	MATERIAL_EDGE_COUNT,
+	withinTotal,
+};

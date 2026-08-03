@@ -7,7 +7,7 @@ const INHERITED_AGENT_SESSION_VARS = [
 	"CLAUDE_PID",
 ];
 
-export function terminalEnv(source: Record<string, string | undefined>): Record<string, string> {
+function terminalEnv(source: Record<string, string | undefined>): Record<string, string> {
 	const env: Record<string, string> = {};
 	for (const [key, value] of Object.entries(source)) {
 		if (value !== undefined && !INHERITED_AGENT_SESSION_VARS.includes(key)) {
@@ -17,3 +17,7 @@ export function terminalEnv(source: Record<string, string | undefined>): Record<
 
 	return { ...env, TERM: "xterm-256color", COLORTERM: "truecolor", COLORFGBG: "15;0" };
 }
+
+export const TerminalEnv = {
+	of: terminalEnv,
+};

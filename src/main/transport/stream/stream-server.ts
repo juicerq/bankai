@@ -2,42 +2,42 @@ import type { Server } from "node:http";
 import { app } from "electron";
 import { type RawData, WebSocketServer } from "ws";
 import { Logger } from "@main/infra/logger";
-import { authorizeUpgrade } from "@main/transport/server/server-auth";
-import { trackLiveConnection } from "@main/transport/server/live-connections";
-import { serverReach } from "@main/transport/server/server-reach";
-import { handleActivityMessage } from "@main/transport/stream/activity-messages";
+import { ServerAuth } from "@main/transport/server/server-auth";
+import { LiveConnections } from "@main/transport/server/live-connections";
+import { Reach } from "@main/transport/server/server-reach";
+import { ActivityMessages } from "@main/transport/stream/activity-messages";
 import { StreamConnection } from "@main/transport/stream/stream-connection";
-import { handleContinuityMessage } from "@main/transport/stream/continuity-messages";
-import { handleConversationMessage } from "@main/transport/stream/conversation-messages";
-import { watchLiveness } from "@main/transport/stream/stream-heartbeat";
+import { ContinuityMessages } from "@main/transport/stream/continuity-messages";
+import { ConversationMessages } from "@main/transport/stream/conversation-messages";
+import { StreamHeartbeat } from "@main/transport/stream/stream-heartbeat";
 import { STREAM_MAX_PAYLOAD_BYTES, streamEnvelopeSchema } from "@main/transport/stream/stream-messages";
-import { handleReviewMessage } from "@main/transport/stream/review-messages";
-import { handleServicesMessage } from "@main/transport/stream/service-messages";
-import { handleTerminalMessage } from "@main/transport/stream/terminal-messages";
+import { ReviewMessages } from "@main/transport/stream/review-messages";
+import { ServiceMessages } from "@main/transport/stream/service-messages";
+import { TerminalMessages } from "@main/transport/stream/terminal-messages";
 import { STREAM_HELLO, type StreamChannel, type StreamEnvelope, type StreamHello } from "@shared/stream";
 
 const CHANNEL_HANDLERS: Record<
 	StreamChannel,
 	(connection: StreamConnection, message: StreamEnvelope) => unknown
 > = {
-	terminal: handleTerminalMessage,
-	activity: handleActivityMessage,
-	review: handleReviewMessage,
-	continuity: handleContinuityMessage,
-	conversation: handleConversationMessage,
-	services: handleServicesMessage,
+	terminal: TerminalMessages.handle,
+	activity: ActivityMessages.handle,
+	review: ReviewMessages.handle,
+	continuity: ContinuityMessages.handle,
+	conversation: ConversationMessages.handle,
+	services: ServiceMessages.handle,
 	system: () => {
 		throw new Error("The system channel only carries server announcements");
 	},
 };
 
-export function attachStreamServer(server: Server): void {
+function attachStreamServer(server: Server): void {
 	const sockets = new WebSocketServer({ noServer: true, maxPayload: STREAM_MAX_PAYLOAD_BYTES });
 
-	watchLiveness(sockets);
+	StreamHeartbeat.watch(sockets);
 	server.on("close", () => sockets.close());
 	server.on("upgrade", (request, socket, head) => {
-		if (!authorizeUpgrade(request.url, serverReach().token)) {
+		if (!ServerAuth.upgrade(request.url, Reach.current().token)) {
 			Logger.warn("stream:upgrade-rejected");
 			socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
 			socket.destroy();
@@ -48,7 +48,7 @@ export function attachStreamServer(server: Server): void {
 		sockets.handleUpgrade(request, socket, head, (accepted) => {
 			const connection = new StreamConnection(accepted);
 
-			trackLiveConnection(accepted);
+			LiveConnections.track(accepted);
 			connection.send("system", STREAM_HELLO, { version: app.getVersion() } satisfies StreamHello);
 			accepted.on("message", (data) => {
 				receive(connection, textOf(data));
@@ -100,3 +100,7 @@ async function dispatch(connection: StreamConnection, message: StreamEnvelope): 
 		connection.reply(message.channel, message.requestId, value);
 	}
 }
+
+export const StreamServer = {
+	attach: attachStreamServer,
+};

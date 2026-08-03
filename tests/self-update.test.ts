@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { canSelfUpdate } from "@main/desktop/self-update";
+import { SelfUpdate } from "@main/desktop/self-update";
 
 describe("self update eligibility", () => {
 	it("updates itself when the running binary is the AppImage", () => {
 		expect(
-			canSelfUpdate({
+			SelfUpdate.allowed({
 				platform: "linux",
 				execPath: "/tmp/.mount_Bankai5Shkhr/bankai",
 				appImage: "/home/op/.local/lib/bankai/Bankai.AppImage",
@@ -15,13 +15,13 @@ describe("self update eligibility", () => {
 
 	it("leaves a package install to its package manager", () => {
 		expect(
-			canSelfUpdate({ platform: "linux", execPath: "/opt/bankai/bankai" }),
+			SelfUpdate.allowed({ platform: "linux", execPath: "/opt/bankai/bankai" }),
 		).toBe(false);
 	});
 
 	it("ignores an AppImage environment inherited from another process", () => {
 		expect(
-			canSelfUpdate({
+			SelfUpdate.allowed({
 				platform: "linux",
 				execPath: "/opt/bankai/bankai",
 				appImage: "/home/op/.local/lib/bankai/Bankai.AppImage",
@@ -32,7 +32,7 @@ describe("self update eligibility", () => {
 
 	it("keeps the Windows installer updating itself", () => {
 		expect(
-			canSelfUpdate({
+			SelfUpdate.allowed({
 				platform: "win32",
 				execPath: "C:\\Users\\op\\AppData\\Local\\Programs\\bankai\\Bankai.exe",
 			}),

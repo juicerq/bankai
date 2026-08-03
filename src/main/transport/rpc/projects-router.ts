@@ -1,7 +1,7 @@
 import { stat } from "node:fs/promises";
 import { type } from "arktype";
 import { dialog, shell } from "electron";
-import { browseDirectories, expandUserPath } from "@main/infra/directories";
+import { Directories } from "@main/infra/directories";
 import { base } from "@main/transport/rpc/rpc-base";
 import { Services } from "@main/services";
 import { ProjectCommands } from "@main/store/project-commands";
@@ -10,9 +10,9 @@ import { Projects } from "@main/store/projects";
 
 export const projectsRouter = {
 	list: base.handler(() => Projects.list()),
-	browse: base.input(type({ path: "string" })).handler(({ input }) => browseDirectories(input.path)),
+	browse: base.input(type({ path: "string" })).handler(({ input }) => Directories.browse(input.path)),
 	add: base.input(type({ path: "string" })).handler(async ({ input }) => {
-		const path = expandUserPath(input.path);
+		const path = Directories.expandUser(input.path);
 		const directory = await stat(path).catch(() => null);
 		if (!directory?.isDirectory()) {
 			throw new Error(`Not a directory: ${path}`);

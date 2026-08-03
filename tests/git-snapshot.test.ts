@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
 import { type DiffLine, type ReviewContent } from "@main/git/git-contracts";
 import { FULL_FILE_MAX_LINES, Git } from "@main/git/git";
-import { captureTurnBaseline, turnBaselines } from "@main/git/review/turn-baseline";
-import { GIT_OUTPUT_MAX_BYTES } from "@main/git/git-run";
-import { readWorktrees } from "@main/git/worktree/worktrees";
+import { TurnBaseline } from "@main/git/review/turn-baseline";
+import { GitRun } from "@main/git/git-run";
+import { Worktrees } from "@main/git/worktree/worktrees";
 import { assertDefined } from "./utils/assertions";
 
 function git(cwd: string, ...args: string[]): void {
@@ -198,7 +198,7 @@ describe("Git.snapshot", () => {
 	it("counts large new files without including their content in the snapshot", async () => {
 		const path = repo("large-new-snapshot");
 		writeFileSync(join(path, "many-lines.txt"), numberedLines(FULL_FILE_MAX_LINES + 1));
-		writeFileSync(join(path, "wide.txt"), "x".repeat(GIT_OUTPUT_MAX_BYTES + 1));
+		writeFileSync(join(path, "wide.txt"), "x".repeat(GitRun.GIT_OUTPUT_MAX_BYTES + 1));
 
 		const snapshot = await Git.snapshot({ path, mode: "uncommitted" });
 		expect(snapshot.files.find((file) => file.path === "many-lines.txt")?.additions).toBe(FULL_FILE_MAX_LINES + 1);
@@ -295,7 +295,7 @@ describe("Git.snapshot in the last turn scope", () => {
 		writeFileSync(join(path, "notes.txt"), "mine\n");
 		writeFileSync(join(path, "wip.txt"), "mine\n");
 
-		await captureTurnBaseline({ path, shellId });
+		await TurnBaseline.capture({ path, shellId });
 
 		writeFileSync(join(path, "touched.txt"), "one\nmine\nagent\n");
 		writeFileSync(join(path, "reverted.txt"), "one\n");
@@ -324,7 +324,7 @@ describe("Git.snapshot in the last turn scope", () => {
 		git(path, "commit", "-m", "init");
 		writeFileSync(join(path, "dirty.txt"), "one\nmine\n");
 
-		await captureTurnBaseline({ path, shellId });
+		await TurnBaseline.capture({ path, shellId });
 
 		writeFileSync(join(path, "clean.txt"), "one\nagent\n");
 		writeFileSync(join(path, "dirty.txt"), "one\nmine\nagent\n");
@@ -348,7 +348,7 @@ describe("Git.snapshot in the last turn scope", () => {
 		git(path, "commit", "-m", "init");
 		writeFileSync(join(path, "tracked.txt"), "one\nmine\n");
 
-		await captureTurnBaseline({ path, shellId });
+		await TurnBaseline.capture({ path, shellId });
 
 		writeFileSync(join(path, "tracked.txt"), "one\nmine\nagent\n");
 
@@ -371,7 +371,7 @@ describe("Git.snapshot in the last turn scope", () => {
 		git(path, "commit", "-m", "init");
 		writeFileSync(join(path, "gone.txt"), "one\ntwo\nmine\n");
 
-		await captureTurnBaseline({ path, shellId });
+		await TurnBaseline.capture({ path, shellId });
 
 		unlinkSync(join(path, "gone.txt"));
 
@@ -388,10 +388,10 @@ describe("Git.snapshot in the last turn scope", () => {
 		git(path, "add", "a.txt");
 		git(path, "commit", "-m", "init");
 
-		await captureTurnBaseline({ path, shellId: "tab-1" });
+		await TurnBaseline.capture({ path, shellId: "tab-1" });
 		writeFileSync(join(path, "a.txt"), "one\nfrom tab 1\n");
 
-		await captureTurnBaseline({ path, shellId: "tab-2" });
+		await TurnBaseline.capture({ path, shellId: "tab-2" });
 		writeFileSync(join(path, "a.txt"), "one\nfrom tab 1\nfrom tab 2\n");
 
 		expect((await Git.snapshot({ path, mode: "last-turn", shellId: "tab-1" })).files).toEqual([
@@ -408,11 +408,11 @@ describe("Git.snapshot in the last turn scope", () => {
 		git(path, "add", "a.txt");
 		git(path, "commit", "-m", "init");
 
-		await captureTurnBaseline({ path, shellId: "tab-open" });
-		await captureTurnBaseline({ path, shellId: "tab-closed" });
+		await TurnBaseline.capture({ path, shellId: "tab-open" });
+		await TurnBaseline.capture({ path, shellId: "tab-closed" });
 		writeFileSync(join(path, "a.txt"), "one\nagent\n");
 
-		turnBaselines.delete("tab-closed");
+		TurnBaseline.byShell.delete("tab-closed");
 
 		expect(await Git.snapshot({ path, mode: "last-turn", shellId: "tab-closed" })).toEqual({
 			state: "no-turn",
@@ -430,9 +430,9 @@ describe("Git.snapshot in the last turn scope", () => {
 		mkdirSync(path);
 		const shellId = "shell-outside-git";
 
-		await captureTurnBaseline({ path, shellId });
+		await TurnBaseline.capture({ path, shellId });
 
-		expect(turnBaselines.has(shellId)).toBe(false);
+		expect(TurnBaseline.byShell.has(shellId)).toBe(false);
 	});
 });
 
@@ -501,7 +501,7 @@ describe("Git.fullFile", () => {
 
 	it("returns too-large without a count when git output exceeds the buffer", async () => {
 		const path = repo("wide-line");
-		writeFileSync(join(path, "wide.txt"), "x".repeat(GIT_OUTPUT_MAX_BYTES + 1));
+		writeFileSync(join(path, "wide.txt"), "x".repeat(GitRun.GIT_OUTPUT_MAX_BYTES + 1));
 
 		expect(await Git.fullFile({ path, file: "wide.txt", mode: "uncommitted" })).toEqual({ status: "too-large" });
 	});
@@ -544,7 +544,7 @@ describe("Git in a linked worktree", () => {
 	it("lists the project and every linked worktree with its branch", async () => {
 		const { path, worktree } = linkedRepo("worktree-listing");
 
-		expect(await readWorktrees(worktree)).toEqual([
+		expect(await Worktrees.read(worktree)).toEqual([
 			{ path, branch: "main" },
 			{ path: worktree, branch: "feat/worktree-listing" },
 		]);
@@ -554,7 +554,7 @@ describe("Git in a linked worktree", () => {
 		const { worktree } = linkedRepo("worktree-turn");
 		const shellId = "shell-linked";
 
-		await captureTurnBaseline({ path: worktree, shellId });
+		await TurnBaseline.capture({ path: worktree, shellId });
 		writeFileSync(join(worktree, "a.txt"), "one\nagent\n");
 
 		expect((await Git.snapshot({ path: worktree, mode: "last-turn", shellId })).files).toEqual([
@@ -566,7 +566,7 @@ describe("Git in a linked worktree", () => {
 		const { path, worktree } = linkedRepo("worktree-turn-elsewhere");
 		const shellId = "shell-elsewhere";
 
-		await captureTurnBaseline({ path: worktree, shellId });
+		await TurnBaseline.capture({ path: worktree, shellId });
 		writeFileSync(join(path, "a.txt"), "one\nmine\n");
 
 		expect((await Git.snapshot({ path, mode: "last-turn", shellId })).state).toBe("no-turn");

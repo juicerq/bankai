@@ -14,7 +14,7 @@ const TURN_CLOSED = new Set(["task_complete", "turn_aborted"]);
 
 const SECOND_MS = 1000;
 
-export interface CodexRolloutMeta {
+interface CodexRolloutMeta {
 	sessionId: string;
 	cwd: string;
 	root: boolean;
@@ -54,7 +54,7 @@ function parsed(raw: string): unknown {
 	}
 }
 
-export function rolloutMeta(raw: string): CodexRolloutMeta | null {
+function rolloutMeta(raw: string): CodexRolloutMeta | null {
 	const meta = metaSchema(parsed(raw));
 	if (meta instanceof type.errors) {
 		return null;
@@ -73,9 +73,9 @@ export interface CodexRolloutState {
 	endedAt?: number;
 }
 
-export const IDLE_ROLLOUT: CodexRolloutState = { turn: null };
+const IDLE_ROLLOUT: CodexRolloutState = { turn: null };
 
-export function turnAfter(previous: CodexRolloutState, lines: string[]): CodexRolloutState {
+function turnAfter(previous: CodexRolloutState, lines: string[]): CodexRolloutState {
 	let state = previous;
 
 	for (const line of lines) {
@@ -204,4 +204,11 @@ class CodexRolloutTail {
 	}
 }
 
-export const codexRollouts = new CodexRolloutTail();
+const codexRollouts = new CodexRolloutTail();
+
+export const CodexRollout = {
+	meta: rolloutMeta,
+	IDLE_ROLLOUT,
+	turnAfter,
+	tail: codexRollouts,
+};

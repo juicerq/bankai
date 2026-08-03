@@ -25,15 +25,15 @@ const HASHED_ASSET_PREFIX = "/assets/";
 const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
 const REVALIDATE_CACHE = "no-cache";
 
-export interface BundleAsset {
+interface BundleAsset {
 	body: Buffer;
 	contentType: string;
 	cacheControl: string;
 }
 
-export type RendererBundle = ReadonlyMap<string, BundleAsset>;
+export type BundleAssets = ReadonlyMap<string, BundleAsset>;
 
-export async function readRendererBundle(root: string): Promise<RendererBundle> {
+async function readRendererBundle(root: string): Promise<BundleAssets> {
 	const entries = await readdir(root, { recursive: true, withFileTypes: true });
 	const bundle = new Map<string, BundleAsset>();
 
@@ -66,7 +66,7 @@ function rootAnchoredIndex(file: Buffer): Buffer {
 	return Buffer.from(html.replace(HEAD_OPEN, HEAD_OPEN + ROOT_BASE_TAG));
 }
 
-export function resolveBundleAsset(bundle: RendererBundle, url: string): BundleAsset | undefined {
+function resolveBundleAsset(bundle: BundleAssets, url: string): BundleAsset | undefined {
 	const path = bundlePath(url);
 
 	if (path === undefined) {
@@ -89,3 +89,8 @@ function bundlePath(url: string): string | undefined {
 		return undefined;
 	}
 }
+
+export const RendererBundle = {
+	read: readRendererBundle,
+	resolveAsset: resolveBundleAsset,
+};

@@ -1,13 +1,13 @@
 import type { AttentionPushPayload } from "@main/push/attention-push";
-import type { PushDelivery, PushSender } from "@main/push/web-push";
+import type { PushResult, PushSender } from "@main/push/web-push";
 import { PushSubscriptions } from "@main/store/push-subscriptions";
 import type { VapidKeys } from "@main/store/settings";
 
-export async function deliverAttentionPush(input: {
+async function deliverAttentionPush(input: {
 	payload: AttentionPushPayload;
 	vapid: () => Promise<VapidKeys>;
 	send: PushSender;
-}): Promise<PushDelivery[]> {
+}): Promise<PushResult[]> {
 	const subscriptions = await PushSubscriptions.list();
 	if (subscriptions.length === 0) {
 		return [];
@@ -33,3 +33,7 @@ export async function deliverAttentionPush(input: {
 
 	return deliveries.map(({ delivery }) => delivery);
 }
+
+export const PushDelivery = {
+	deliver: deliverAttentionPush,
+};

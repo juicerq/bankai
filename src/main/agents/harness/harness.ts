@@ -1,5 +1,9 @@
 import type { ConversationLineParser } from "@main/agents/transcript/conversation-tail";
 
+export const CLAUDE_HARNESS_ID = "claude";
+
+export const CODEX_HARNESS_ID = "codex";
+
 export interface AgentPresence {
 	harness: string;
 	sessionId?: string;

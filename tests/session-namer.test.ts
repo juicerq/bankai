@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { NAMING_MILESTONES, namingDue } from "@main/agents/naming/session-namer";
-import { NAMING_SLOTS, withNamingSlot } from "@main/agents/naming/naming-slots";
+import { NamingSlots } from "@main/agents/naming/naming-slots";
 import type { ContinuityShell } from "@main/store/continuity";
 
 const [FIRST_MILESTONE, SECOND_MILESTONE] = NAMING_MILESTONES;
@@ -78,14 +78,14 @@ describe("namingDue", () => {
 	});
 });
 
-describe("withNamingSlot", () => {
+describe("NamingSlots.withSlot", () => {
 	it("runs no more than the slot count at once and still finishes the rest", async () => {
 		const release: (() => void)[] = [];
 		let live = 0;
 		let peak = 0;
 
-		const runs = Array.from({ length: NAMING_SLOTS + 2 }, (_entry, index) =>
-			withNamingSlot(async () => {
+		const runs = Array.from({ length: NamingSlots.NAMING_SLOTS + 2 }, (_entry, index) =>
+			NamingSlots.withSlot(async () => {
 				live += 1;
 				peak = Math.max(peak, live);
 				await new Promise<void>((resolve) => release.push(resolve));
@@ -95,7 +95,7 @@ describe("withNamingSlot", () => {
 			}),
 		);
 
-		for (let pass = 0; pass < NAMING_SLOTS + 3; pass += 1) {
+		for (let pass = 0; pass < NamingSlots.NAMING_SLOTS + 3; pass += 1) {
 			await new Promise((resolve) => setTimeout(resolve, 0));
 			for (const resolve of release.splice(0)) {
 				resolve();
@@ -103,6 +103,6 @@ describe("withNamingSlot", () => {
 		}
 
 		expect(await Promise.all(runs)).toEqual(runs.map((_run, index) => index));
-		expect(peak).toBe(NAMING_SLOTS);
+		expect(peak).toBe(NamingSlots.NAMING_SLOTS);
 	});
 });

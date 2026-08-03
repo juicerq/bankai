@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import type { MobileAccess } from "@main/infra/tailscale/tailscale-access";
+import type { MobileAccessStatus } from "@main/infra/tailscale/tailscale-access";
 import { PairingQr } from "@renderer/routes/-components/pairing-qr";
 import { Setting } from "@renderer/routes/-components/settings-controls";
 import { useMobileAccess } from "@renderer/routes/-utils/use-mobile-access";
@@ -7,7 +7,7 @@ import { useMobileAccess } from "@renderer/routes/-utils/use-mobile-access";
 const NO_TAILSCALE_NOTICE =
 	"Tailscale is not reporting a MagicDNS name for this machine. Start Tailscale, then reopen Settings.";
 
-function pairingLink(access: MobileAccess): string | undefined {
+function pairingLink(access: MobileAccessStatus): string | undefined {
 	if (access.tailnetOpen && !access.exposed) {
 		return access.tailnetUrl;
 	}

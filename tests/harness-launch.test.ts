@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { ClaudeHarness } from "@main/agents/harness/claude/claude-harness";
 import { CodexHarness } from "@main/agents/harness/codex/codex-harness";
-import { DEFAULT_HARNESS_SETTINGS, harnessLaunch, launchableHarnesses } from "@main/agents/harness/harnesses";
+import { Harnesses } from "@main/agents/harness/harnesses";
 import { Settings } from "@main/store/settings";
-import { autostartCommandLine, harnessCommandLine, shellLaunchLine } from "@main/terminal/shell-autostart";
-import { shellArgs, shellCommandLine, splitArguments } from "@main/terminal/shell-command-line";
-import { harnessAvailable } from "@main/agents/harness/harness-availability";
+import { ShellAutostart } from "@main/terminal/shell-autostart";
+import { ShellCommandLine } from "@main/terminal/shell-command-line";
+import { HarnessAvailability } from "@main/agents/harness/harness-availability";
 import { assertDefined } from "./utils/assertions";
 
 describe("claude launch command", () => {
@@ -19,51 +19,51 @@ describe("claude launch command", () => {
 
 describe("launchable harnesses", () => {
 	test("lists every harness that can be started", () => {
-		expect(launchableHarnesses()).toEqual([
+		expect(Harnesses.launchable()).toEqual([
 			{ id: ClaudeHarness.id, label: ClaudeHarness.label, conversation: true, file: "claude" },
 			{ id: CodexHarness.id, label: CodexHarness.label, conversation: true, file: "codex" },
 		]);
 	});
 
 	test("resolves the claude launch capability", () => {
-		expect(harnessLaunch(ClaudeHarness.id)).toBe(ClaudeHarness.launch);
+		expect(Harnesses.launch(ClaudeHarness.id)).toBe(ClaudeHarness.launch);
 	});
 
 	test("resolves the codex launch capability", () => {
-		expect(harnessLaunch(CodexHarness.id)).toBe(CodexHarness.launch);
+		expect(Harnesses.launch(CodexHarness.id)).toBe(CodexHarness.launch);
 	});
 
 	test("returns nothing for an unknown harness", () => {
-		expect(harnessLaunch("aider")).toBeUndefined();
+		expect(Harnesses.launch("aider")).toBeUndefined();
 	});
 
 	test("defaults to autostarting a harness that is actually launchable", () => {
-		expect(DEFAULT_HARNESS_SETTINGS.autostart).toBe(true);
-		expect(launchableHarnesses().map((harness) => harness.id)).toContain(DEFAULT_HARNESS_SETTINGS.id);
+		expect(Harnesses.DEFAULT_HARNESS_SETTINGS.autostart).toBe(true);
+		expect(Harnesses.launchable().map((harness) => harness.id)).toContain(Harnesses.DEFAULT_HARNESS_SETTINGS.id);
 	});
 });
 
 describe("autostart command line", () => {
 	test("types the default harness when nothing has been configured", async () => {
-		expect(await autostartCommandLine()).toBe("claude");
+		expect(await ShellAutostart.commandLine()).toBe("claude");
 	});
 
 	test("types the configured harness", async () => {
 		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id });
 
-		expect(await autostartCommandLine()).toBe("claude");
+		expect(await ShellAutostart.commandLine()).toBe("claude");
 	});
 
 	test("types nothing when autostart is off", async () => {
 		await Settings.updateHarness({ autostart: false, id: ClaudeHarness.id });
 
-		expect(await autostartCommandLine()).toBeUndefined();
+		expect(await ShellAutostart.commandLine()).toBeUndefined();
 	});
 
 	test("types nothing when the configured harness is gone", async () => {
 		await Settings.updateHarness({ autostart: true, id: "aider" });
 
-		expect(await autostartCommandLine()).toBeUndefined();
+		expect(await ShellAutostart.commandLine()).toBeUndefined();
 	});
 
 	test("appends the configured extra arguments", async () => {
@@ -73,7 +73,7 @@ describe("autostart command line", () => {
 			profiles: { [ClaudeHarness.id]: { args: "--model opus" } },
 		});
 
-		expect(await autostartCommandLine()).toBe("claude --model opus");
+		expect(await ShellAutostart.commandLine()).toBe("claude --model opus");
 	});
 });
 
@@ -85,7 +85,7 @@ describe("harness command line", () => {
 			profiles: { [ClaudeHarness.id]: { args: "--model opus" } },
 		});
 
-		expect(await harnessCommandLine({ file: "claude", args: ["--resume", "67af"] }, ClaudeHarness.id)).toBe(
+		expect(await ShellAutostart.harnessLine({ file: "claude", args: ["--resume", "67af"] }, ClaudeHarness.id)).toBe(
 			"claude --resume 67af --model opus",
 		);
 	});
@@ -100,7 +100,7 @@ describe("harness command line", () => {
 			},
 		});
 
-		expect(await harnessCommandLine({ file: "codex", args: ["resume", "67af"] }, CodexHarness.id)).toBe(
+		expect(await ShellAutostart.harnessLine({ file: "codex", args: ["resume", "67af"] }, CodexHarness.id)).toBe(
 			"codex resume 67af --model gpt-5.6",
 		);
 	});
@@ -112,7 +112,7 @@ describe("harness command line", () => {
 			profiles: { [ClaudeHarness.id]: { args: "--model opus" } },
 		});
 
-		expect(await harnessCommandLine({ file: "codex", args: ["resume", "67af"] }, CodexHarness.id)).toBe(
+		expect(await ShellAutostart.harnessLine({ file: "codex", args: ["resume", "67af"] }, CodexHarness.id)).toBe(
 			"codex resume 67af",
 		);
 	});
@@ -120,37 +120,37 @@ describe("harness command line", () => {
 
 describe("argument splitting", () => {
 	test("splits on whitespace", () => {
-		expect(splitArguments("  --model opus  ")).toEqual(["--model", "opus"]);
-		expect(splitArguments("")).toEqual([]);
+		expect(ShellCommandLine.split("  --model opus  ")).toEqual(["--model", "opus"]);
+		expect(ShellCommandLine.split("")).toEqual([]);
 	});
 
 	test("keeps a quoted run together and drops the quotes", () => {
-		expect(splitArguments(`--append-system-prompt "be brief"`)).toEqual(["--append-system-prompt", "be brief"]);
-		expect(splitArguments(`--flag='a b'`)).toEqual(["--flag=a b"]);
+		expect(ShellCommandLine.split(`--append-system-prompt "be brief"`)).toEqual(["--append-system-prompt", "be brief"]);
+		expect(ShellCommandLine.split(`--flag='a b'`)).toEqual(["--flag=a b"]);
 	});
 
 	test("never lets typed text become shell syntax", () => {
-		expect(shellCommandLine({ file: "claude", args: splitArguments("; rm -rf /") })).toBe("claude ';' rm -rf /");
+		expect(ShellCommandLine.of({ file: "claude", args: ShellCommandLine.split("; rm -rf /") })).toBe("claude ';' rm -rf /");
 	});
 });
 
 describe("shell command line", () => {
 	test("leaves a bare command and its plain arguments untouched", () => {
-		expect(shellCommandLine({ file: "claude", args: [] })).toBe("claude");
-		expect(shellCommandLine({ file: "claude", args: ["--resume", "67af1e51-358c"] })).toBe(
+		expect(ShellCommandLine.of({ file: "claude", args: [] })).toBe("claude");
+		expect(ShellCommandLine.of({ file: "claude", args: ["--resume", "67af1e51-358c"] })).toBe(
 			"claude --resume 67af1e51-358c",
 		);
 	});
 
 	test("quotes anything a shell would otherwise read as syntax", () => {
-		expect(shellCommandLine({ file: "claude", args: ["a b"] })).toBe("claude 'a b'");
-		expect(shellCommandLine({ file: "claude", args: ["; rm -rf /"] })).toBe("claude '; rm -rf /'");
-		expect(shellCommandLine({ file: "claude", args: ["$(whoami)"] })).toBe("claude '$(whoami)'");
-		expect(shellCommandLine({ file: "claude", args: [""] })).toBe("claude ''");
+		expect(ShellCommandLine.of({ file: "claude", args: ["a b"] })).toBe("claude 'a b'");
+		expect(ShellCommandLine.of({ file: "claude", args: ["; rm -rf /"] })).toBe("claude '; rm -rf /'");
+		expect(ShellCommandLine.of({ file: "claude", args: ["$(whoami)"] })).toBe("claude '$(whoami)'");
+		expect(ShellCommandLine.of({ file: "claude", args: [""] })).toBe("claude ''");
 	});
 
 	test("escapes a single quote without ending the quoted run", () => {
-		expect(shellCommandLine({ file: "claude", args: ["it's"] })).toBe("claude 'it'\\''s'");
+		expect(ShellCommandLine.of({ file: "claude", args: ["it's"] })).toBe("claude 'it'\\''s'");
 	});
 });
 
@@ -158,42 +158,42 @@ describe("shell launch line", () => {
 	test("launches the harness in an ordinary shell", async () => {
 		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id });
 
-		expect(await shellLaunchLine({})).toBe("claude");
+		expect(await ShellAutostart.launchLine({})).toBe("claude");
 	});
 
 	test("launches nothing in a plain shell", async () => {
 		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id });
 
-		expect(await shellLaunchLine({ plain: true })).toBeUndefined();
+		expect(await ShellAutostart.launchLine({ plain: true })).toBeUndefined();
 	});
 
 	test("launches the saved command instead of the harness", async () => {
 		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id });
 
-		expect(await shellLaunchLine({ plain: true, launch: "bun run dev" })).toBe("bun run dev");
+		expect(await ShellAutostart.launchLine({ plain: true, launch: "bun run dev" })).toBe("bun run dev");
 	});
 });
 
 describe("shell arguments", () => {
 	test("spawns a plain interactive shell when nothing is launched", () => {
-		expect(shellArgs("/usr/bin/fish")).toEqual([]);
+		expect(ShellCommandLine.shellArgs("/usr/bin/fish")).toEqual([]);
 	});
 
 	test("runs the command and then replaces itself with the shell", () => {
-		expect(shellArgs("/usr/bin/fish", "claude")).toEqual(["-i", "-c", `${process.platform === "linux" ? "setsid " : ""}claude; exec /usr/bin/fish`]);
+		expect(ShellCommandLine.shellArgs("/usr/bin/fish", "claude")).toEqual(["-i", "-c", `${process.platform === "linux" ? "setsid " : ""}claude; exec /usr/bin/fish`]);
 	});
 
 	test("quotes a shell path a shell would otherwise split", () => {
-		expect(shellArgs("/opt/my shell/fish", "claude")).toEqual(["-i", "-c", `${process.platform === "linux" ? "setsid " : ""}claude; exec '/opt/my shell/fish'`]);
+		expect(ShellCommandLine.shellArgs("/opt/my shell/fish", "claude")).toEqual(["-i", "-c", `${process.platform === "linux" ? "setsid " : ""}claude; exec '/opt/my shell/fish'`]);
 	});
 });
 
 describe("harness availability", () => {
 	test("finds a binary the user's interactive shell resolves", async () => {
-		expect(await harnessAvailable("ls")).toBe(true);
+		expect(await HarnessAvailability.check("ls")).toBe(true);
 	});
 
 	test("reports a binary no shell can find", async () => {
-		expect(await harnessAvailable("bankai-not-a-real-binary")).toBe(false);
+		expect(await HarnessAvailability.check("bankai-not-a-real-binary")).toBe(false);
 	});
 });

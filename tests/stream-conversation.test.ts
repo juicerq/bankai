@@ -4,10 +4,10 @@ import { join } from "node:path";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { type } from "arktype";
 import { WebSocket } from "ws";
-import { transcriptPath } from "@main/agents/harness/claude/claude-transcript";
+import { ClaudeTranscript } from "@main/agents/harness/claude/claude-transcript";
 import { CONVERSATION_BACKFILL_BYTES } from "@main/agents/transcript/conversation-tail";
 import { StreamConnection } from "@main/transport/stream/stream-connection";
-import { handleConversationMessage } from "@main/transport/stream/conversation-messages";
+import { ConversationMessages } from "@main/transport/stream/conversation-messages";
 import type { StreamEnvelope } from "@shared/stream";
 import { assertDefined } from "./utils/assertions";
 
@@ -34,7 +34,7 @@ function userLine(uuid: string, text: string): string {
 }
 
 function writeTranscript(lines: string[]): void {
-	const path = transcriptPath(SESSION);
+	const path = ClaudeTranscript.path(SESSION);
 	mkdirSync(join(path, ".."), { recursive: true });
 	writeFileSync(path, lines.map((line) => `${line}\n`).join(""));
 }
@@ -79,7 +79,7 @@ function resets(sent: StreamEnvelope[]) {
 
 async function subscribe(connection: StreamConnection, agent?: string) {
 	return snapshotSchema.assert(
-		await handleConversationMessage(connection, {
+		await ConversationMessages.handle(connection, {
 			channel: "conversation",
 			type: "subscribe",
 			payload: agent ? { shellId: "s1", agent } : { shellId: "s1" },
@@ -88,7 +88,7 @@ async function subscribe(connection: StreamConnection, agent?: string) {
 }
 
 function writeSubagent(file: string, meta: Record<string, string>, lines: string[]): void {
-	const directory = join(transcriptPath(SESSION), "..", SESSION.sessionId, "subagents");
+	const directory = join(ClaudeTranscript.path(SESSION), "..", SESSION.sessionId, "subagents");
 	mkdirSync(directory, { recursive: true });
 	writeFileSync(join(directory, `${file}.meta.json`), JSON.stringify(meta));
 	writeFileSync(join(directory, `${file}.jsonl`), lines.map((line) => `${line}\n`).join(""));
@@ -111,7 +111,7 @@ function agentCallLine(toolUseId: string): string {
 }
 
 async function history(connection: StreamConnection, before: number): Promise<void> {
-	await handleConversationMessage(connection, {
+	await ConversationMessages.handle(connection, {
 		channel: "conversation",
 		type: "history",
 		payload: { shellId: "s1", before },
@@ -145,7 +145,7 @@ test("a step back opens the transcript lower and pushes the whole conversation a
 	expect(reset.blocks.slice(-snapshot.blocks.length)).toEqual(snapshot.blocks);
 	expect(reset.blocks[0]?.id).not.toBe(snapshot.blocks[0]?.id);
 
-	handleConversationMessage(connection, { channel: "conversation", type: "unsubscribe", payload: { shellId: "s1" } });
+	ConversationMessages.handle(connection, { channel: "conversation", type: "unsubscribe", payload: { shellId: "s1" } });
 });
 
 test("stepping past the first byte says the conversation starts there", async () => {
@@ -162,7 +162,7 @@ test("stepping past the first byte says the conversation starts there", async ()
 	expect(reset.startOffset).toBe(0);
 	expect(reset.blocks[0]?.id).toBe("f0");
 
-	handleConversationMessage(connection, { channel: "conversation", type: "unsubscribe", payload: { shellId: "s1" } });
+	ConversationMessages.handle(connection, { channel: "conversation", type: "unsubscribe", payload: { shellId: "s1" } });
 });
 
 test("a cursor that no longer matches the watch is dropped instead of re-read", async () => {
@@ -175,7 +175,7 @@ test("a cursor that no longer matches the watch is dropped instead of re-read", 
 
 	expect(resets(sent)).toEqual([]);
 
-	handleConversationMessage(connection, { channel: "conversation", type: "unsubscribe", payload: { shellId: "s1" } });
+	ConversationMessages.handle(connection, { channel: "conversation", type: "unsubscribe", payload: { shellId: "s1" } });
 });
 
 test("a subagent named by its tool use id is read from its own transcript", async () => {
@@ -188,7 +188,7 @@ test("a subagent named by its tool use id is read from its own transcript", asyn
 
 	expect(snapshot.blocks.map((block) => block.id)).toEqual(["sub1"]);
 
-	handleConversationMessage(connection, {
+	ConversationMessages.handle(connection, {
 		channel: "conversation",
 		type: "unsubscribe",
 		payload: { shellId: "s1", agent: "toolu_a" },

@@ -10,20 +10,20 @@ function quote(word: string): string {
 	return `'${word.replaceAll("'", "'\\''")}'`;
 }
 
-export function shellCommandLine(command: HarnessCommand): string {
+function shellCommandLine(command: HarnessCommand): string {
 	return [command.file, ...command.args].map(quote).join(" ");
 }
 
 const ARGUMENT = /(?:[^\s'"]+|'[^']*'|"[^"]*")+/g;
 const QUOTED_RUN = /'([^']*)'|"([^"]*)"/g;
 
-export function splitArguments(raw: string): string[] {
+function splitArguments(raw: string): string[] {
 	return (raw.match(ARGUMENT) ?? []).map((argument) =>
 		argument.replaceAll(QUOTED_RUN, (_, single: string | undefined, double: string) => single ?? double)
 	);
 }
 
-export function shellArgs(shell: string, launch?: string): string[] {
+function shellArgs(shell: string, launch?: string): string[] {
 	if (!launch) {
 		return [];
 	}
@@ -31,6 +31,13 @@ export function shellArgs(shell: string, launch?: string): string[] {
 	return ["-i", "-c", `${process.platform === "linux" ? "setsid " : ""}${launch}; exec ${quote(shell)}`];
 }
 
-export function serviceArgs(launch: string): string[] {
+function serviceArgs(launch: string): string[] {
 	return ["-l", "-c", launch];
 }
+
+export const ShellCommandLine = {
+	of: shellCommandLine,
+	split: splitArguments,
+	shellArgs,
+	serviceArgs,
+};

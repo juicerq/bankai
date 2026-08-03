@@ -5,11 +5,12 @@ import { RPCHandler } from "@orpc/server/node";
 import { CORSPlugin } from "@orpc/server/plugins";
 import { Logger } from "@main/infra/logger";
 import { router } from "@main/transport/rpc/router";
-import { authorizeRequest } from "@main/transport/server/server-auth";
-import { type RendererBundle, readRendererBundle, resolveBundleAsset } from "@main/transport/server/renderer-bundle";
-import { listenOn } from "@main/transport/server/server-listen";
-import { openServerReach, serverReach } from "@main/transport/server/server-reach";
-import { attachStreamServer } from "@main/transport/stream/stream-server";
+import { ServerAuth } from "@main/transport/server/server-auth";
+import { type BundleAssets } from "@main/transport/server/renderer-bundle";
+import { RendererBundle } from "@main/transport/server/renderer-bundle";
+import { ServerListen } from "@main/transport/server/server-listen";
+import { Reach } from "@main/transport/server/server-reach";
+import { StreamServer } from "@main/transport/stream/stream-server";
 import { SERVER_HOST, SERVER_RPC_PREFIX, type ServerReach } from "@shared/server";
 
 const CORS_HEADERS = { "access-control-allow-origin": "*" };
@@ -26,9 +27,9 @@ const rpc = new RPCHandler(router, {
 	],
 });
 
-let bundle: RendererBundle | undefined;
+let bundle: BundleAssets | undefined;
 
-export function createBankaiServer(): Server {
+function createBankaiServer(): Server {
 	const server = createServer((req, res) => {
 		route(req, res, bundle).catch((err) => {
 			Logger.error("server:request-failed", { err: String(err), url: req.url });
@@ -41,21 +42,21 @@ export function createBankaiServer(): Server {
 		});
 	});
 
-	attachStreamServer(server);
+	StreamServer.attach(server);
 
 	server.on("error", (err) => Logger.error("server:error", { err: String(err) }));
 
 	return server;
 }
 
-export async function startLoopbackServer(): Promise<ServerReach> {
-	const reach = await openServerReach();
+async function startLoopbackServer(): Promise<ServerReach> {
+	const reach = await Reach.open();
 
 	if (!process.env.ELECTRON_RENDERER_URL) {
-		bundle = await readRendererBundle(join(import.meta.dirname, "../renderer"));
+		bundle = await RendererBundle.read(join(import.meta.dirname, "../renderer"));
 	}
 
-	await listenOn(createBankaiServer(), { port: reach.port, host: SERVER_HOST });
+	await ServerListen.on(createBankaiServer(), { port: reach.port, host: SERVER_HOST });
 
 	return reach;
 }
@@ -63,14 +64,14 @@ export async function startLoopbackServer(): Promise<ServerReach> {
 async function route(
 	req: IncomingMessage,
 	res: ServerResponse,
-	bundle: RendererBundle | undefined,
+	bundle: BundleAssets | undefined,
 ): Promise<void> {
 	if (!req.url?.startsWith(SERVER_RPC_PREFIX)) {
 		await serveRenderer(req.url ?? "/", res, bundle);
 		return;
 	}
 
-	if (req.method !== "OPTIONS" && !authorizeRequest(req.headers.authorization, serverReach().token)) {
+	if (req.method !== "OPTIONS" && !ServerAuth.request(req.headers.authorization, Reach.current().token)) {
 		res.writeHead(401, CORS_HEADERS).end();
 		return;
 	}
@@ -85,14 +86,14 @@ async function route(
 async function serveRenderer(
 	url: string,
 	res: ServerResponse,
-	bundle: RendererBundle | undefined,
+	bundle: BundleAssets | undefined,
 ): Promise<void> {
 	if (!bundle) {
 		await serveDevRenderer(url, res);
 		return;
 	}
 
-	const asset = resolveBundleAsset(bundle, url);
+	const asset = RendererBundle.resolveAsset(bundle, url);
 
 	if (!asset) {
 		res.writeHead(404, CORS_HEADERS).end();
@@ -130,3 +131,8 @@ async function serveDevRenderer(url: string, res: ServerResponse): Promise<void>
 		})
 		.end(body);
 }
+
+export const BankaiServer = {
+	create: createBankaiServer,
+	startLoopback: startLoopbackServer,
+};

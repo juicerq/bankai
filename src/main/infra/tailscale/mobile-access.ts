@@ -1,45 +1,39 @@
 import { Logger } from "@main/infra/logger";
-import { serverReach } from "@main/transport/server/server-reach";
-import { closeTailnetListener, openTailnetListener, tailnetListenerAddress } from "@main/transport/server/tailnet-listener";
+import { Reach } from "@main/transport/server/server-reach";
+import { TailnetListener } from "@main/transport/server/tailnet-listener";
 import { Settings } from "@main/store/settings";
 import {
-	magicDnsHost,
-	type MobileAccess,
-	serveArgs,
-	serveExposes,
-	serveProblem,
-	TAILSCALE_MISSING_REMEDY,
-	tailnetAddress,
-	tailnetIssuesCertificates,
+	TailscaleAccess,
+	type MobileAccessStatus,
 } from "@main/infra/tailscale/tailscale-access";
-import { tailscale } from "@main/infra/tailscale/tailscale-run";
+import { Tailscale } from "@main/infra/tailscale/tailscale-run";
 import { pairingUrl } from "@shared/server";
 
-export async function mobileAccess(): Promise<MobileAccess> {
-	const { port, token } = serverReach();
+async function mobileAccess(): Promise<MobileAccessStatus> {
+	const { port, token } = Reach.current();
 	const [status, serve] = await Promise.all([
-		tailscale(["status", "--json"]),
-		tailscale(["serve", "status", "--json"]),
+		Tailscale.run(["status", "--json"]),
+		Tailscale.run(["serve", "status", "--json"]),
 	]);
-	const host = magicDnsHost(status.stdout);
-	const address = tailnetAddress(status.stdout);
+	const host = TailscaleAccess.magicDns(status.stdout);
+	const address = TailscaleAccess.address(status.stdout);
 
 	return {
 		host,
 		url: host ? pairingUrl({ origin: `https://${host}`, token }) : undefined,
-		exposed: serveExposes(serve.stdout, port),
+		exposed: TailscaleAccess.exposes(serve.stdout, port),
 		tailnetUrl: address ? pairingUrl({ origin: `http://${address}:${port}`, token }) : undefined,
-		tailnetOpen: !!tailnetListenerAddress(),
+		tailnetOpen: !!TailnetListener.address(),
 	};
 }
 
-export async function restoreTailnetAccess(): Promise<void> {
+async function restoreTailnetAccess(): Promise<void> {
 	if (!(await Settings.tailnetAccess())) {
 		return;
 	}
 
-	const status = await tailscale(["status", "--json"]);
-	const address = tailnetAddress(status.stdout);
+	const status = await Tailscale.run(["status", "--json"]);
+	const address = TailscaleAccess.address(status.stdout);
 
 	if (!address) {
 		Logger.warn("tailscale:tailnet-address-missing");
@@ -47,11 +41,11 @@ export async function restoreTailnetAccess(): Promise<void> {
 		return;
 	}
 
-	await openTailnetListener(address);
+	await TailnetListener.open(address);
 }
 
-async function serve(enabled: boolean): Promise<MobileAccess> {
-	const result = await tailscale(serveArgs({ enabled, port: serverReach().port }));
+async function serve(enabled: boolean): Promise<MobileAccessStatus> {
+	const result = await Tailscale.run(TailscaleAccess.serveArgs({ enabled, port: Reach.current().port }));
 
 	if (result.failed) {
 		Logger.warn("tailscale:serve-failed", { enabled, err: result.stderr });
@@ -62,12 +56,12 @@ async function serve(enabled: boolean): Promise<MobileAccess> {
 		return access;
 	}
 
-	return { ...access, problem: serveProblem(result.stderr) };
+	return { ...access, problem: TailscaleAccess.problem(result.stderr) };
 }
 
-export async function setMobileAccess(enabled: boolean): Promise<MobileAccess> {
+async function setMobileAccess(enabled: boolean): Promise<MobileAccessStatus> {
 	if (!enabled) {
-		await closeTailnetListener();
+		await TailnetListener.close();
 		await Settings.setTailnetAccess(false);
 
 		const closed = await mobileAccess();
@@ -79,20 +73,26 @@ export async function setMobileAccess(enabled: boolean): Promise<MobileAccess> {
 		return await serve(false);
 	}
 
-	const status = await tailscale(["status", "--json"]);
+	const status = await Tailscale.run(["status", "--json"]);
 
-	if (tailnetIssuesCertificates(status.stdout)) {
+	if (TailscaleAccess.issuesCertificates(status.stdout)) {
 		return await serve(true);
 	}
 
-	const address = tailnetAddress(status.stdout);
+	const address = TailscaleAccess.address(status.stdout);
 
 	if (!address) {
-		return { ...(await mobileAccess()), problem: TAILSCALE_MISSING_REMEDY };
+		return { ...(await mobileAccess()), problem: TailscaleAccess.TAILSCALE_MISSING_REMEDY };
 	}
 
-	await openTailnetListener(address);
+	await TailnetListener.open(address);
 	await Settings.setTailnetAccess(true);
 
 	return await mobileAccess();
 }
+
+export const MobileAccess = {
+	read: mobileAccess,
+	restore: restoreTailnetAccess,
+	set: setMobileAccess,
+};

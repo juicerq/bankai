@@ -77,4 +77,4 @@ async function openFiles(pid: number): Promise<string[]> {
 	return targets.flatMap((target) => target ?? []);
 }
 
-export const procFs = { parent, procStart, named, commandLine, openFiles, workingDirectory };
+export const ProcFs = { parent, procStart, named, commandLine, openFiles, workingDirectory };

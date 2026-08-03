@@ -7,7 +7,7 @@ import {
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettingsModal } from "@renderer/routes/-components/settings-modal";
-import { TAILSCALE_OPERATOR_REMEDY } from "@main/infra/tailscale/tailscale-access";
+import { TailscaleAccess } from "@main/infra/tailscale/tailscale-access";
 import { pairingUrl } from "@shared/server";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render, waitFor } from "./testing-library";
@@ -275,7 +275,7 @@ test("says so plainly when Tailscale names no machine instead of showing a broke
 });
 
 test("surfaces the operator remedy when tailscale refuses the change", async () => {
-	mobile.access = { ...mobile.access, problem: TAILSCALE_OPERATOR_REMEDY };
+	mobile.access = { ...mobile.access, problem: TailscaleAccess.TAILSCALE_OPERATOR_REMEDY };
 	const modal = await loadedModal();
 
 	await waitFor(() => {

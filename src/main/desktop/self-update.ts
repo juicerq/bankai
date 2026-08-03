@@ -1,4 +1,4 @@
-export function canSelfUpdate(input: {
+function canSelfUpdate(input: {
 	platform: NodeJS.Platform;
 	execPath: string;
 	appImage?: string;
@@ -14,3 +14,7 @@ export function canSelfUpdate(input: {
 
 	return input.execPath.startsWith(`${input.appDir}/`);
 }
+
+export const SelfUpdate = {
+	allowed: canSelfUpdate,
+};

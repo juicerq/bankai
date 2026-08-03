@@ -6,15 +6,20 @@ type AttentionWindow = Pick<BrowserWindow, "flashFrame" | "isDestroyed" | "isFoc
 
 let mainWindow: AttentionWindow | undefined;
 
-export function setupDesktopAttention(win: AttentionWindow): void {
+function setupDesktopAttention(win: AttentionWindow): void {
 	mainWindow = win;
 	win.on("focus", () => win.flashFrame(false));
 }
 
-export function requestDesktopAttention(): void {
+function requestDesktopAttention(): void {
 	if (!mainWindow || mainWindow.isDestroyed() || mainWindow.isFocused()) {
 		return;
 	}
 
 	mainWindow.flashFrame(true);
 }
+
+export const DesktopAttention = {
+	setup: setupDesktopAttention,
+	request: requestDesktopAttention,
+};

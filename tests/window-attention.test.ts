@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { EventEmitter } from "node:events";
-import { requestDesktopAttention, setupDesktopAttention } from "@main/desktop/desktop-attention";
+import { DesktopAttention } from "@main/desktop/desktop-attention";
 
 class AttentionWindow extends EventEmitter {
 	readonly flashes: boolean[] = [];
@@ -12,9 +12,9 @@ class AttentionWindow extends EventEmitter {
 describe("desktop attention", () => {
 	test("an unfocused window asks the taskbar for attention", () => {
 		const win = new AttentionWindow();
-		setupDesktopAttention(win);
+		DesktopAttention.setup(win);
 
-		requestDesktopAttention();
+		DesktopAttention.request();
 
 		expect(win.flashes).toEqual([true]);
 	});
@@ -22,17 +22,17 @@ describe("desktop attention", () => {
 	test("the focused window does not ask for attention", () => {
 		const win = new AttentionWindow();
 		win.isFocused = () => true;
-		setupDesktopAttention(win);
+		DesktopAttention.setup(win);
 
-		requestDesktopAttention();
+		DesktopAttention.request();
 
 		expect(win.flashes).toEqual([]);
 	});
 
 	test("focusing the window clears its attention request", () => {
 		const win = new AttentionWindow();
-		setupDesktopAttention(win);
-		requestDesktopAttention();
+		DesktopAttention.setup(win);
+		DesktopAttention.request();
 
 		win.emit("focus");
 
@@ -42,9 +42,9 @@ describe("desktop attention", () => {
 	test("a destroyed window ignores a late request", () => {
 		const win = new AttentionWindow();
 		win.isDestroyed = () => true;
-		setupDesktopAttention(win);
+		DesktopAttention.setup(win);
 
-		requestDesktopAttention();
+		DesktopAttention.request();
 
 		expect(win.flashes).toEqual([]);
 	});

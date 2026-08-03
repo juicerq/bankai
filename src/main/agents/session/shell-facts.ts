@@ -1,16 +1,16 @@
-import { harnessTitle } from "@main/agents/harness/harnesses";
-import { branchLabel } from "@main/git/branch-label";
+import { Harnesses } from "@main/agents/harness/harnesses";
+import { BranchLabel } from "@main/git/branch-label";
 import { Logger } from "@main/infra/logger";
 import { Continuity, type ContinuityShell, type ContinuityValue } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
-import { shellTitles } from "@main/terminal/shell-titles";
+import { ShellTitles } from "@main/terminal/shell-titles";
 
 async function deriveTitle(shell: ContinuityShell): Promise<string | null> {
 	if (!shell.session) {
-		return shellTitles.get(shell.id) ?? null;
+		return ShellTitles.byShell.get(shell.id) ?? null;
 	}
 
-	const fromHarness = harnessTitle(shell.session.harness);
+	const fromHarness = Harnesses.title(shell.session.harness);
 	if (!fromHarness) {
 		return null;
 	}
@@ -29,7 +29,7 @@ async function firstTitle(shell: ContinuityShell | undefined): Promise<string | 
 	});
 }
 
-export async function stampShell(input: {
+async function stampShell(input: {
 	projectId: string;
 	shellId: string;
 	cwd?: string;
@@ -53,7 +53,11 @@ export async function stampShell(input: {
 	return await Continuity.touchShell({
 		projectId: input.projectId,
 		shellId: input.shellId,
-		branch: await branchLabel(cwd),
+		branch: await BranchLabel.of(cwd),
 		...(title ? { title } : {}),
 	});
 }
+
+export const ShellFacts = {
+	stamp: stampShell,
+};

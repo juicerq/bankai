@@ -1,8 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { atomicWrite } from "@main/store/atomic";
-import { envelopeSchema } from "@main/store/envelope";
-import { resolveDataDir } from "@main/store/store-paths";
+import { AtomicFile } from "@main/infra/atomic-file";
+import { StorePaths } from "@main/store/store-paths";
+import { type } from "arktype";
+
+const envelopeSchema = type({
+	version: "number",
+	data: "unknown",
+});
 
 interface StoreOptions<T> {
 	name: string;
@@ -18,7 +23,7 @@ export class Store<T> {
 	constructor(private opts: StoreOptions<T>) {}
 
 	private path(): string {
-		return join(resolveDataDir(), `${this.opts.name}.json`);
+		return join(StorePaths.dataDir(), `${this.opts.name}.json`);
 	}
 
 	read(): Promise<T> {
@@ -80,7 +85,7 @@ export class Store<T> {
 
 	private writeNow(value: T): Promise<void> {
 		const envelope = { version: this.opts.version, data: value };
-		return atomicWrite(this.path(), JSON.stringify(envelope, null, 2));
+		return AtomicFile.write(this.path(), JSON.stringify(envelope, null, 2));
 	}
 }
 

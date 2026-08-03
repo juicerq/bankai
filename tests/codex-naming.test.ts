@@ -3,11 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { CodexHarness } from "@main/agents/harness/codex/codex-harness";
-import { codexSessionsDir } from "@main/agents/harness/codex/codex-config";
-import { codexMaterial, codexTitle, messageIntent, rolloutPath } from "@main/agents/harness/codex/codex-transcript";
-import { MATERIAL_EDGE_COUNT, MATERIAL_MESSAGE_LIMIT, MATERIAL_TOTAL_LIMIT } from "@main/agents/transcript/transcript-material";
-import { codexProposeName, namingCall, NAMING_TIMEOUT_MS, proposedName } from "@main/agents/harness/codex/codex-namer";
-import { NAME_MAX_CHARS } from "@main/agents/naming/name-contract";
+import { CodexConfig } from "@main/agents/harness/codex/codex-config";
+import { CodexTranscript } from "@main/agents/harness/codex/codex-transcript";
+import { TranscriptMaterial } from "@main/agents/transcript/transcript-material";
+import { CodexNamer } from "@main/agents/harness/codex/codex-namer";
+import { NameContract } from "@main/agents/naming/name-contract";
 
 const SESSION = "019f898d-719d-7811-9b34-86470df90a52";
 
@@ -43,24 +43,24 @@ function writeRollout(messages: string[], sessionId = SESSION): void {
 
 describe("what enters the naming sample", () => {
 	test("takes the message out of a validated user_message record", () => {
-		expect(messageIntent(userMessage("remover o debounce do resize").trim())).toBe("remover o debounce do resize");
+		expect(CodexTranscript.messageIntent(userMessage("remover o debounce do resize").trim())).toBe("remover o debounce do resize");
 	});
 
 	test("takes nothing from any other record", () => {
-		expect(messageIntent('{"type":"event_msg","payload":{"type":"agent_message","message":"hi"}}')).toBeNull();
-		expect(messageIntent('{"type":"session_meta","payload":{"session_id":"x"}}')).toBeNull();
-		expect(messageIntent("{ not json")).toBeNull();
+		expect(CodexTranscript.messageIntent('{"type":"event_msg","payload":{"type":"agent_message","message":"hi"}}')).toBeNull();
+		expect(CodexTranscript.messageIntent('{"type":"session_meta","payload":{"session_id":"x"}}')).toBeNull();
+		expect(CodexTranscript.messageIntent("{ not json")).toBeNull();
 	});
 
 	test("takes nothing from an empty message or from injected ambient context", () => {
-		expect(messageIntent(userMessage("   ").trim())).toBeNull();
-		expect(messageIntent(userMessage('<in-app-browser-context source="ambient-ui-state">\nstate').trim())).toBeNull();
+		expect(CodexTranscript.messageIntent(userMessage("   ").trim())).toBeNull();
+		expect(CodexTranscript.messageIntent(userMessage('<in-app-browser-context source="ambient-ui-state">\nstate').trim())).toBeNull();
 	});
 
 	test("caps one message at the shared message limit", () => {
-		const found = messageIntent(userMessage("a".repeat(MATERIAL_MESSAGE_LIMIT + 50)).trim(), MATERIAL_MESSAGE_LIMIT);
+		const found = CodexTranscript.messageIntent(userMessage("a".repeat(TranscriptMaterial.MATERIAL_MESSAGE_LIMIT + 50)).trim(), TranscriptMaterial.MATERIAL_MESSAGE_LIMIT);
 
-		expect(found).toHaveLength(MATERIAL_MESSAGE_LIMIT);
+		expect(found).toHaveLength(TranscriptMaterial.MATERIAL_MESSAGE_LIMIT);
 	});
 });
 
@@ -68,37 +68,37 @@ describe("sampling a rollout", () => {
 	test("takes the first three and the last three messages", async () => {
 		writeRollout(["one", "two", "three", "four", "five", "six", "seven", "eight"]);
 
-		expect(await codexMaterial({ sessionId: SESSION })).toEqual(["one", "two", "three", "six", "seven", "eight"]);
+		expect(await CodexTranscript.material({ sessionId: SESSION })).toEqual(["one", "two", "three", "six", "seven", "eight"]);
 	});
 
 	test("keeps a short session whole", async () => {
 		writeRollout(["one", "two"]);
 
-		expect(await codexMaterial({ sessionId: SESSION })).toEqual(["one", "two"]);
+		expect(await CodexTranscript.material({ sessionId: SESSION })).toEqual(["one", "two"]);
 	});
 
 	test("drops from the middle until the sample fits the total limit", async () => {
-		writeRollout(Array.from({ length: 8 }, () => "a".repeat(MATERIAL_MESSAGE_LIMIT)));
-		const material = await codexMaterial({ sessionId: SESSION });
+		writeRollout(Array.from({ length: 8 }, () => "a".repeat(TranscriptMaterial.MATERIAL_MESSAGE_LIMIT)));
+		const material = await CodexTranscript.material({ sessionId: SESSION });
 
-		expect(material.join("\n").length).toBeLessThanOrEqual(MATERIAL_TOTAL_LIMIT);
-		expect(material.length).toBeLessThan(MATERIAL_EDGE_COUNT * 2);
+		expect(material.join("\n").length).toBeLessThanOrEqual(TranscriptMaterial.MATERIAL_TOTAL_LIMIT);
+		expect(material.length).toBeLessThan(TranscriptMaterial.MATERIAL_EDGE_COUNT * 2);
 	});
 
 	test("samples nothing from a session whose rollout is gone", async () => {
-		expect(await codexMaterial({ sessionId: SESSION })).toEqual([]);
-		expect(await rolloutPath(SESSION)).toBeNull();
+		expect(await CodexTranscript.material({ sessionId: SESSION })).toEqual([]);
+		expect(await CodexTranscript.path(SESSION)).toBeNull();
 	});
 
 	test("titles a session after the first thing its user asked for", async () => {
 		writeRollout(["remover o debounce do resize", "ok, faz isso"]);
 
-		expect(await codexTitle({ sessionId: SESSION })).toBe("remover o debounce do resize");
+		expect(await CodexTranscript.title({ sessionId: SESSION })).toBe("remover o debounce do resize");
 	});
 });
 
 describe("the naming call", () => {
-	const call = namingCall({
+	const call = CodexNamer.call({
 		material: ["remover o debounce do resize"],
 		workspace: "/tmp/bankai-codex-name-x",
 		schema: "/tmp/bankai-codex-name-x/name.schema.json",
@@ -123,7 +123,7 @@ describe("the naming call", () => {
 	});
 
 	test("stays bounded in time", () => {
-		expect(call.options.timeout).toBe(NAMING_TIMEOUT_MS);
+		expect(call.options.timeout).toBe(CodexNamer.NAMING_TIMEOUT_MS);
 	});
 
 	test("carries the messages it is naming", () => {
@@ -133,35 +133,35 @@ describe("the naming call", () => {
 
 describe("accepting what the model answered", () => {
 	test("takes the name out of the structured answer", () => {
-		expect(proposedName('{"name":"Remover debounce do painel de diff"}')).toBe("Remover debounce do painel de diff");
+		expect(CodexNamer.parseName('{"name":"Remover debounce do painel de diff"}')).toBe("Remover debounce do painel de diff");
 	});
 
 	test("strips the quotes and trailing punctuation a model adds anyway", () => {
-		expect(proposedName('{"name":"\\"Remover debounce\\"."}')).toBe("Remover debounce");
+		expect(CodexNamer.parseName('{"name":"\\"Remover debounce\\"."}')).toBe("Remover debounce");
 	});
 
 	test("refuses an answer that is not the agreed shape", () => {
-		expect(proposedName("Remover debounce")).toBeNull();
-		expect(proposedName('{"title":"Remover debounce"}')).toBeNull();
-		expect(proposedName('{"name":42}')).toBeNull();
+		expect(CodexNamer.parseName("Remover debounce")).toBeNull();
+		expect(CodexNamer.parseName('{"title":"Remover debounce"}')).toBeNull();
+		expect(CodexNamer.parseName('{"name":42}')).toBeNull();
 	});
 
 	test("refuses an empty or oversized name", () => {
-		expect(proposedName('{"name":"   "}')).toBeNull();
-		expect(proposedName(JSON.stringify({ name: "a".repeat(NAME_MAX_CHARS + 1) }))).toBeNull();
+		expect(CodexNamer.parseName('{"name":"   "}')).toBeNull();
+		expect(CodexNamer.parseName(JSON.stringify({ name: "a".repeat(NameContract.NAME_MAX_CHARS + 1) }))).toBeNull();
 	});
 });
 
 describe("naming a session with nothing to name", () => {
 	test("keeps the current name instead of calling codex at all", async () => {
-		expect(await codexProposeName({ sessionId: SESSION })).toBeNull();
+		expect(await CodexNamer.proposeName({ sessionId: SESSION })).toBeNull();
 	});
 });
 
 describe("the harness's naming capability", () => {
 	test("is declared, so the namer reaches codex sessions through the same boundary", () => {
-		expect(CodexHarness.proposeName).toBe(codexProposeName);
-		expect(CodexHarness.title).toBe(codexTitle);
+		expect(CodexHarness.proposeName).toBe(CodexNamer.proposeName);
+		expect(CodexHarness.title).toBe(CodexTranscript.title);
 	});
 });
 
@@ -170,7 +170,7 @@ describe("a real bounded naming call", () => {
 		"earns one accepted name without touching a project or leaving a session",
 		async () => {
 			delete process.env.CODEX_HOME;
-			const rollouts = () => readdirSync(codexSessionsDir(), { recursive: true }).length;
+			const rollouts = () => readdirSync(CodexConfig.sessionsDir(), { recursive: true }).length;
 			const before = rollouts();
 			const workspace = mkdtempSync(join(tmpdir(), "bankai-codex-smoke-"));
 
@@ -186,7 +186,7 @@ describe("a real bounded naming call", () => {
 						additionalProperties: false,
 					}),
 				);
-				const call = namingCall({
+				const call = CodexNamer.call({
 					material: ["quero remover o debounce do resize do painel de diff", "ok, faz isso"],
 					workspace,
 					schema,
@@ -200,13 +200,13 @@ describe("a real bounded naming call", () => {
 				});
 				await child.exited;
 
-				expect(proposedName(readFileSync(output, "utf8"))).not.toBeNull();
+				expect(CodexNamer.parseName(readFileSync(output, "utf8"))).not.toBeNull();
 				expect(rollouts()).toBe(before);
 			} finally {
 				rmSync(workspace, { recursive: true, force: true });
 				process.env.CODEX_HOME = home;
 			}
 		},
-		NAMING_TIMEOUT_MS * 4,
+		CodexNamer.NAMING_TIMEOUT_MS * 4,
 	);
 });

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { type IPty, spawn } from "node-pty";
 import { Logger } from "@main/infra/logger";
-import { terminalEnv } from "@main/terminal/terminal-env";
+import { TerminalEnv } from "@main/terminal/terminal-env";
 import { SHELL } from "@main/terminal/shell-binary";
 import { shellProcesses, type ShellRef } from "@main/terminal/shell-processes";
 
@@ -29,7 +29,7 @@ export const ShellSpawn = {
 			cols: input.cols,
 			rows: input.rows,
 			cwd: input.cwd,
-			env: terminalEnv(process.env),
+			env: TerminalEnv.of(process.env),
 		});
 
 		shellProcesses.register({

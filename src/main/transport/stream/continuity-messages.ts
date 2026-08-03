@@ -1,10 +1,10 @@
 import type { StreamConnection } from "@main/transport/stream/stream-connection";
-import { replaceWatch } from "@main/transport/stream/connection-watches";
+import { ConnectionWatches } from "@main/transport/stream/connection-watches";
 import { Continuity, type ContinuityValue } from "@main/store/continuity";
 import type { ContinuityChangedEvent } from "@shared/continuity";
 import type { StreamEnvelope } from "@shared/stream";
 
-export async function handleContinuityMessage(
+async function handleContinuityMessage(
 	connection: StreamConnection,
 	message: StreamEnvelope,
 ): Promise<unknown> {
@@ -12,7 +12,7 @@ export async function handleContinuityMessage(
 		throw new Error(`Unknown continuity message "${message.type}"`);
 	}
 
-	replaceWatch(
+	ConnectionWatches.replace(
 		{ connection, channel: "continuity", key: "" },
 		Continuity.subscribe((value) => push(connection, value)),
 	);
@@ -26,3 +26,7 @@ export async function handleContinuityMessage(
 function push(connection: StreamConnection, value: ContinuityValue): void {
 	connection.send("continuity", "changed", { value } satisfies ContinuityChangedEvent);
 }
+
+export const ContinuityMessages = {
+	handle: handleContinuityMessage,
+};

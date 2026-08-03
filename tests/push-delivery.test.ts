@@ -1,14 +1,10 @@
 import { expect, test } from "bun:test";
-import { focusShell } from "@main/terminal/shell-focus";
-import {
-	type AttentionPushPayload,
-	attentionPushPayload,
-	PUSH_DEFAULT_TITLE,
-	PUSH_DONE_BODY,
-} from "@main/push/attention-push";
-import { pushNeedsAttention, pushTurnDone } from "@main/push/notify-attention";
-import { deliverAttentionPush } from "@main/push/push-delivery";
-import type { PushDelivery, PushSender } from "@main/push/web-push";
+import { ShellFocus } from "@main/terminal/shell-focus";
+import { type AttentionPushPayload } from "@main/push/attention-push";
+import { AttentionPush } from "@main/push/attention-push";
+import { NotifyAttention } from "@main/push/notify-attention";
+import { PushDelivery } from "@main/push/push-delivery";
+import type { PushResult, PushSender } from "@main/push/web-push";
 import {
 	PUSH_SUBSCRIPTION_CAP,
 	type PushSubscription,
@@ -18,13 +14,13 @@ import {
 
 const vapid = async () => ({ publicKey: "public-key", privateKey: "private-key" });
 
-const PAYLOAD = attentionPushPayload({ shellId: "shell-a", title: "Rewrite the parser" });
+const PAYLOAD = AttentionPush.payload({ shellId: "shell-a", title: "Rewrite the parser" });
 
 function subscription(endpoint: string): PushSubscription {
 	return { endpoint, keys: { p256dh: `p256dh-${endpoint}`, auth: `auth-${endpoint}` } };
 }
 
-function sender(outcomes: Record<string, PushDelivery> = {}) {
+function sender(outcomes: Record<string, PushResult> = {}) {
 	const sent: PushSubscription[] = [];
 	const payloads: AttentionPushPayload[] = [];
 	const send: PushSender = async ({ subscription: target, payload }) => {
@@ -55,7 +51,7 @@ test("the notification reaches every subscribed phone", async () => {
 	await PushSubscriptions.save(subscription("https://push.example/b"));
 	const { send, sent } = sender();
 
-	const deliveries = await deliverAttentionPush({ payload: PAYLOAD, vapid, send });
+	const deliveries = await PushDelivery.deliver({ payload: PAYLOAD, vapid, send });
 
 	expect(deliveries).toEqual(["sent", "sent"]);
 	expect(sent.map((target) => target.endpoint)).toEqual(["https://push.example/a", "https://push.example/b"]);
@@ -67,7 +63,7 @@ test("a subscription the push service no longer knows is dropped", async () => {
 	await PushSubscriptions.save(subscription("https://push.example/alive"));
 	const { send } = sender({ "https://push.example/dead": "gone" });
 
-	await deliverAttentionPush({ payload: PAYLOAD, vapid, send });
+	await PushDelivery.deliver({ payload: PAYLOAD, vapid, send });
 
 	expect((await PushSubscriptions.list()).map((stored) => stored.endpoint)).toEqual(["https://push.example/alive"]);
 });
@@ -76,7 +72,7 @@ test("a push service that failed keeps the subscription for the next attempt", a
 	await PushSubscriptions.save(subscription("https://push.example/flaky"));
 	const { send } = sender({ "https://push.example/flaky": "failed" });
 
-	await deliverAttentionPush({ payload: PAYLOAD, vapid, send });
+	await PushDelivery.deliver({ payload: PAYLOAD, vapid, send });
 
 	expect(await PushSubscriptions.list()).toHaveLength(1);
 });
@@ -85,9 +81,9 @@ test("a shell someone is already looking at sends nothing", async () => {
 	await PushSubscriptions.save(subscription("https://push.example/watching"));
 	const cleanups: (() => void)[] = [];
 	const { send, sent } = sender();
-	focusShell({ id: "watcher", onClose: (cleanup) => cleanups.push(cleanup) }, "shell-watched");
+	ShellFocus.focus({ id: "watcher", onClose: (cleanup) => cleanups.push(cleanup) }, "shell-watched");
 
-	await pushNeedsAttention({ projectId: "p1", shellId: "shell-watched" }, send);
+	await NotifyAttention.needsAttention({ projectId: "p1", shellId: "shell-watched" }, send);
 
 	expect(sent).toEqual([]);
 
@@ -100,11 +96,11 @@ test("a session that finished with nobody looking reaches the phone", async () =
 	await PushSubscriptions.save(subscription("https://push.example/idle"));
 	const { send, payloads } = sender();
 
-	await pushTurnDone({ projectId: "p1", shellId: "shell-finished" }, send);
+	await NotifyAttention.turnDone({ projectId: "p1", shellId: "shell-finished" }, send);
 
 	expect(payloads).toEqual([{
-		title: PUSH_DEFAULT_TITLE,
-		body: PUSH_DONE_BODY,
+		title: AttentionPush.PUSH_DEFAULT_TITLE,
+		body: AttentionPush.PUSH_DONE_BODY,
 		data: { shellId: "shell-finished" },
 	}]);
 });
@@ -113,9 +109,9 @@ test("a session that finished under someone's eyes sends nothing", async () => {
 	await PushSubscriptions.save(subscription("https://push.example/seen"));
 	const cleanups: (() => void)[] = [];
 	const { send, sent } = sender();
-	focusShell({ id: "reader", onClose: (cleanup) => cleanups.push(cleanup) }, "shell-read");
+	ShellFocus.focus({ id: "reader", onClose: (cleanup) => cleanups.push(cleanup) }, "shell-read");
 
-	await pushTurnDone({ projectId: "p1", shellId: "shell-read" }, send);
+	await NotifyAttention.turnDone({ projectId: "p1", shellId: "shell-read" }, send);
 
 	expect(sent).toEqual([]);
 

@@ -1,26 +1,32 @@
-import { closeLiveConnections } from "@main/transport/server/live-connections";
+import { LiveConnections } from "@main/transport/server/live-connections";
 import { Settings } from "@main/store/settings";
 import type { ServerReach } from "@shared/server";
 
 let current: ServerReach | undefined;
 
-export async function openServerReach(): Promise<ServerReach> {
+async function openServerReach(): Promise<ServerReach> {
 	current = await Settings.ensureServer();
 
 	return current;
 }
 
-export async function regenerateServerToken(): Promise<ServerReach> {
+async function regenerateServerToken(): Promise<ServerReach> {
 	current = await Settings.regenerateServerToken();
-	closeLiveConnections();
+	LiveConnections.closeAll();
 
 	return current;
 }
 
-export function serverReach(): ServerReach {
+function serverReach(): ServerReach {
 	if (!current) {
 		throw new Error("The Bankai server is not running");
 	}
 
 	return current;
 }
+
+export const Reach = {
+	open: openServerReach,
+	regenerateToken: regenerateServerToken,
+	current: serverReach,
+};

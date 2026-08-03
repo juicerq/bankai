@@ -1,8 +1,8 @@
-import { harnessConversation } from "@main/agents/harness/harnesses";
+import { Harnesses } from "@main/agents/harness/harnesses";
 import { CONVERSATION_BACKFILL_BYTES, ConversationTail } from "@main/agents/transcript/conversation-tail";
 import { Logger } from "@main/infra/logger";
 import type { StreamConnection } from "@main/transport/stream/stream-connection";
-import { releaseWatch, replaceWatch } from "@main/transport/stream/connection-watches";
+import { ConnectionWatches } from "@main/transport/stream/connection-watches";
 import { ConversationSchemas } from "@main/transport/stream/stream-messages";
 import { Continuity, type ContinuitySessionRef, type ContinuityValue } from "@main/store/continuity";
 import type {
@@ -150,7 +150,7 @@ class ConversationWatch {
 			return EMPTY_CONVERSATION;
 		}
 
-		const conversation = harnessConversation(session.harness);
+		const conversation = Harnesses.conversation(session.harness);
 		if (!conversation) {
 			return EMPTY_CONVERSATION;
 		}
@@ -189,7 +189,7 @@ class ConversationWatch {
 	}
 }
 
-export function handleConversationMessage(connection: StreamConnection, message: StreamEnvelope): unknown {
+function handleConversationMessage(connection: StreamConnection, message: StreamEnvelope): unknown {
 	if (message.type === "history") {
 		const { before, ...address } = ConversationSchemas.history.assert(message.payload);
 
@@ -202,7 +202,7 @@ export function handleConversationMessage(connection: StreamConnection, message:
 	switch (message.type) {
 		case "subscribe": {
 			const watch = new ConversationWatch(connection, address);
-			replaceWatch({ connection, channel: "conversation", key: addressKey(address) }, () => {
+			ConnectionWatches.replace({ connection, channel: "conversation", key: addressKey(address) }, () => {
 				watch.stop();
 
 				if (conversationWatches.get(key) === watch) {
@@ -214,10 +214,14 @@ export function handleConversationMessage(connection: StreamConnection, message:
 			return watch.start();
 		}
 		case "unsubscribe":
-			releaseWatch({ connection, channel: "conversation", key: addressKey(address) });
+			ConnectionWatches.release({ connection, channel: "conversation", key: addressKey(address) });
 
 			return undefined;
 		default:
 			throw new Error(`Unknown conversation message "${message.type}"`);
 	}
 }
+
+export const ConversationMessages = {
+	handle: handleConversationMessage,
+};

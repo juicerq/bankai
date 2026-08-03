@@ -1,7 +1,7 @@
 import { Git } from "@main/git/git";
 import { gitRequestSchema, type GitResponse } from "@main/git/git-protocol";
-import { captureTurnBaseline, turnBaselines } from "@main/git/review/turn-baseline";
-import { readWorktrees, removeWorktree } from "@main/git/worktree/worktrees";
+import { TurnBaseline } from "@main/git/review/turn-baseline";
+import { Worktrees } from "@main/git/worktree/worktrees";
 
 let queue = Promise.resolve();
 
@@ -35,15 +35,15 @@ async function execute(request: typeof gitRequestSchema.infer) {
 		case "fullFile":
 			return await Git.fullFile(request);
 		case "worktrees":
-			return await readWorktrees(request.path);
+			return await Worktrees.read(request.path);
 		case "removeWorktree":
-			await removeWorktree(request.path, request.worktree);
+			await Worktrees.remove(request.path, request.worktree);
 			return null;
 		case "startTurn":
-			await captureTurnBaseline(request);
+			await TurnBaseline.capture(request);
 			return null;
 		case "forgetTurn":
-			turnBaselines.delete(request.shellId);
+			TurnBaseline.byShell.delete(request.shellId);
 			return null;
 	}
 }

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { removeInstalledHooks, settingsWithoutBankaiHooks } from "@main/agents/harness/claude/claude-hooks";
+import { ClaudeHooks } from "@main/agents/harness/claude/claude-hooks";
 import { assertDefined } from "./utils/assertions";
 
 const CLAUDE_SCRIPT = "bankai-trace.sh";
@@ -16,7 +16,7 @@ const OWN_GROUP = { hooks: [{ type: "command", command: "~/.claude/hooks/notify.
 
 describe("taking the bankai group out of a harness configuration", () => {
 	test("keeps every hook the user owns", () => {
-		const next = settingsWithoutBankaiHooks(
+		const next = ClaudeHooks.settingsWithout(
 			{ model: "opus", hooks: { Stop: [OWN_GROUP, bankaiGroup(CLAUDE_SCRIPT)] } },
 			CLAUDE_SCRIPT,
 		);
@@ -25,7 +25,7 @@ describe("taking the bankai group out of a harness configuration", () => {
 	});
 
 	test("drops the hooks key when bankai was the only thing in it", () => {
-		const next = settingsWithoutBankaiHooks(
+		const next = ClaudeHooks.settingsWithout(
 			{ model: "opus", hooks: { Stop: [bankaiGroup(CLAUDE_SCRIPT)], Notification: [bankaiGroup(CLAUDE_SCRIPT)] } },
 			CLAUDE_SCRIPT,
 		);
@@ -36,7 +36,7 @@ describe("taking the bankai group out of a harness configuration", () => {
 	test("leaves the group of another harness alone", () => {
 		const settings = { hooks: { Stop: [bankaiGroup(CODEX_SCRIPT)] } };
 
-		expect(settingsWithoutBankaiHooks(settings, CLAUDE_SCRIPT)).toEqual(settings);
+		expect(ClaudeHooks.settingsWithout(settings, CLAUDE_SCRIPT)).toEqual(settings);
 	});
 });
 
@@ -90,7 +90,7 @@ describe("removing what bankai installed", () => {
 		writeFileSync(codexHooksPath(), JSON.stringify({ hooks: { Stop: [bankaiGroup(CODEX_SCRIPT)] } }));
 		const hooks = seedHookDir();
 
-		await removeInstalledHooks();
+		await ClaudeHooks.removeInstalled();
 
 		expect(JSON.parse(readFileSync(claudeSettingsPath(), "utf8"))).toEqual({
 			model: "opus",
@@ -105,7 +105,7 @@ describe("removing what bankai installed", () => {
 		writeFileSync(claudeSettingsPath(), broken);
 		const hooks = seedHookDir();
 
-		const failure = await removeInstalledHooks().then(() => null, (err: unknown) => err);
+		const failure = await ClaudeHooks.removeInstalled().then(() => null, (err: unknown) => err);
 
 		expect(failure).toBeInstanceOf(Error);
 
@@ -117,13 +117,13 @@ describe("removing what bankai installed", () => {
 		const untouched = JSON.stringify({ hooks: { Stop: [OWN_GROUP] } });
 		writeFileSync(claudeSettingsPath(), untouched);
 
-		await removeInstalledHooks();
+		await ClaudeHooks.removeInstalled();
 
 		expect(readFileSync(claudeSettingsPath(), "utf8")).toBe(untouched);
 	});
 
 	test("a harness with no configuration file is nothing to clean", async () => {
-		await removeInstalledHooks();
+		await ClaudeHooks.removeInstalled();
 
 		expect(existsSync(claudeSettingsPath())).toBe(false);
 	});

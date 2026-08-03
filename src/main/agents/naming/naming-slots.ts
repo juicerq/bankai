@@ -1,4 +1,4 @@
-export const NAMING_SLOTS = 5;
+const NAMING_SLOTS = 5;
 
 const waiting: (() => void)[] = [];
 let taken = 0;
@@ -25,7 +25,7 @@ function release(): void {
 	taken -= 1;
 }
 
-export async function withNamingSlot<T>(run: () => Promise<T>): Promise<T> {
+async function withNamingSlot<T>(run: () => Promise<T>): Promise<T> {
 	await acquire();
 
 	try {
@@ -34,3 +34,8 @@ export async function withNamingSlot<T>(run: () => Promise<T>): Promise<T> {
 		release();
 	}
 }
+
+export const NamingSlots = {
+	NAMING_SLOTS,
+	withSlot: withNamingSlot,
+};

@@ -2,7 +2,7 @@ import { chmodSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { browseDirectories, expandUserPath } from "@main/infra/directories";
+import { Directories } from "@main/infra/directories";
 import { assertDefined } from "./utils/assertions";
 
 function scratch(name: string) {
@@ -20,14 +20,14 @@ describe("browse directories", () => {
 		mkdirSync(join(root, "alpha"));
 		writeFileSync(join(root, "readme.md"), "");
 
-		expect(await browseDirectories(root)).toEqual({ path: root, directories: ["alpha", "zeta"] });
+		expect(await Directories.browse(root)).toEqual({ path: root, directories: ["alpha", "zeta"] });
 	});
 
 	it("lists hidden directories so the picker decides when to show them", async () => {
 		const root = scratch("hidden");
 		mkdirSync(join(root, ".config"));
 
-		expect((await browseDirectories(root)).directories).toEqual([".config"]);
+		expect((await Directories.browse(root)).directories).toEqual([".config"]);
 	});
 
 	it("lists a directory reached through a symlink and skips a symlinked file", async () => {
@@ -37,7 +37,7 @@ describe("browse directories", () => {
 		symlinkSync(join(root, "target"), join(root, "linked-directory"));
 		symlinkSync(join(root, "target.txt"), join(root, "linked-file"));
 
-		expect((await browseDirectories(root)).directories).toEqual(["linked-directory", "target"]);
+		expect((await Directories.browse(root)).directories).toEqual(["linked-directory", "target"]);
 	});
 
 	it("reports an empty directory instead of failing when it cannot be read", async () => {
@@ -45,7 +45,7 @@ describe("browse directories", () => {
 		mkdirSync(join(root, "unreachable"));
 		chmodSync(root, 0o000);
 
-		expect(await browseDirectories(root)).toEqual({ path: root, directories: [] });
+		expect(await Directories.browse(root)).toEqual({ path: root, directories: [] });
 
 		chmodSync(root, 0o700);
 	});
@@ -53,27 +53,27 @@ describe("browse directories", () => {
 	it("fails on a directory that does not exist", async () => {
 		assertDefined(process.env.DATA_DIR);
 
-		const failure = await browseDirectories(join(process.env.DATA_DIR, "nowhere")).catch((error: unknown) => error);
+		const failure = await Directories.browse(join(process.env.DATA_DIR, "nowhere")).catch((error: unknown) => error);
 
 		expect(failure).toBeInstanceOf(Error);
 	});
 
 	it("browses the home directory through a tilde", async () => {
-		expect((await browseDirectories("~")).path).toBe(homedir());
+		expect((await Directories.browse("~")).path).toBe(homedir());
 	});
 });
 
 describe("expand user path", () => {
 	it("expands a bare tilde and a tilde segment", () => {
-		expect(expandUserPath("~")).toBe(homedir());
-		expect(expandUserPath("~/projects")).toBe(join(homedir(), "projects"));
+		expect(Directories.expandUser("~")).toBe(homedir());
+		expect(Directories.expandUser("~/projects")).toBe(join(homedir(), "projects"));
 	});
 
 	it("resolves a relative path against the working directory", () => {
-		expect(expandUserPath("projects")).toBe(resolve("projects"));
+		expect(Directories.expandUser("projects")).toBe(resolve("projects"));
 	});
 
 	it("keeps an absolute path and drops its trailing separator", () => {
-		expect(expandUserPath("/home/jui/projects/")).toBe("/home/jui/projects");
+		expect(Directories.expandUser("/home/jui/projects/")).toBe("/home/jui/projects");
 	});
 });

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { type HeartbeatSocket, sweepSockets } from "@main/transport/stream/stream-heartbeat";
+import { type HeartbeatSocket } from "@main/transport/stream/stream-heartbeat";
+import { StreamHeartbeat } from "@main/transport/stream/stream-heartbeat";
 
 class FakeSocket implements HeartbeatSocket {
 	pings = 0;
@@ -29,7 +30,7 @@ class FakeSocket implements HeartbeatSocket {
 test("a socket is pinged before anything is concluded about it", () => {
 	const socket = new FakeSocket();
 
-	sweepSockets([socket], new WeakSet());
+	StreamHeartbeat.sweep([socket], new WeakSet());
 
 	expect(socket.pings).toBe(1);
 	expect(socket.terminated).toBe(0);
@@ -39,9 +40,9 @@ test("a socket that answered the last ping is pinged again, never terminated", (
 	const socket = new FakeSocket();
 	const pending = new WeakSet<HeartbeatSocket>();
 
-	sweepSockets([socket], pending);
+	StreamHeartbeat.sweep([socket], pending);
 	socket.pong();
-	sweepSockets([socket], pending);
+	StreamHeartbeat.sweep([socket], pending);
 
 	expect(socket.pings).toBe(2);
 	expect(socket.terminated).toBe(0);
@@ -51,8 +52,8 @@ test("a socket that never answered is terminated instead of lingering half open"
 	const socket = new FakeSocket();
 	const pending = new WeakSet<HeartbeatSocket>();
 
-	sweepSockets([socket], pending);
-	sweepSockets([socket], pending);
+	StreamHeartbeat.sweep([socket], pending);
+	StreamHeartbeat.sweep([socket], pending);
 
 	expect(socket.terminated).toBe(1);
 	expect(socket.pings).toBe(1);

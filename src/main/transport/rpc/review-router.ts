@@ -1,7 +1,7 @@
 import { type } from "arktype";
 import { reviewModeSchema, type ReviewMode } from "@main/git/git-contracts";
 import { GitProcess } from "@main/git/git-process";
-import { projectWorktrees, resolveProjectWorktree } from "@main/git/worktree/project-worktrees";
+import { ProjectWorktrees } from "@main/git/worktree/project-worktrees";
 import { base } from "@main/transport/rpc/rpc-base";
 import { Projects } from "@main/store/projects";
 
@@ -13,7 +13,7 @@ const scopeInput = type({
 });
 
 async function reviewScope(input: { projectId: string; mode: ReviewMode; shellId?: string; worktree?: string }) {
-	const path = await resolveProjectWorktree(input);
+	const path = await ProjectWorktrees.resolve(input);
 
 	return { path, mode: input.mode, ...(input.shellId ? { shellId: input.shellId } : {}) };
 }
@@ -24,20 +24,20 @@ export const reviewRouter = {
 		.handler(async ({ input }) => {
 			const project = await Projects.find(input.projectId);
 
-			return await projectWorktrees(project.path).catch(() => []);
+			return await ProjectWorktrees.list(project.path).catch(() => []);
 		}),
 
 	removeWorktree: base
 		.input(type({ projectId: "string", worktree: "string" }))
 		.handler(async ({ input }) => {
 			const project = await Projects.find(input.projectId);
-			const worktree = await resolveProjectWorktree(input);
+			const worktree = await ProjectWorktrees.resolve(input);
 			if (worktree === project.path) {
 				throw new Error("A project's main worktree cannot be removed");
 			}
 
 			await GitProcess.removeWorktree({ path: project.path, worktree });
-			await projectWorktrees(project.path, { fresh: true });
+			await ProjectWorktrees.list(project.path, { fresh: true });
 
 			return null;
 		}),

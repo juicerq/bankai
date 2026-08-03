@@ -1,6 +1,6 @@
 import type { Server } from "node:http";
 
-export function listenOn(server: Server, { port, host }: { port: number; host: string }): Promise<void> {
+function listenOn(server: Server, { port, host }: { port: number; host: string }): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const fail = (err: NodeJS.ErrnoException) => {
 			if (err.code === "EADDRINUSE") {
@@ -22,3 +22,7 @@ export function listenOn(server: Server, { port, host }: { port: number; host: s
 		});
 	});
 }
+
+export const ServerListen = {
+	on: listenOn,
+};

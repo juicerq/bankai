@@ -1,5 +1,5 @@
 import { AgentActivity } from "@main/agents/agent-activity";
-import { stampShell } from "@main/agents/session/shell-facts";
+import { ShellFacts } from "@main/agents/session/shell-facts";
 import { GitProcess } from "@main/git/git-process";
 import { Logger } from "@main/infra/logger";
 import { base } from "@main/transport/rpc/rpc-base";
@@ -19,7 +19,7 @@ async function stamped(
 	input: { projectId: string; shellId: string },
 	fallback: ContinuityValue,
 ): Promise<ContinuityValue> {
-	return await stampShell(input).catch((err) => {
+	return await ShellFacts.stamp(input).catch((err) => {
 		Logger.error("continuity:stamp-failed", { ...input, err: String(err) });
 		return fallback;
 	});

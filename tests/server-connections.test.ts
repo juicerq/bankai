@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { closeLiveConnections, trackLiveConnection } from "@main/transport/server/live-connections";
-import { regenerateServerToken } from "@main/transport/server/server-reach";
+import { LiveConnections } from "@main/transport/server/live-connections";
+import { Reach } from "@main/transport/server/server-reach";
 
 function socket() {
 	const closes: { code?: number; reason?: string }[] = [];
@@ -24,10 +24,10 @@ describe("live stream connections", () => {
 	it("drops every paired client when the token is regenerated", async () => {
 		const phone = socket();
 		const desk = socket();
-		trackLiveConnection(phone);
-		trackLiveConnection(desk);
+		LiveConnections.track(phone);
+		LiveConnections.track(desk);
 
-		await regenerateServerToken();
+		await Reach.regenerateToken();
 
 		expect(phone.closes).toHaveLength(1);
 		expect(desk.closes).toHaveLength(1);
@@ -35,20 +35,20 @@ describe("live stream connections", () => {
 
 	it("closes a client only once across regenerations", async () => {
 		const phone = socket();
-		trackLiveConnection(phone);
+		LiveConnections.track(phone);
 
-		await regenerateServerToken();
-		await regenerateServerToken();
+		await Reach.regenerateToken();
+		await Reach.regenerateToken();
 
 		expect(phone.closes).toHaveLength(1);
 	});
 
 	it("leaves a client that already disconnected alone", () => {
 		const phone = socket();
-		trackLiveConnection(phone);
+		LiveConnections.track(phone);
 		phone.disconnect();
 
-		closeLiveConnections();
+		LiveConnections.closeAll();
 
 		expect(phone.closes).toEqual([]);
 	});

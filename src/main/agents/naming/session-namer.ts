@@ -1,6 +1,6 @@
-import { harnessProposeName } from "@main/agents/harness/harnesses";
+import { Harnesses } from "@main/agents/harness/harnesses";
 import { Logger } from "@main/infra/logger";
-import { withNamingSlot } from "@main/agents/naming/naming-slots";
+import { NamingSlots } from "@main/agents/naming/naming-slots";
 import { Continuity, type ContinuityShell } from "@main/store/continuity";
 import { harnessProfile, Settings, sessionNamingEnabled } from "@main/store/settings";
 import type { ShellAddress } from "@shared/continuity-reducers";
@@ -76,14 +76,14 @@ class SessionNamerRunner {
 			return;
 		}
 
-		const propose = harnessProposeName(session.harness);
+		const propose = Harnesses.proposeName(session.harness);
 		if (!propose) {
 			return;
 		}
 
 		this.attempts.set(owner.shellId, (this.attempts.get(owner.shellId) ?? 0) + 1);
 
-		const title = await withNamingSlot(() => propose(session)).catch((err) => {
+		const title = await NamingSlots.withSlot(() => propose(session)).catch((err) => {
 			Logger.warn("naming:failed", { ...owner, err: String(err) });
 
 			return null;

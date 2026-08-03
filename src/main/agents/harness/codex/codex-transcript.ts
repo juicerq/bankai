@@ -2,8 +2,8 @@ import { createReadStream } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import { codexSessionsDir } from "@main/agents/harness/codex/codex-config";
-import { MATERIAL_EDGE_COUNT, MATERIAL_MESSAGE_LIMIT, withinTotal } from "@main/agents/transcript/transcript-material";
+import { CodexConfig } from "@main/agents/harness/codex/codex-config";
+import { TranscriptMaterial } from "@main/agents/transcript/transcript-material";
 import { Logger } from "@main/infra/logger";
 import { type } from "arktype";
 
@@ -19,7 +19,7 @@ const userMessageSchema = type({
 	},
 }).pipe((raw) => raw.payload.message);
 
-export function messageIntent(raw: string, limit = TITLE_LIMIT): string | null {
+function messageIntent(raw: string, limit = TITLE_LIMIT): string | null {
 	let value: unknown;
 	try {
 		value = JSON.parse(raw);
@@ -40,8 +40,8 @@ export function messageIntent(raw: string, limit = TITLE_LIMIT): string | null {
 	return trimmed.replace(/\s+/g, " ").slice(0, limit);
 }
 
-export async function rolloutPath(sessionId: string): Promise<string | null> {
-	const root = codexSessionsDir();
+async function rolloutPath(sessionId: string): Promise<string | null> {
+	const root = CodexConfig.sessionsDir();
 	const entries = await readdir(root, { recursive: true }).catch((err: unknown) => {
 		Logger.info("codex:sessions-unreadable", { root, err: String(err) });
 
@@ -86,7 +86,7 @@ async function* rolloutIntents(sessionId: string, limit: number): AsyncGenerator
 	}
 }
 
-export async function codexTitle(ref: { sessionId: string }): Promise<string | null> {
+async function codexTitle(ref: { sessionId: string }): Promise<string | null> {
 	for await (const found of rolloutIntents(ref.sessionId, TITLE_LIMIT)) {
 		return found;
 	}
@@ -94,21 +94,28 @@ export async function codexTitle(ref: { sessionId: string }): Promise<string | n
 	return null;
 }
 
-export async function codexMaterial(ref: { sessionId: string }): Promise<string[]> {
+async function codexMaterial(ref: { sessionId: string }): Promise<string[]> {
 	const opening: string[] = [];
 	const recent: string[] = [];
 
-	for await (const found of rolloutIntents(ref.sessionId, MATERIAL_MESSAGE_LIMIT)) {
-		if (opening.length < MATERIAL_EDGE_COUNT) {
+	for await (const found of rolloutIntents(ref.sessionId, TranscriptMaterial.MATERIAL_MESSAGE_LIMIT)) {
+		if (opening.length < TranscriptMaterial.MATERIAL_EDGE_COUNT) {
 			opening.push(found);
 			continue;
 		}
 
 		recent.push(found);
-		if (recent.length > MATERIAL_EDGE_COUNT) {
+		if (recent.length > TranscriptMaterial.MATERIAL_EDGE_COUNT) {
 			recent.shift();
 		}
 	}
 
-	return withinTotal([...opening, ...recent]);
+	return TranscriptMaterial.withinTotal([...opening, ...recent]);
 }
+
+export const CodexTranscript = {
+	messageIntent,
+	path: rolloutPath,
+	title: codexTitle,
+	material: codexMaterial,
+};

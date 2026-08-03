@@ -1,19 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { doneEntryShells } from "@main/agents/agent-activity";
-import { focusShell, shellFocused } from "@main/terminal/shell-focus";
+import { ShellActivity } from "@main/agents/shell-activity";
+import { ShellFocus } from "@main/terminal/shell-focus";
 import type { AgentActivityState } from "@shared/activity";
-import {
-	attentionPushPayload,
-	donePushPayload,
-	PUSH_DEFAULT_BODY,
-	PUSH_DEFAULT_TITLE,
-	PUSH_DONE_BODY,
-	subscriptionGone,
-} from "@main/push/attention-push";
-import { mobileTurnShells, pushNeedsAttention, pushTurnDone } from "@main/push/notify-attention";
+import { AttentionPush } from "@main/push/attention-push";
+import { NotifyAttention } from "@main/push/notify-attention";
 import type { PushSender } from "@main/push/web-push";
 import { StreamConnection } from "@main/transport/stream/stream-connection";
-import { handleTerminalMessage } from "@main/transport/stream/terminal-messages";
+import { TerminalMessages } from "@main/transport/stream/terminal-messages";
 import { PushSubscriptions } from "@main/store/push-subscriptions";
 import { shellProcesses } from "@main/terminal/shell-processes";
 
@@ -21,38 +14,38 @@ const SHELL_ID = "shell-a";
 
 describe("attention push payload", () => {
 	test("the session name titles the notification and the shell rides as data", () => {
-		expect(attentionPushPayload({ shellId: SHELL_ID, title: "Rewrite the parser", branch: "parser" })).toEqual({
+		expect(AttentionPush.payload({ shellId: SHELL_ID, title: "Rewrite the parser", branch: "parser" })).toEqual({
 			title: "Rewrite the parser",
-			body: PUSH_DEFAULT_BODY,
+			body: AttentionPush.PUSH_DEFAULT_BODY,
 			data: { shellId: SHELL_ID },
 		});
 	});
 
 	test("an unnamed session falls back to its branch", () => {
-		expect(attentionPushPayload({ shellId: SHELL_ID, title: "  ", branch: "parser" }).title).toBe("parser");
+		expect(AttentionPush.payload({ shellId: SHELL_ID, title: "  ", branch: "parser" }).title).toBe("parser");
 	});
 
 	test("a session with neither name nor branch falls back to the app name", () => {
-		expect(attentionPushPayload({ shellId: SHELL_ID }).title).toBe(PUSH_DEFAULT_TITLE);
+		expect(AttentionPush.payload({ shellId: SHELL_ID }).title).toBe(AttentionPush.PUSH_DEFAULT_TITLE);
 	});
 
 });
 
 describe("done push payload", () => {
 	test("the finished session is named, and the project it belongs to rides in the body", () => {
-		expect(donePushPayload({ shellId: SHELL_ID, title: "Rewrite the parser", project: "bankai" })).toEqual({
+		expect(AttentionPush.donePayload({ shellId: SHELL_ID, title: "Rewrite the parser", project: "bankai" })).toEqual({
 			title: "Rewrite the parser",
-			body: `${PUSH_DONE_BODY} in bankai`,
+			body: `${AttentionPush.PUSH_DONE_BODY} in bankai`,
 			data: { shellId: SHELL_ID },
 		});
 	});
 
 	test("a session whose project is unknown still says it is done", () => {
-		expect(donePushPayload({ shellId: SHELL_ID, project: " " }).body).toBe(PUSH_DONE_BODY);
+		expect(AttentionPush.donePayload({ shellId: SHELL_ID, project: " " }).body).toBe(AttentionPush.PUSH_DONE_BODY);
 	});
 
 	test("done and needs attention collapse on the phone because both carry the same shell", () => {
-		expect(donePushPayload({ shellId: SHELL_ID }).data).toEqual(attentionPushPayload({ shellId: SHELL_ID }).data);
+		expect(AttentionPush.donePayload({ shellId: SHELL_ID }).data).toEqual(AttentionPush.payload({ shellId: SHELL_ID }).data);
 	});
 });
 
@@ -61,28 +54,28 @@ describe("the turns that are worth a notification", () => {
 	const done = new Map<string, AgentActivityState>([["s1", "done"]]);
 
 	test("a turn that just finished is the one that notifies", () => {
-		expect(doneEntryShells(working, done)).toEqual(["s1"]);
+		expect(ShellActivity.doneEntries(working, done)).toEqual(["s1"]);
 	});
 
 	test("a session that was already done does not notify again", () => {
-		expect(doneEntryShells(done, done)).toEqual([]);
+		expect(ShellActivity.doneEntries(done, done)).toEqual([]);
 	});
 
 	test("a session that went back to work does not notify", () => {
-		expect(doneEntryShells(done, working)).toEqual([]);
+		expect(ShellActivity.doneEntries(done, working)).toEqual([]);
 	});
 });
 
 describe("push subscription health", () => {
 	test("a push service that lost the subscription reports it gone", () => {
-		expect(subscriptionGone(404)).toBe(true);
-		expect(subscriptionGone(410)).toBe(true);
+		expect(AttentionPush.isGone(404)).toBe(true);
+		expect(AttentionPush.isGone(410)).toBe(true);
 	});
 
 	test("a throttled or broken push service keeps the subscription", () => {
-		expect(subscriptionGone(429)).toBe(false);
-		expect(subscriptionGone(500)).toBe(false);
-		expect(subscriptionGone()).toBe(false);
+		expect(AttentionPush.isGone(429)).toBe(false);
+		expect(AttentionPush.isGone(500)).toBe(false);
+		expect(AttentionPush.isGone()).toBe(false);
 	});
 });
 
@@ -103,37 +96,37 @@ describe("shell focus", () => {
 	}
 
 	test("a client watching a conversation holds that shell in focus", () => {
-		focusShell(connection("c1"), "focus-a");
+		ShellFocus.focus(connection("c1"), "focus-a");
 
-		expect(shellFocused("focus-a")).toBe(true);
-		expect(shellFocused("focus-b")).toBe(false);
+		expect(ShellFocus.isFocused("focus-a")).toBe(true);
+		expect(ShellFocus.isFocused("focus-b")).toBe(false);
 	});
 
 	test("a client that hides releases the shell without disconnecting", () => {
 		const client = connection("c2");
-		focusShell(client, "focus-hidden");
-		focusShell(client);
+		ShellFocus.focus(client, "focus-hidden");
+		ShellFocus.focus(client);
 
-		expect(shellFocused("focus-hidden")).toBe(false);
+		expect(ShellFocus.isFocused("focus-hidden")).toBe(false);
 		expect(client.registrations()).toBe(1);
 	});
 
 	test("a dropped connection stops holding its shell in focus", () => {
 		const client = connection("c3");
-		focusShell(client, "focus-dropped");
+		ShellFocus.focus(client, "focus-dropped");
 		client.close();
 
-		expect(shellFocused("focus-dropped")).toBe(false);
+		expect(ShellFocus.isFocused("focus-dropped")).toBe(false);
 	});
 
 	test("another client keeps the shell in focus after one leaves", () => {
 		const desk = connection("c4");
 		const phone = connection("c5");
-		focusShell(desk, "focus-shared");
-		focusShell(phone, "focus-shared");
+		ShellFocus.focus(desk, "focus-shared");
+		ShellFocus.focus(phone, "focus-shared");
 		desk.close();
 
-		expect(shellFocused("focus-shared")).toBe(true);
+		expect(ShellFocus.isFocused("focus-shared")).toBe(true);
 	});
 });
 
@@ -159,43 +152,43 @@ describe("a turn asked from the phone notifies the phone", () => {
 
 	test("a watched shell still pushes done when the phone asked for the turn, once", async () => {
 		await subscribe();
-		focusShell(WATCHER, OWNER.shellId);
+		ShellFocus.focus(WATCHER, OWNER.shellId);
 		const { sent, send } = sender();
 
-		mobileTurnShells.add(OWNER.shellId);
-		await pushTurnDone(OWNER, send);
+		NotifyAttention.mobileShells.add(OWNER.shellId);
+		await NotifyAttention.turnDone(OWNER, send);
 
 		expect(sent).toHaveLength(1);
 
-		await pushTurnDone(OWNER, send);
+		await NotifyAttention.turnDone(OWNER, send);
 
 		expect(sent).toHaveLength(1);
-		focusShell(WATCHER);
+		ShellFocus.focus(WATCHER);
 	});
 
 	test("a watched shell keeps swallowing the push of a desktop-started turn", async () => {
 		await subscribe();
-		focusShell(WATCHER, OWNER.shellId);
+		ShellFocus.focus(WATCHER, OWNER.shellId);
 		const { sent, send } = sender();
 
-		await pushTurnDone(OWNER, send);
+		await NotifyAttention.turnDone(OWNER, send);
 
 		expect(sent).toHaveLength(0);
-		focusShell(WATCHER);
+		ShellFocus.focus(WATCHER);
 	});
 
 	test("needs-attention reaches the phone mid-turn without spending the claim", async () => {
 		await subscribe();
-		focusShell(WATCHER, OWNER.shellId);
+		ShellFocus.focus(WATCHER, OWNER.shellId);
 		const { sent, send } = sender();
 
-		mobileTurnShells.add(OWNER.shellId);
-		await pushNeedsAttention(OWNER, send);
+		NotifyAttention.mobileShells.add(OWNER.shellId);
+		await NotifyAttention.needsAttention(OWNER, send);
 
 		expect(sent).toHaveLength(1);
-		expect(mobileTurnShells.has(OWNER.shellId)).toBe(true);
-		mobileTurnShells.delete(OWNER.shellId);
-		focusShell(WATCHER);
+		expect(NotifyAttention.mobileShells.has(OWNER.shellId)).toBe(true);
+		NotifyAttention.mobileShells.delete(OWNER.shellId);
+		ShellFocus.focus(WATCHER);
 	});
 
 	test("typing on the desktop takes the turn back from the phone", async () => {
@@ -206,14 +199,14 @@ describe("a turn asked from the phone notifies the phone", () => {
 			process: { pid: 4242, write: () => {}, resize: () => {}, kill: () => {} },
 		});
 
-		mobileTurnShells.add(OWNER.shellId);
-		await handleTerminalMessage(new StreamConnection({ readyState: 1, send: () => {} }), {
+		NotifyAttention.mobileShells.add(OWNER.shellId);
+		await TerminalMessages.handle(new StreamConnection({ readyState: 1, send: () => {} }), {
 			channel: "terminal",
 			type: "write",
 			payload: { sessionId, data: "ls" },
 		});
 
-		expect(mobileTurnShells.has(OWNER.shellId)).toBe(false);
+		expect(NotifyAttention.mobileShells.has(OWNER.shellId)).toBe(false);
 		shellProcesses.close(sessionId);
 	});
 });

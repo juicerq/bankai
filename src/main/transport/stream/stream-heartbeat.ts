@@ -8,7 +8,7 @@ export interface HeartbeatSocket {
 	once: (event: "pong", listener: () => void) => void;
 }
 
-export function sweepSockets(sockets: Iterable<HeartbeatSocket>, pending: WeakSet<HeartbeatSocket>): void {
+function sweepSockets(sockets: Iterable<HeartbeatSocket>, pending: WeakSet<HeartbeatSocket>): void {
 	for (const socket of sockets) {
 		if (pending.delete(socket)) {
 			socket.terminate();
@@ -22,10 +22,15 @@ export function sweepSockets(sockets: Iterable<HeartbeatSocket>, pending: WeakSe
 	}
 }
 
-export function watchLiveness(server: WebSocketServer): void {
+function watchLiveness(server: WebSocketServer): void {
 	const pending = new WeakSet<HeartbeatSocket>();
 	const beat = setInterval(() => sweepSockets(server.clients, pending), STREAM_HEARTBEAT_MS);
 
 	beat.unref();
 	server.on("close", () => clearInterval(beat));
 }
+
+export const StreamHeartbeat = {
+	sweep: sweepSockets,
+	watch: watchLiveness,
+};

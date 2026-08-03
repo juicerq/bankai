@@ -1,54 +1,61 @@
-import { shellFocused } from "@main/terminal/shell-focus";
-import { attentionPushPayload, donePushPayload } from "@main/push/attention-push";
-import { deliverAttentionPush } from "@main/push/push-delivery";
-import { type PushSender, sendWebPush, vapidKeys } from "@main/push/web-push";
+import { ShellFocus } from "@main/terminal/shell-focus";
+import { AttentionPush } from "@main/push/attention-push";
+import { PushDelivery } from "@main/push/push-delivery";
+import { type PushSender } from "@main/push/web-push";
+import { WebPush } from "@main/push/web-push";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 
-export const mobileTurnShells = new Set<string>();
+const mobileTurnShells = new Set<string>();
 
-export async function pushNeedsAttention(
+async function pushNeedsAttention(
 	input: { projectId: string; shellId: string },
-	send: PushSender = sendWebPush,
+	send: PushSender = WebPush.send,
 ): Promise<void> {
-	if (!mobileTurnShells.has(input.shellId) && shellFocused(input.shellId)) {
+	if (!mobileTurnShells.has(input.shellId) && ShellFocus.isFocused(input.shellId)) {
 		return;
 	}
 
 	const shell = await Continuity.findShell(input);
 
-	await deliverAttentionPush({
-		payload: attentionPushPayload({
+	await PushDelivery.deliver({
+		payload: AttentionPush.payload({
 			shellId: input.shellId,
 			...(shell?.title ? { title: shell.title } : {}),
 			...(shell?.branch ? { branch: shell.branch } : {}),
 		}),
-		vapid: vapidKeys,
+		vapid: WebPush.vapid,
 		send,
 	});
 }
 
-export async function pushTurnDone(
+async function pushTurnDone(
 	input: { projectId: string; shellId: string },
-	send: PushSender = sendWebPush,
+	send: PushSender = WebPush.send,
 ): Promise<void> {
 	const mobileTurn = mobileTurnShells.delete(input.shellId);
 
-	if (!mobileTurn && shellFocused(input.shellId)) {
+	if (!mobileTurn && ShellFocus.isFocused(input.shellId)) {
 		return;
 	}
 
 	const shell = await Continuity.findShell(input);
 	const project = (await Projects.list()).find((candidate) => candidate.id === input.projectId);
 
-	await deliverAttentionPush({
-		payload: donePushPayload({
+	await PushDelivery.deliver({
+		payload: AttentionPush.donePayload({
 			shellId: input.shellId,
 			...(shell?.title ? { title: shell.title } : {}),
 			...(shell?.branch ? { branch: shell.branch } : {}),
 			...(project ? { project: project.name } : {}),
 		}),
-		vapid: vapidKeys,
+		vapid: WebPush.vapid,
 		send,
 	});
 }
+
+export const NotifyAttention = {
+	mobileShells: mobileTurnShells,
+	needsAttention: pushNeedsAttention,
+	turnDone: pushTurnDone,
+};

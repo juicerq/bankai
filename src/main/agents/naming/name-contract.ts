@@ -1,5 +1,5 @@
-export const NAME_TARGET_CHARS = 40;
-export const NAME_MAX_CHARS = 60;
+const NAME_TARGET_CHARS = 40;
+const NAME_MAX_CHARS = 60;
 
 const SURROUNDING_QUOTES = /^["'`“”‘’]+|["'`“”‘’]+$/g;
 const TRAILING_PUNCTUATION = /[.,;:!?…]+$/;
@@ -16,7 +16,7 @@ function bare(name: string): string {
 	return stripped;
 }
 
-export function acceptedName(raw: string): string | null {
+function acceptedName(raw: string): string | null {
 	const name = bare(raw.trim().replace(/\s+/g, " "));
 
 	if (!name || name.length > NAME_MAX_CHARS) {
@@ -25,3 +25,9 @@ export function acceptedName(raw: string): string | null {
 
 	return name;
 }
+
+export const NameContract = {
+	NAME_TARGET_CHARS,
+	NAME_MAX_CHARS,
+	accept: acceptedName,
+};

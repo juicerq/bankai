@@ -1,26 +1,29 @@
 import { type FSWatcher, watch } from "node:fs";
 import type { AgentPresence } from "@main/agents/harness/harness";
-import { discoverAgents, harnessWatchPaths } from "@main/agents/harness/harnesses";
-import { procFs } from "@main/infra/proc-fs";
-import { bindShells } from "@main/agents/session/session-binder";
-import {
-	reconcileSessionRefs,
-	type SessionRef,
-} from "@main/agents/session/session-refs";
-import { stampShell } from "@main/agents/session/shell-facts";
+import { Harnesses } from "@main/agents/harness/harnesses";
+import { ProcFs } from "@main/infra/proc-fs";
+import { SessionBinder } from "@main/agents/session/session-binder";
+import { type SessionRef } from "@main/agents/session/session-refs";
+import { SessionRefs } from "@main/agents/session/session-refs";
+import { ShellFacts } from "@main/agents/session/shell-facts";
 import type { Worktree } from "@main/git/git-contracts";
 import { GitProcess } from "@main/git/git-process";
-import { projectWorktrees } from "@main/git/worktree/project-worktrees";
+import { ProjectWorktrees } from "@main/git/worktree/project-worktrees";
 import { ReviewChanges } from "@main/git/review/review-changes";
-import { worktreeContaining } from "@main/git/worktree/worktrees";
+import { Worktrees } from "@main/git/worktree/worktrees";
 import { Logger } from "@main/infra/logger";
 import { SessionNamer } from "@main/agents/naming/session-namer";
-import { pushNeedsAttention, pushTurnDone } from "@main/push/notify-attention";
+import { NotifyAttention } from "@main/push/notify-attention";
 import { Continuity, type ContinuityValue } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { shellProcesses } from "@main/terminal/shell-processes";
-import { requestDesktopAttention } from "@main/desktop/desktop-attention";
+import { DesktopAttention } from "@main/desktop/desktop-attention";
 import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
+import {
+	ShellActivity,
+	type DoneShell,
+	type ShellOwner,
+} from "@main/agents/shell-activity";
 import { throttle } from "@shared/throttle";
 
 const ACTIVITY_POLL_MS = 1500;
@@ -31,126 +34,6 @@ type ActivityPass = "full" | "event";
 
 function missingPath(err: unknown): boolean {
 	return err instanceof Error && "code" in err && err.code === "ENOENT";
-}
-
-type BoundStatus = "working" | "waiting" | "idle";
-
-function deriveShellActivity(
-	previous: AgentActivityState | undefined,
-	bound: BoundStatus | undefined,
-): AgentActivityState | undefined {
-	if (bound === "working") {
-		return "working";
-	}
-
-	const wasActive = previous === "working" || previous === "needs-attention";
-	if (!wasActive) {
-		return previous;
-	}
-	if (bound === "idle") {
-		return "done";
-	}
-
-	return undefined;
-}
-
-export function nextShellActivity(
-	previous: AgentActivityState | undefined,
-	bound?: BoundStatus,
-): AgentActivityState | undefined {
-	if (bound === "waiting") {
-		return "needs-attention";
-	}
-
-	return deriveShellActivity(previous, bound);
-}
-
-export function clockSince(input: {
-	previous: AgentActivityState | undefined;
-	next: AgentActivityState | undefined;
-	held: number | undefined;
-	reported: number | undefined;
-}): number | undefined {
-	if (input.next !== input.previous) {
-		return input.reported;
-	}
-
-	return input.held ?? input.reported;
-}
-
-function turnOpen(state: AgentActivityState | undefined): boolean {
-	return state === "working" || state === "needs-attention";
-}
-
-export function turnStartShells(
-	before: ReadonlyMap<string, AgentActivityState>,
-	after: ReadonlyMap<string, AgentActivityState>,
-): string[] {
-	const started: string[] = [];
-
-	for (const [sessionId, state] of after) {
-		if (turnOpen(state) && !turnOpen(before.get(sessionId))) {
-			started.push(sessionId);
-		}
-	}
-
-	return started;
-}
-
-export function attentionEntryShells(
-	before: ReadonlyMap<string, AgentActivityState>,
-	after: ReadonlyMap<string, AgentActivityState>,
-): string[] {
-	const entered: string[] = [];
-
-	for (const [sessionId, state] of after) {
-		if (state === "needs-attention" && before.get(sessionId) !== "needs-attention") {
-			entered.push(sessionId);
-		}
-	}
-
-	return entered;
-}
-
-export function doneEntryShells(
-	before: ReadonlyMap<string, AgentActivityState>,
-	after: ReadonlyMap<string, AgentActivityState>,
-): string[] {
-	const finished: string[] = [];
-
-	for (const [sessionId, state] of after) {
-		if (state === "done" && before.get(sessionId) !== "done") {
-			finished.push(sessionId);
-		}
-	}
-
-	return finished;
-}
-
-export interface ShellOwner {
-	projectId: string;
-	shellId: string;
-}
-
-export interface DoneShell {
-	projectId: string;
-	at: number;
-}
-
-export function doneShells(value: ContinuityValue): Map<string, DoneShell> {
-	const done = new Map<string, DoneShell>();
-
-	for (const workspace of value.workspaces) {
-		for (const shell of workspace.shells) {
-			if (shell.doneAt === undefined || shell.archivedAt !== undefined) {
-				continue;
-			}
-
-			done.set(shell.id, { projectId: workspace.projectId, at: shell.doneAt });
-		}
-	}
-
-	return done;
 }
 
 function sameDoneShells(left: ReadonlyMap<string, DoneShell>, right: ReadonlyMap<string, DoneShell>): boolean {
@@ -168,181 +51,29 @@ function sameDoneShells(left: ReadonlyMap<string, DoneShell>, right: ReadonlyMap
 	return true;
 }
 
-export function nextShellWorktrees(
-	previous: ReadonlyMap<string, string>,
-	observed: { shellId: string; worktree?: string }[],
-): Map<string, string> {
-	const next = new Map<string, string>();
-
-	for (const shell of observed) {
-		const worktree = shell.worktree ?? previous.get(shell.shellId);
-		if (worktree) {
-			next.set(shell.shellId, worktree);
-		}
-	}
-
-	return next;
-}
-
-export function turnBaselineShells(input: {
-	before: ReadonlyMap<string, AgentActivityState>;
-	after: ReadonlyMap<string, AgentActivityState>;
-	owners: ReadonlyMap<string, ShellOwner>;
-	previousWorktrees: ReadonlyMap<string, string>;
-	worktrees: ReadonlyMap<string, string>;
-}): { owner: ShellOwner; worktree?: string }[] {
-	const capture = new Map<string, ShellOwner>();
-
-	for (const sessionId of turnStartShells(input.before, input.after)) {
-		const owner = input.owners.get(sessionId);
-		if (owner) {
-			capture.set(owner.shellId, owner);
-		}
-	}
-
-	for (const [sessionId, state] of input.after) {
-		const owner = input.owners.get(sessionId);
-		if (!owner || !turnOpen(state)) {
-			continue;
-		}
-
-		const worktree = input.worktrees.get(owner.shellId);
-		if (worktree && worktree !== input.previousWorktrees.get(owner.shellId)) {
-			capture.set(owner.shellId, owner);
-		}
-	}
-
-	return [...capture.values()].map((owner) => {
-		const worktree = input.worktrees.get(owner.shellId);
-		if (worktree) {
-			return { owner, worktree };
-		}
-
-		return { owner };
-	});
-}
-
 async function locateWorktree(
 	projectPath: string,
 	cwd: string,
 ): Promise<Worktree | undefined> {
-	const listed = await projectWorktrees(projectPath).catch((err) => {
+	const listed = await ProjectWorktrees.list(projectPath).catch((err) => {
 		Logger.error("activity:worktrees-failed", {
 			projectPath,
 			err: String(err),
 		});
 		return [];
 	});
-	const found = worktreeContaining(listed, cwd);
+	const found = Worktrees.containing(listed, cwd);
 	if (found) {
 		return found;
 	}
 
-	const fresh = await projectWorktrees(projectPath, { fresh: true }).catch(
+	const fresh = await ProjectWorktrees.list(projectPath, { fresh: true }).catch(
 		() => listed,
 	);
 
-	return worktreeContaining(fresh, cwd);
+	return Worktrees.containing(fresh, cwd);
 }
 
-function shellOwners(
-	shells: { sessionId: string; projectId: string; shellId: string }[],
-): Map<string, ShellOwner> {
-	return new Map(
-		shells.map((shell) => [
-			shell.sessionId,
-			{ projectId: shell.projectId, shellId: shell.shellId },
-		]),
-	);
-}
-
-export function snapshotsByProject({
-	shellStates,
-	owners,
-	worktrees,
-	statusSince,
-	harnesses,
-	doneShells,
-}: {
-	shellStates: Map<string, AgentActivityState>;
-	owners: Map<string, ShellOwner>;
-	worktrees: Map<string, string>;
-	statusSince: ReadonlyMap<string, number>;
-	harnesses: ReadonlyMap<string, string>;
-	doneShells: ReadonlyMap<string, DoneShell>;
-}): Map<string, ProjectActivitySnapshot> {
-	const projectIds = new Set<string>();
-	const shellsByProject = new Map<string, Record<string, AgentActivityState>>();
-	for (const [sessionId, state] of shellStates) {
-		const owner = owners.get(sessionId);
-		if (owner === undefined || (state === "done" && !doneShells.has(owner.shellId))) {
-			continue;
-		}
-
-		const grouped = shellsByProject.get(owner.projectId) ?? {};
-		grouped[owner.shellId] = state;
-		shellsByProject.set(owner.projectId, grouped);
-		projectIds.add(owner.projectId);
-	}
-
-	for (const [shellId, done] of doneShells) {
-		const grouped = shellsByProject.get(done.projectId) ?? {};
-		if (grouped[shellId] === undefined) {
-			grouped[shellId] = "done";
-		}
-		shellsByProject.set(done.projectId, grouped);
-		projectIds.add(done.projectId);
-	}
-
-	const worktreesByProject = new Map<string, Record<string, string>>();
-	for (const owner of owners.values()) {
-		const worktree = worktrees.get(owner.shellId);
-		if (worktree === undefined) {
-			continue;
-		}
-
-		const grouped = worktreesByProject.get(owner.projectId) ?? {};
-		grouped[owner.shellId] = worktree;
-		worktreesByProject.set(owner.projectId, grouped);
-		projectIds.add(owner.projectId);
-	}
-
-	const harnessesByProject = new Map<string, Record<string, string>>();
-	for (const owner of owners.values()) {
-		const harness = harnesses.get(owner.shellId);
-		if (harness === undefined) {
-			continue;
-		}
-
-		const grouped = harnessesByProject.get(owner.projectId) ?? {};
-		grouped[owner.shellId] = harness;
-		harnessesByProject.set(owner.projectId, grouped);
-		projectIds.add(owner.projectId);
-	}
-
-	const snapshots = new Map<string, ProjectActivitySnapshot>();
-	for (const projectId of projectIds) {
-		const shells = shellsByProject.get(projectId) ?? {};
-		const statusSinceByShellId: Record<string, number> = {};
-		for (const shellId of Object.keys(shells)) {
-			const since =
-				statusSince.get(shellId) ??
-				(shells[shellId] === "done" ? doneShells.get(shellId)?.at : undefined);
-			if (since !== undefined) {
-				statusSinceByShellId[shellId] = since;
-			}
-		}
-
-		snapshots.set(projectId, {
-			shells,
-			worktreeByShellId: worktreesByProject.get(projectId) ?? {},
-			statusSinceByShellId,
-			harnessByShellId: harnessesByProject.get(projectId) ?? {},
-		});
-	}
-
-	return snapshots;
-}
 
 function sameRecord<T>(
 	before: Record<string, T>,
@@ -428,7 +159,7 @@ class AgentActivityTracker {
 	}
 
 	private noteContinuity(value: ContinuityValue): void {
-		const next = doneShells(value);
+		const next = ShellActivity.doneShells(value);
 		if (sameDoneShells(this.doneShells, next)) {
 			return;
 		}
@@ -532,7 +263,7 @@ class AgentActivityTracker {
 
 	private async tick(pass: ActivityPass): Promise<void> {
 		const shells = shellProcesses.list();
-		const owners = shellOwners(shells);
+		const owners = ShellActivity.owners(shells);
 		if (shells.length === 0) {
 			this.boundSessions = new Set();
 			this.sessionRefs = new Map();
@@ -549,17 +280,17 @@ class AgentActivityTracker {
 			return;
 		}
 
-		const presences = await discoverAgents();
+		const presences = await Harnesses.discoverAgents();
 		const liveByPid = new Map<number, AgentPresence>();
 		await Promise.all(
 			presences.map(async (presence) => {
-				const start = await procFs.procStart(presence.pid);
+				const start = await ProcFs.procStart(presence.pid);
 				if (start !== null && start === presence.procStart) {
 					liveByPid.set(presence.pid, presence);
 				}
 			}),
 		);
-		const bindings = await bindShells(shells, liveByPid.keys(), procFs.parent);
+		const bindings = await SessionBinder.bind(shells, liveByPid.keys(), ProcFs.parent);
 		this.boundSessions = new Set(bindings.keys());
 
 		this.captureSessionRefs(shells, bindings, liveByPid);
@@ -578,7 +309,7 @@ class AgentActivityTracker {
 			const status = presence?.status;
 
 			const previous = this.shellStates.get(shell.sessionId);
-			const next = nextShellActivity(previous, status);
+			const next = ShellActivity.next(previous, status);
 			if (next !== undefined) {
 				nextStates.set(shell.sessionId, next);
 			}
@@ -589,7 +320,7 @@ class AgentActivityTracker {
 				harnesses.set(shell.shellId, presence.harness);
 			}
 
-			const since = clockSince({
+			const since = ShellActivity.clockSince({
 				previous,
 				next,
 				held: this.statusSince.get(shell.shellId),
@@ -601,7 +332,7 @@ class AgentActivityTracker {
 		}
 
 		if (pass === "full") {
-			this.watchHarnessFiles(harnessWatchPaths());
+			this.watchHarnessFiles(Harnesses.watchPaths());
 		}
 		this.commit({
 			shellStates: nextStates,
@@ -657,7 +388,7 @@ class AgentActivityTracker {
 			}
 		}
 
-		return nextShellWorktrees(this.shellWorktrees, observed);
+		return ShellActivity.nextWorktrees(this.shellWorktrees, observed);
 	}
 
 	private captureSessionRefs(
@@ -684,7 +415,7 @@ class AgentActivityTracker {
 			};
 		});
 
-		const { changes, next } = reconcileSessionRefs(
+		const { changes, next } = SessionRefs.reconcile(
 			this.sessionRefs,
 			observations,
 		);
@@ -728,7 +459,7 @@ class AgentActivityTracker {
 		const previousStates = this.shellStates;
 		const previousWorktrees = this.shellWorktrees;
 		const previous = this.projectSnapshots;
-		const nextSnapshots = snapshotsByProject({
+		const nextSnapshots = ShellActivity.snapshotsByProject({
 			shellStates,
 			owners,
 			worktrees,
@@ -741,7 +472,7 @@ class AgentActivityTracker {
 		this.statusSince = statusSince;
 		this.projectSnapshots = nextSnapshots;
 
-		const baselines = turnBaselineShells({
+		const baselines = ShellActivity.turnBaselines({
 			before: previousStates,
 			after: shellStates,
 			owners,
@@ -761,7 +492,7 @@ class AgentActivityTracker {
 			new Set([...owners.values()].map((owner) => owner.shellId)),
 		);
 
-		for (const sessionId of turnStartShells(previousStates, shellStates)) {
+		for (const sessionId of ShellActivity.turnStarts(previousStates, shellStates)) {
 			const owner = owners.get(sessionId);
 			if (!owner) {
 				continue;
@@ -772,7 +503,7 @@ class AgentActivityTracker {
 			);
 			const worktree = worktrees.get(owner.shellId);
 			const publishedName = publishedNames.get(sessionId);
-			stampShell({
+			ShellFacts.stamp({
 				...owner,
 				...(worktree ? { cwd: worktree } : {}),
 				...(publishedName ? { publishedName } : {}),
@@ -782,9 +513,9 @@ class AgentActivityTracker {
 			SessionNamer.noteTurn(owner);
 		}
 
-		const attentionEntries = attentionEntryShells(previousStates, shellStates);
+		const attentionEntries = ShellActivity.attentionEntries(previousStates, shellStates);
 		if (attentionEntries.length > 0) {
-			requestDesktopAttention();
+			DesktopAttention.request();
 		}
 		for (const sessionId of attentionEntries) {
 			const owner = owners.get(sessionId);
@@ -792,14 +523,14 @@ class AgentActivityTracker {
 				continue;
 			}
 
-			pushNeedsAttention(owner).catch((err) =>
+			NotifyAttention.needsAttention(owner).catch((err) =>
 				Logger.error("push:attention-failed", { ...owner, err: String(err) })
 			);
 		}
 
-		const doneEntries = doneEntryShells(previousStates, shellStates);
+		const doneEntries = ShellActivity.doneEntries(previousStates, shellStates);
 		if (doneEntries.length > 0) {
-			requestDesktopAttention();
+			DesktopAttention.request();
 		}
 		for (const sessionId of doneEntries) {
 			const owner = owners.get(sessionId);
@@ -813,7 +544,7 @@ class AgentActivityTracker {
 			}).catch((err) =>
 				Logger.error("activity:turn-finish-save-failed", { ...owner, err: String(err) }),
 			);
-			pushTurnDone(owner).catch((err) => Logger.error("push:done-failed", { ...owner, err: String(err) }));
+			NotifyAttention.turnDone(owner).catch((err) => Logger.error("push:done-failed", { ...owner, err: String(err) }));
 		}
 
 		for (const projectId of new Set([

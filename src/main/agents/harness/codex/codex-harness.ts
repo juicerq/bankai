@@ -1,12 +1,13 @@
 import { CodexConversationParser } from "@main/agents/harness/codex/codex-conversation";
-import { codexSessionsDir } from "@main/agents/harness/codex/codex-config";
-import { type CodexRolloutState, codexRollouts } from "@main/agents/harness/codex/codex-rollout";
-import { codexTitle, rolloutPath } from "@main/agents/harness/codex/codex-transcript";
+import { CodexConfig } from "@main/agents/harness/codex/codex-config";
+import { type CodexRolloutState } from "@main/agents/harness/codex/codex-rollout";
+import { CodexRollout } from "@main/agents/harness/codex/codex-rollout";
+import { CodexTranscript } from "@main/agents/harness/codex/codex-transcript";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/agents/harness/harness";
-import { CODEX_HARNESS_ID } from "@main/agents/harness/harness-ids";
-import { procFs } from "@main/infra/proc-fs";
-import { SESSION_UUID } from "@main/agents/session/session-refs";
-import { codexProposeName } from "@main/agents/harness/codex/codex-namer";
+import { CODEX_HARNESS_ID } from "@main/agents/harness/harness";
+import { ProcFs } from "@main/infra/proc-fs";
+import { SessionRefs } from "@main/agents/session/session-refs";
+import { CodexNamer } from "@main/agents/harness/codex/codex-namer";
 
 const CODEX_PROCESS = "codex";
 
@@ -53,7 +54,7 @@ export function interactiveCommandLine(argv: string[] | null): boolean {
 }
 
 export function rolloutCandidates(openFiles: string[]): string[] {
-	const sessions = `${codexSessionsDir()}/`;
+	const sessions = `${CodexConfig.sessionsDir()}/`;
 
 	return openFiles.filter((path) => path.startsWith(sessions) && path.endsWith(ROLLOUT_SUFFIX));
 }
@@ -62,7 +63,7 @@ async function rootRollout(candidates: string[]) {
 	const metas = await Promise.all(
 		candidates.map(async (path) => ({
 			path,
-			meta: await codexRollouts.meta(path),
+			meta: await CodexRollout.tail.meta(path),
 		})),
 	);
 	const roots = metas.flatMap((entry) => (entry.meta?.root ? [{ path: entry.path, meta: entry.meta }] : []));
@@ -111,15 +112,15 @@ export function codexPresence(input: {
 
 async function presenceOf(pid: number): Promise<CodexSighting | null> {
 	const [argv, procStart, openFiles, cwd] = await Promise.all([
-		procFs.commandLine(pid),
-		procFs.procStart(pid),
-		procFs.openFiles(pid),
-		procFs.workingDirectory(pid),
+		ProcFs.commandLine(pid),
+		ProcFs.procStart(pid),
+		ProcFs.openFiles(pid),
+		ProcFs.workingDirectory(pid),
 	]);
 	const rollouts = rolloutCandidates(openFiles);
 	const root = interactiveCommandLine(argv) ? await rootRollout(rollouts) : null;
 	const session = root
-		? { sessionId: root.meta.sessionId, cwd: root.meta.cwd, state: await codexRollouts.state(root.path) }
+		? { sessionId: root.meta.sessionId, cwd: root.meta.cwd, state: await CodexRollout.tail.state(root.path) }
 		: undefined;
 	const presence = codexPresence({ pid, argv, procStart, cwd, ...(session && { session }) });
 	if (!presence) {
@@ -133,27 +134,27 @@ export const CodexHarness: Harness = {
 	id: CODEX_HARNESS_ID,
 	label: "Codex",
 	conversation: {
-		transcript: ({ sessionId }) => rolloutPath(sessionId),
+		transcript: ({ sessionId }) => CodexTranscript.path(sessionId),
 		parser: () => new CodexConversationParser(),
 	},
 	launch(): HarnessCommand {
 		return { file: "codex", args: [] };
 	},
 	resume(ref): HarnessCommand | null {
-		if (!SESSION_UUID.test(ref.sessionId)) {
+		if (!SessionRefs.SESSION_UUID.test(ref.sessionId)) {
 			return null;
 		}
 
 		return { file: "codex", args: [RESUME_COMMAND, ref.sessionId] };
 	},
-	title: codexTitle,
-	proposeName: codexProposeName,
+	title: CodexTranscript.title,
+	proposeName: CodexNamer.proposeName,
 	watch: () => rootRollouts,
 	async discover() {
-		const pids = await procFs.named(CODEX_PROCESS);
+		const pids = await ProcFs.named(CODEX_PROCESS);
 		const found = await Promise.all(pids.map((pid) => presenceOf(pid)));
 		const live = found.flatMap((entry) => entry?.rollouts ?? []);
-		codexRollouts.forget(new Set(live));
+		CodexRollout.tail.forget(new Set(live));
 		rootRollouts = found.flatMap((entry) => (entry?.root ? [entry.root] : []));
 
 		return found.flatMap((entry) => entry?.presence ?? []);

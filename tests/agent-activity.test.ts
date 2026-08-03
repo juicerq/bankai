@@ -2,21 +2,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
-import {
-	attentionEntryShells,
-	clockSince,
-	doneShells,
-	nextShellActivity,
-	nextShellWorktrees,
-	snapshotsByProject,
-	turnBaselineShells,
-	turnStartShells,
-} from "@main/agents/agent-activity";
+import { ShellActivity } from "@main/agents/shell-activity";
 import { ClaudeHarness, parseSessionRecord } from "@main/agents/harness/claude/claude-harness";
-import { harnessWatchPaths } from "@main/agents/harness/harnesses";
-import { procFs } from "@main/infra/proc-fs";
-import { bindShells, type ParentOf } from "@main/agents/session/session-binder";
-import { shellArgs } from "@main/terminal/shell-command-line";
+import { Harnesses } from "@main/agents/harness/harnesses";
+import { ProcFs } from "@main/infra/proc-fs";
+import { type ParentOf } from "@main/agents/session/session-binder";
+import { SessionBinder } from "@main/agents/session/session-binder";
+import { ShellCommandLine } from "@main/terminal/shell-command-line";
 import { aggregateActivity, type AgentActivityState } from "@shared/activity";
 
 const BUSY_RECORD =
@@ -26,48 +18,48 @@ const IDLE_RECORD =
 
 describe("shell activity transitions", () => {
 	test("a bound working agent yields working regardless of prior state", () => {
-		expect(nextShellActivity(undefined, "working")).toBe("working");
-		expect(nextShellActivity("done", "working")).toBe("working");
+		expect(ShellActivity.next(undefined, "working")).toBe("working");
+		expect(ShellActivity.next("done", "working")).toBe("working");
 	});
 
 	test("a turn finishing (working then idle) yields done", () => {
-		expect(nextShellActivity("working", "idle")).toBe("done");
+		expect(ShellActivity.next("working", "idle")).toBe("done");
 	});
 
 	test("an idle agent with no observed turn yields no activity", () => {
-		expect(nextShellActivity(undefined, "idle")).toBeUndefined();
+		expect(ShellActivity.next(undefined, "idle")).toBeUndefined();
 	});
 
 	test("done persists while the agent rests or disappears", () => {
-		expect(nextShellActivity("done", "idle")).toBe("done");
-		expect(nextShellActivity("done")).toBe("done");
+		expect(ShellActivity.next("done", "idle")).toBe("done");
+		expect(ShellActivity.next("done")).toBe("done");
 	});
 
 	test("killing the agent mid-turn removes the working signal", () => {
-		expect(nextShellActivity("working")).toBeUndefined();
+		expect(ShellActivity.next("working")).toBeUndefined();
 	});
 
 });
 
 describe("needs-attention", () => {
 	test("a prompt while the agent waits mid-turn yields needs-attention", () => {
-		expect(nextShellActivity("working", "waiting")).toBe("needs-attention");
+		expect(ShellActivity.next("working", "waiting")).toBe("needs-attention");
 	});
 
 	test("needs-attention persists across ticks while still waiting", () => {
-		expect(nextShellActivity("needs-attention", "waiting")).toBe("needs-attention");
+		expect(ShellActivity.next("needs-attention", "waiting")).toBe("needs-attention");
 	});
 
 	test("answering the prompt returns the shell to working as the turn continues", () => {
-		expect(nextShellActivity("needs-attention", "working")).toBe("working");
+		expect(ShellActivity.next("needs-attention", "working")).toBe("working");
 	});
 
 	test("answering into a finished turn hands off to done", () => {
-		expect(nextShellActivity("needs-attention", "idle")).toBe("done");
+		expect(ShellActivity.next("needs-attention", "idle")).toBe("done");
 	});
 
 	test("a waiting agent needs attention even on the first tick that sees it", () => {
-		expect(nextShellActivity(undefined, "waiting")).toBe("needs-attention");
+		expect(ShellActivity.next(undefined, "waiting")).toBe("needs-attention");
 	});
 
 });
@@ -90,49 +82,49 @@ describe("shell turns", () => {
 	}
 
 	test("a shell that starts working opens its own turn", () => {
-		expect(turnStartShells(shells({}), shells({ a: "working" }))).toEqual(["a"]);
+		expect(ShellActivity.turnStarts(shells({}), shells({ a: "working" }))).toEqual(["a"]);
 	});
 
 	test("a shell staying in its turn does not open another", () => {
-		expect(turnStartShells(shells({ a: "working" }), shells({ a: "working" }))).toEqual([]);
+		expect(ShellActivity.turnStarts(shells({ a: "working" }), shells({ a: "working" }))).toEqual([]);
 	});
 
 	test("a shell blocked on the user keeps the turn it is already in open", () => {
-		expect(turnStartShells(shells({ a: "working" }), shells({ a: "needs-attention" }))).toEqual([]);
+		expect(ShellActivity.turnStarts(shells({ a: "working" }), shells({ a: "needs-attention" }))).toEqual([]);
 	});
 
 	test("working again after the shell went quiet opens a new turn", () => {
-		expect(turnStartShells(shells({ a: "done" }), shells({ a: "working" }))).toEqual(["a"]);
+		expect(ShellActivity.turnStarts(shells({ a: "done" }), shells({ a: "working" }))).toEqual(["a"]);
 	});
 
 	test("finished work waiting for a decision never opens a turn", () => {
-		expect(turnStartShells(shells({}), shells({ a: "done" }))).toEqual([]);
+		expect(ShellActivity.turnStarts(shells({}), shells({ a: "done" }))).toEqual([]);
 	});
 
 	test("a sibling shell opens its turn without touching the one already working", () => {
 		const before = shells({ a: "working" });
 		const after = shells({ a: "working", b: "working", c: "needs-attention" });
 
-		expect(turnStartShells(before, after)).toEqual(["b", "c"]);
+		expect(ShellActivity.turnStarts(before, after)).toEqual(["b", "c"]);
 	});
 
 	test("a working shell that blocks on the user enters needs attention", () => {
-		expect(attentionEntryShells(shells({ a: "working" }), shells({ a: "needs-attention" }))).toEqual(["a"]);
+		expect(ShellActivity.attentionEntries(shells({ a: "working" }), shells({ a: "needs-attention" }))).toEqual(["a"]);
 	});
 
 	test("a shell already blocked on the user does not enter it again", () => {
-		expect(attentionEntryShells(shells({ a: "needs-attention" }), shells({ a: "needs-attention" }))).toEqual([]);
+		expect(ShellActivity.attentionEntries(shells({ a: "needs-attention" }), shells({ a: "needs-attention" }))).toEqual([]);
 	});
 
 	test("a shell that resumes working left needs attention behind", () => {
-		expect(attentionEntryShells(shells({ a: "needs-attention" }), shells({ a: "working" }))).toEqual([]);
+		expect(ShellActivity.attentionEntries(shells({ a: "needs-attention" }), shells({ a: "working" }))).toEqual([]);
 	});
 
 	test("only the shell that blocked enters needs attention", () => {
 		const before = shells({ a: "needs-attention", b: "working" });
 		const after = shells({ a: "needs-attention", b: "needs-attention", c: "working" });
 
-		expect(attentionEntryShells(before, after)).toEqual(["b"]);
+		expect(ShellActivity.attentionEntries(before, after)).toEqual(["b"]);
 	});
 });
 
@@ -147,7 +139,7 @@ describe("shell worktrees", () => {
 	}
 
 	test("an agent that entered a worktree binds its shell to it", () => {
-		expect(nextShellWorktrees(new Map(), [{ shellId: "shell-a", worktree: "/tmp/repo-slug" }])).toEqual(
+		expect(ShellActivity.nextWorktrees(new Map(), [{ shellId: "shell-a", worktree: "/tmp/repo-slug" }])).toEqual(
 			new Map([["shell-a", "/tmp/repo-slug"]]),
 		);
 	});
@@ -155,25 +147,25 @@ describe("shell worktrees", () => {
 	test("a shell keeps its worktree after the agent exits", () => {
 		const previous = new Map([["shell-a", "/tmp/repo-slug"]]);
 
-		expect(nextShellWorktrees(previous, [{ shellId: "shell-a" }])).toEqual(previous);
+		expect(ShellActivity.nextWorktrees(previous, [{ shellId: "shell-a" }])).toEqual(previous);
 	});
 
 	test("a closed shell drops its worktree", () => {
 		const previous = new Map([["shell-a", "/tmp/repo-slug"]]);
 
-		expect(nextShellWorktrees(previous, [{ shellId: "shell-b" }])).toEqual(new Map());
+		expect(ShellActivity.nextWorktrees(previous, [{ shellId: "shell-b" }])).toEqual(new Map());
 	});
 
 	test("a shell that leaves for another worktree follows the agent", () => {
 		const previous = new Map([["shell-a", "/tmp/repo-slug"]]);
 
-		expect(nextShellWorktrees(previous, [{ shellId: "shell-a", worktree: "/tmp/repo-other" }])).toEqual(
+		expect(ShellActivity.nextWorktrees(previous, [{ shellId: "shell-a", worktree: "/tmp/repo-other" }])).toEqual(
 			new Map([["shell-a", "/tmp/repo-other"]]),
 		);
 	});
 
 	test("a turn opening captures its baseline in the shell's worktree", () => {
-		const baselines = turnBaselineShells({
+		const baselines = ShellActivity.turnBaselines({
 			before: states({}),
 			after: states({ "session-a": "working" }),
 			owners,
@@ -185,7 +177,7 @@ describe("shell worktrees", () => {
 	});
 
 	test("a turn opening outside any worktree captures the project itself", () => {
-		const baselines = turnBaselineShells({
+		const baselines = ShellActivity.turnBaselines({
 			before: states({}),
 			after: states({ "session-a": "working" }),
 			owners,
@@ -197,7 +189,7 @@ describe("shell worktrees", () => {
 	});
 
 	test("an agent that creates its worktree mid-turn re-captures the baseline there", () => {
-		const baselines = turnBaselineShells({
+		const baselines = ShellActivity.turnBaselines({
 			before: states({ "session-a": "working" }),
 			after: states({ "session-a": "working" }),
 			owners,
@@ -210,7 +202,7 @@ describe("shell worktrees", () => {
 
 	test("a settled worktree does not re-capture the baseline on every tick", () => {
 		const worktrees = new Map([["shell-a", "/tmp/repo-slug"]]);
-		const baselines = turnBaselineShells({
+		const baselines = ShellActivity.turnBaselines({
 			before: states({ "session-a": "working" }),
 			after: states({ "session-a": "working" }),
 			owners,
@@ -222,7 +214,7 @@ describe("shell worktrees", () => {
 	});
 
 	test("a worktree appearing outside a turn does not capture a baseline", () => {
-		const baselines = turnBaselineShells({
+		const baselines = ShellActivity.turnBaselines({
 			before: states({}),
 			after: states({}),
 			owners,
@@ -246,7 +238,7 @@ describe("project snapshots", () => {
 	}
 
 	test("names the harness of every bound shell, even one with no state yet", () => {
-		const snapshots = snapshotsByProject({
+		const snapshots = ShellActivity.snapshotsByProject({
 			shellStates: new Map(),
 			owners,
 			worktrees: new Map(),
@@ -264,7 +256,7 @@ describe("project snapshots", () => {
 	});
 
 	test("gathers a project's shells under it", () => {
-		const snapshots = snapshotsByProject({
+		const snapshots = ShellActivity.snapshotsByProject({
 			shellStates: states({ "session-a": "working", "session-b": "needs-attention" }),
 			owners,
 			worktrees: new Map(),
@@ -282,7 +274,7 @@ describe("project snapshots", () => {
 	});
 
 	test("keeps each project's shells to itself", () => {
-		const snapshots = snapshotsByProject({
+		const snapshots = ShellActivity.snapshotsByProject({
 			shellStates: states({ "session-a": "working", "session-c": "done" }),
 			owners,
 			worktrees: new Map(),
@@ -301,7 +293,7 @@ describe("project snapshots", () => {
 	});
 
 	test("ignores an agent no shell owns", () => {
-		const snapshots = snapshotsByProject({
+		const snapshots = ShellActivity.snapshotsByProject({
 			shellStates: states({ "session-a": "working", "session-loose": "working" }),
 			owners,
 			worktrees: new Map(),
@@ -315,7 +307,7 @@ describe("project snapshots", () => {
 	});
 
 	test("keys both states and worktrees by the persistent shell id", () => {
-		const snapshots = snapshotsByProject({
+		const snapshots = ShellActivity.snapshotsByProject({
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map([["shell-a", "/tmp/repo-slug"]]),
@@ -333,7 +325,7 @@ describe("project snapshots", () => {
 	});
 
 	test("a shell with no live agent gets no entry under its own id", () => {
-		const snapshots = snapshotsByProject({
+		const snapshots = ShellActivity.snapshotsByProject({
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map(),
@@ -346,7 +338,7 @@ describe("project snapshots", () => {
 	});
 
 	test("a project whose only news is a worktree still gets a snapshot", () => {
-		const snapshots = snapshotsByProject({
+		const snapshots = ShellActivity.snapshotsByProject({
 			shellStates: new Map(),
 			owners,
 			worktrees: new Map([["shell-c", "/tmp/repo-slug"]]),
@@ -364,7 +356,7 @@ describe("project snapshots", () => {
 	});
 
 	test("the moment the status changed rides along for a shell that has activity", () => {
-		const snapshots = snapshotsByProject({
+		const snapshots = ShellActivity.snapshotsByProject({
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map(),
@@ -377,7 +369,7 @@ describe("project snapshots", () => {
 	});
 
 	test("a persisted completion restores done without a bound shell", () => {
-		const snapshots = snapshotsByProject({
+		const snapshots = ShellActivity.snapshotsByProject({
 			shellStates: new Map(),
 			owners: new Map(),
 			worktrees: new Map(),
@@ -395,7 +387,7 @@ describe("project snapshots", () => {
 	});
 
 	test("live work outranks the prior persisted completion until its start is saved", () => {
-		const snapshots = snapshotsByProject({
+		const snapshots = ShellActivity.snapshotsByProject({
 			shellStates: states({ "session-a": "working" }),
 			owners,
 			worktrees: new Map(),
@@ -409,7 +401,7 @@ describe("project snapshots", () => {
 	});
 
 	test("a live done transition waits for its durable completion before appearing", () => {
-		const snapshots = snapshotsByProject({
+		const snapshots = ShellActivity.snapshotsByProject({
 			shellStates: states({ "session-c": "done" }),
 			owners,
 			worktrees: new Map(),
@@ -422,7 +414,7 @@ describe("project snapshots", () => {
 	});
 
 	test("no bound shells means no snapshots at all", () => {
-		expect(snapshotsByProject({
+		expect(ShellActivity.snapshotsByProject({
 			shellStates: new Map(),
 			owners,
 			worktrees: new Map(),
@@ -435,7 +427,7 @@ describe("project snapshots", () => {
 
 describe("durable done state", () => {
 	test("takes only open completed shells and their original completion time", () => {
-		const done = doneShells({
+		const done = ShellActivity.doneShells({
 			workspaces: [
 				{
 					projectId: "p1",
@@ -460,7 +452,7 @@ describe("shell to agent binding", () => {
 	}
 
 	test("binds an agent the shell launched itself", async () => {
-		const bindings = await bindShells(
+		const bindings = await SessionBinder.bind(
 			[{ sessionId: "shell-a", pid: 100 }],
 			[200],
 			chain([[200, 100]]),
@@ -469,7 +461,7 @@ describe("shell to agent binding", () => {
 	});
 
 	test("binds an agent sitting further down the shell's tree", async () => {
-		const bindings = await bindShells(
+		const bindings = await SessionBinder.bind(
 			[{ sessionId: "shell-a", pid: 100 }],
 			[300],
 			chain([[300, 250], [250, 100]]),
@@ -478,7 +470,7 @@ describe("shell to agent binding", () => {
 	});
 
 	test("does not bind a shell with no agent under it, nor an agent outside every shell", async () => {
-		const bindings = await bindShells(
+		const bindings = await SessionBinder.bind(
 			[{ sessionId: "empty", pid: 100 }],
 			[300],
 			chain([[300, 900], [900, 1]]),
@@ -487,7 +479,7 @@ describe("shell to agent binding", () => {
 	});
 
 	test("prefers the agent nearest the shell over one nested below it", async () => {
-		const bindings = await bindShells(
+		const bindings = await SessionBinder.bind(
 			[{ sessionId: "shell-a", pid: 100 }],
 			[400, 200],
 			chain([[200, 100], [400, 300], [300, 200]]),
@@ -496,7 +488,7 @@ describe("shell to agent binding", () => {
 	});
 
 	test("gives each shell the agent under it", async () => {
-		const bindings = await bindShells(
+		const bindings = await SessionBinder.bind(
 			[{ sessionId: "shell-a", pid: 100 }, { sessionId: "shell-b", pid: 101 }],
 			[200, 201],
 			chain([[200, 100], [201, 101]]),
@@ -505,7 +497,7 @@ describe("shell to agent binding", () => {
 	});
 
 	test("stops walking a parent chain that cycles back on itself", async () => {
-		const bindings = await bindShells(
+		const bindings = await SessionBinder.bind(
 			[{ sessionId: "shell-a", pid: 100 }],
 			[200],
 			chain([[200, 250], [250, 200]]),
@@ -514,7 +506,7 @@ describe("shell to agent binding", () => {
 	});
 
 	test("stops at init rather than binding pid 1", async () => {
-		const bindings = await bindShells(
+		const bindings = await SessionBinder.bind(
 			[{ sessionId: "init", pid: 1 }],
 			[200],
 			chain([[200, 1]]),
@@ -525,22 +517,22 @@ describe("shell to agent binding", () => {
 
 describe.if(process.platform === "linux")("binding against real processes", () => {
 	test("walks up from a live pid to the process that spawned it", async () => {
-		const parent = await procFs.parent(process.pid);
+		const parent = await ProcFs.parent(process.pid);
 		if (parent === null) {
 			throw new Error("this test process has no parent to bind to");
 		}
 
-		const bindings = await bindShells([{ sessionId: "shell-a", pid: parent }], [process.pid], procFs.parent);
+		const bindings = await SessionBinder.bind([{ sessionId: "shell-a", pid: parent }], [process.pid], ProcFs.parent);
 		expect(bindings).toEqual(new Map([["shell-a", process.pid]]));
 	});
 
 	test("reports no parent for a pid that does not exist", async () => {
-		expect(await procFs.parent(0x7f_ff_ff_ff)).toBeNull();
+		expect(await ProcFs.parent(0x7f_ff_ff_ff)).toBeNull();
 	});
 
 	test("binds a harness launched the way a pane launches it", async () => {
 		const shell = "/bin/sh";
-		const pane = Bun.spawn([shell, ...shellArgs(shell, "sleep 30")], {
+		const pane = Bun.spawn([shell, ...ShellCommandLine.shellArgs(shell, "sleep 30")], {
 			stdin: "ignore",
 			stdout: "ignore",
 			stderr: "ignore",
@@ -551,7 +543,7 @@ describe.if(process.platform === "linux")("binding against real processes", () =
 			const harness = Number(listed.trim().split("\n")[0]);
 			expect(harness).toBeGreaterThan(0);
 
-			const bindings = await bindShells([{ sessionId: "pane", pid: pane.pid }], [harness], procFs.parent);
+			const bindings = await SessionBinder.bind([{ sessionId: "pane", pid: pane.pid }], [harness], ProcFs.parent);
 			expect(bindings).toEqual(new Map([["pane", harness]]));
 		} finally {
 			Bun.spawnSync(["pkill", "-9", "-P", String(pane.pid)]);
@@ -659,28 +651,28 @@ describe("claude harness discovery", () => {
 		configDir = mkdtempSync(join(tmpdir(), "claude-config-"));
 		process.env.CLAUDE_CONFIG_DIR = configDir;
 
-		expect(harnessWatchPaths()).toContain(join(configDir, "sessions"));
+		expect(Harnesses.watchPaths()).toContain(join(configDir, "sessions"));
 	});
 });
 
 describe("how long the card has held its state", () => {
 	test("a state that did not change keeps the clock it was already showing", () => {
-		expect(clockSince({ previous: "working", next: "working", held: 1000, reported: 5000 })).toBe(1000);
+		expect(ShellActivity.clockSince({ previous: "working", next: "working", held: 1000, reported: 5000 })).toBe(1000);
 	});
 
 	test("a busy agent dropping into a shell does not restart the clock", () => {
-		expect(clockSince({ previous: "working", next: "working", held: 1000, reported: 9000 })).toBe(1000);
+		expect(ShellActivity.clockSince({ previous: "working", next: "working", held: 1000, reported: 9000 })).toBe(1000);
 	});
 
 	test("a state that changed adopts the moment the harness reported", () => {
-		expect(clockSince({ previous: "working", next: "done", held: 1000, reported: 9000 })).toBe(9000);
+		expect(ShellActivity.clockSince({ previous: "working", next: "done", held: 1000, reported: 9000 })).toBe(9000);
 	});
 
 	test("a shell seen for the first time takes the harness clock", () => {
-		expect(clockSince({ previous: undefined, next: "working", held: undefined, reported: 9000 })).toBe(9000);
+		expect(ShellActivity.clockSince({ previous: undefined, next: "working", held: undefined, reported: 9000 })).toBe(9000);
 	});
 
 	test("a harness with no clock leaves the card without one", () => {
-		expect(clockSince({ previous: undefined, next: "working", held: undefined, reported: undefined })).toBeUndefined();
+		expect(ShellActivity.clockSince({ previous: undefined, next: "working", held: undefined, reported: undefined })).toBeUndefined();
 	});
 });

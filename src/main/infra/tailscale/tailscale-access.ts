@@ -3,10 +3,10 @@ import { SERVER_HOST } from "@shared/server";
 
 const TAILSCALE_SERVE_PORT = 443;
 
-export const TAILSCALE_OPERATOR_REMEDY =
+const TAILSCALE_OPERATOR_REMEDY =
 	"Tailscale refused the change. Run `sudo tailscale set --operator=$USER` once in a terminal, then try again.";
 
-export const TAILSCALE_MISSING_REMEDY = "Tailscale is not answering on this machine. Start it and try again.";
+const TAILSCALE_MISSING_REMEDY = "Tailscale is not answering on this machine. Start it and try again.";
 
 const TAILSCALE_HTTPS_CAPABILITY = "https";
 
@@ -18,7 +18,7 @@ const serveStatusSchema = type({
 	"Web?": { "[string]": { "Handlers?": { "[string]": { "Proxy?": "string" } } } },
 });
 
-export interface MobileAccess {
+export interface MobileAccessStatus {
 	host: string | undefined;
 	url: string | undefined;
 	exposed: boolean;
@@ -39,17 +39,17 @@ function statusSelf(raw: string) {
 	return readJson(raw, statusSchema)?.Self;
 }
 
-export function magicDnsHost(raw: string): string | undefined {
+function magicDnsHost(raw: string): string | undefined {
 	const name = statusSelf(raw)?.DNSName?.replace(/\.$/, "");
 
 	return name || undefined;
 }
 
-export function tailnetAddress(raw: string): string | undefined {
+function tailnetAddress(raw: string): string | undefined {
 	return statusSelf(raw)?.TailscaleIPs?.find((address) => !address.includes(":"));
 }
 
-export function tailnetIssuesCertificates(raw: string): boolean {
+function tailnetIssuesCertificates(raw: string): boolean {
 	const self = statusSelf(raw);
 	if (!self?.DNSName) {
 		return true;
@@ -58,7 +58,7 @@ export function tailnetIssuesCertificates(raw: string): boolean {
 	return !!self.CapMap && TAILSCALE_HTTPS_CAPABILITY in self.CapMap;
 }
 
-export function serveProxyTarget(port: number): string {
+function serveProxyTarget(port: number): string {
 	const renderer = process.env.ELECTRON_RENDERER_URL;
 	if (renderer) {
 		return new URL(renderer).origin;
@@ -67,7 +67,7 @@ export function serveProxyTarget(port: number): string {
 	return `http://${SERVER_HOST}:${port}`;
 }
 
-export function serveExposes(raw: string, port: number): boolean {
+function serveExposes(raw: string, port: number): boolean {
 	const web = readJson(raw, serveStatusSchema)?.Web;
 	if (!web) {
 		return false;
@@ -80,7 +80,7 @@ export function serveExposes(raw: string, port: number): boolean {
 		);
 }
 
-export function serveArgs({ enabled, port }: { enabled: boolean; port: number }): string[] {
+function serveArgs({ enabled, port }: { enabled: boolean; port: number }): string[] {
 	if (!enabled) {
 		return ["serve", `--https=${TAILSCALE_SERVE_PORT}`, "off"];
 	}
@@ -88,10 +88,22 @@ export function serveArgs({ enabled, port }: { enabled: boolean; port: number })
 	return ["serve", "--bg", `--https=${TAILSCALE_SERVE_PORT}`, serveProxyTarget(port)];
 }
 
-export function serveProblem(stderr: string): string {
+function serveProblem(stderr: string): string {
 	if (/operator|access denied/i.test(stderr)) {
 		return TAILSCALE_OPERATOR_REMEDY;
 	}
 
 	return stderr.split("\n").find((line) => line.trim().length > 0)?.trim() ?? TAILSCALE_MISSING_REMEDY;
 }
+
+export const TailscaleAccess = {
+	TAILSCALE_OPERATOR_REMEDY,
+	TAILSCALE_MISSING_REMEDY,
+	magicDns: magicDnsHost,
+	address: tailnetAddress,
+	issuesCertificates: tailnetIssuesCertificates,
+	proxyTarget: serveProxyTarget,
+	exposes: serveExposes,
+	serveArgs,
+	problem: serveProblem,
+};

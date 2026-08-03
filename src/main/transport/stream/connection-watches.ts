@@ -6,7 +6,7 @@ interface ConnectionWatch {
 	stop: (() => void) | undefined;
 }
 
-export interface WatchAddress {
+interface WatchAddress {
 	connection: StreamConnection;
 	channel: StreamChannel;
 	key: string;
@@ -14,7 +14,7 @@ export interface WatchAddress {
 
 const watchesByConnection = new Map<string, Map<string, ConnectionWatch>>();
 
-export async function retainWatch(
+async function retainWatch(
 	address: WatchAddress,
 	start: () => Promise<() => void> | (() => void),
 ): Promise<void> {
@@ -50,7 +50,7 @@ export async function retainWatch(
 	}
 }
 
-export function replaceWatch(address: WatchAddress, stop: () => void): void {
+function replaceWatch(address: WatchAddress, stop: () => void): void {
 	const watches = watchesOf(address.connection);
 	const key = watchKey(address);
 
@@ -65,7 +65,7 @@ export function replaceWatch(address: WatchAddress, stop: () => void): void {
 	watches.set(key, { references: 1, stop });
 }
 
-export function releaseWatch(address: WatchAddress): void {
+function releaseWatch(address: WatchAddress): void {
 	const watches = watchesByConnection.get(address.connection.id);
 	const key = watchKey(address);
 	const watched = watches?.get(key);
@@ -104,3 +104,9 @@ function watchesOf(connection: StreamConnection): Map<string, ConnectionWatch> {
 
 	return watches;
 }
+
+export const ConnectionWatches = {
+	retain: retainWatch,
+	replace: replaceWatch,
+	release: releaseWatch,
+};

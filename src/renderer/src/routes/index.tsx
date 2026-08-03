@@ -78,6 +78,7 @@ function Bankai() {
 		initialOpen: layout.initial.reviewOpen,
 		initialExpanded: layout.initial.reviewExpanded,
 		persist: layout.persist,
+		onClose: requestShellFocus,
 	});
 	const [projectsOpen, setProjectsOpen] = useState(layout.initial.projectsOpen);
 	const toggleProjects = useCallback(() => {

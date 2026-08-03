@@ -5,10 +5,12 @@ export function useReviewPanelState({
 	initialOpen,
 	initialExpanded,
 	persist,
+	onClose,
 }: {
 	initialOpen: boolean;
 	initialExpanded: boolean;
 	persist: (patch: LayoutSettings) => void;
+	onClose: () => void;
 }) {
 	const [open, setOpen] = useState(initialOpen);
 	const [expanded, setExpanded] = useState(initialExpanded);
@@ -17,7 +19,11 @@ export function useReviewPanelState({
 		restoreOpen.current = null;
 		setOpen(nextOpen);
 		persist({ reviewOpen: nextOpen });
-	}, [persist]);
+
+		if (!nextOpen) {
+			onClose();
+		}
+	}, [onClose, persist]);
 	const changeExpanded = useCallback((nextExpanded: boolean) => {
 		restoreOpen.current = null;
 		setExpanded(nextExpanded);
@@ -30,6 +36,11 @@ export function useReviewPanelState({
 			setOpen(nextOpen);
 			setExpanded(false);
 			persist({ reviewOpen: nextOpen, reviewExpanded: false });
+
+			if (!nextOpen) {
+				onClose();
+			}
+
 			return;
 		}
 
@@ -37,7 +48,7 @@ export function useReviewPanelState({
 		setOpen(true);
 		setExpanded(true);
 		persist({ reviewOpen: true, reviewExpanded: true });
-	}, [expanded, open, persist]);
+	}, [expanded, onClose, open, persist]);
 
 	return {
 		open,

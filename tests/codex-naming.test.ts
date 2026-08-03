@@ -2,12 +2,12 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { CodexHarness } from "@main/activity/codex";
-import { codexSessionsDir } from "@main/activity/codexConfig";
-import { codexMaterial, codexTitle, messageIntent, rolloutPath } from "@main/activity/codexTranscript";
-import { MATERIAL_EDGE_COUNT, MATERIAL_MESSAGE_LIMIT, MATERIAL_TOTAL_LIMIT } from "@main/activity/transcriptMaterial";
-import { codexProposeName, namingCall, NAMING_TIMEOUT_MS, proposedName } from "@main/naming/codexNamer";
-import { NAME_MAX_CHARS } from "@main/naming/nameContract";
+import { CodexHarness } from "@main/agents/harness/codex/codex-harness";
+import { codexSessionsDir } from "@main/agents/harness/codex/codex-config";
+import { codexMaterial, codexTitle, messageIntent, rolloutPath } from "@main/agents/harness/codex/codex-transcript";
+import { MATERIAL_EDGE_COUNT, MATERIAL_MESSAGE_LIMIT, MATERIAL_TOTAL_LIMIT } from "@main/agents/transcript/transcript-material";
+import { codexProposeName, namingCall, NAMING_TIMEOUT_MS, proposedName } from "@main/agents/harness/codex/codex-namer";
+import { NAME_MAX_CHARS } from "@main/agents/naming/name-contract";
 
 const SESSION = "019f898d-719d-7811-9b34-86470df90a52";
 

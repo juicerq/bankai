@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { NAMING_MILESTONES, namingDue } from "@main/naming/SessionNamer";
-import { NAMING_SLOTS, withNamingSlot } from "@main/naming/slots";
+import { NAMING_MILESTONES, namingDue } from "@main/agents/naming/session-namer";
+import { NAMING_SLOTS, withNamingSlot } from "@main/agents/naming/naming-slots";
 import type { ContinuityShell } from "@main/store/continuity";
 
 const [FIRST_MILESTONE, SECOND_MILESTONE] = NAMING_MILESTONES;

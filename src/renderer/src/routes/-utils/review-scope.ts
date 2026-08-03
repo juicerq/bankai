@@ -1,4 +1,4 @@
-import type { ReviewMode } from "@main/git/contracts";
+import type { ReviewMode } from "@main/git/git-contracts";
 
 export const REVIEW_SCOPES: Record<ReviewMode, { label: string; detail: string; empty: string }> = {
 	"last-turn": {

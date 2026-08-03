@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { bracketedPaste, TERMINAL_KEY_BYTES, TERMINAL_KEYS } from "@main/terminal/input";
+import { bracketedPaste, TERMINAL_KEY_BYTES, TERMINAL_KEYS } from "@main/terminal/terminal-input";
 
 describe("turning a phone's intention into terminal bytes", () => {
 	it("wraps a multiline prompt so the TUI takes it as one message", () => {

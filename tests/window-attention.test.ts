@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { EventEmitter } from "node:events";
-import { requestDesktopAttention, setupDesktopAttention } from "@main/window/attention";
+import { requestDesktopAttention, setupDesktopAttention } from "@main/desktop/desktop-attention";
 
 class AttentionWindow extends EventEmitter {
 	readonly flashes: boolean[] = [];

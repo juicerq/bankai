@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import type { FileChange, FullFile } from "@main/git/contracts";
+import type { FileChange, FullFile } from "@main/git/git-contracts";
 import { ReviewFocusedFile } from "@renderer/routes/-components/review-focused-file";
 import { get, slot } from "./dom";
 import { cleanup, render } from "./testing-library";

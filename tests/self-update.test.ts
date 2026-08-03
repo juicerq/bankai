@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { canSelfUpdate } from "@main/update/self-update";
+import { canSelfUpdate } from "@main/desktop/self-update";
 
 describe("self update eligibility", () => {
 	it("updates itself when the running binary is the AppImage", () => {

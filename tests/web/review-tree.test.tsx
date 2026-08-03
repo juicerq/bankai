@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { useSelector } from "@tanstack/react-store";
 import { useRef, useState } from "react";
-import type { FileChange } from "@main/git/contracts";
+import type { FileChange } from "@main/git/git-contracts";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
 import { redistributeReviewTree } from "@renderer/routes/-utils/review-layout";
 import { createReviewPanelStore } from "@renderer/routes/-utils/review-panel-store";

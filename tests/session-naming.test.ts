@@ -2,16 +2,16 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "bun:test";
-import { transcriptMaterial, transcriptPath } from "@main/activity/claudeTranscript";
-import { MATERIAL_MESSAGE_LIMIT, MATERIAL_TOTAL_LIMIT } from "@main/activity/transcriptMaterial";
+import { transcriptMaterial, transcriptPath } from "@main/agents/harness/claude/claude-transcript";
+import { MATERIAL_MESSAGE_LIMIT, MATERIAL_TOTAL_LIMIT } from "@main/agents/transcript/transcript-material";
 import {
 	NAMING_DISALLOWED_TOOLS,
 	NAMING_MODEL,
 	NAMING_OUTPUT_MAX_BYTES,
 	NAMING_TIMEOUT_MS,
 	namingCall,
-} from "@main/naming/claudeNamer";
-import { NAME_MAX_CHARS, NAME_TARGET_CHARS, acceptedName } from "@main/naming/nameContract";
+} from "@main/agents/harness/claude/claude-namer";
+import { NAME_MAX_CHARS, NAME_TARGET_CHARS, acceptedName } from "@main/agents/naming/name-contract";
 
 describe("name contract", () => {
 	it("accepts a name that describes the session", () => {

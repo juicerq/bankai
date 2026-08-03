@@ -1,4 +1,4 @@
-import type { ReviewMode } from "@main/git/contracts";
+import type { ReviewMode } from "@main/git/git-contracts";
 import { orpc } from "@renderer/lib/api";
 import { matchQuery, type QueryClient } from "@tanstack/react-query";
 

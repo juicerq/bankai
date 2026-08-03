@@ -1,0 +1,67 @@
+import type { AgentPresence, Harness } from "@main/agents/harness/harness";
+import { ClaudeHarness } from "@main/agents/harness/claude/claude-harness";
+import { CodexHarness } from "@main/agents/harness/codex/codex-harness";
+import { Logger } from "@main/infra/logger";
+import type { HarnessSettings } from "@main/store/settings";
+
+const harnesses: Harness[] = [ClaudeHarness, CodexHarness];
+
+export const DEFAULT_HARNESS_SETTINGS: HarnessSettings = {
+	autostart: true,
+	id: ClaudeHarness.id,
+};
+
+export function launchableHarnesses() {
+	return harnesses.flatMap((harness) => {
+		const launch = harness.launch;
+		if (!launch) {
+			return [];
+		}
+
+		return [
+			{
+				id: harness.id,
+				label: harness.label,
+				conversation: !!harness.conversation,
+				file: launch().file,
+			},
+		];
+	});
+}
+
+export function harnessConversation(harnessId: string): Harness["conversation"] {
+	return harnesses.find((harness) => harness.id === harnessId)?.conversation;
+}
+
+export function harnessLaunch(harnessId: string): Harness["launch"] {
+	return harnesses.find((harness) => harness.id === harnessId)?.launch;
+}
+
+export function harnessResume(harnessId: string): Harness["resume"] {
+	return harnesses.find((harness) => harness.id === harnessId)?.resume;
+}
+
+export function harnessTitle(harnessId: string): Harness["title"] {
+	return harnesses.find((harness) => harness.id === harnessId)?.title;
+}
+
+export function harnessProposeName(harnessId: string): Harness["proposeName"] {
+	return harnesses.find((harness) => harness.id === harnessId)?.proposeName;
+}
+
+export function harnessWatchPaths(): string[] {
+	return harnesses.flatMap((harness) => harness.watch?.() ?? []);
+}
+
+export async function discoverAgents(): Promise<AgentPresence[]> {
+	const discovered = await Promise.all(
+		harnesses.map((harness) =>
+			harness.discover().catch((err) => {
+				Logger.warn("activity:discovery-failed", { harness: harness.id, err: String(err) });
+				return [];
+			}),
+		),
+	);
+
+	return discovered.flat();
+}

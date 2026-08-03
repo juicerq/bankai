@@ -7,7 +7,7 @@ import {
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettingsModal } from "@renderer/routes/-components/settings-modal";
-import { TAILSCALE_OPERATOR_REMEDY } from "@main/tailscale/access";
+import { TAILSCALE_OPERATOR_REMEDY } from "@main/infra/tailscale/tailscale-access";
 import { pairingUrl } from "@shared/server";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render, waitFor } from "./testing-library";

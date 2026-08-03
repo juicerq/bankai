@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
-import type { ReviewMode } from "@main/git/contracts";
+import type { ReviewMode } from "@main/git/git-contracts";
 import { ReviewScope } from "@renderer/routes/-components/review-scope";
 import { REVIEW_SCOPES, sharedWorktreeNotice } from "@renderer/routes/-utils/review-scope";
 import { get, query } from "./dom";

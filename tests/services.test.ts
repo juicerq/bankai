@@ -1,5 +1,5 @@
 import { beforeEach, expect, mock, test } from "bun:test";
-import { shellProcesses } from "@main/terminal/ShellProcesses";
+import { shellProcesses } from "@main/terminal/shell-processes";
 
 interface SpawnedShell {
 	sessionId: string;
@@ -23,7 +23,7 @@ function die(shell: SpawnedShell | undefined, exitCode: number): void {
 	}
 }
 
-void mock.module("@main/terminal/ShellSpawn", () => ({
+void mock.module("@main/terminal/shell-spawn", () => ({
 	ShellSpawn: {
 		run: (input: SpawnedShell & { projectId: string }) => {
 			const sessionId = `session-${spawned.length + 1}`;
@@ -50,9 +50,9 @@ void mock.module("@main/terminal/ShellSpawn", () => ({
 	},
 }));
 
-const { ProjectCommands } = await import("@main/store/commands");
+const { ProjectCommands } = await import("@main/store/project-commands");
 const { Projects } = await import("@main/store/projects");
-const { Services } = await import("@main/services/Services");
+const { Services } = await import("@main/services");
 
 let projectId: string;
 

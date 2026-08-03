@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { basename, resolve } from "node:path";
 import { type } from "arktype";
-import { Store } from "@main/store/Store";
+import { Store } from "@main/store/store";
 
 const projectSchema = type({
 	id: "string",

@@ -1,6 +1,6 @@
 import { ChevronDownIcon, ChevronRightIcon, ViewfinderCircleIcon } from "@heroicons/react/24/outline";
 import { useMemo, useState } from "react";
-import type { FileChange } from "@main/git/contracts";
+import type { FileChange } from "@main/git/git-contracts";
 import { Divider } from "@renderer/routes/-components/divider";
 import { REVIEW_TREE_WIDTH_VALUE } from "@renderer/routes/-utils/review-layout";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { TERMINAL_RING_BYTES, TerminalRingBuffer } from "@main/terminal/TerminalRingBuffer";
+import { TERMINAL_RING_BYTES, TerminalRingBuffer } from "@main/terminal/buffer/terminal-ring-buffer";
 
 test("everything written back so far is replayed in order", () => {
 	const ring = new TerminalRingBuffer();

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseWorktrees, worktreeContaining, worktreeFailure } from "@main/git/Worktrees";
+import { parseWorktrees, worktreeContaining, worktreeFailure } from "@main/git/worktree/worktrees";
 
 const PORCELAIN = `worktree /home/jui/projects/bankai
 HEAD 4b04c676ca56b7f470e6b66efbf9502393160b2e

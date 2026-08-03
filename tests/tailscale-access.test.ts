@@ -8,7 +8,7 @@ import {
 	tailnetAddress,
 	tailnetIssuesCertificates,
 	TAILSCALE_OPERATOR_REMEDY,
-} from "@main/tailscale/access";
+} from "@main/infra/tailscale/tailscale-access";
 import { SERVER_DEFAULT_PORT } from "@shared/server";
 
 const OPERATOR_DENIAL = [

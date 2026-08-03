@@ -1,4 +1,4 @@
-import type { TerminalKey } from "@main/terminal/input";
+import type { TerminalKey } from "@main/terminal/terminal-input";
 
 interface TerminalEvent {
 	sessionId: string;

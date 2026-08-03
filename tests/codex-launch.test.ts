@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { CodexHarness, interactiveCommandLine, rolloutCandidates } from "@main/activity/codex";
-import { codexSessionsDir } from "@main/activity/codexConfig";
+import { CodexHarness, interactiveCommandLine, rolloutCandidates } from "@main/agents/harness/codex/codex-harness";
+import { codexSessionsDir } from "@main/agents/harness/codex/codex-config";
 import { Settings } from "@main/store/settings";
-import { harnessCommandLine } from "@main/terminal/autostart";
+import { harnessCommandLine } from "@main/terminal/shell-autostart";
 import { assertDefined } from "./utils/assertions";
 
 const SESSION = "019f898d-719d-7811-9b34-86470df90a52";

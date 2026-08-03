@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { type } from "arktype";
 import { WebSocket } from "ws";
-import { StreamConnection } from "@main/server/stream/connection";
-import { handleConversationMessage } from "@main/server/stream/conversation";
+import { StreamConnection } from "@main/transport/stream/stream-connection";
+import { handleConversationMessage } from "@main/transport/stream/conversation-messages";
 
 const SESSION_ID = "019fb897-3f89-77e0-9fea-5f059c48f5a3";
 

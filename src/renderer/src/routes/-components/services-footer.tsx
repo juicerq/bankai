@@ -1,5 +1,5 @@
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import type { ProjectCommand } from "@main/store/commands";
+import type { ProjectCommand } from "@main/store/project-commands";
 import type { Project } from "@main/store/projects";
 import type { ServiceState, ServiceStatus } from "@shared/services";
 

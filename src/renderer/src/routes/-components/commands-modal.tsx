@@ -1,6 +1,6 @@
 import { PencilSquareIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useCallback, useRef, useState } from "react";
-import type { ProjectCommand } from "@main/store/commands";
+import type { ProjectCommand } from "@main/store/project-commands";
 import type { Project } from "@main/store/projects";
 import { CommandEditor } from "@renderer/routes/-components/command-editor";
 import { PickerHint } from "@renderer/routes/-components/picker-hint";

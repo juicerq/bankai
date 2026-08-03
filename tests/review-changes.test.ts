@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it } from "bun:test";
-import { REVIEW_CHANGE_DEBOUNCE_MS, ReviewChanges, reviewWatchPlan } from "@main/git/ReviewChanges";
+import { REVIEW_CHANGE_DEBOUNCE_MS, ReviewChanges, reviewWatchPlan } from "@main/git/review/review-changes";
 import { assertDefined } from "./utils/assertions";
 
 function initRepository(path: string): void {

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { WebSocket } from "ws";
-import { StreamConnection } from "@main/server/stream/connection";
-import { releaseWatch, replaceWatch, retainWatch } from "@main/server/stream/connectionWatches";
+import { StreamConnection } from "@main/transport/stream/stream-connection";
+import { releaseWatch, replaceWatch, retainWatch } from "@main/transport/stream/connection-watches";
 
 function connected() {
 	return new StreamConnection({ readyState: WebSocket.CLOSED, send: () => {} });

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "bun:test";
-import { locateTranscript, recordIntent, transcriptPath, transcriptTitle } from "@main/activity/claudeTranscript";
+import { locateTranscript, recordIntent, transcriptPath, transcriptTitle } from "@main/agents/harness/claude/claude-transcript";
 
 function userRecord(content: unknown, extra: Record<string, unknown> = {}): string {
 	return JSON.stringify({ type: "user", message: { content }, ...extra });

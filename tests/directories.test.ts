@@ -2,7 +2,7 @@ import { chmodSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { browseDirectories, expandUserPath } from "@main/fs/directories";
+import { browseDirectories, expandUserPath } from "@main/infra/directories";
 import { assertDefined } from "./utils/assertions";
 
 function scratch(name: string) {

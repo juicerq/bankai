@@ -1,7 +1,7 @@
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useRef, useState } from "react";
-import type { FileChange, FullFile } from "@main/git/contracts";
+import type { FileChange, FullFile } from "@main/git/git-contracts";
 import { ReviewDiffLine, ReviewNotice } from "@renderer/routes/-components/review-line";
 import { reviewContentNotice } from "@renderer/routes/-utils/review-notice";
 import { diffContentWidth, DIFF_TAB_SIZE } from "@renderer/routes/-utils/review-rows";

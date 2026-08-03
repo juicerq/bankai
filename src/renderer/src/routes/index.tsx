@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { ProjectCommand } from "@main/store/commands";
+import type { ProjectCommand } from "@main/store/project-commands";
 import type { ContinuityShell } from "@main/store/continuity";
 import { orpc } from "@renderer/lib/api";
 import { isBrowserClient } from "@renderer/lib/platform";

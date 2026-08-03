@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import { describe, expect, it } from "bun:test";
-import { authorizeRequest, authorizeUpgrade } from "@main/server/auth";
-import { listenOn } from "@main/server/listen";
+import { authorizeRequest, authorizeUpgrade } from "@main/transport/server/server-auth";
+import { listenOn } from "@main/transport/server/server-listen";
 import { SERVER_HOST, SERVER_STREAM_PATH, SERVER_TOKEN_BYTES } from "@shared/server";
 
 const token = "a".repeat(SERVER_TOKEN_BYTES * 2);

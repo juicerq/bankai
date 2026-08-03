@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import type { TerminalKey } from "@main/terminal/input";
+import type { TerminalKey } from "@main/terminal/terminal-input";
 import { ACTIVITY_LABEL } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
 import { AGENT_START_MS } from "@renderer/routes/mobile/-components/mobile-composer";

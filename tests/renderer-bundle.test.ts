@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { type RendererBundle, readRendererBundle, resolveBundleAsset } from "@main/server/bundle";
+import { type RendererBundle, readRendererBundle, resolveBundleAsset } from "@main/transport/server/renderer-bundle";
 import { assertDefined } from "./utils/assertions";
 
 let root: string;

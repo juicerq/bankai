@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import type { MobileAccess } from "@main/tailscale/access";
+import type { MobileAccess } from "@main/infra/tailscale/tailscale-access";
 import { PairingQr } from "@renderer/routes/-components/pairing-qr";
 import { Setting } from "@renderer/routes/-components/settings-controls";
 import { useMobileAccess } from "@renderer/routes/-utils/use-mobile-access";

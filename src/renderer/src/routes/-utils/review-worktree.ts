@@ -1,4 +1,4 @@
-import type { Worktree } from "@main/git/contracts";
+import type { Worktree } from "@main/git/git-contracts";
 
 export function worktreeLabel(worktree: Worktree): string {
 	return worktree.branch ?? worktree.path.split("/").filter(Boolean).at(-1) ?? worktree.path;

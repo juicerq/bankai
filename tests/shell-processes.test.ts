@@ -3,8 +3,8 @@ import {
 	type ShellAttachment,
 	ShellProcesses,
 	type TerminalProcess,
-} from "@main/terminal/ShellProcesses";
-import { TERMINAL_DATA_FLUSH_MS } from "@main/terminal/TerminalDataBuffer";
+} from "@main/terminal/shell-processes";
+import { TERMINAL_DATA_FLUSH_MS } from "@main/terminal/buffer/terminal-data-buffer";
 import type { TerminalStreamEvent } from "@shared/terminal";
 
 const SHELL = { projectId: "p1", shellId: "s1" };

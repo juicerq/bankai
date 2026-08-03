@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { ClaudeHarness } from "@main/activity/claude";
-import { CodexHarness } from "@main/activity/codex";
-import { DEFAULT_HARNESS_SETTINGS, harnessLaunch, launchableHarnesses } from "@main/activity/harnesses";
+import { ClaudeHarness } from "@main/agents/harness/claude/claude-harness";
+import { CodexHarness } from "@main/agents/harness/codex/codex-harness";
+import { DEFAULT_HARNESS_SETTINGS, harnessLaunch, launchableHarnesses } from "@main/agents/harness/harnesses";
 import { Settings } from "@main/store/settings";
-import { autostartCommandLine, harnessCommandLine, shellLaunchLine } from "@main/terminal/autostart";
-import { shellArgs, shellCommandLine, splitArguments } from "@main/terminal/commandLine";
-import { harnessAvailable } from "@main/terminal/harnessAvailability";
+import { autostartCommandLine, harnessCommandLine, shellLaunchLine } from "@main/terminal/shell-autostart";
+import { shellArgs, shellCommandLine, splitArguments } from "@main/terminal/shell-command-line";
+import { harnessAvailable } from "@main/agents/harness/harness-availability";
 import { assertDefined } from "./utils/assertions";
 
 describe("claude launch command", () => {

@@ -28,7 +28,7 @@ export default defineConfig({
 			rollupOptions: {
 				input: {
 					index: resolve(import.meta.dirname, "./src/main/index.ts"),
-					"git-worker": resolve(import.meta.dirname, "./src/main/git/worker.ts"),
+					"git-worker": resolve(import.meta.dirname, "./src/main/git/git-worker.ts"),
 				},
 			},
 		},

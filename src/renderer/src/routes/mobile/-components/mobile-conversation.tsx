@@ -1,5 +1,5 @@
 import { ChevronLeftIcon } from "@heroicons/react/24/outline";
-import type { TerminalKey } from "@main/terminal/input";
+import type { TerminalKey } from "@main/terminal/terminal-input";
 import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
 import { ACTIVITY_DOT_CLASS, ACTIVITY_LABEL, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";

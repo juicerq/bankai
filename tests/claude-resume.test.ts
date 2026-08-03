@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { ClaudeHarness } from "@main/activity/claude";
-import { harnessResume } from "@main/activity/harnesses";
+import { ClaudeHarness } from "@main/agents/harness/claude/claude-harness";
+import { harnessResume } from "@main/agents/harness/harnesses";
 import { assertDefined } from "./utils/assertions";
 
 const VALID_SESSION_ID = "67af1e51-358c-475f-b33a-7de1e199d0a5";

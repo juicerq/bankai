@@ -11,12 +11,12 @@ import {
 	snapshotsByProject,
 	turnBaselineShells,
 	turnStartShells,
-} from "@main/activity/AgentActivity";
-import { ClaudeHarness, parseSessionRecord } from "@main/activity/claude";
-import { harnessWatchPaths } from "@main/activity/harnesses";
-import { procFs } from "@main/activity/procFs";
-import { bindShells, type ParentOf } from "@main/activity/SessionBinder";
-import { shellArgs } from "@main/terminal/commandLine";
+} from "@main/agents/agent-activity";
+import { ClaudeHarness, parseSessionRecord } from "@main/agents/harness/claude/claude-harness";
+import { harnessWatchPaths } from "@main/agents/harness/harnesses";
+import { procFs } from "@main/infra/proc-fs";
+import { bindShells, type ParentOf } from "@main/agents/session/session-binder";
+import { shellArgs } from "@main/terminal/shell-command-line";
 import { aggregateActivity, type AgentActivityState } from "@shared/activity";
 
 const BUSY_RECORD =

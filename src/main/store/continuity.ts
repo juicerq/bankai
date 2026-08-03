@@ -1,6 +1,6 @@
 import { type } from "arktype";
-import { Logger } from "@main/logger";
-import { Store } from "@main/store/Store";
+import { Logger } from "@main/infra/logger";
+import { Store } from "@main/store/store";
 import {
 	ContinuityReducers,
 	type OpenedShell,

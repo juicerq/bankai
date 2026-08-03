@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { forgetShellTitle, noteShellTitle, shellTitles } from "@main/terminal/ShellTitles";
+import { forgetShellTitle, noteShellTitle, shellTitles } from "@main/terminal/shell-titles";
 
 const BEL = "\u0007";
 const ESC = "\u001b";

@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
-import type { Worktree } from "@main/git/contracts";
+import type { Worktree } from "@main/git/git-contracts";
 import type { AgentActivityState } from "@shared/activity";
 import { ReviewWorktree } from "@renderer/routes/-components/review-worktree";
 import { resolveReviewWorktree } from "@renderer/routes/-utils/review-worktree";

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { removeInstalledHooks, settingsWithoutBankaiHooks } from "@main/activity/hookRemoval";
+import { removeInstalledHooks, settingsWithoutBankaiHooks } from "@main/agents/harness/claude/claude-hooks";
 import { assertDefined } from "./utils/assertions";
 
 const CLAUDE_SCRIPT = "bankai-trace.sh";

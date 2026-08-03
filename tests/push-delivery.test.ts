@@ -1,20 +1,20 @@
 import { expect, test } from "bun:test";
-import { focusShell } from "@main/activity/ShellFocus";
+import { focusShell } from "@main/terminal/shell-focus";
 import {
 	type AttentionPushPayload,
 	attentionPushPayload,
 	PUSH_DEFAULT_TITLE,
 	PUSH_DONE_BODY,
-} from "@main/push/attention";
-import { pushNeedsAttention, pushTurnDone } from "@main/push/notifyAttention";
-import { deliverAttentionPush } from "@main/push/deliver";
-import type { PushDelivery, PushSender } from "@main/push/webPush";
+} from "@main/push/attention-push";
+import { pushNeedsAttention, pushTurnDone } from "@main/push/notify-attention";
+import { deliverAttentionPush } from "@main/push/push-delivery";
+import type { PushDelivery, PushSender } from "@main/push/web-push";
 import {
 	PUSH_SUBSCRIPTION_CAP,
 	type PushSubscription,
 	pushSubscriptionSchema,
 	PushSubscriptions,
-} from "@main/store/push";
+} from "@main/store/push-subscriptions";
 
 const vapid = async () => ({ publicKey: "public-key", privateKey: "private-key" });
 

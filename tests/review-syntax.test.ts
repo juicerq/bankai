@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { DiffLine } from "@main/git/contracts";
+import type { DiffLine } from "@main/git/git-contracts";
 import { reviewLanguage } from "@renderer/routes/-utils/review-language";
 import { highlightDiff } from "@renderer/routes/-utils/review-syntax";
 

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { type HeartbeatSocket, sweepSockets } from "@main/server/stream/heartbeat";
+import { type HeartbeatSocket, sweepSockets } from "@main/transport/stream/stream-heartbeat";
 
 class FakeSocket implements HeartbeatSocket {
 	pings = 0;

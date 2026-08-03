@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { DEV_DESKTOP_NAME, resolveDataDir, resolveInstanceIdentity } from "@main/store/paths";
+import { DEV_DESKTOP_NAME, resolveDataDir, resolveInstanceIdentity } from "@main/store/store-paths";
 import { assertDefined } from "./utils/assertions";
 
 describe("instance identity", () => {

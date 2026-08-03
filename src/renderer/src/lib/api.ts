@@ -2,7 +2,7 @@ import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
-import type { Router } from "@main/router";
+import type { Router } from "@main/transport/rpc/router";
 import { isBrowserClient } from "@renderer/lib/platform";
 import { reach } from "@renderer/lib/reach";
 import { streamSocket } from "@renderer/lib/stream/socket";

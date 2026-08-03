@@ -1,5 +1,5 @@
 import { Square3Stack3DIcon } from "@heroicons/react/24/outline";
-import type { Worktree } from "@main/git/contracts";
+import type { Worktree } from "@main/git/git-contracts";
 import type { AgentActivityState } from "@shared/activity";
 import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from "@renderer/routes/-components/dropdown-menu";
 import { ACTIVITY_DOT_CLASS } from "@renderer/routes/-utils/agent-activity";

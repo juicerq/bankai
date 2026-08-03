@@ -2,7 +2,7 @@ import { afterEach, describe, expect, jest, test } from "bun:test";
 import {
 	TERMINAL_DATA_FLUSH_MS,
 	TerminalDataBuffer,
-} from "@main/terminal/TerminalDataBuffer";
+} from "@main/terminal/buffer/terminal-data-buffer";
 
 afterEach(() => jest.useRealTimers());
 

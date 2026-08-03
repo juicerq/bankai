@@ -1,4 +1,4 @@
-import { Logger } from "@main/logger";
+import { Logger } from "@main/infra/logger";
 
 export interface StartupStep {
 	stage: string;

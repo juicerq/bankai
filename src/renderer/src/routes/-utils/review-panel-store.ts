@@ -1,5 +1,5 @@
 import { createStore } from "@tanstack/react-store";
-import type { ReviewMode } from "@main/git/contracts";
+import type { ReviewMode } from "@main/git/git-contracts";
 import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-utils/review-scope";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
 

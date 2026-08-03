@@ -1,4 +1,4 @@
-import type { DiffLine, FileChange, ReviewContent } from "@main/git/contracts";
+import type { DiffLine, FileChange, ReviewContent } from "@main/git/git-contracts";
 import { reviewContentNotice } from "@renderer/routes/-utils/review-notice";
 
 export const REVIEW_ROW_HEIGHT = { file: 32, line: 20, notice: 40 } as const;

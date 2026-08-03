@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { TerminalKey } from "@main/terminal/input";
+import type { TerminalKey } from "@main/terminal/terminal-input";
 import { problemText } from "@renderer/routes/-utils/problem-text";
 
 export const KEY_ACK_MS = 2000;

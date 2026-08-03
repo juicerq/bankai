@@ -1,6 +1,6 @@
 import { createHighlighterCore } from "@shikijs/core";
 import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
-import type { DiffLine } from "@main/git/contracts";
+import type { DiffLine } from "@main/git/git-contracts";
 import { REVIEW_LANGUAGE_LOADERS, type ReviewLanguage } from "@renderer/routes/-utils/review-language";
 
 const SYNTAX_TONES = ["plain", "comment", "keyword", "string", "constant", "entity", "type"] as const;

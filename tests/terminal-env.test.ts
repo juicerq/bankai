@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { terminalEnv } from "@main/terminal/env";
+import { terminalEnv } from "@main/terminal/terminal-env";
 
 describe("terminal environment", () => {
 	it("keeps the inherited environment a shell needs", () => {

@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { type } from "arktype";
-import { Store } from "@main/store/Store";
+import { Store } from "@main/store/store";
 import { DEFAULT_SESSION_NAMING } from "@shared/activity";
 import { SERVER_DEFAULT_PORT, SERVER_TOKEN_BYTES, type ServerReach } from "@shared/server";
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { closeLiveConnections, trackLiveConnection } from "@main/server/connections";
-import { regenerateServerToken } from "@main/server/reach";
+import { closeLiveConnections, trackLiveConnection } from "@main/transport/server/live-connections";
+import { regenerateServerToken } from "@main/transport/server/server-reach";
 
 function socket() {
 	const closes: { code?: number; reason?: string }[] = [];

@@ -1,4 +1,4 @@
-import type { FileChange } from "@main/git/contracts";
+import type { FileChange } from "@main/git/git-contracts";
 
 export const STATUS_MARK: Record<FileChange["status"], string> = {
 	modified: "M",

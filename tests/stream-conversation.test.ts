@@ -4,10 +4,10 @@ import { join } from "node:path";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { type } from "arktype";
 import { WebSocket } from "ws";
-import { transcriptPath } from "@main/activity/claudeTranscript";
-import { CONVERSATION_BACKFILL_BYTES } from "@main/activity/conversationTail";
-import { StreamConnection } from "@main/server/stream/connection";
-import { handleConversationMessage } from "@main/server/stream/conversation";
+import { transcriptPath } from "@main/agents/harness/claude/claude-transcript";
+import { CONVERSATION_BACKFILL_BYTES } from "@main/agents/transcript/conversation-tail";
+import { StreamConnection } from "@main/transport/stream/stream-connection";
+import { handleConversationMessage } from "@main/transport/stream/conversation-messages";
 import type { StreamEnvelope } from "@shared/stream";
 import { assertDefined } from "./utils/assertions";
 

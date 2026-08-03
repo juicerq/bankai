@@ -1,6 +1,6 @@
 import { keepPreviousData, type QueryClient, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useSyncExternalStore } from "react";
-import type { FileChange, FullFile, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/contracts";
+import type { FileChange, FullFile, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/git-contracts";
 import { orpc } from "@renderer/lib/api";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { reviewStream } from "@renderer/lib/stream/review";

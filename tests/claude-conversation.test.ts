@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { CONVERSATION_LINE_LIMIT, ConversationParser } from "@main/activity/claudeConversation";
+import { CONVERSATION_LINE_LIMIT, ConversationParser } from "@main/agents/harness/claude/claude-conversation";
 import type { ConversationBlock } from "@shared/conversation";
 
 function userRecord(content: unknown, extra: Record<string, unknown> = {}): string {

@@ -1,6 +1,6 @@
 import { FolderIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
-import type { ProjectCommand, ProjectCommandDraft } from "@main/store/commands";
+import type { ProjectCommand, ProjectCommandDraft } from "@main/store/project-commands";
 import type { Project } from "@main/store/projects";
 import { DropdownMenu, DropdownMenuItem } from "@renderer/routes/-components/dropdown-menu";
 import { Switch } from "@renderer/routes/-components/settings-controls";

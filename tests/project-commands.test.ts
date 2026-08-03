@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { commandDraftSchema, ProjectCommands } from "@main/store/commands";
+import { commandDraftSchema, ProjectCommands } from "@main/store/project-commands";
 import { assertDefined } from "./utils/assertions";
 
 describe("project commands", () => {

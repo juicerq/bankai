@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import type { ProjectCommand } from "@main/store/commands";
+import type { ProjectCommand } from "@main/store/project-commands";
 import type { ContinuityValue } from "@main/store/continuity";
 import { orpc } from "@renderer/lib/api";
 import { newId } from "@renderer/lib/id";

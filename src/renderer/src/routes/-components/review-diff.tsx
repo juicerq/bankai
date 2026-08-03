@@ -1,6 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject, type UIEvent } from "react";
-import type { FileChange, ReviewContent, ReviewMode } from "@main/git/contracts";
+import type { FileChange, ReviewContent, ReviewMode } from "@main/git/git-contracts";
 import { ReviewFileHeader } from "@renderer/routes/-components/review-file-header";
 import { ReviewDiffLine, ReviewNotice } from "@renderer/routes/-components/review-line";
 import {

@@ -2,11 +2,11 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { type DiffLine, type ReviewContent } from "@main/git/contracts";
-import { FULL_FILE_MAX_LINES, Git } from "@main/git/Git";
-import { captureTurnBaseline, turnBaselines } from "@main/git/TurnBaseline";
-import { GIT_OUTPUT_MAX_BYTES } from "@main/git/run";
-import { readWorktrees } from "@main/git/Worktrees";
+import { type DiffLine, type ReviewContent } from "@main/git/git-contracts";
+import { FULL_FILE_MAX_LINES, Git } from "@main/git/git";
+import { captureTurnBaseline, turnBaselines } from "@main/git/review/turn-baseline";
+import { GIT_OUTPUT_MAX_BYTES } from "@main/git/git-run";
+import { readWorktrees } from "@main/git/worktree/worktrees";
 import { assertDefined } from "./utils/assertions";
 
 function git(cwd: string, ...args: string[]): void {

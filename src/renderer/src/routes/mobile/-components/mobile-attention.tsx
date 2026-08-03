@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { TerminalKey } from "@main/terminal/input";
+import type { TerminalKey } from "@main/terminal/terminal-input";
 import { ACTIVITY_LABEL } from "@renderer/routes/-utils/agent-activity";
 import { useKeyAck } from "@renderer/routes/mobile/-utils/use-key-ack";
 

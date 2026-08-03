@@ -1,6 +1,6 @@
 import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import type { ProjectCommand, ProjectCommandDraft } from "@main/store/commands";
+import type { ProjectCommand, ProjectCommandDraft } from "@main/store/project-commands";
 import type { Project } from "@main/store/projects";
 import { orpc } from "@renderer/lib/api";
 

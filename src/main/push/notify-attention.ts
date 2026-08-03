@@ -1,0 +1,54 @@
+import { shellFocused } from "@main/terminal/shell-focus";
+import { attentionPushPayload, donePushPayload } from "@main/push/attention-push";
+import { deliverAttentionPush } from "@main/push/push-delivery";
+import { type PushSender, sendWebPush, vapidKeys } from "@main/push/web-push";
+import { Continuity } from "@main/store/continuity";
+import { Projects } from "@main/store/projects";
+
+export const mobileTurnShells = new Set<string>();
+
+export async function pushNeedsAttention(
+	input: { projectId: string; shellId: string },
+	send: PushSender = sendWebPush,
+): Promise<void> {
+	if (!mobileTurnShells.has(input.shellId) && shellFocused(input.shellId)) {
+		return;
+	}
+
+	const shell = await Continuity.findShell(input);
+
+	await deliverAttentionPush({
+		payload: attentionPushPayload({
+			shellId: input.shellId,
+			...(shell?.title ? { title: shell.title } : {}),
+			...(shell?.branch ? { branch: shell.branch } : {}),
+		}),
+		vapid: vapidKeys,
+		send,
+	});
+}
+
+export async function pushTurnDone(
+	input: { projectId: string; shellId: string },
+	send: PushSender = sendWebPush,
+): Promise<void> {
+	const mobileTurn = mobileTurnShells.delete(input.shellId);
+
+	if (!mobileTurn && shellFocused(input.shellId)) {
+		return;
+	}
+
+	const shell = await Continuity.findShell(input);
+	const project = (await Projects.list()).find((candidate) => candidate.id === input.projectId);
+
+	await deliverAttentionPush({
+		payload: donePushPayload({
+			shellId: input.shellId,
+			...(shell?.title ? { title: shell.title } : {}),
+			...(shell?.branch ? { branch: shell.branch } : {}),
+			...(project ? { project: project.name } : {}),
+		}),
+		vapid: vapidKeys,
+		send,
+	});
+}

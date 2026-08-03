@@ -1,17 +1,17 @@
 import { join } from "node:path";
-import { startAgentActivity } from "@main/activity/start";
-import { GitProcess } from "@main/git/GitProcess";
-import { Logger } from "@main/logger";
-import { startLoopbackServer } from "@main/server";
-import { serverReach } from "@main/server/reach";
-import { Services } from "@main/services/Services";
+import { startAgentActivity } from "@main/agents/start-agent-activity";
+import { GitProcess } from "@main/git/git-process";
+import { Logger } from "@main/infra/logger";
+import { startLoopbackServer } from "@main/transport/server/bankai-server";
+import { serverReach } from "@main/transport/server/server-reach";
+import { Services } from "@main/services";
 import { markStartup, scheduleStartupReport } from "@main/startup";
-import { resolveInstanceIdentity } from "@main/store/paths";
+import { resolveInstanceIdentity } from "@main/store/store-paths";
 import { type SettingsValue, Settings } from "@main/store/settings";
-import { restoreTailnetAccess } from "@main/tailscale/mobileAccess";
-import { setupUpdateIpc } from "@main/update/ipc";
-import { setupDesktopAttention } from "@main/window/attention";
-import { publishMaximizedState, setupWindowIpc } from "@main/window/ipc";
+import { restoreTailnetAccess } from "@main/infra/tailscale/mobile-access";
+import { setupUpdateIpc } from "@main/desktop/update-ipc";
+import { setupDesktopAttention } from "@main/desktop/desktop-attention";
+import { publishMaximizedState, setupWindowIpc } from "@main/desktop/desktop-window";
 import { AUTH_IPC } from "@shared/server";
 import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 

@@ -1,11 +1,11 @@
 import { expect, spyOn, test } from "bun:test";
 import { WebSocket } from "ws";
-import { AgentActivity } from "@main/activity/AgentActivity";
-import { StreamConnection } from "@main/server/stream/connection";
-import { detachOnClose, handleTerminalMessage } from "@main/server/stream/terminal";
+import { AgentActivity } from "@main/agents/agent-activity";
+import { StreamConnection } from "@main/transport/stream/stream-connection";
+import { detachOnClose, handleTerminalMessage } from "@main/transport/stream/terminal-messages";
 import { Continuity } from "@main/store/continuity";
-import { shellProcesses, type TerminalProcess } from "@main/terminal/ShellProcesses";
-import { TERMINAL_DATA_FLUSH_MS } from "@main/terminal/TerminalDataBuffer";
+import { shellProcesses, type TerminalProcess } from "@main/terminal/shell-processes";
+import { TERMINAL_DATA_FLUSH_MS } from "@main/terminal/buffer/terminal-data-buffer";
 import type { StreamEnvelope } from "@shared/stream";
 import type { TerminalStreamEvent } from "@shared/terminal";
 

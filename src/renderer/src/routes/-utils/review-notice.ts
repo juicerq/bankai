@@ -1,4 +1,4 @@
-import type { ReviewContent } from "@main/git/contracts";
+import type { ReviewContent } from "@main/git/git-contracts";
 
 export function reviewContentNotice({
 	content,

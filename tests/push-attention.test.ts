@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { doneEntryShells } from "@main/activity/AgentActivity";
-import { focusShell, shellFocused } from "@main/activity/ShellFocus";
+import { doneEntryShells } from "@main/agents/agent-activity";
+import { focusShell, shellFocused } from "@main/terminal/shell-focus";
 import type { AgentActivityState } from "@shared/activity";
 import {
 	attentionPushPayload,
@@ -9,13 +9,13 @@ import {
 	PUSH_DEFAULT_TITLE,
 	PUSH_DONE_BODY,
 	subscriptionGone,
-} from "@main/push/attention";
-import { mobileTurnShells, pushNeedsAttention, pushTurnDone } from "@main/push/notifyAttention";
-import type { PushSender } from "@main/push/webPush";
-import { StreamConnection } from "@main/server/stream/connection";
-import { handleTerminalMessage } from "@main/server/stream/terminal";
-import { PushSubscriptions } from "@main/store/push";
-import { shellProcesses } from "@main/terminal/ShellProcesses";
+} from "@main/push/attention-push";
+import { mobileTurnShells, pushNeedsAttention, pushTurnDone } from "@main/push/notify-attention";
+import type { PushSender } from "@main/push/web-push";
+import { StreamConnection } from "@main/transport/stream/stream-connection";
+import { handleTerminalMessage } from "@main/transport/stream/terminal-messages";
+import { PushSubscriptions } from "@main/store/push-subscriptions";
+import { shellProcesses } from "@main/terminal/shell-processes";
 
 const SHELL_ID = "shell-a";
 

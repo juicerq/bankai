@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { parseSessionRecord } from "@main/activity/claude";
-import { reconcileSessionRefs, type SessionRef } from "@main/activity/SessionRefs";
+import { parseSessionRecord } from "@main/agents/harness/claude/claude-harness";
+import { reconcileSessionRefs, type SessionRef } from "@main/agents/session/session-refs";
 import { assertDefined } from "./utils/assertions";
 
 const BUSY_RECORD =

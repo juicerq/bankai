@@ -5,7 +5,7 @@ import {
 	ChevronRightIcon,
 	FolderIcon,
 } from "@heroicons/react/24/outline";
-import type { ReviewMode } from "@main/git/contracts";
+import type { ReviewMode } from "@main/git/git-contracts";
 import { ReviewScope } from "@renderer/routes/-components/review-scope";
 import { ReviewWorktree, type ReviewWorktreeSelection } from "@renderer/routes/-components/review-worktree";
 

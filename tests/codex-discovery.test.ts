@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { codexPresence } from "@main/activity/codex";
-import { CODEX_HARNESS_ID } from "@main/activity/harnessIds";
-import { IDLE_ROLLOUT } from "@main/activity/codexRollout";
+import { codexPresence } from "@main/agents/harness/codex/codex-harness";
+import { CODEX_HARNESS_ID } from "@main/agents/harness/harness-ids";
+import { IDLE_ROLLOUT } from "@main/agents/harness/codex/codex-rollout";
 
 const SESSION = "019fb811-0fc5-7a41-a882-c9124384c979";
 

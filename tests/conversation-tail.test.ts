@@ -2,7 +2,7 @@ import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "bun:test";
-import { CONVERSATION_BACKFILL_BYTES, ConversationTail } from "@main/activity/conversationTail";
+import { CONVERSATION_BACKFILL_BYTES, ConversationTail } from "@main/agents/transcript/conversation-tail";
 import type { ConversationBlock } from "@shared/conversation";
 
 const directories: string[] = [];

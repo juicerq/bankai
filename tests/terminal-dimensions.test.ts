@@ -4,7 +4,7 @@ import {
 	TERMINAL_MAX_ROWS,
 	terminalColumnsSchema,
 	terminalRowsSchema,
-} from "@main/terminal/dimensions";
+} from "@main/terminal/terminal-dimensions";
 
 describe("terminal dimensions", () => {
 	it("accepts the practical node-pty boundaries", () => {

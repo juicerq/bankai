@@ -2,12 +2,12 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { transcriptPath } from "@main/activity/claudeTranscript";
-import { stampShell } from "@main/continuity/ShellFacts";
-import { branchLabel } from "@main/git/branch";
+import { transcriptPath } from "@main/agents/harness/claude/claude-transcript";
+import { stampShell } from "@main/agents/session/shell-facts";
+import { branchLabel } from "@main/git/branch-label";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
-import { forgetShellTitle, noteShellTitle } from "@main/terminal/ShellTitles";
+import { forgetShellTitle, noteShellTitle } from "@main/terminal/shell-titles";
 import { assertDefined } from "./utils/assertions";
 
 function directory(name: string): string {

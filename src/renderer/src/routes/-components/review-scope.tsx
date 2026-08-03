@@ -1,5 +1,5 @@
 import { ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
-import type { ReviewMode } from "@main/git/contracts";
+import type { ReviewMode } from "@main/git/git-contracts";
 import { DropdownMenu, DropdownMenuItem } from "@renderer/routes/-components/dropdown-menu";
 import { REVIEW_SCOPE_ORDER, REVIEW_SCOPES, sharedWorktreeNotice } from "@renderer/routes/-utils/review-scope";
 

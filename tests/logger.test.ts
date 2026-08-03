@@ -2,7 +2,7 @@ import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type } from "arktype";
 import { describe, expect, it } from "bun:test";
-import { LOGGER_MAX_SIZE_BYTES, Logger } from "@main/logger";
+import { LOGGER_MAX_SIZE_BYTES, Logger } from "@main/infra/logger";
 import { assertDefined } from "./utils/assertions";
 
 describe("logger", () => {

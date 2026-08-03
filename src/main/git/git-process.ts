@@ -10,20 +10,14 @@ import {
 	type FullFile,
 	type ReviewContent,
 	type ReviewFiles,
-	type ReviewMode,
 	type ReviewSnapshot,
 	type Worktree,
 } from "@main/git/git-contracts";
 import { gitResponseSchema, type GitRequest } from "@main/git/git-protocol";
+import type { ReviewScope } from "@main/git/review-base";
 import { Logger } from "@main/infra/logger";
 
 const require = createRequire(import.meta.url);
-
-interface ReviewScope {
-	path: string;
-	mode: ReviewMode;
-	shellId?: string;
-}
 
 type GitRequestInput =
 	| ({ operation: "snapshot" } & ReviewScope)

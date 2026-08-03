@@ -3,8 +3,9 @@ import { Logger } from "@main/logger";
 import { mobileTurnShells } from "@main/push/notifyAttention";
 import type { StreamConnection } from "@main/server/stream/connection";
 import { TerminalSchemas } from "@main/server/stream/messages";
+import { Continuity } from "@main/store/continuity";
 import { bracketedPaste, TERMINAL_KEY_BYTES } from "@main/terminal/input";
-import type { ShellAttachment } from "@main/terminal/ShellProcesses";
+import type { ShellAttachment, ShellRef } from "@main/terminal/ShellProcesses";
 import { shellProcesses } from "@main/terminal/ShellProcesses";
 import { TerminalSessions } from "@main/terminal/TerminalSessions";
 import type { StreamEnvelope } from "@shared/stream";
@@ -43,8 +44,14 @@ export async function handleTerminalMessage(
 				shellProcesses.write(input.sessionId, input.data);
 
 				const ref = shellProcesses.shellOf(input.sessionId);
-				if (ref) {
-					mobileTurnShells.delete(ref.shellId);
+				if (!ref) {
+					return;
+				}
+
+				mobileTurnShells.delete(ref.shellId);
+
+				if (submitsTurn(input.data)) {
+					void unarchiveSender(ref);
 				}
 			});
 		}
@@ -79,13 +86,19 @@ export async function handleTerminalMessage(
 			shellProcesses.write(sessionId, bracketedPaste(input.text));
 			shellProcesses.write(sessionId, "\r");
 			mobileTurnShells.add(input.shellId);
+			await unarchiveSender({ projectId: input.projectId, shellId: input.shellId });
 
 			return undefined;
 		}
 		case "key": {
 			const input = TerminalSchemas.key.assert(message.payload);
-			shellProcesses.write(liveSession(input), TERMINAL_KEY_BYTES[input.key]);
+			const bytes = TERMINAL_KEY_BYTES[input.key];
+			shellProcesses.write(liveSession(input), bytes);
 			mobileTurnShells.add(input.shellId);
+
+			if (submitsTurn(bytes)) {
+				await unarchiveSender(input);
+			}
 
 			return undefined;
 		}
@@ -98,6 +111,25 @@ export function detachOnClose(connection: StreamConnection, attached: TerminalAt
 	connection.onClose(() => shellProcesses.detach(attached.sessionId, connection.id));
 
 	return attached;
+}
+
+function submitsTurn(data: string): boolean {
+	return data.includes("\r") || data.includes("\n");
+}
+
+function unarchiveSender(ref: ShellRef): Promise<void> {
+	return unarchive(ref).catch((err) => {
+		Logger.error("terminal:unarchive-failed", { ...ref, err: String(err) });
+	});
+}
+
+async function unarchive(ref: ShellRef): Promise<void> {
+	const shell = await Continuity.findShell(ref);
+	if (!shell?.archivedAt) {
+		return;
+	}
+
+	await Continuity.unarchiveShell(ref);
 }
 
 function liveSession(address: { projectId: string; shellId: string }): string {

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { type IPty, spawn } from "node-pty";
 import { Logger } from "@main/logger";
 import { terminalEnv } from "@main/terminal/env";
@@ -38,7 +39,10 @@ export const ShellSpawn = {
 			process: {
 				pid: terminal.pid,
 				write: (data) => terminal.write(data),
-				resize: (cols, rows) => terminal.resize(cols, rows),
+				resize: (cols, rows) => {
+					terminal.resize(cols, rows);
+					forwardResizeSignal(terminal.pid);
+				},
 				kill: (signal) => kill(terminal, input.killGroup === true, signal),
 			},
 		});
@@ -54,6 +58,20 @@ export const ShellSpawn = {
 		return { sessionId, pid: terminal.pid };
 	},
 };
+
+function forwardResizeSignal(shellPid: number): void {
+	if (process.platform !== "linux") {
+		return;
+	}
+
+	readFile(`/proc/${shellPid}/task/${shellPid}/children`, "utf8")
+		.then((children) => {
+			for (const child of children.split(" ").filter(Boolean)) {
+				process.kill(Number(child), "SIGWINCH");
+			}
+		})
+		.catch(() => {});
+}
 
 function kill(terminal: IPty, group: boolean, signal?: string): void {
 	if (!group) {

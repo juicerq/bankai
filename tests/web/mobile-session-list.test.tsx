@@ -27,6 +27,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		createdAt: NOW,
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
+		pinnedAt: undefined,
 		activity: undefined,
 		since: undefined,
 		...patch,
@@ -46,6 +47,8 @@ function renderList(
 		onRename?: (projectId: string, shellId: string, title: string) => void;
 		onArchive?: (projectId: string, shellId: string) => void;
 		onUnarchive?: (projectId: string, shellId: string) => void;
+		onPin?: (projectId: string, shellId: string) => void;
+		onUnpin?: (projectId: string, shellId: string) => void;
 		onCloseSession?: (projectId: string, shellId: string) => void;
 	} = {},
 ) {
@@ -62,6 +65,8 @@ function renderList(
 			onRename={options.onRename ?? (() => {})}
 			onArchive={options.onArchive ?? (() => {})}
 			onUnarchive={options.onUnarchive ?? (() => {})}
+			onPin={options.onPin ?? (() => {})}
+			onUnpin={options.onUnpin ?? (() => {})}
 			onCloseSession={options.onCloseSession ?? (() => {})}
 		/>,
 	);

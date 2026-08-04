@@ -19,6 +19,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		createdAt: NOW,
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
+		pinnedAt: undefined,
 		activity: undefined,
 		since: undefined,
 		...patch,

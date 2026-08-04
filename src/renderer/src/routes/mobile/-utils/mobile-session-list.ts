@@ -4,11 +4,12 @@ import { partitionSessions, type SessionRow } from "@renderer/routes/-utils/sess
 
 const ATTENTION_RANK: Record<AgentActivityState, number> = {
 	"needs-attention": 0,
-	working: 1,
-	"done": 2,
+	working: 2,
+	"done": 3,
 };
 
-const IDLE_RANK = 3;
+const PINNED_RANK = 1;
+const IDLE_RANK = 4;
 
 function attentionRank(activity: AgentActivityState | undefined): number {
 	if (!activity) {
@@ -16,6 +17,16 @@ function attentionRank(activity: AgentActivityState | undefined): number {
 	}
 
 	return ATTENTION_RANK[activity];
+}
+
+function listRank(row: SessionRow): number {
+	const attention = attentionRank(row.activity);
+
+	if (row.pinnedAt === undefined) {
+		return attention;
+	}
+
+	return Math.min(attention, PINNED_RANK);
 }
 
 export function mobileSessionList({
@@ -38,7 +49,7 @@ export function mobileSessionList({
 	const chosen = (row: SessionRow) => chosenProjectIds.size === 0 || chosenProjectIds.has(row.projectId);
 
 	return {
-		sessions: open.filter(chosen).sort((left, right) => attentionRank(left.activity) - attentionRank(right.activity)),
+		sessions: open.filter(chosen).sort((left, right) => listRank(left) - listRank(right)),
 		archived: archived.filter(chosen),
 		projects: [...projects].sort((left, right) => left.name.localeCompare(right.name)),
 		projectActivity: topActivityByProject(open),

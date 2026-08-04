@@ -27,6 +27,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		createdAt: NOW,
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
+		pinnedAt: undefined,
 		activity: undefined,
 		since: undefined,
 		...patch,
@@ -41,6 +42,8 @@ function renderSidebar(
 		onClose?: (projectId: string, shellId: string) => void;
 		onArchive?: (projectId: string, shellId: string) => void;
 		onUnarchive?: (projectId: string, shellId: string) => void;
+		onPin?: (projectId: string, shellId: string) => void;
+		onUnpin?: (projectId: string, shellId: string) => void;
 		onRename?: (projectId: string, shellId: string, title: string) => void;
 		onRequestShell?: (plain: boolean) => void;
 		onToggleProject?: (projectId: string) => void;
@@ -76,6 +79,8 @@ function renderSidebar(
 				onClose={handlers.onClose ?? (() => {})}
 				onArchive={handlers.onArchive ?? (() => {})}
 				onUnarchive={handlers.onUnarchive ?? (() => {})}
+				onPin={handlers.onPin ?? (() => {})}
+				onUnpin={handlers.onUnpin ?? (() => {})}
 				onRename={handlers.onRename ?? (() => {})}
 				footer={null}
 			/>
@@ -420,7 +425,42 @@ test("the row archive box files the session without closing it", () => {
 	expect(closed).toEqual([]);
 });
 
-test("the row menu holds new shell, rename, archive and close", () => {
+test("the row bookmark pins the session and the row then offers to unpin it", () => {
+	const pinned: string[] = [];
+	const unpinned: string[] = [];
+	const handlers = {
+		onPin: (projectId: string, shellId: string) => pinned.push(`${projectId}/${shellId}`),
+		onUnpin: (projectId: string, shellId: string) => unpinned.push(`${projectId}/${shellId}`),
+	};
+
+	renderSidebar({ open: [row("s1", { projectId: "p2" })] }, handlers);
+	fireEvent.click(slot(sessionRow("s1"), "pin-session"));
+
+	expect(pinned).toEqual(["p2/s1"]);
+
+	cleanup();
+	renderSidebar({ open: [row("s1", { projectId: "p2", pinnedAt: NOW })] }, handlers);
+	fireEvent.click(slot(sessionRow("s1"), "unpin-session"));
+
+	expect(unpinned).toEqual(["p2/s1"]);
+});
+
+test("a pinned row carries its mark and an archived row offers no pin at all", () => {
+	renderSidebar({ open: [row("s1", { pinnedAt: NOW })], archived: [row("s2", { archivedAt: NOW })] });
+
+	expect(slot(sessionRow("s1"), "pinned-mark")).toBeDefined();
+	expect(sessionRow("s2").querySelector('[data-slot="pin-session"]')).toBeNull();
+});
+
+test("the menu of a pinned row offers to unpin it", () => {
+	renderSidebar({ open: [row("s1", { pinnedAt: NOW })] });
+
+	fireEvent.contextMenu(sessionRow("s1"));
+
+	expect(menuItems().map((item) => item.textContent)).toContain("Unpin");
+});
+
+test("the row menu holds new shell, rename, pin, archive and close", () => {
 	renderSidebar({ open: [row("s1")] });
 
 	fireEvent.contextMenu(sessionRow("s1"));
@@ -428,6 +468,7 @@ test("the row menu holds new shell, rename, archive and close", () => {
 	expect(menuItems().map((item) => item.textContent)).toEqual([
 		"New shell in this project",
 		"Rename",
+		"Pin",
 		"Archive",
 		"Close",
 	]);

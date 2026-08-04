@@ -28,6 +28,8 @@ function MobileSurface() {
 			onRename: sessions.renameShell,
 			onArchive: sessions.archiveShell,
 			onUnarchive: sessions.unarchiveShell,
+			onPin: sessions.pinShell,
+			onUnpin: sessions.unpinShell,
 			onCloseSession: sessions.closeShell,
 		}),
 		[
@@ -38,6 +40,8 @@ function MobileSurface() {
 			sessions.renameShell,
 			sessions.archiveShell,
 			sessions.unarchiveShell,
+			sessions.pinShell,
+			sessions.unpinShell,
 			sessions.closeShell,
 		],
 	);

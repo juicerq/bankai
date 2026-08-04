@@ -59,11 +59,11 @@ function idleSince(shell: ContinuityShell): number {
 function isOpen(shell: ContinuityShell, now: number): boolean {
 	return (
 		shell.archivedAt === undefined &&
-		(shell.doneAt !== undefined || idleSince(shell) >= now - SESSION_AUTO_ARCHIVE_MS)
+		(shell.pinnedAt !== undefined || shell.doneAt !== undefined || idleSince(shell) >= now - SESSION_AUTO_ARCHIVE_MS)
 	);
 }
 
-function pinnedIfStale(shell: ContinuityShell, now: number): ContinuityShell {
+function archivedIfStale(shell: ContinuityShell, now: number): ContinuityShell {
 	if (shell.archivedAt !== undefined || isOpen(shell, now)) {
 		return shell;
 	}
@@ -165,11 +165,11 @@ export const ContinuityReducers = {
 			return value;
 		}
 
-		return mapShell(withSelection(value, input.shellId), input, (shell) => pinnedIfStale(shell, input.now));
+		return mapShell(withSelection(value, input.shellId), input, (shell) => archivedIfStale(shell, input.now));
 	},
 
 	archiveShell: (value: ContinuityValue, input: ShellAddress & { now: number }): ContinuityValue => {
-		const archived = mapShell(value, input, ({ doneAt: _doneAt, ...shell }) => ({
+		const archived = mapShell(value, input, ({ doneAt: _doneAt, pinnedAt: _pinnedAt, ...shell }) => ({
 			...shell,
 			archivedAt: input.now,
 		}));
@@ -183,6 +183,12 @@ export const ContinuityReducers = {
 
 	unarchiveShell: (value: ContinuityValue, input: ShellAddress & { now: number }): ContinuityValue =>
 		mapShell(value, input, ({ archivedAt: _archivedAt, ...shell }) => ({ ...shell, lastTouchedAt: input.now })),
+
+	pinShell: (value: ContinuityValue, input: ShellAddress & { now: number }): ContinuityValue =>
+		mapShell(value, input, (shell) => ({ ...shell, pinnedAt: input.now })),
+
+	unpinShell: (value: ContinuityValue, input: ShellAddress): ContinuityValue =>
+		mapShell(value, input, ({ pinnedAt: _pinnedAt, ...shell }) => shell),
 
 	renameShell: (value: ContinuityValue, input: ShellAddress & { title: string }): ContinuityValue =>
 		mapShell(value, input, (shell) => ({ ...shell, title: input.title, titleSource: "user" })),

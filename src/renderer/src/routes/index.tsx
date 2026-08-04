@@ -385,6 +385,8 @@ function Bankai() {
 					onClose={sessions.closeShell}
 					onArchive={sessions.archiveShell}
 					onUnarchive={sessions.unarchiveShell}
+					onPin={sessions.pinShell}
+					onUnpin={sessions.unpinShell}
 					onRename={sessions.renameShell}
 					footer={
 						<>

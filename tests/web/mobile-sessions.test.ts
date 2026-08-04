@@ -18,6 +18,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		createdAt: NOW,
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
+		pinnedAt: undefined,
 		activity: undefined,
 		since: undefined,
 		...patch,
@@ -38,6 +39,18 @@ test("attention comes first, then work, then what finished", () => {
 	];
 
 	expect(order(rows)).toEqual(["waiting", "working", "done", "idle"]);
+});
+
+test("a pinned session outranks everything but a session asking for attention", () => {
+	const rows = [
+		row("idle"),
+		row("done", { activity: "done" }),
+		row("pinned", { pinnedAt: NOW }),
+		row("working", { activity: "working" }),
+		row("waiting", { activity: "needs-attention" }),
+	];
+
+	expect(order(rows)).toEqual(["waiting", "pinned", "working", "done", "idle"]);
 });
 
 test("sessions of different projects interleave by attention, never grouped by project", () => {

@@ -66,6 +66,12 @@ export const continuityRouter = {
 	unarchiveShell: base
 		.input(type({ projectId: "string", shellId: "string" }))
 		.handler(({ input }) => Continuity.unarchiveShell(input)),
+	pinShell: base
+		.input(type({ projectId: "string", shellId: "string" }))
+		.handler(({ input }) => Continuity.pinShell(input)),
+	unpinShell: base
+		.input(type({ projectId: "string", shellId: "string" }))
+		.handler(({ input }) => Continuity.unpinShell(input)),
 	selectShell: base
 		.input(type({ projectId: "string", shellId: "string" }))
 		.handler(async ({ input }) => {

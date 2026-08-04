@@ -21,6 +21,8 @@ export function MobileSessionList({
 	onRename,
 	onArchive,
 	onUnarchive,
+	onPin,
+	onUnpin,
 	onCloseSession,
 }: {
 	sessions: SessionRow[];
@@ -34,6 +36,8 @@ export function MobileSessionList({
 	onRename: (projectId: string, shellId: string, title: string) => void;
 	onArchive: (projectId: string, shellId: string) => void;
 	onUnarchive: (projectId: string, shellId: string) => void;
+	onPin: (projectId: string, shellId: string) => void;
+	onUnpin: (projectId: string, shellId: string) => void;
 	onCloseSession: (projectId: string, shellId: string) => void;
 }) {
 	const [held, setHeld] = useState<{ row: SessionRow; archived: boolean }>();
@@ -83,6 +87,8 @@ export function MobileSessionList({
 					onRename={onRename}
 					onArchive={onArchive}
 					onUnarchive={onUnarchive}
+					onPin={onPin}
+					onUnpin={onUnpin}
 					onCloseSession={onCloseSession}
 					onDismiss={() => setHeld(undefined)}
 				/>

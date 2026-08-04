@@ -22,6 +22,7 @@ const shellSchema = type({
 	"titleSource?": "'user' | 'published' | 'model'",
 	"namings?": "number",
 	"archivedAt?": "number",
+	"pinnedAt?": "number",
 	"doneAt?": "number",
 	"plain?": "boolean",
 	"launch?": "string",
@@ -95,7 +96,7 @@ const selectionPerWorkspaceSchema = type({
 	),
 );
 
-export const CONTINUITY_STORE_VERSION = 8;
+export const CONTINUITY_STORE_VERSION = 9;
 
 const store = new Store({
 	name: "continuity",
@@ -109,6 +110,7 @@ const store = new Store({
 		5: (raw) => selectionPerWorkspaceSchema.assert(raw),
 		6: (raw) => raw,
 		7: (raw) => raw,
+		8: (raw) => raw,
 	},
 	seed: (): ContinuityValue => ({ workspaces: [] }),
 });
@@ -168,6 +170,12 @@ export const Continuity = {
 
 	unarchiveShell: (input: ShellAddress): Promise<ContinuityValue> =>
 		mutate((current) => ContinuityReducers.unarchiveShell(current, { ...input, now: Date.now() })),
+
+	pinShell: (input: ShellAddress): Promise<ContinuityValue> =>
+		mutate((current) => ContinuityReducers.pinShell(current, { ...input, now: Date.now() })),
+
+	unpinShell: (input: ShellAddress): Promise<ContinuityValue> =>
+		mutate((current) => ContinuityReducers.unpinShell(current, input)),
 
 	renameShell: (input: ShellAddress & { title: string }): Promise<ContinuityValue> =>
 		mutate((current) => ContinuityReducers.renameShell(current, input)),

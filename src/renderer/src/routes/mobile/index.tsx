@@ -35,6 +35,8 @@ function MobileSessions() {
 			onRename={surface.onRename}
 			onArchive={surface.onArchive}
 			onUnarchive={surface.onUnarchive}
+			onPin={surface.onPin}
+			onUnpin={surface.onUnpin}
 			onCloseSession={surface.onCloseSession}
 		/>
 	);

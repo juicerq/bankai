@@ -226,6 +226,7 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 		createdAt: NOW,
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
+		pinnedAt: undefined,
 		activity: undefined,
 		since: undefined,
 		...patch,
@@ -275,6 +276,28 @@ describe("splitting the open list from the archive", () => {
 		const busy = row("busy", { lastTouchedAt: NOW - SESSION_AUTO_ARCHIVE_MS - 1, activity: "working" });
 
 		expect(partitionSessions([busy], NOW).open.map((entry) => entry.shellId)).toEqual(["busy"]);
+	});
+
+	test("a pin holds a stale session open for good", () => {
+		const kept = row("kept", { lastTouchedAt: NOW - SESSION_AUTO_ARCHIVE_MS - 1, pinnedAt: NOW - 1 });
+
+		expect(partitionSessions([kept], NOW).open.map((entry) => entry.shellId)).toEqual(["kept"]);
+	});
+
+	test("pinned sessions lead the open list without reordering each other", () => {
+		const rows = [
+			row("loose-first"),
+			row("pinned-first", { pinnedAt: NOW }),
+			row("loose-last"),
+			row("pinned-last", { pinnedAt: NOW - 500 }),
+		];
+
+		expect(partitionSessions(rows, NOW).open.map((entry) => entry.shellId)).toEqual([
+			"pinned-first",
+			"pinned-last",
+			"loose-first",
+			"loose-last",
+		]);
 	});
 
 	test("done holds a stale session open until the user resolves it", () => {

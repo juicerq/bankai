@@ -22,6 +22,7 @@ function row(shellId: string, harness: string): SessionRow {
 		createdAt: NOW,
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
+		pinnedAt: undefined,
 		activity: undefined,
 		since: undefined,
 	};
@@ -52,6 +53,8 @@ function renderCards(selectedShellId?: string) {
 			onClose={() => {}}
 			onArchive={() => {}}
 			onUnarchive={() => {}}
+			onPin={() => {}}
+			onUnpin={() => {}}
 			onRename={() => {}}
 			footer={null}
 		/>,

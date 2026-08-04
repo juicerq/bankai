@@ -1,3 +1,4 @@
+import { BookmarkIcon } from "@heroicons/react/24/outline";
 import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
 import { ACTIVITY_BORDER_CLASS, ACTIVITY_LABEL, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
 import type { SessionRow } from "@renderer/routes/-utils/session-rows";
@@ -30,7 +31,17 @@ export function MobileSessionCard({
 				}
 			}}
 		>
-			<span className="w-full truncate text-data text-secondary">{row.projectName}</span>
+			<span className="flex w-full items-center gap-2 text-data text-secondary">
+				{row.pinnedAt !== undefined && (
+					<BookmarkIcon
+						data-slot="pinned-mark"
+						role="img"
+						aria-label="Pinned"
+						className="size-3 shrink-0 text-tertiary"
+					/>
+				)}
+				<span className="min-w-0 truncate">{row.projectName}</span>
+			</span>
 			<span className="w-full truncate text-primary text-subtitle">{row.title}</span>
 			<span
 				data-slot="session-state"

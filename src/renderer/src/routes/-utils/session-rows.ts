@@ -12,6 +12,7 @@ export interface SessionRow {
 	createdAt: number;
 	lastTouchedAt: number | undefined;
 	archivedAt: number | undefined;
+	pinnedAt: number | undefined;
 	activity: AgentActivityState | undefined;
 	since: number | undefined;
 }
@@ -46,6 +47,7 @@ export function sessionRows(input: {
 				createdAt: shell.createdAt,
 				lastTouchedAt: shell.lastTouchedAt,
 				archivedAt: shell.archivedAt,
+				pinnedAt: shell.pinnedAt,
 				activity,
 				since: activity ? (input.statusSince.get(shell.id) ?? shell.doneAt) : undefined,
 			});
@@ -57,6 +59,10 @@ export function sessionRows(input: {
 
 function byCreation(left: SessionRow, right: SessionRow): number {
 	return right.createdAt - left.createdAt || left.shellId.localeCompare(right.shellId);
+}
+
+function byPinned(left: SessionRow, right: SessionRow): number {
+	return Number(left.pinnedAt === undefined) - Number(right.pinnedAt === undefined);
 }
 
 function byArchivedRecency(left: SessionRow, right: SessionRow): number {
@@ -72,7 +78,7 @@ function archivedNow(row: SessionRow, now: number): boolean {
 		return true;
 	}
 
-	if (row.activity) {
+	if (row.activity || row.pinnedAt !== undefined) {
 		return false;
 	}
 
@@ -84,7 +90,7 @@ export function partitionSessions(
 	now: number,
 ): { open: SessionRow[]; archived: SessionRow[] } {
 	return {
-		open: rows.filter((row) => !archivedNow(row, now)),
+		open: rows.filter((row) => !archivedNow(row, now)).sort(byPinned),
 		archived: rows.filter((row) => archivedNow(row, now)).sort(byArchivedRecency),
 	};
 }

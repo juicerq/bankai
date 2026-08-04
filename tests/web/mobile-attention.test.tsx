@@ -23,6 +23,7 @@ function row(patch: Partial<SessionRow> = {}): SessionRow {
 		createdAt: NOW,
 		lastTouchedAt: NOW,
 		archivedAt: undefined,
+		pinnedAt: undefined,
 		activity: "needs-attention",
 		since: NOW,
 		...patch,

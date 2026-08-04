@@ -1,6 +1,8 @@
 import {
 	ArchiveBoxArrowDownIcon,
 	ArrowUturnUpIcon,
+	BookmarkIcon,
+	BookmarkSlashIcon,
 	CheckIcon,
 	ChevronDownIcon,
 	ChevronRightIcon,
@@ -30,6 +32,7 @@ interface SessionGestures {
 	onClose: (projectId: string, shellId: string) => void;
 	onArchive: (projectId: string, shellId: string) => void;
 	onUnarchive: (projectId: string, shellId: string) => void;
+	onTogglePin: (row: SessionRow) => void;
 	onRename: (projectId: string, shellId: string, title: string) => void;
 	onRenameDone: () => void;
 	onOpenMenu: (target: { row: SessionRow; archived: boolean }, event: React.MouseEvent) => void;
@@ -48,6 +51,8 @@ export function SessionSidebar({
 	onClose,
 	onArchive,
 	onUnarchive,
+	onPin,
+	onUnpin,
 	onRename,
 	footer,
 }: {
@@ -63,6 +68,8 @@ export function SessionSidebar({
 	onClose: (projectId: string, shellId: string) => void;
 	onArchive: (projectId: string, shellId: string) => void;
 	onUnarchive: (projectId: string, shellId: string) => void;
+	onPin: (projectId: string, shellId: string) => void;
+	onUnpin: (projectId: string, shellId: string) => void;
 	onRename: (projectId: string, shellId: string, title: string) => void;
 	footer: ReactNode;
 }) {
@@ -71,6 +78,15 @@ export function SessionSidebar({
 	const closeMenu = useCallback(() => setMenu(undefined), []);
 	const registerMenuDismissal = useMenuDismissal(closeMenu);
 
+	const togglePin = (row: SessionRow) => {
+		if (row.pinnedAt === undefined) {
+			onPin(row.projectId, row.shellId);
+			return;
+		}
+
+		onUnpin(row.projectId, row.shellId);
+	};
+
 	const gestures: SessionGestures = {
 		selectedShellId,
 		renamingShellId,
@@ -78,6 +94,7 @@ export function SessionSidebar({
 		onClose,
 		onArchive,
 		onUnarchive,
+		onTogglePin: togglePin,
 		onRename,
 		onRenameDone: () => setRenamingShellId(undefined),
 		onOpenMenu: (target, event) => setMenu({ ...target, x: event.clientX, y: event.clientY }),
@@ -167,6 +184,15 @@ export function SessionSidebar({
 							setRenamingShellId(menu.row.shellId);
 						}}
 					/>
+					{!menu.archived && (
+						<MenuItem
+							label={menu.row.pinnedAt === undefined ? "Pin" : "Unpin"}
+							onClick={() => {
+								closeMenu();
+								togglePin(menu.row);
+							}}
+						/>
+					)}
 					{menu.archived
 						? (
 							<MenuItem
@@ -293,6 +319,14 @@ function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGest
 	return (
 		<SessionEntry row={row} gestures={gestures} archived={false}>
 			<span className="flex w-full items-center gap-2">
+				{row.pinnedAt !== undefined && (
+					<BookmarkIcon
+						data-slot="pinned-mark"
+						role="img"
+						aria-label="Pinned"
+						className="size-3 shrink-0 text-tertiary"
+					/>
+				)}
 				<span className="min-w-0 flex-1 truncate text-data text-secondary">{row.projectName}</span>
 				<HarnessMark harness={row.harness} active={row.shellId === gestures.selectedShellId} />
 			</span>
@@ -339,6 +373,7 @@ function SessionEntry({
 	children: ReactNode;
 }) {
 	const selected = row.shellId === gestures.selectedShellId;
+	const pinned = row.pinnedAt !== undefined;
 
 	return (
 		<div
@@ -372,6 +407,22 @@ function SessionEntry({
 					</button>
 				)}
 			<span className="absolute top-0 right-0 hidden bg-inherit group-hover:flex">
+				{!archived && (
+					<button
+						type="button"
+						data-slot={pinned ? "unpin-session" : "pin-session"}
+						className={`flex h-7 w-7 items-center justify-center hover:text-primary ${
+							pinned ? "text-tertiary" : "text-secondary"
+						}`}
+						aria-label={`${pinned ? "Unpin" : "Pin"} ${row.title}`}
+						title={pinned ? "Unpin" : "Pin — keeps it on top and out of the archive"}
+						onClick={() => gestures.onTogglePin(row)}
+					>
+						{pinned
+							? <BookmarkSlashIcon className="size-3.5" aria-hidden="true" />
+							: <BookmarkIcon className="size-3.5" aria-hidden="true" />}
+					</button>
+				)}
 				{archived
 					? (
 						<button

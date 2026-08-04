@@ -10,6 +10,8 @@ interface MobileSurface {
 	onRename: (projectId: string, shellId: string, title: string) => void;
 	onArchive: (projectId: string, shellId: string) => void;
 	onUnarchive: (projectId: string, shellId: string) => void;
+	onPin: (projectId: string, shellId: string) => void;
+	onUnpin: (projectId: string, shellId: string) => void;
 	onCloseSession: (projectId: string, shellId: string) => void;
 }
 

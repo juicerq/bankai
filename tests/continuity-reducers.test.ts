@@ -69,6 +69,8 @@ test("no reducer mutates the value it was given", () => {
 	ContinuityReducers.selectShell(before, address);
 	ContinuityReducers.archiveShell(before, address);
 	ContinuityReducers.unarchiveShell(before, address);
+	ContinuityReducers.pinShell(before, address);
+	ContinuityReducers.unpinShell(before, address);
 	ContinuityReducers.renameShell(before, { ...address, title: "psql" });
 	ContinuityReducers.nameShell(before, { ...address, title: "psql", source: "model" });
 	ContinuityReducers.touchShell(before, { ...address, branch: "main" });
@@ -109,6 +111,16 @@ test("selecting an old done shell leaves it open and done", () => {
 	);
 
 	expect(selected.workspaces[0]?.shells[0]).toMatchObject({ doneAt });
+	expect(selected.workspaces[0]?.shells[0]?.archivedAt).toBeUndefined();
+});
+
+test("selecting a pinned shell idle past the archive window leaves it unfiled", () => {
+	const idle = NOW - SESSION_AUTO_ARCHIVE_MS - 1;
+	const selected = ContinuityReducers.selectShell(
+		twoProjects("b1", shell("a1", { createdAt: idle, pinnedAt: NOW - 1 })),
+		{ projectId: "p1", shellId: "a1", now: NOW },
+	);
+
 	expect(selected.workspaces[0]?.shells[0]?.archivedAt).toBeUndefined();
 });
 
@@ -255,6 +267,20 @@ test("archiving resolves done and a late completion cannot restore it", () => {
 
 	expect(onlyShell(archived)?.doneAt).toBeUndefined();
 	expect(late).toEqual(archived);
+});
+
+test("pinning stamps the clock and unpinning drops the mark", () => {
+	const pinned = ContinuityReducers.pinShell(oneShell(), { ...A1, now: NOW });
+
+	expect(onlyShell(pinned)?.pinnedAt).toBe(NOW);
+	expect(onlyShell(ContinuityReducers.unpinShell(pinned, A1))?.pinnedAt).toBeUndefined();
+});
+
+test("archiving a pinned shell unpins it", () => {
+	const archived = ContinuityReducers.archiveShell(oneShell({ pinnedAt: NOW - 1 }), { ...A1, now: NOW });
+
+	expect(onlyShell(archived)?.pinnedAt).toBeUndefined();
+	expect(onlyShell(archived)?.archivedAt).toBe(NOW);
 });
 
 test("a name the user typed by hand survives every automatic source", () => {

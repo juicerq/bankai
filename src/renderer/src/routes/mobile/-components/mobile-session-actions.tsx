@@ -7,6 +7,8 @@ export function MobileSessionActions({
 	onRename,
 	onArchive,
 	onUnarchive,
+	onPin,
+	onUnpin,
 	onCloseSession,
 	onDismiss,
 }: {
@@ -15,11 +17,24 @@ export function MobileSessionActions({
 	onRename: (projectId: string, shellId: string, title: string) => void;
 	onArchive: (projectId: string, shellId: string) => void;
 	onUnarchive: (projectId: string, shellId: string) => void;
+	onPin: (projectId: string, shellId: string) => void;
+	onUnpin: (projectId: string, shellId: string) => void;
 	onCloseSession: (projectId: string, shellId: string) => void;
 	onDismiss: () => void;
 }) {
 	const [mode, setMode] = useState<"menu" | "rename" | "confirm">("menu");
 	const field = useRef<HTMLInputElement>(null);
+
+	const togglePin = () => {
+		onDismiss();
+
+		if (row.pinnedAt === undefined) {
+			onPin(row.projectId, row.shellId);
+			return;
+		}
+
+		onUnpin(row.projectId, row.shellId);
+	};
 
 	const rename = () => {
 		const named = field.current?.value.trim();
@@ -63,6 +78,13 @@ export function MobileSessionActions({
 				{mode === "menu" && (
 					<div className="min-h-0 flex-1 overflow-y-auto">
 						<ActionRow slot="rename" label="Rename" onClick={() => setMode("rename")} />
+						{!archived && (
+							<ActionRow
+								slot={row.pinnedAt === undefined ? "pin" : "unpin"}
+								label={row.pinnedAt === undefined ? "Pin" : "Unpin"}
+								onClick={togglePin}
+							/>
+						)}
 						{archived
 							? (
 								<ActionRow

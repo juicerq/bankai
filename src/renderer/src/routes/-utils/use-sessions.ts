@@ -27,6 +27,8 @@ export function useSessions() {
 	const { mutate: rename } = useMutation(orpc.continuity.renameShell.mutationOptions());
 	const { mutate: archive } = useMutation(orpc.continuity.archiveShell.mutationOptions());
 	const { mutate: unarchive } = useMutation(orpc.continuity.unarchiveShell.mutationOptions());
+	const { mutate: pin } = useMutation(orpc.continuity.pinShell.mutationOptions());
+	const { mutate: unpin } = useMutation(orpc.continuity.unpinShell.mutationOptions());
 	const continuity = data?.value ?? EMPTY_CONTINUITY;
 	const shells = useMemo(
 		() => continuity.workspaces.flatMap((workspace) => workspace.shells),
@@ -139,6 +141,22 @@ export function useSessions() {
 		[project, unarchive],
 	);
 
+	const pinShell = useCallback(
+		(projectId: string, shellId: string) => {
+			project((value) => ContinuityReducers.pinShell(value, { projectId, shellId, now: Date.now() }));
+			pin({ projectId, shellId });
+		},
+		[pin, project],
+	);
+
+	const unpinShell = useCallback(
+		(projectId: string, shellId: string) => {
+			project((value) => ContinuityReducers.unpinShell(value, { projectId, shellId }));
+			unpin({ projectId, shellId });
+		},
+		[project, unpin],
+	);
+
 	const renameShell = useCallback(
 		(projectId: string, shellId: string, title: string) => {
 			project((value) => ContinuityReducers.renameShell(value, { projectId, shellId, title }));
@@ -158,6 +176,8 @@ export function useSessions() {
 		selectShell,
 		archiveShell,
 		unarchiveShell,
+		pinShell,
+		unpinShell,
 		renameShell,
 	};
 }

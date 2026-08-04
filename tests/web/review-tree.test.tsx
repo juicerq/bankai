@@ -40,7 +40,9 @@ function ReviewTreeHarness() {
 		>
 			<ReviewTree
 				files={[]}
+				treeView="changes"
 				divider={divider}
+				onToggleTreeView={() => {}}
 				onOpenFile={() => {}}
 				onToggleFocusFile={() => {}}
 				onCloseFiles={() => {}}
@@ -55,10 +57,14 @@ function change(path: string): FileChange {
 
 const TREE_FILES = [change("src/app/one.ts"), change("src/app/two.ts"), change("README.md")];
 
-function ReviewTreeFilesHarness() {
+const BROWSE_PATHS = ["README.md", ".env", "src/app/one.ts", "src/app/untracked.ts", "docs/guide.md"];
+
+function ReviewTreeFilesHarness({ browsePaths }: { browsePaths?: string[] }) {
 	const row = useRef<HTMLDivElement>(null);
 	const [panel] = useState(createReviewPanelStore);
 	const closedFiles = useSelector(panel, (state) => state.closedFiles);
+	const treeView = useSelector(panel, (state) => state.treeView);
+	const focusedPath = useSelector(panel, (state) => state.focusedPath);
 	const divider = useDivider({
 		value: 200,
 		min: 120,
@@ -69,12 +75,21 @@ function ReviewTreeFilesHarness() {
 	});
 
 	return (
-		<main data-component="review-split" data-closed={[...closedFiles].sort().join(" ")} ref={row}>
+		<main
+			data-component="review-split"
+			data-closed={[...closedFiles].sort().join(" ")}
+			data-focused={focusedPath}
+			ref={row}
+		>
 			<ReviewTree
 				files={TREE_FILES}
+				browsePaths={browsePaths}
+				treeView={treeView}
+				focusedPath={focusedPath}
 				divider={divider}
+				onToggleTreeView={panel.actions.toggleTreeView}
 				onOpenFile={() => {}}
-				onToggleFocusFile={() => {}}
+				onToggleFocusFile={panel.actions.focusFile}
 				onCloseFiles={panel.actions.closeScope}
 			/>
 		</main>
@@ -87,6 +102,24 @@ function directoryRow(name: string) {
 
 	if (!match) {
 		throw new Error(`No directory row for ${name}`);
+	}
+
+	return match;
+}
+
+function rowPaths() {
+	return [...get("review-tree").querySelectorAll<HTMLElement>("[data-component='review-tree-row']")].map(
+		(row) => row.dataset.path,
+	);
+}
+
+function browseRow(path: string) {
+	const match = [...get("review-tree").querySelectorAll<HTMLElement>("[data-component='review-tree-row']")].find(
+		(row) => row.dataset.path === path,
+	);
+
+	if (!match) {
+		throw new Error(`No tree row for ${path}`);
 	}
 
 	return match;
@@ -121,4 +154,46 @@ test("expanding a directory reopens every file under it", () => {
 	fireEvent.click(directoryRow("src/app"));
 
 	expect(get("review-split").dataset.closed).toBe("");
+});
+
+test("browsing the repository starts with every directory collapsed", () => {
+	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
+
+	expect(get("review-tree").dataset.treeView).toBe("changes");
+
+	fireEvent.click(slot(get("review-tree"), "tree-view"));
+
+	expect(get("review-tree").dataset.treeView).toBe("browse");
+	expect(rowPaths()).toEqual(["docs", "src/app", ".env", "README.md"]);
+});
+
+test("a browsed file carries the mark of its change and nothing when it has none", () => {
+	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
+
+	fireEvent.click(slot(get("review-tree"), "tree-view"));
+	fireEvent.click(browseRow("src/app"));
+
+	expect(rowPaths()).toEqual([
+		"docs",
+		"src/app",
+		"src/app/one.ts",
+		"src/app/untracked.ts",
+		".env",
+		"README.md",
+	]);
+	expect(browseRow("src/app/one.ts").dataset.status).toBe("modified");
+	expect(browseRow("src/app/untracked.ts").dataset.status).toBeUndefined();
+});
+
+test("browsing focuses the clicked file and leaving the view clears that focus", () => {
+	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
+
+	fireEvent.click(slot(get("review-tree"), "tree-view"));
+	fireEvent.click(slot(browseRow(".env"), "open"));
+
+	expect(get("review-split").dataset.focused).toBe(".env");
+
+	fireEvent.click(slot(get("review-tree"), "tree-view"));
+
+	expect(get("review-split").dataset.focused).toBeUndefined();
 });

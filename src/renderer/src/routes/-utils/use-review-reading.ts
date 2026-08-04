@@ -122,12 +122,22 @@ export function useReviewReading({
 		return !!query?.data || !!query?.isError;
 	});
 
+	const focusedChanged = !!focusedPath && files.some((file) => file.path === focusedPath);
+	const focusedRaw = !!focusedPath && !focusedChanged && prepare && !!currentSnapshot;
+
 	const fullFileQuery = useQuery(
 		orpc.review.fullFile.queryOptions({
 			input: { ...scope, path: focusedPath ?? "" },
-			enabled: watchReady && !!focusedPath,
+			enabled: watchReady && focusedChanged,
 		}),
 	);
+	const browseFileQuery = useQuery(
+		orpc.review.browseFile.queryOptions({
+			input: { projectId, worktree, path: focusedPath ?? "" },
+			enabled: focusedRaw,
+		}),
+	);
+	const focusedContent = focusedChanged ? fullFileQuery.data : browseFileQuery.data;
 
 	const reading: ReviewReadingGeneration | undefined = currentSnapshot
 		? {
@@ -146,8 +156,8 @@ export function useReviewReading({
 	if (published) {
 		result.generation = published;
 	}
-	if (fullFileQuery.data) {
-		result.fullFile = fullFileQuery.data;
+	if (focusedContent) {
+		result.fullFile = focusedContent;
 	}
 	if (queryError) {
 		result.error = queryError;
@@ -282,6 +292,8 @@ class ReviewQueryObserver {
 			{ queryKey: orpc.review.files.key({ type: "query", input }) },
 			{ queryKey: orpc.review.file.key({ type: "query", input }) },
 			{ queryKey: orpc.review.fullFile.key({ type: "query", input }) },
+			{ queryKey: orpc.review.browseFiles.key({ type: "query", input }) },
+			{ queryKey: orpc.review.browseFile.key({ type: "query", input }) },
 		];
 		await Promise.all(filters.map((filter) => this.queryClient.cancelQueries(filter)));
 		await Promise.all(filters.map((filter) => this.queryClient.invalidateQueries(filter)));

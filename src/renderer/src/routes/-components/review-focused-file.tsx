@@ -12,11 +12,13 @@ const LEADING_CONTEXT = 3;
 
 export function ReviewFocusedFile({
 	content,
-	file,
+	path,
+	change,
 	onClose,
 }: {
 	content?: FullFile;
-	file: FileChange;
+	path: string;
+	change?: FileChange;
 	onClose: () => void;
 }) {
 	const notice = content && content.status !== "ready" ? reviewContentNotice({ content, full: true }) : "Reading file\u2026";
@@ -24,21 +26,22 @@ export function ReviewFocusedFile({
 	return (
 		<section
 			data-component="review-focused-file"
+			data-path={path}
 			className="absolute inset-0 z-30 flex flex-col bg-surface-raised"
-			aria-label={`Focused file ${file.path}`}
+			aria-label={`Focused file ${path}`}
 			onKeyDown={(event) => {
 				if (event.key === "Escape") {
 					onClose();
 				}
 			}}
 		>
-			<ReviewFocusedFileHeader file={file} onClose={onClose} />
+			<ReviewFocusedFileHeader path={path} change={change} onClose={onClose} />
 			<div
 				data-slot="body"
 				data-content-status={content ? content.status : "pending"}
 				className="relative min-h-0 flex-1 bg-surface-raised"
 			>
-				{content?.status === "ready" && <ReviewFocusedFileReader file={file} content={content} />}
+				{content?.status === "ready" && <ReviewFocusedFileReader path={path} content={content} />}
 				{content?.status !== "ready" && <ReviewNotice>{notice}</ReviewNotice>}
 			</div>
 		</section>
@@ -46,10 +49,10 @@ export function ReviewFocusedFile({
 }
 
 function ReviewFocusedFileReader({
-	file,
+	path,
 	content,
 }: {
-	file: FileChange;
+	path: string;
 	content: Extract<FullFile, { status: "ready" }>;
 }) {
 	const scroll = useRef<HTMLDivElement>(null);
@@ -100,7 +103,7 @@ function ReviewFocusedFileReader({
 							style={{ height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
 						>
 							<ReviewDiffLine
-								path={file.path}
+								path={path}
 								line={line}
 								lines={content.lines}
 								lineIndex={virtualRow.index}
@@ -113,32 +116,40 @@ function ReviewFocusedFileReader({
 	);
 }
 
-function ReviewFocusedFileHeader({ file, onClose }: { file: FileChange; onClose: () => void }) {
-	const fileNameStart = file.path.lastIndexOf("/") + 1;
-	const directoryPath = file.path.slice(0, fileNameStart);
-	const fileName = file.path.slice(fileNameStart);
+function ReviewFocusedFileHeader({
+	path,
+	change,
+	onClose,
+}: {
+	path: string;
+	change?: FileChange;
+	onClose: () => void;
+}) {
+	const fileNameStart = path.lastIndexOf("/") + 1;
+	const directoryPath = path.slice(0, fileNameStart);
+	const fileName = path.slice(fileNameStart);
 
 	return (
 		<header className="flex h-8 shrink-0 items-center justify-between gap-2 border-outline border-b bg-surface-raised px-3 text-data">
 			<span className="flex min-w-0 flex-1 items-center gap-2">
-				<span className="shrink-0 text-secondary">{STATUS_MARK[file.status]}</span>
-				<span className="flex min-w-0 flex-1" title={file.path}>
+				{change && <span className="shrink-0 text-secondary">{STATUS_MARK[change.status]}</span>}
+				<span className="flex min-w-0 flex-1" title={path}>
 					<span dir="rtl" className="truncate opacity-60">{`${directoryPath}\u200E`}</span>
 					<span dir="rtl" className="max-w-full shrink-0 truncate text-primary">{`${fileName}\u200E`}</span>
 				</span>
 			</span>
 			<span className="flex shrink-0 items-center gap-2">
-				{(file.additions > 0 || file.deletions > 0) && (
+				{change && (change.additions > 0 || change.deletions > 0) && (
 					<>
-						<span className="text-added">+{file.additions}</span>
-						<span className="text-removed">−{file.deletions}</span>
+						<span className="text-added">+{change.additions}</span>
+						<span className="text-removed">−{change.deletions}</span>
 					</>
 				)}
 				<button
 					type="button"
 					autoFocus
 					className="-m-1 p-1 text-secondary hover:text-primary"
-					aria-label={`Return from focused file ${file.path}`}
+					aria-label={`Return from focused file ${path}`}
 					onClick={onClose}
 				>
 					<XMarkIcon className="size-4" />

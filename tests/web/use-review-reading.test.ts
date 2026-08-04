@@ -407,6 +407,27 @@ test("switching the focused path shows no stale full file", async () => {
 	await waitFor(() => expect(contentText(view.result.current.fullFile)).toBe("full-b"));
 });
 
+test("a focused file outside the diff is read raw instead of as a full diff", async () => {
+	const view = renderReviewReading(base({}));
+	await settle(view, ["a", "b"]);
+
+	view.rerender(base({ focusedPath: "docs/guide.md" }));
+
+	await waitFor(() => expect(view.transport.pendingCount("browseFile")).toBe(1));
+	expect(view.transport.callsFor("fullFile")).toEqual([]);
+
+	view.transport.resolve("browseFile", readyContent("raw-guide"));
+	await waitFor(() => expect(contentText(view.result.current.fullFile)).toBe("raw-guide"));
+});
+
+test("a focused file inside the diff never falls back to a raw read", async () => {
+	const view = renderReviewReading(base({ focusedPath: "a" }));
+	await settle(view, ["a", "b"]);
+
+	await waitFor(() => expect(view.transport.pendingCount("fullFile")).toBe(1));
+	expect(view.transport.callsFor("browseFile")).toEqual([]);
+});
+
 test("a cold full-file error keeps the full file undefined", async () => {
 	const view = renderReviewReading(base({ focusedPath: "a" }));
 	await settle(view, ["a", "b"]);

@@ -10,7 +10,7 @@ import { type HarnessSettings, harnessSchema } from "@main/store/settings";
 import { SERVER_RPC_PREFIX } from "@shared/server";
 import type { ServiceState, ServiceStatus } from "@shared/services";
 
-export type ReviewProcedure = "worktrees" | "snapshot" | "files" | "file" | "fullFile";
+export type ReviewProcedure = "worktrees" | "snapshot" | "files" | "file" | "fullFile" | "browseFiles" | "browseFile";
 
 interface PendingRequest {
 	procedure: ReviewProcedure;
@@ -327,6 +327,8 @@ const router = {
 		files: os.handler(({ input }) => requireTransport().request("files", input)),
 		file: os.handler(({ input }) => requireTransport().request("file", input)),
 		fullFile: os.handler(({ input }) => requireTransport().request("fullFile", input)),
+		browseFiles: os.handler(({ input }) => requireTransport().request("browseFiles", input)),
+		browseFile: os.handler(({ input }) => requireTransport().request("browseFile", input)),
 	},
 	projects: {
 		browse: os.input(type({ path: "string" })).handler(({ input }) => requireBrowse()(input.path)),

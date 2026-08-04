@@ -1,5 +1,17 @@
 import type { ITerminalOptions } from "@xterm/xterm";
 
+export const TERMINAL_OPTIONS = {
+	allowProposedApi: false,
+	convertEol: true,
+	cursorBlink: true,
+	cursorStyle: "bar",
+	fontSize: 14,
+	fontWeight: "400",
+	fontWeightBold: "600",
+	lineHeight: 1.35,
+	scrollback: 10_000,
+} satisfies ITerminalOptions;
+
 export function readTerminalStyle(): Pick<ITerminalOptions, "fontFamily" | "theme"> {
 	const styles = getComputedStyle(document.documentElement);
 

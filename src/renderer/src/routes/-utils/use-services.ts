@@ -3,10 +3,20 @@ import { useCallback, useMemo } from "react";
 import { orpc } from "@renderer/lib/api";
 import type { ServiceStatus } from "@shared/services";
 
+export function useServiceOutput({ commandId, status }: { commandId: string | undefined; status: ServiceStatus }) {
+	const retained = useQuery({
+		...orpc.services.output.queryOptions({ input: { commandId: commandId ?? "" } }),
+		enabled: !!commandId && status !== "running",
+	});
+
+	return { output: retained.data, pending: retained.isPending };
+}
+
 export function useServices() {
 	const listed = useQuery(orpc.services.list.queryOptions());
 	const { mutate: start } = useMutation(orpc.services.start.mutationOptions());
 	const { mutate: stop } = useMutation(orpc.services.stop.mutationOptions());
+	const { mutate: restart } = useMutation(orpc.services.restart.mutationOptions());
 	const states = useMemo(
 		() => new Map((listed.data ?? []).map((state) => [state.commandId, state])),
 		[listed.data],
@@ -19,6 +29,9 @@ export function useServices() {
 	return {
 		states,
 		statusOf,
+		start: useCallback((commandId: string) => start({ commandId }), [start]),
+		stop: useCallback((commandId: string) => stop({ commandId }), [stop]),
+		restart: useCallback((commandId: string) => restart({ commandId }), [restart]),
 		toggle: useCallback((commandId: string) => {
 			if (statusOf(commandId) === "running") {
 				stop({ commandId });

@@ -1,4 +1,5 @@
 import { beforeEach, expect, mock, test } from "bun:test";
+import { TERMINAL_RING_BYTES } from "@main/terminal/buffer/terminal-ring-buffer";
 import { shellProcesses } from "@main/terminal/shell-processes";
 
 interface SpawnedShell {
@@ -6,6 +7,7 @@ interface SpawnedShell {
 	shellId: string;
 	args: string[];
 	killGroup: boolean | undefined;
+	onData: ((data: string) => void) | undefined;
 	onExit: (exit: { exitCode: number; spontaneous: boolean }) => void;
 }
 
@@ -15,6 +17,10 @@ const killed: string[] = [];
 function finish(sessionId: string, exitCode: number): void {
 	const { spontaneous } = shellProcesses.noteExit(sessionId, exitCode);
 	spawned.find((shell) => shell.sessionId === sessionId)?.onExit({ exitCode, spontaneous });
+}
+
+function emit(shell: SpawnedShell | undefined, data: string): void {
+	shell?.onData?.(data);
 }
 
 function die(shell: SpawnedShell | undefined, exitCode: number): void {
@@ -53,6 +59,8 @@ void mock.module("@main/terminal/shell-spawn", () => ({
 const { ProjectCommands } = await import("@main/store/project-commands");
 const { Projects } = await import("@main/store/projects");
 const { Services } = await import("@main/services");
+const { commandsRouter } = await import("@main/transport/rpc/commands-router");
+const { call } = await import("@orpc/server");
 
 let projectId: string;
 
@@ -151,6 +159,79 @@ test("refusing to start a task keeps the process table empty", async () => {
 
 	expect(Services.start(task.id)).rejects.toThrow("Command is not a service");
 	expect(spawned).toEqual([]);
+});
+
+test("a service that crashes keeps its output readable", async () => {
+	const command = await service({ label: "Dev server", command: "bun run dev" });
+	await Services.start(command.id);
+
+	emit(spawned[0], "listening on 3000\r\n");
+	emit(spawned[0], "Error: port already in use\r\n");
+	die(spawned[0], 1);
+
+	expect(Services.output(command.id)).toBe("listening on 3000\r\nError: port already in use\r\n");
+});
+
+test("a service that is stopped cleanly keeps its output readable", async () => {
+	const command = await service({ label: "Dev server", command: "bun run dev" });
+	await Services.start(command.id);
+	emit(spawned[0], "shutting down\r\n");
+
+	Services.stop(command.id);
+
+	expect(Services.output(command.id)).toBe("shutting down\r\n");
+});
+
+test("a service that has not run during this launch has no output", async () => {
+	const command = await service({ label: "Dev server", command: "bun run dev" });
+
+	expect(Services.output(command.id)).toBeUndefined();
+});
+
+test("retained output keeps only the last megabyte", async () => {
+	const command = await service({ label: "Dev server", command: "bun run dev" });
+	await Services.start(command.id);
+
+	emit(spawned[0], "first\r\n");
+
+	for (let chunk = 0; chunk < 20; chunk += 1) {
+		emit(spawned[0], "x".repeat(64 * 1024));
+	}
+
+	emit(spawned[0], "last\r\n");
+	die(spawned[0], 1);
+
+	const output = Services.output(command.id) ?? "";
+
+	expect(Buffer.byteLength(output, "utf8")).toBeLessThanOrEqual(TERMINAL_RING_BYTES);
+	expect(output.startsWith("first")).toBe(false);
+	expect(output.endsWith("last\r\n")).toBe(true);
+});
+
+test("starting a service again replaces its retained output", async () => {
+	const command = await service({ label: "Dev server", command: "bun run dev" });
+	await Services.start(command.id);
+	emit(spawned[0], "first run\r\n");
+	die(spawned[0], 1);
+
+	await Services.start(command.id);
+
+	expect(Services.output(command.id)).toBe("");
+
+	emit(spawned[1], "second run\r\n");
+
+	expect(Services.output(command.id)).toBe("second run\r\n");
+});
+
+test("removing a service releases its retained output and state", async () => {
+	const command = await service({ label: "Dev server", command: "bun run dev" });
+	await Services.start(command.id);
+	emit(spawned[0], "listening on 3000\r\n");
+
+	await call(commandsRouter.remove, { id: command.id });
+
+	expect(Services.output(command.id)).toBeUndefined();
+	expect(stateOf(command.id)).toBeUndefined();
 });
 
 test("state reaches subscribers on every change", async () => {

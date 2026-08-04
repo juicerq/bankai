@@ -13,7 +13,7 @@ export function ProjectWorkspaceShells({
 	active,
 	focusRequest,
 	resizeDeferred,
-	serviceLog,
+	serviceLogOpen,
 }: {
 	project: Project;
 	shells: ContinuityShell[];
@@ -22,7 +22,7 @@ export function ProjectWorkspaceShells({
 	active: boolean;
 	focusRequest: number;
 	resizeDeferred: boolean;
-	serviceLog: React.ReactNode;
+	serviceLogOpen: boolean;
 }) {
 	const residency = useWorkspaceResidency();
 
@@ -31,7 +31,7 @@ export function ProjectWorkspaceShells({
 			style={{ minWidth: MIN_TERMINAL_WIDTH, contain: "paint" }}
 			className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-1 overflow-hidden bg-surface-sunken"
 		>
-			{!serviceLog && shells.every((shell) => residency.asleep.has(shell.id)) && (
+			{!serviceLogOpen && shells.every((shell) => residency.asleep.has(shell.id)) && (
 				<EmptyState
 					mark="›_"
 					title="No open shells"
@@ -43,23 +43,20 @@ export function ProjectWorkspaceShells({
 			{shells.filter((shell) => !residency.asleep.has(shell.id)).map((shell) => (
 				<div
 					className={`col-start-1 row-start-1 min-h-0 min-w-0 overflow-hidden ${
-						shell.id === activeShellId && !serviceLog ? "" : "invisible"
+						shell.id === activeShellId && !serviceLogOpen ? "" : "invisible"
 					}`}
 					key={shell.id}
 				>
 					<TerminalPane
 						projectId={project.id}
 						shellId={shell.id}
-						active={active && shell.id === activeShellId && !serviceLog}
+						active={active && shell.id === activeShellId && !serviceLogOpen}
 						focusRequest={focusRequest}
 						resizeDeferred={resizeDeferred}
 						resumeOnMount={residency.resumable.has(shell.id)}
 					/>
 				</div>
 			))}
-			{serviceLog && (
-				<div className="col-start-1 row-start-1 flex min-h-0 min-w-0 overflow-hidden">{serviceLog}</div>
-			)}
 		</div>
 	);
 }

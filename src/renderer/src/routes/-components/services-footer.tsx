@@ -1,4 +1,13 @@
-import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import {
+	ArrowPathIcon,
+	CheckIcon,
+	ChevronDownIcon,
+	ChevronRightIcon,
+	PlayIcon,
+	StopIcon,
+	TrashIcon,
+} from "@heroicons/react/24/outline";
+import { useState } from "react";
 import type { ProjectCommand } from "@main/store/project-commands";
 import type { Project } from "@main/store/projects";
 import type { ServiceState, ServiceStatus } from "@shared/services";
@@ -9,11 +18,7 @@ const STATUS_DOT: Record<ServiceStatus, string> = {
 	failed: "bg-removed",
 };
 
-const STATUS_ACTION: Record<ServiceStatus, string> = {
-	running: "Stop",
-	stopped: "Start",
-	failed: "Start",
-};
+const ACTION_CLASS = "flex h-7 w-6 items-center justify-center text-secondary hover:text-primary";
 
 export function ServicesFooter({
 	services,
@@ -22,7 +27,10 @@ export function ServicesFooter({
 	states,
 	openedCommandId,
 	onToggle,
-	onToggleService,
+	onStart,
+	onStop,
+	onRestart,
+	onRemove,
 	onOpenLog,
 }: {
 	services: ProjectCommand[];
@@ -31,9 +39,14 @@ export function ServicesFooter({
 	states: ReadonlyMap<string, ServiceState>;
 	openedCommandId: string | undefined;
 	onToggle: () => void;
-	onToggleService: (commandId: string) => void;
-	onOpenLog: (projectId: string, commandId: string) => void;
+	onStart: (commandId: string) => void;
+	onStop: (commandId: string) => void;
+	onRestart: (commandId: string) => void;
+	onRemove: (commandId: string) => void;
+	onOpenLog: (commandId: string) => void;
 }) {
+	const [armedId, setArmedId] = useState<string>();
+
 	if (services.length === 0) {
 		return null;
 	}
@@ -69,39 +82,105 @@ export function ServicesFooter({
 								data-component="service-row"
 								data-command-id={service.id}
 								data-status={status}
-								className={`group flex h-7 w-full items-center border-l-2 pr-3 ${
+								className={`group relative flex h-7 w-full items-center border-l-2 pr-3 ${
 									service.id === openedCommandId ? "border-l-tertiary bg-surface-active" : "border-l-transparent"
 								} hover:bg-surface-hover`}
+								onMouseLeave={() => setArmedId((current) => (current === service.id ? undefined : current))}
 							>
-								<button
-									type="button"
-									data-slot="toggle-service"
-									aria-label={`${STATUS_ACTION[status]} ${service.label}`}
-									className="flex h-full shrink-0 items-center px-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
-									onClick={() => onToggleService(service.id)}
-								>
+								<span className="flex h-full shrink-0 items-center px-3">
 									<span
 										data-slot="service-status"
+										role="img"
+										aria-label={`${service.label} is ${status}`}
 										className={`size-[6px] rounded-full ${STATUS_DOT[status]} ${
 											status === "running" ? "pending-pulse" : ""
 										}`}
-										aria-hidden="true"
 									/>
-								</button>
+								</span>
 								<button
 									type="button"
 									data-slot="open-service-log"
 									aria-label={`Open ${service.label} output`}
 									className="flex h-full min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
-									onClick={() => onOpenLog(service.projectId, service.id)}
+									onClick={() => onOpenLog(service.id)}
 								>
 									<span className="min-w-0 flex-1 truncate text-body text-secondary group-hover:text-primary">
 										{service.label}
 									</span>
-									<span data-slot="service-detail" className="shrink-0 text-data text-outline-strong">
+									<span
+										data-slot="service-detail"
+										className={`shrink-0 text-data text-outline-strong transition-transform ${
+											status === "running" ? "group-hover:-translate-x-20" : "group-hover:-translate-x-14"
+										}`}
+									>
 										{state?.pid && status === "running" ? state.pid : project?.name}
 									</span>
 								</button>
+								<span className="absolute top-0 right-1.5 hidden items-center group-hover:flex">
+									{status === "running" && (
+										<>
+											<button
+												type="button"
+												data-slot="restart-service"
+												className={ACTION_CLASS}
+												aria-label={`Restart ${service.label}`}
+												title="Restart"
+												onClick={() => onRestart(service.id)}
+											>
+												<ArrowPathIcon className="size-3.5" aria-hidden="true" />
+											</button>
+											<button
+												type="button"
+												data-slot="stop-service"
+												className={ACTION_CLASS}
+												aria-label={`Stop ${service.label}`}
+												title="Stop"
+												onClick={() => onStop(service.id)}
+											>
+												<StopIcon className="size-3.5" aria-hidden="true" />
+											</button>
+										</>
+									)}
+									{status !== "running" && (
+										<button
+											type="button"
+											data-slot="start-service"
+											className={ACTION_CLASS}
+											aria-label={`Start ${service.label}`}
+											title="Start"
+											onClick={() => onStart(service.id)}
+										>
+											<PlayIcon className="size-3.5" aria-hidden="true" />
+										</button>
+									)}
+									{armedId === service.id
+										? (
+											<button
+												type="button"
+												data-slot="confirm-delete-service"
+												className={`${ACTION_CLASS} text-removed`}
+												aria-label={`Confirm deleting ${service.label}`}
+												onClick={() => {
+													setArmedId(undefined);
+													onRemove(service.id);
+												}}
+											>
+												<CheckIcon className="size-3.5" aria-hidden="true" />
+											</button>
+										)
+										: (
+											<button
+												type="button"
+												data-slot="delete-service"
+												className={`${ACTION_CLASS} hover:text-removed`}
+												aria-label={`Delete ${service.label}`}
+												title="Delete"
+												onClick={() => setArmedId(service.id)}
+											>
+												<TrashIcon className="size-3.5" aria-hidden="true" />
+											</button>
+										)}
+								</span>
 							</div>
 						);
 					})}

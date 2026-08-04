@@ -16,9 +16,13 @@ export const commandsRouter = {
 	update: base
 		.input(commandDraftSchema.and({ id: "string" }))
 		.handler(({ input }) => ProjectCommands.update(input)),
-	remove: base.input(type({ id: "string" })).handler(({ input }) => {
+	remove: base.input(type({ id: "string" })).handler(async ({ input }) => {
 		Services.stop(input.id);
 
-		return ProjectCommands.remove(input.id);
+		const removed = await ProjectCommands.remove(input.id);
+
+		Services.forget(input.id);
+
+		return removed;
 	}),
 };

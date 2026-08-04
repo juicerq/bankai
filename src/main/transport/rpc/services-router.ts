@@ -6,6 +6,8 @@ const serviceInput = type({ commandId: "string" });
 
 export const servicesRouter = {
 	list: base.handler(() => Services.list()),
+	output: base.input(serviceInput).handler(({ input }) => Services.output(input.commandId)),
 	start: base.input(serviceInput).handler(({ input }) => Services.start(input.commandId)),
 	stop: base.input(serviceInput).handler(({ input }) => Services.stop(input.commandId)),
+	restart: base.input(serviceInput).handler(({ input }) => Services.restart(input.commandId)),
 };

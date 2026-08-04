@@ -1,25 +1,13 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
-import { type IDisposable, type ITerminalOptions, Terminal } from "@xterm/xterm";
+import { type IDisposable, Terminal } from "@xterm/xterm";
 import { useCallback, useRef } from "react";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { terminalStream } from "@renderer/lib/stream/terminal";
 import type { ResumeOutcome } from "@renderer/routes/-utils/resume-state";
-import { readTerminalStyle } from "@renderer/routes/-utils/terminal-style";
+import { readTerminalStyle, TERMINAL_OPTIONS } from "@renderer/routes/-utils/terminal-style";
 import type { TerminalAttached, TerminalCommandErrorEvent } from "@shared/terminal";
 import { throttle } from "@shared/throttle";
-
-const TERMINAL_OPTIONS = {
-	allowProposedApi: false,
-	convertEol: true,
-	cursorBlink: true,
-	cursorStyle: "bar",
-	fontSize: 14,
-	fontWeight: "400",
-	fontWeightBold: "600",
-	lineHeight: 1.35,
-	scrollback: 10_000,
-} satisfies ITerminalOptions;
 
 const TERMINAL_RESIZE_THROTTLE_MS = 150;
 const TERMINAL_COMMAND_FAILURES: Record<TerminalCommandErrorEvent["command"], string> = {

@@ -8,6 +8,9 @@ export function installServicesPush({ queryClient }: { queryClient: QueryClient 
 
 	const stopListening = servicesStream.onChanged((event) => {
 		queryClient.setQueryData(queryKey, event.states);
+		queryClient.invalidateQueries({ queryKey: orpc.services.output.key() }).catch((err) => {
+			console.error("services output invalidation failed", err);
+		});
 	});
 	const stopResync = streamResync.register("watch", () => servicesStream.subscribe());
 

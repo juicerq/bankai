@@ -52,6 +52,34 @@ _Avoid_: Terminal, tab, session, PTY
 The one Shell the Workspace shows and every session gesture acts on. Exactly one exists across all mounted Projects, and the Active project is a consequence of which session is selected rather than something set on its own.
 _Avoid_: Active shell, current tab, focused session, active session
 
+**Project command**:
+A saved command line belonging to a Project, kept across app launches and run from the Commands modal. Each one is of a single kind: a Task or a Service.
+_Avoid_: Script, alias, preset, shortcut
+
+**Commands modal**:
+The overlay that lists a Project's Project commands and is where they are created, edited, deleted and run.
+_Avoid_: Command palette, runner, settings panel
+
+**Task**:
+The Project command kind that opens a Shell and runs there, listed among the sessions like any other Shell.
+_Avoid_: Job, one-shot, script run
+
+**Service**:
+The Project command kind that runs detached in the background, outside the session list and with no Shell of its own. It may be flagged to start when Bankai opens.
+_Avoid_: Daemon, background task, server, process
+
+**Service state**:
+The running disposition of a Service: running, stopped, or failed. Held only while Bankai runs — nothing is running until Bankai starts it again.
+_Avoid_: Status, health, lifecycle
+
+**Services list**:
+The section at the foot of the session list that names every Service across every mounted Project, shows each one's Service state, and carries the actions on it.
+_Avoid_: Tray, dock, panel, footer
+
+**Service output**:
+The read-only reading of what a Service printed. It belongs to the Service rather than to a Project, and it outlives the process that produced it until that Service starts again or Bankai closes.
+_Avoid_: Logs, console, terminal, Shell
+
 **Review**:
 The read-only reading of a project's current git changes.
 _Avoid_: Diff view, git panel, changes

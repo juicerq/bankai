@@ -1,5 +1,6 @@
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import type { ServiceStatus } from "@shared/services";
+import { useTerminalReplay } from "@renderer/routes/-utils/use-terminal-replay";
 import { useTerminalSession } from "@renderer/routes/-utils/use-terminal-session";
 
 export function ServiceLogPane({
@@ -7,6 +8,8 @@ export function ServiceLogPane({
 	commandId,
 	label,
 	status,
+	output,
+	outputPending,
 	resizeDeferred,
 	onClose,
 }: {
@@ -14,6 +17,8 @@ export function ServiceLogPane({
 	commandId: string;
 	label: string;
 	status: ServiceStatus;
+	output?: string;
+	outputPending?: boolean;
 	resizeDeferred: boolean;
 	onClose: () => void;
 }) {
@@ -41,12 +46,34 @@ export function ServiceLogPane({
 			</div>
 			{status === "running"
 				? <ServiceLogTerminal key={commandId} projectId={projectId} commandId={commandId} resizeDeferred={resizeDeferred} />
-				: (
-					<p data-slot="service-stopped" className="px-4 py-3 text-data text-secondary">
-						This service is not running. Start it to read its output.
-					</p>
-				)}
+				: <ServiceLogRetained key={commandId} output={output} pending={outputPending === true} />}
 		</section>
+	);
+}
+
+function ServiceLogRetained({ output, pending }: { output: string | undefined; pending: boolean }) {
+	if (output) {
+		return <ServiceLogReplay output={output} />;
+	}
+
+	if (pending) {
+		return null;
+	}
+
+	return (
+		<p data-slot="service-no-output" className="px-4 py-3 text-data text-secondary">
+			This service has no output yet. Start it to read its output.
+		</p>
+	);
+}
+
+function ServiceLogReplay({ output }: { output: string }) {
+	const registerContainer = useTerminalReplay(output);
+
+	return (
+		<div data-slot="service-retained-output" className="relative flex min-h-0 flex-1 flex-col overflow-hidden pt-3 pr-0 pl-4">
+			<div ref={registerContainer} className="min-h-0 flex-1" />
+		</div>
 	);
 }
 

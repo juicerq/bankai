@@ -48,6 +48,7 @@ export function SessionSidebar({
 	onCreate,
 	onRequestShell,
 	onToggleProject,
+	onExcludeProject,
 	onClose,
 	onArchive,
 	onUnarchive,
@@ -65,6 +66,7 @@ export function SessionSidebar({
 	onCreate: (projectId: string) => void;
 	onRequestShell: (plain: boolean) => void;
 	onToggleProject: (projectId: string) => void;
+	onExcludeProject: (projectId: string, listedIds: readonly string[]) => void;
 	onClose: (projectId: string, shellId: string) => void;
 	onArchive: (projectId: string, shellId: string) => void;
 	onUnarchive: (projectId: string, shellId: string) => void;
@@ -127,6 +129,7 @@ export function SessionSidebar({
 				openProjectIds={list.openProjectIds}
 				chosenProjectIds={chosenProjectIds}
 				onToggle={onToggleProject}
+				onExclude={onExcludeProject}
 			/>
 			<div className="min-h-0 flex-1 overflow-auto" aria-label="Sessions">
 				{list.open.length === 0 && list.archived.length === 0 && canCreateShell && (

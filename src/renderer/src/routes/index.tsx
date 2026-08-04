@@ -384,6 +384,7 @@ function Bankai() {
 					onCreate={createShell}
 					onRequestShell={requestNewShell}
 					onToggleProject={chosen.toggle}
+					onExcludeProject={chosen.chooseAllExcept}
 					onClose={sessions.closeShell}
 					onArchive={sessions.archiveShell}
 					onUnarchive={sessions.unarchiveShell}

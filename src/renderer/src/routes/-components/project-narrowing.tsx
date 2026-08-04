@@ -5,11 +5,13 @@ export function ProjectNarrowing({
 	openProjectIds,
 	chosenProjectIds,
 	onToggle,
+	onExclude,
 }: {
 	projects: Project[];
 	openProjectIds: ReadonlySet<string>;
 	chosenProjectIds: ReadonlySet<string>;
 	onToggle: (projectId: string) => void;
+	onExclude: (projectId: string, listedIds: readonly string[]) => void;
 }) {
 	const listed = projects
 		.filter((project) => openProjectIds.has(project.id) || chosenProjectIds.has(project.id))
@@ -43,6 +45,10 @@ export function ProjectNarrowing({
 								: "text-secondary hover:bg-surface-hover hover:text-primary"
 						}`}
 						onClick={() => onToggle(project.id)}
+						onContextMenu={(event) => {
+							event.preventDefault();
+							onExclude(project.id, listed.map((listedProject) => listedProject.id));
+						}}
 					>
 						<span className="truncate">{project.name}</span>
 					</button>

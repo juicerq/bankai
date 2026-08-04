@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "bun:test";
 import { Settings, serverPort } from "@main/store/settings";
 import { SERVER_DEFAULT_PORT, SERVER_TOKEN_BYTES } from "@shared/server";
+import { DEFAULT_THEME } from "@shared/theme";
 import { assertDefined } from "./utils/assertions";
 
 describe("settings layout", () => {
@@ -128,6 +129,46 @@ describe("settings harness", () => {
 		const settings = await Settings.get();
 		expect(settings.layout).toEqual({ railWidth: 260 });
 		expect(settings.harness).toBeUndefined();
+	});
+});
+
+describe("settings theme", () => {
+	it("opens on the default theme until a choice is stored", async () => {
+		expect((await Settings.get()).theme).toBeUndefined();
+		expect(await Settings.theme()).toBe(DEFAULT_THEME);
+	});
+
+	it("persists the chosen theme and reads it back", async () => {
+		expect(await Settings.updateTheme("light")).toBe("light");
+		expect(await Settings.theme()).toBe("light");
+
+		await Settings.updateTheme("system");
+
+		expect(await Settings.theme()).toBe("system");
+	});
+
+	it("keeps the rest of the settings when the theme changes", async () => {
+		await Settings.updateHarness({ autostart: true, id: "claude" });
+		await Settings.updateTheme("light");
+
+		expect((await Settings.get()).harness).toEqual({ autostart: true, id: "claude" });
+	});
+
+	it("leaves a v6 file on the dark theme it was already showing", async () => {
+		assertDefined(process.env.DATA_DIR);
+		writeFileSync(
+			join(process.env.DATA_DIR, "settings.json"),
+			JSON.stringify({
+				version: 6,
+				data: { layout: { railWidth: 260 }, harness: { autostart: true, id: "claude" } },
+			}),
+		);
+
+		const settings = await Settings.get();
+
+		expect(settings.theme).toBe("dark");
+		expect(settings.layout).toEqual({ railWidth: 260 });
+		expect(settings.harness).toEqual({ autostart: true, id: "claude" });
 	});
 });
 

@@ -49,7 +49,7 @@ export function ProjectWorkspaceHeader({
 					fullscreen
 						? `z-30 transition-[transform,opacity] ease-out motion-reduce:transition-none ${
 							topBand.revealed
-								? "translate-y-0 opacity-100 shadow-[0_4px_16px_rgba(0,0,0,0.32)]"
+								? "translate-y-0 opacity-100 shadow-[0_4px_16px_var(--color-shadow)]"
 								: "pointer-events-none -translate-y-full opacity-0"
 						}`
 						: ""

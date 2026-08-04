@@ -6,8 +6,9 @@ import { type } from "arktype";
 import { commandDraftSchema, type ProjectCommand } from "@main/store/project-commands";
 import type { ContinuityValue } from "@main/store/continuity";
 import type { MobileAccessStatus } from "@main/infra/tailscale/tailscale-access";
-import { type HarnessSettings, harnessSchema } from "@main/store/settings";
+import { type HarnessSettings, harnessSchema, themeSchema } from "@main/store/settings";
 import { SERVER_RPC_PREFIX } from "@shared/server";
+import { DEFAULT_THEME, type ThemePreference } from "@shared/theme";
 import type { ServiceState, ServiceStatus } from "@shared/services";
 
 export type ReviewProcedure = "worktrees" | "snapshot" | "files" | "file" | "fullFile" | "browseFiles" | "browseFile";
@@ -112,6 +113,17 @@ function requireHarness() {
 	}
 
 	return currentHarness;
+}
+
+export interface ThemeTransport {
+	theme: ThemePreference;
+	updates: ThemePreference[];
+}
+
+let currentTheme: ThemeTransport = { theme: DEFAULT_THEME, updates: [] };
+
+export function setThemeTransport(transport: ThemeTransport) {
+	currentTheme = transport;
 }
 
 export interface MobileTransport {
@@ -298,6 +310,13 @@ const router = {
 
 				return input;
 			}),
+		getTheme: os.handler(() => currentTheme.theme),
+		updateTheme: os.input(type({ theme: themeSchema })).handler(({ input }) => {
+			currentTheme.updates.push(input.theme);
+			currentTheme.theme = input.theme;
+
+			return input.theme;
+		}),
 	},
 	mobile: {
 		getAccess: os.handler(() => requireMobile().access),

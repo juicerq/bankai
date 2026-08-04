@@ -9,6 +9,6 @@
 		"electron.vite.config.ts",
 		"tests/**/*.test.ts"
 	],
-	"ignoreDependencies": ["oxlint", "oxlint-tsgolint", "tailwindcss"],
+	"ignoreDependencies": ["oxlint", "oxlint-tsgolint"],
 	"ignoreBinaries": ["tailscale"]
 }

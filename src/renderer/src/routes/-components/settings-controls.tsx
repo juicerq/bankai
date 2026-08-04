@@ -1,5 +1,34 @@
 import type { ReactNode } from "react";
 
+export function SettingBlock({
+	title,
+	description,
+	control,
+	children,
+}: {
+	title: string;
+	description: string;
+	control?: ReactNode;
+	children?: ReactNode;
+}) {
+	return (
+		<div className="px-3 py-3">
+			<div className="flex items-start gap-3">
+				<div className="min-w-0 flex-1">
+					<span className="block text-body text-primary">{title}</span>
+					<span className="mt-1 block text-data text-secondary">{description}</span>
+				</div>
+				{control}
+			</div>
+			{children && (
+				<div className="mt-3">
+					{children}
+				</div>
+			)}
+		</div>
+	);
+}
+
 export function Setting({
 	title,
 	description,
@@ -16,20 +45,13 @@ export function Setting({
 	children?: ReactNode;
 }) {
 	return (
-		<div className="px-3 py-3">
-			<div className="flex items-start gap-3">
-				<div className="min-w-0 flex-1">
-					<span className="block text-body text-primary">{title}</span>
-					<span className="mt-1 block text-data text-secondary">{description}</span>
-				</div>
-				<Switch label={title} slot={slot} on={on} onToggle={onToggle} />
-			</div>
-			{children && (
-				<div className="mt-3">
-					{children}
-				</div>
-			)}
-		</div>
+		<SettingBlock
+			title={title}
+			description={description}
+			control={<Switch label={title} slot={slot} on={on} onToggle={onToggle} />}
+		>
+			{children}
+		</SettingBlock>
 	);
 }
 

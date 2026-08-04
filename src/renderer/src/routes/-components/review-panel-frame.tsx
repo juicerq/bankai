@@ -63,7 +63,7 @@ export function ReviewPanelFrame({
 					style={{ width: liveWidth, transitionDuration: `${LAYOUT_MOTION_DURATION_MS}ms` }}
 					className={`absolute inset-y-0 right-0 flex pl-px ease-out motion-reduce:transition-none ${
 						animating && motion === "expand" ? "transition-[width]" : "transition-none"
-					} ${covering ? "shadow-[-8px_0_24px_rgba(0,0,0,0.32)]" : ""}`}
+					} ${covering ? "shadow-[-8px_0_24px_var(--color-shadow)]" : ""}`}
 					onTransitionEnd={endMotion}
 					onTransitionCancel={endMotion}
 				>

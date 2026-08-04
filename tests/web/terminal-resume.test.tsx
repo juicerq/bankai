@@ -31,7 +31,10 @@ class MockTerminal {
 void mock.module("@xterm/xterm", () => ({ Terminal: MockTerminal }));
 void mock.module("@xterm/addon-fit", () => ({ FitAddon: MockAddon }));
 void mock.module("@xterm/addon-webgl", () => ({ WebglAddon: MockAddon }));
-void mock.module("@renderer/routes/-utils/terminal-style", () => ({ readTerminalStyle: () => ({}) }));
+void mock.module("@renderer/routes/-utils/terminal-style", () => ({
+	readTerminalStyle: () => ({}),
+	TERMINAL_OPTIONS: {},
+}));
 
 let resumeOutcomes: ("resolve" | "reject")[] = [];
 let openCalls = 0;

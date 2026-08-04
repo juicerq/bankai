@@ -1,4 +1,5 @@
 import "./register-dom";
+import { TEST_AUTH_TOKEN } from "./auth-bridge";
 import { os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { type } from "arktype";
@@ -6,7 +7,7 @@ import { commandDraftSchema, type ProjectCommand } from "@main/store/project-com
 import type { ContinuityValue } from "@main/store/continuity";
 import type { MobileAccessStatus } from "@main/infra/tailscale/tailscale-access";
 import { type HarnessSettings, harnessSchema } from "@main/store/settings";
-import { SERVER_DEFAULT_PORT, SERVER_RPC_PREFIX } from "@shared/server";
+import { SERVER_RPC_PREFIX } from "@shared/server";
 import type { ServiceState, ServiceStatus } from "@shared/services";
 
 export type ReviewProcedure = "worktrees" | "snapshot" | "files" | "file" | "fullFile";
@@ -342,12 +343,6 @@ const router = {
 
 const handler = new RPCHandler(router);
 
-const TRANSPORT_TOKEN = "transport-token";
-
-window.bankaiAuth = {
-	getToken: () => Promise.resolve({ port: SERVER_DEFAULT_PORT, token: TRANSPORT_TOKEN }),
-};
-
 const realFetch = globalThis.fetch;
 
 async function routeFetch(...args: Parameters<typeof realFetch>): Promise<Response> {
@@ -357,7 +352,7 @@ async function routeFetch(...args: Parameters<typeof realFetch>): Promise<Respon
 		return realFetch(...args);
 	}
 
-	if (request.headers.get("authorization") !== `Bearer ${TRANSPORT_TOKEN}`) {
+	if (request.headers.get("authorization") !== `Bearer ${TEST_AUTH_TOKEN}`) {
 		return new Response(null, { status: 401 });
 	}
 

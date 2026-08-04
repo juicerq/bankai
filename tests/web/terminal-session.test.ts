@@ -78,7 +78,10 @@ class MockTerminal {
 void mock.module("@xterm/xterm", () => ({ Terminal: MockTerminal }));
 void mock.module("@xterm/addon-fit", () => ({ FitAddon: MockFitAddon }));
 void mock.module("@xterm/addon-webgl", () => ({ WebglAddon: MockWebglAddon }));
-void mock.module("@renderer/routes/-utils/terminal-style", () => ({ readTerminalStyle: () => ({}) }));
+void mock.module("@renderer/routes/-utils/terminal-style", () => ({
+	readTerminalStyle: () => ({}),
+	TERMINAL_OPTIONS: {},
+}));
 
 let attached: TerminalAttached = { sessionId: "session-1" };
 

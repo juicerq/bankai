@@ -1,5 +1,5 @@
 import "./register-dom";
-import { SERVER_DEFAULT_PORT } from "@shared/server";
+import "./auth-bridge";
 import { STREAM_HELLO, STREAM_REJECT, STREAM_REPLY, type StreamChannel, type StreamEnvelope } from "@shared/stream";
 
 const STREAM_TEST_VERSION = "0.0.0-test";
@@ -133,9 +133,5 @@ class StreamTransport {
 }
 
 export const streamTransport = new StreamTransport();
-
-window.bankaiAuth ??= {
-	getToken: () => Promise.resolve({ port: SERVER_DEFAULT_PORT, token: "stream-token" }),
-};
 
 Object.defineProperty(globalThis, "WebSocket", { value: FakeWebSocket });

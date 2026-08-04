@@ -3,6 +3,8 @@ import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activi
 
 type BoundStatus = "working" | "waiting" | "idle";
 
+const TURN_SETTLE_MS = 5000;
+
 export interface ShellOwner {
 	projectId: string;
 	shellId: string;
@@ -13,10 +15,14 @@ export interface DoneShell {
 	at: number;
 }
 
-function deriveShellActivity(
-	previous: AgentActivityState | undefined,
-	bound: BoundStatus | undefined,
-): AgentActivityState | undefined {
+function next({ previous, bound, idleFor }: {
+	previous?: AgentActivityState;
+	bound?: BoundStatus;
+	idleFor: number;
+}): AgentActivityState | undefined {
+	if (bound === "waiting") {
+		return "needs-attention";
+	}
 	if (bound === "working") {
 		return "working";
 	}
@@ -25,22 +31,14 @@ function deriveShellActivity(
 	if (!wasActive) {
 		return previous;
 	}
-	if (bound === "idle") {
-		return "done";
+	if (bound !== "idle") {
+		return undefined;
+	}
+	if (idleFor < TURN_SETTLE_MS) {
+		return previous;
 	}
 
-	return undefined;
-}
-
-function next(
-	previous: AgentActivityState | undefined,
-	bound?: BoundStatus,
-): AgentActivityState | undefined {
-	if (bound === "waiting") {
-		return "needs-attention";
-	}
-
-	return deriveShellActivity(previous, bound);
+	return "done";
 }
 
 function clockSince(input: {
@@ -275,6 +273,7 @@ function snapshotsByProject({
 }
 
 export const ShellActivity = {
+	TURN_SETTLE_MS,
 	next,
 	clockSince,
 	turnStarts,

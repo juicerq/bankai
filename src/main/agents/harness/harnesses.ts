@@ -53,6 +53,17 @@ function harnessWatchPaths(): string[] {
 	return harnesses.flatMap((harness) => harness.watch?.() ?? []);
 }
 
+async function owesDelivery(presence: AgentPresence): Promise<boolean> {
+	const harness = harnesses.find((entry) => entry.id === presence.harness);
+	if (!harness?.owesDelivery || presence.sessionId === undefined) {
+		return false;
+	}
+
+	return harness
+		.owesDelivery({ sessionId: presence.sessionId, cwd: presence.cwd })
+		.catch(() => false);
+}
+
 async function discoverAgents(): Promise<AgentPresence[]> {
 	const discovered = await Promise.all(
 		harnesses.map((harness) =>
@@ -75,5 +86,6 @@ export const Harnesses = {
 	title: harnessTitle,
 	proposeName: harnessProposeName,
 	watchPaths: harnessWatchPaths,
+	owesDelivery,
 	discoverAgents,
 };

@@ -135,6 +135,7 @@ class AgentActivityTracker {
 	private sessionRefs = new Map<string, SessionRef>();
 	private shellWorktrees = new Map<string, string>();
 	private statusSince = new Map<string, number>();
+	private idleSince = new Map<string, number>();
 	private agentCwds = new Map<string, string>();
 	private readonly noteWrite = throttle(() => this.runTick("event"), EVENT_PASS_MS);
 	private readonly harnessWatchers = new Map<string, FSWatcher>();
@@ -268,6 +269,7 @@ class AgentActivityTracker {
 			this.boundSessions = new Set();
 			this.sessionRefs = new Map();
 			this.agentCwds.clear();
+			this.idleSince.clear();
 			this.watchHarnessFiles([]);
 			this.commit({
 				shellStates: new Map(),
@@ -300,16 +302,32 @@ class AgentActivityTracker {
 
 		const nextStates = new Map<string, AgentActivityState>();
 		const statusSince = new Map<string, number>();
+		const idleSince = new Map<string, number>();
 		const publishedNames = new Map<string, string>();
 		const harnesses = new Map<string, string>();
+		const now = Date.now();
 		for (const shell of shells) {
 			const boundPid = bindings.get(shell.sessionId);
 			const presence =
 				boundPid === undefined ? undefined : liveByPid.get(boundPid);
 			const status = presence?.status;
 
+			const idleAt = status === "idle" ? this.idleSince.get(shell.sessionId) ?? now : undefined;
+			if (idleAt !== undefined) {
+				idleSince.set(shell.sessionId, idleAt);
+			}
+
 			const previous = this.shellStates.get(shell.sessionId);
-			const next = ShellActivity.next(previous, status);
+			const owesDelivery =
+				status === "idle" && presence !== undefined && ShellActivity.turnOpen(previous)
+					? await Harnesses.owesDelivery(presence)
+					: false;
+			const next = ShellActivity.next({
+				previous,
+				bound: status,
+				idleFor: idleAt === undefined ? 0 : now - idleAt,
+				owesDelivery,
+			});
 			if (next !== undefined) {
 				nextStates.set(shell.sessionId, next);
 			}
@@ -334,6 +352,7 @@ class AgentActivityTracker {
 		if (pass === "full") {
 			this.watchHarnessFiles(Harnesses.watchPaths());
 		}
+		this.idleSince = idleSince;
 		this.commit({
 			shellStates: nextStates,
 			owners,

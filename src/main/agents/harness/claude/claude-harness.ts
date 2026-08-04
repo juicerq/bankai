@@ -4,6 +4,7 @@ import { type } from "arktype";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/agents/harness/harness";
 import { ConversationParser } from "@main/agents/harness/claude/claude-conversation";
 import { ClaudeConfig } from "@main/agents/harness/claude/claude-config";
+import { ClaudePending } from "@main/agents/harness/claude/claude-pending";
 import { ClaudeTranscript } from "@main/agents/harness/claude/claude-transcript";
 import { SubagentTranscript } from "@main/agents/transcript/subagent-transcript";
 import { CLAUDE_HARNESS_ID } from "@main/agents/harness/harness";
@@ -88,6 +89,7 @@ export const ClaudeHarness: Harness = {
 	},
 	title: ClaudeTranscript.title,
 	proposeName: ClaudeNamer.proposeName,
+	owesDelivery: ClaudePending.owes,
 	watch: () => [sessionsDirectory()],
 	async discover() {
 		const directory = sessionsDirectory();

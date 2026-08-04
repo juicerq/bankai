@@ -3,6 +3,8 @@ import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activi
 
 type BoundStatus = "working" | "waiting" | "idle";
 
+const PENDING_HOLD_MAX_MS = 30_000;
+
 export interface ShellOwner {
 	projectId: string;
 	shellId: string;
@@ -13,34 +15,30 @@ export interface DoneShell {
 	at: number;
 }
 
-function deriveShellActivity(
-	previous: AgentActivityState | undefined,
-	bound: BoundStatus | undefined,
-): AgentActivityState | undefined {
+function next({ previous, bound, idleFor, owesDelivery }: {
+	previous?: AgentActivityState;
+	bound?: BoundStatus;
+	idleFor: number;
+	owesDelivery: boolean;
+}): AgentActivityState | undefined {
+	if (bound === "waiting") {
+		return "needs-attention";
+	}
 	if (bound === "working") {
 		return "working";
 	}
 
-	const wasActive = previous === "working" || previous === "needs-attention";
-	if (!wasActive) {
+	if (!turnOpen(previous)) {
 		return previous;
 	}
-	if (bound === "idle") {
-		return "done";
+	if (bound !== "idle") {
+		return undefined;
+	}
+	if (owesDelivery && idleFor < PENDING_HOLD_MAX_MS) {
+		return previous;
 	}
 
-	return undefined;
-}
-
-function next(
-	previous: AgentActivityState | undefined,
-	bound?: BoundStatus,
-): AgentActivityState | undefined {
-	if (bound === "waiting") {
-		return "needs-attention";
-	}
-
-	return deriveShellActivity(previous, bound);
+	return "done";
 }
 
 function clockSince(input: {
@@ -275,7 +273,9 @@ function snapshotsByProject({
 }
 
 export const ShellActivity = {
+	PENDING_HOLD_MAX_MS,
 	next,
+	turnOpen,
 	clockSince,
 	turnStarts,
 	attentionEntries,

@@ -185,7 +185,7 @@ The agent stopped mid-turn waiting on the user — a permission request or a que
 _Avoid_: Blocked, waiting, paused, pending
 
 **Done**:
-The Agent finished the latest Shell turn, and the Shell still awaits the user's next decision: start another turn, archive it, or close it. Looking at the Shell does not resolve it.
+The Agent finished the latest Shell turn, and the Shell still awaits the user's next decision: start another turn, archive it, or close it. Looking at the Shell does not resolve it. A quiet Agent that is still owed a delivery — a subagent or background command it launched whose result has not come back — has not finished the turn: that gap is still Working, and only quiet with nothing owed is Done.
 _Avoid_: Done unseen, unread, completed, finished, new
 
 **Activity indicator**:

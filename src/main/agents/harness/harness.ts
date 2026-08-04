@@ -29,6 +29,7 @@ export interface Harness {
 		subagentTranscript?: (ref: { sessionId: string; cwd: string }, agent: string) => Promise<string | undefined>;
 	};
 	discover: () => Promise<AgentPresence[]>;
+	owesDelivery?: (ref: { sessionId: string; cwd: string }) => Promise<boolean>;
 	launch?: () => HarnessCommand;
 	resume?: (ref: { sessionId: string }) => HarnessCommand | null;
 	title?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;

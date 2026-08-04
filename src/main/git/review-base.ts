@@ -62,6 +62,7 @@ async function commit(scope: ReviewScope): Promise<string | null> {
 
 export const ReviewBase = {
 	CONCURRENCY: 16,
+	FULL_FILE_MAX_LINES: 3000,
 	turnBaseline,
 	commit,
 };

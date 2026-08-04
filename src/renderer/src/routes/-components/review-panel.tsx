@@ -40,6 +40,7 @@ export function ReviewPanel({
 	const shellWorktree = shellId === undefined ? undefined : agents.worktrees.get(shellId);
 	const [panel] = useState(createReviewPanelStore);
 	const mode = useSelector(panel, (state) => state.mode);
+	const treeView = useSelector(panel, (state) => state.treeView);
 	const closedFiles = useSelector(panel, (state) => state.closedFiles);
 	const focusedPath = useSelector(panel, (state) => state.focusedPath);
 	const pinnedWorktree = useSelector(panel, (state) => state.pinnedWorktree);
@@ -57,6 +58,13 @@ export function ReviewPanel({
 	);
 	const worktrees = worktreesQuery.data ?? [];
 	const worktree = resolveReviewWorktree({ pinned: pinnedWorktree, shellWorktree, worktrees }) ?? project.path;
+
+	const { data: browsePaths } = useQuery(
+		orpc.review.browseFiles.queryOptions({
+			input: { projectId: project.id, worktree },
+			enabled: treeOpen && treeView === "browse",
+		}),
+	);
 
 	const { generation, fullFile, error, refreshing } = useReviewReading({
 		projectId: project.id,
@@ -87,7 +95,7 @@ export function ReviewPanel({
 	const filesClosed = files.length > 0 && files.every((file) => closedFiles.has(file.path));
 
 	const toggleFocus = (path: string) => {
-		if (focusedFile?.path === path) {
+		if (focusedPath === path) {
 			closeFocus();
 			return;
 		}
@@ -96,7 +104,7 @@ export function ReviewPanel({
 	};
 
 	const openFromTree = (path: string) => {
-		if (focusedFile) {
+		if (focusedPath) {
 			panel.actions.focusFile(path);
 			return;
 		}
@@ -133,8 +141,11 @@ export function ReviewPanel({
 				<ReviewTree
 					key={readingKey}
 					files={files}
-					focusedPath={focusedFile?.path}
+					browsePaths={browsePaths}
+					treeView={treeView}
+					focusedPath={focusedPath}
 					divider={treeDivider}
+					onToggleTreeView={panel.actions.toggleTreeView}
 					onOpenFile={openFromTree}
 					onToggleFocusFile={toggleFocus}
 					onCloseFiles={panel.actions.closeScope}
@@ -164,16 +175,17 @@ export function ReviewPanel({
 						mode={mode}
 						generation={generation}
 						error={error}
-						covered={!!focusedFile}
+						covered={!!focusedPath}
 						closedFiles={closedFiles}
 						onToggleOpen={panel.actions.toggleFile}
 						onFocusFile={panel.actions.focusFile}
 					/>
-					{focusedFile && (
+					{focusedPath && (
 						<ReviewFocusedFile
-							key={focusedFile.path}
+							key={focusedPath}
 							content={fullFile}
-							file={focusedFile}
+							path={focusedPath}
+							change={focusedFile}
 							onClose={closeFocus}
 						/>
 					)}

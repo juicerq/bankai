@@ -3,15 +3,22 @@ import type { ReviewMode } from "@main/git/git-contracts";
 import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-utils/review-scope";
 import { toggledSet } from "@renderer/routes/-utils/toggled-set";
 
+export type ReviewTreeView = "changes" | "browse";
+
 export interface ReviewPanelState {
 	mode: ReviewMode;
+	treeView: ReviewTreeView;
 	closedFiles: ReadonlySet<string>;
 	focusedPath?: string;
 	pinnedWorktree?: string;
 }
 
 export function createReviewPanelStore() {
-	const initial: ReviewPanelState = { mode: DEFAULT_REVIEW_MODE, closedFiles: new Set<string>() };
+	const initial: ReviewPanelState = {
+		mode: DEFAULT_REVIEW_MODE,
+		treeView: "changes",
+		closedFiles: new Set<string>(),
+	};
 
 	return createStore(initial, ({ setState, get }) => {
 		const patch = (values: Partial<ReviewPanelState>) => setState((state) => ({ ...state, ...values }));
@@ -19,6 +26,10 @@ export function createReviewPanelStore() {
 		return {
 			selectMode: (mode: ReviewMode) => {
 				patch({ mode, focusedPath: undefined });
+			},
+
+			toggleTreeView: () => {
+				patch({ treeView: get().treeView === "browse" ? "changes" : "browse", focusedPath: undefined });
 			},
 
 			pinWorktree: (pinnedWorktree?: string) => {

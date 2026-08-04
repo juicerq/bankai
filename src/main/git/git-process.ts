@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import type * as ElectronModule from "electron";
 import {
+	browsePathsSchema,
 	reviewContentSchema,
 	reviewFilesSchema,
 	reviewSnapshotSchema,
@@ -24,6 +25,8 @@ type GitRequestInput =
 	| ({ operation: "files"; files: string[] } & ReviewScope)
 	| ({ operation: "file"; file: string } & ReviewScope)
 	| ({ operation: "fullFile"; file: string } & ReviewScope)
+	| { operation: "browseFiles"; path: string }
+	| { operation: "browseFile"; path: string; file: string }
 	| { operation: "worktrees"; path: string }
 	| { operation: "removeWorktree"; path: string; worktree: string }
 	| { operation: "startTurn"; path: string; shellId: string }
@@ -75,6 +78,14 @@ class GitUtilityProcess {
 
 	async fullFile(input: ReviewScope & { file: string }): Promise<FullFile> {
 		return reviewContentSchema.assert(await this.request({ operation: "fullFile", ...input }));
+	}
+
+	async browseFiles(input: { path: string }): Promise<string[]> {
+		return browsePathsSchema.assert(await this.request({ operation: "browseFiles", ...input }));
+	}
+
+	async browseFile(input: { path: string; file: string }): Promise<ReviewContent> {
+		return reviewContentSchema.assert(await this.request({ operation: "browseFile", ...input }));
 	}
 
 	close(): void {

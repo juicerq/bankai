@@ -1,5 +1,5 @@
-import { lstat, realpath } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { lstat } from "node:fs/promises";
+import { resolve } from "node:path";
 import type {
 	FileChange,
 	FullFile,
@@ -7,10 +7,9 @@ import type {
 	ReviewFiles,
 } from "@main/git/git-contracts";
 import { GitRun } from "@main/git/git-run";
+import { RepoPath } from "@main/git/repo-path";
 import { ReviewBase, type ReviewScope } from "@main/git/review-base";
 import { TurnBaseline } from "@main/git/review/turn-baseline";
-
-const FULL_FILE_MAX_LINES = 3000;
 
 const HUNK_START = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 
@@ -19,7 +18,7 @@ interface ParsedFile extends FileChange {
 }
 
 async function many(input: ReviewScope & { files: string[] }): Promise<ReviewFiles> {
-	await Promise.all(input.files.map((file) => assertFileWithinRepo(input.path, file)));
+	await Promise.all(input.files.map((file) => RepoPath.assertWithin({ root: input.path, file })));
 
 	const base = await ReviewBase.commit(input);
 	const raw: unknown = base
@@ -89,7 +88,7 @@ async function readFileDiff({
 	file: string;
 	full: boolean;
 }): Promise<ReviewContent> {
-	await assertFileWithinRepo(scope.path, file);
+	await RepoPath.assertWithin({ root: scope.path, file });
 	if (ReviewBase.turnBaseline(scope)?.files.get(file)?.kind === "oversized") {
 		return { status: "too-large" };
 	}
@@ -109,7 +108,7 @@ async function readFileDiff({
 	if (
 		parsed.content.status === "ready" &&
 		(full || parsed.status === "added") &&
-		parsed.content.lines.length > FULL_FILE_MAX_LINES
+		parsed.content.lines.length > ReviewBase.FULL_FILE_MAX_LINES
 	) {
 		return { status: "too-large", lineCount: parsed.content.lines.length };
 	}
@@ -180,37 +179,15 @@ async function turnPatch(input: { root: string; file: string; before: Buffer; fu
 	);
 }
 
-async function assertFileWithinRepo(root: string, file: string): Promise<void> {
-	if (isAbsolute(file)) {
-		throw new Error("File path must be relative to the repository root");
-	}
-
-	const fromRoot = relative(resolve(root), resolve(root, file));
-	if (fromRoot === ".." || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot)) {
-		throw new Error("File path must stay within the repository root");
-	}
-
-	const resolvedFile = await realpath(resolve(root, file)).catch((err) => {
-		if (err instanceof Error && "code" in err && err.code === "ENOENT") {
-			return null;
-		}
-		throw err;
-	});
-	if (!resolvedFile) {
-		return;
-	}
-
-	const fromResolvedRoot = relative(await realpath(root), resolvedFile);
-	if (fromResolvedRoot === ".." || fromResolvedRoot.startsWith(`..${sep}`) || isAbsolute(fromResolvedRoot)) {
-		throw new Error("File path must stay within the repository root");
-	}
-}
-
 function compactContent(file: ParsedFile): ReviewContent {
 	if (file.status === "added" && file.content.status === "ready" && file.content.lines.length === 0) {
 		return { status: "empty" };
 	}
-	if (file.status === "added" && file.content.status === "ready" && file.content.lines.length > FULL_FILE_MAX_LINES) {
+	if (
+		file.status === "added" &&
+		file.content.status === "ready" &&
+		file.content.lines.length > ReviewBase.FULL_FILE_MAX_LINES
+	) {
 		return { status: "too-large", lineCount: file.content.lines.length };
 	}
 
@@ -305,7 +282,6 @@ function parseDiff(raw: string): ParsedFile[] {
 }
 
 export const FileDiff = {
-	FULL_FILE_MAX_LINES,
 	many,
 	one,
 	full,

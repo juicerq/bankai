@@ -79,7 +79,7 @@ void mock.module("@xterm/xterm", () => ({ Terminal: MockTerminal }));
 void mock.module("@xterm/addon-fit", () => ({ FitAddon: MockFitAddon }));
 void mock.module("@xterm/addon-webgl", () => ({ WebglAddon: MockWebglAddon }));
 void mock.module("@renderer/routes/-utils/terminal-style", () => ({
-	readTerminalStyle: () => ({}),
+	registerTerminalStyle: () => () => {},
 	TERMINAL_OPTIONS: {},
 }));
 

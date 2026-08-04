@@ -3,12 +3,15 @@ import {
 	type MobileTransport,
 	setHarnessTransport,
 	setMobileTransport,
+	setThemeTransport,
+	type ThemeTransport,
 } from "./orpc-transport";
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettingsModal } from "@renderer/routes/-components/settings-modal";
 import { TailscaleAccess } from "@main/infra/tailscale/tailscale-access";
 import { pairingUrl } from "@shared/server";
+import { DEFAULT_THEME, THEME_LIGHT_CLASS } from "@shared/theme";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render, waitFor } from "./testing-library";
 
@@ -19,6 +22,7 @@ const TAILNET_URL = pairingUrl({ origin: "http://100.105.249.8:4696", token: "a"
 const onClose = jest.fn();
 let transport: HarnessTransport;
 let mobile: MobileTransport;
+let theme: ThemeTransport;
 
 function renderModal() {
 	const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
@@ -63,11 +67,14 @@ beforeEach(() => {
 		regenerations: 0,
 	};
 	setMobileTransport(mobile);
+	theme = { theme: DEFAULT_THEME, updates: [] };
+	setThemeTransport(theme);
 });
 
 afterEach(() => {
 	cleanup();
 	document.body.replaceChildren();
+	document.documentElement.classList.remove(THEME_LIGHT_CLASS);
 });
 
 test("shows the stored autostart switch and the selected harness", async () => {
@@ -333,6 +340,29 @@ test("keeps naming in the profile of the harness it was toggled on", async () =>
 		expect(transport.updates.at(-1)?.profiles).toEqual({ codex: { naming: false } });
 	});
 	expect(modal).not.toBeNull();
+});
+
+test("marks the stored theme among the three choices", async () => {
+	theme.theme = "system";
+	await loadedModal();
+
+	await waitFor(() => {
+		expect(get("settings-theme", { id: "system" }).getAttribute("aria-checked")).toBe("true");
+	});
+	expect(get("settings-theme", { id: "dark" }).getAttribute("aria-checked")).toBe("false");
+	expect(get("settings-theme", { id: "light" }).getAttribute("aria-checked")).toBe("false");
+});
+
+test("choosing the light theme persists it and paints the document at once", async () => {
+	await loadedModal();
+
+	fireEvent.click(get("settings-theme", { id: "light" }));
+
+	expect(document.documentElement.classList.contains(THEME_LIGHT_CLASS)).toBe(true);
+	await waitFor(() => {
+		expect(theme.updates).toEqual(["light"]);
+	});
+	expect(get("settings-theme", { id: "light" }).getAttribute("aria-checked")).toBe("true");
 });
 
 test("hands each harness its own extra arguments field", async () => {

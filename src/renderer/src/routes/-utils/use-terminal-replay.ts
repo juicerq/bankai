@@ -1,7 +1,7 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import { useCallback } from "react";
-import { readTerminalStyle, TERMINAL_OPTIONS } from "@renderer/routes/-utils/terminal-style";
+import { registerTerminalStyle, TERMINAL_OPTIONS } from "@renderer/routes/-utils/terminal-style";
 
 export function useTerminalReplay(output: string) {
 	return useCallback((container: HTMLDivElement | null) => {
@@ -11,10 +11,11 @@ export function useTerminalReplay(output: string) {
 
 		const terminal = new Terminal({
 			...TERMINAL_OPTIONS,
-			...readTerminalStyle(),
 			cursorBlink: false,
 			disableStdin: true,
 		});
+		const stopStyle = registerTerminalStyle(terminal);
+
 		const fit = new FitAddon();
 		terminal.loadAddon(fit);
 		terminal.open(container);
@@ -29,6 +30,7 @@ export function useTerminalReplay(output: string) {
 
 		return () => {
 			resize.disconnect();
+			stopStyle();
 			terminal.dispose();
 		};
 	}, [output]);

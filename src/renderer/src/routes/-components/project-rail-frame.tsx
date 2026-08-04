@@ -67,7 +67,7 @@ export function ProjectRailFrame({
 					projectRail.fullscreen
 						? `absolute inset-y-0 left-0 z-40 flex shrink-0 transition-[transform,opacity] ease-out motion-reduce:transition-none ${
 							projectRail.revealed
-								? "translate-x-0 opacity-100 shadow-[4px_0_16px_rgba(0,0,0,0.32)]"
+								? "translate-x-0 opacity-100 shadow-[4px_0_16px_var(--color-shadow)]"
 								: "pointer-events-none -translate-x-full opacity-0"
 						}`
 						: "absolute inset-y-0 left-0 z-40 flex shrink-0 transition-none"

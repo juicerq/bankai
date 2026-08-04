@@ -5,11 +5,14 @@ import { ProjectWorktrees } from "@main/git/worktree/project-worktrees";
 import { base } from "@main/transport/rpc/rpc-base";
 import { Projects } from "@main/store/projects";
 
-const scopeInput = type({
+const worktreeInput = type({
 	projectId: "string",
+	"worktree?": "string",
+});
+
+const scopeInput = worktreeInput.and({
 	mode: reviewModeSchema,
 	"shellId?": "string",
-	"worktree?": "string",
 });
 
 async function reviewScope(input: { projectId: string; mode: ReviewMode; shellId?: string; worktree?: string }) {
@@ -63,4 +66,14 @@ export const reviewRouter = {
 	fullFile: base
 		.input(scopeInput.and({ path: "string" }))
 		.handler(async ({ input }) => await GitProcess.fullFile({ ...(await reviewScope(input)), file: input.path })),
+
+	browseFiles: base
+		.input(worktreeInput)
+		.handler(async ({ input }) => await GitProcess.browseFiles({ path: await ProjectWorktrees.resolve(input) })),
+
+	browseFile: base
+		.input(worktreeInput.and({ path: "string" }))
+		.handler(async ({ input }) =>
+			await GitProcess.browseFile({ path: await ProjectWorktrees.resolve(input), file: input.path })
+		),
 };

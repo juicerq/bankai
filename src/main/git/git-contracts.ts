@@ -24,6 +24,8 @@ export const reviewFilesSchema = type({
 });
 export type ReviewFiles = typeof reviewFilesSchema.infer;
 
+export const browsePathsSchema = type("string[]");
+
 const fileStatusSchema = type("'modified' | 'added' | 'deleted' | 'renamed' | 'untracked'");
 const fileChangeSchema = type({
 	path: "string",

@@ -5,6 +5,7 @@ import { describe, expect, it } from "bun:test";
 import { type DiffLine, type ReviewContent } from "@main/git/git-contracts";
 import { ChangedFiles } from "@main/git/changed-files";
 import { FileDiff } from "@main/git/file-diff";
+import { ReviewBase } from "@main/git/review-base";
 import { TurnBaseline } from "@main/git/review/turn-baseline";
 import { GitRun } from "@main/git/git-run";
 import { Worktrees } from "@main/git/worktree/worktrees";
@@ -198,15 +199,15 @@ describe("ChangedFiles.snapshot", () => {
 
 	it("counts large new files without including their content in the snapshot", async () => {
 		const path = repo("large-new-snapshot");
-		writeFileSync(join(path, "many-lines.txt"), numberedLines(FileDiff.FULL_FILE_MAX_LINES + 1));
+		writeFileSync(join(path, "many-lines.txt"), numberedLines(ReviewBase.FULL_FILE_MAX_LINES + 1));
 		writeFileSync(join(path, "wide.txt"), "x".repeat(GitRun.GIT_OUTPUT_MAX_BYTES + 1));
 
 		const snapshot = await ChangedFiles.snapshot({ path, mode: "uncommitted" });
-		expect(snapshot.files.find((file) => file.path === "many-lines.txt")?.additions).toBe(FileDiff.FULL_FILE_MAX_LINES + 1);
+		expect(snapshot.files.find((file) => file.path === "many-lines.txt")?.additions).toBe(ReviewBase.FULL_FILE_MAX_LINES + 1);
 		expect(snapshot.files.find((file) => file.path === "wide.txt")?.additions).toBe(1);
 		expect(await FileDiff.one({ path, file: "many-lines.txt", mode: "uncommitted" })).toEqual({
 			status: "too-large",
-			lineCount: FileDiff.FULL_FILE_MAX_LINES + 1,
+			lineCount: ReviewBase.FULL_FILE_MAX_LINES + 1,
 		});
 		expect(await FileDiff.one({ path, file: "wide.txt", mode: "uncommitted" })).toEqual({ status: "too-large" });
 	});
@@ -492,10 +493,10 @@ describe("FileDiff.full", () => {
 		writeFileSync(join(path, "tracked.txt"), "");
 		git(path, "add", "tracked.txt");
 		git(path, "commit", "-m", "init");
-		writeFileSync(join(path, "tracked.txt"), numberedLines(FileDiff.FULL_FILE_MAX_LINES + 1));
-		writeFileSync(join(path, "untracked.txt"), numberedLines(FileDiff.FULL_FILE_MAX_LINES + 1));
+		writeFileSync(join(path, "tracked.txt"), numberedLines(ReviewBase.FULL_FILE_MAX_LINES + 1));
+		writeFileSync(join(path, "untracked.txt"), numberedLines(ReviewBase.FULL_FILE_MAX_LINES + 1));
 
-		const expected = { status: "too-large", lineCount: FileDiff.FULL_FILE_MAX_LINES + 1 } as const;
+		const expected = { status: "too-large", lineCount: ReviewBase.FULL_FILE_MAX_LINES + 1 } as const;
 		expect(await FileDiff.full({ path, file: "tracked.txt", mode: "uncommitted" })).toEqual(expected);
 		expect(await FileDiff.full({ path, file: "untracked.txt", mode: "uncommitted" })).toEqual(expected);
 	});

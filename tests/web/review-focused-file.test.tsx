@@ -19,14 +19,27 @@ const content: FullFile = {
 };
 
 test("keeps the focused file body mounted through its first read", () => {
-	const view = render(<ReviewFocusedFile file={file} onClose={() => {}} />);
+	const view = render(<ReviewFocusedFile path={file.path} change={file} onClose={() => {}} />);
 	const body = slot(get("review-focused-file"), "body");
 
 	expect(body.dataset.contentStatus).toBe("pending");
 
-	view.rerender(<ReviewFocusedFile file={file} content={content} onClose={() => {}} />);
+	view.rerender(<ReviewFocusedFile path={file.path} change={file} content={content} onClose={() => {}} />);
 
 	const readyBody = slot(get("review-focused-file"), "body");
 	expect(readyBody).toBe(body);
 	expect(readyBody.dataset.contentStatus).toBe("ready");
+});
+
+test("reads a file that has no change in the current diff", () => {
+	const raw: FullFile = {
+		status: "ready",
+		lines: [{ kind: "context", number: 1, hunk: 0, content: "untouched" }],
+	};
+
+	render(<ReviewFocusedFile path="src/untouched.ts" content={raw} onClose={() => {}} />);
+
+	const focused = get("review-focused-file");
+	expect(focused.dataset.path).toBe("src/untouched.ts");
+	expect(slot(focused, "body").dataset.contentStatus).toBe("ready");
 });

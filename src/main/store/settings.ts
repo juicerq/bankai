@@ -3,6 +3,7 @@ import { type } from "arktype";
 import { Store } from "@main/store/store";
 import { DEFAULT_SESSION_NAMING } from "@shared/activity";
 import { SERVER_DEFAULT_PORT, SERVER_TOKEN_BYTES, type ServerReach } from "@shared/server";
+import { DEFAULT_THEME, THEME_PREFERENCES, type ThemePreference } from "@shared/theme";
 
 const windowBoundsSchema = type({
 	x: "number",
@@ -85,12 +86,15 @@ const vapidSchema = type({
 });
 export type VapidKeys = typeof vapidSchema.infer;
 
+export const themeSchema = type.enumerated(...THEME_PREFERENCES);
+
 const settingsContract = type({
 	"windowBounds?": windowBoundsSchema,
 	"layout?": layoutSchema,
 	"harness?": harnessSchema,
 	"server?": serverSchema,
 	"vapid?": vapidSchema,
+	"theme?": themeSchema,
 });
 export type SettingsValue = typeof settingsContract.infer;
 
@@ -118,9 +122,17 @@ function withHarnessProfiles(raw: unknown): unknown {
 	return { ...rest, harness: { autostart, id, profiles: { [id]: profile } } };
 }
 
+function withStoredTheme(raw: unknown): unknown {
+	if (typeof raw !== "object" || raw === null) {
+		return raw;
+	}
+
+	return { ...raw, theme: DEFAULT_THEME };
+}
+
 const store = new Store({
 	name: "settings",
-	version: 6,
+	version: 7,
 	contract: settingsContract,
 	migrators: {
 		1: (raw) => {
@@ -131,6 +143,7 @@ const store = new Store({
 		3: (raw) => raw,
 		4: withHarnessProfiles,
 		5: (raw) => raw,
+		6: withStoredTheme,
 	},
 	seed: (): SettingsValue => ({}),
 });
@@ -145,6 +158,11 @@ export const Settings = {
 	updateHarness: async (harness: HarnessSettings): Promise<HarnessSettings> => {
 		await store.mutate((current) => ({ ...current, harness }));
 		return harness;
+	},
+	theme: async (): Promise<ThemePreference> => (await store.read()).theme ?? DEFAULT_THEME,
+	updateTheme: async (theme: ThemePreference): Promise<ThemePreference> => {
+		await store.mutate((current) => ({ ...current, theme }));
+		return theme;
 	},
 	ensureServer: async (): Promise<ServerReach> => {
 		const current = await store.read();

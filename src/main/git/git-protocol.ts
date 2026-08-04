@@ -34,6 +34,17 @@ export const gitRequestSchema = type({
 	})
 	.or({
 		id: "string",
+		operation: "'browseFiles'",
+		path: "string",
+	})
+	.or({
+		id: "string",
+		operation: "'browseFile'",
+		path: "string",
+		file: "string",
+	})
+	.or({
+		id: "string",
 		operation: "'worktrees'",
 		path: "string",
 	})

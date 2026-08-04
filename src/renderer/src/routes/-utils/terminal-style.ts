@@ -1,4 +1,5 @@
-import type { ITerminalOptions } from "@xterm/xterm";
+import type { ITerminalOptions, Terminal } from "@xterm/xterm";
+import { Theme } from "@renderer/lib/theme";
 
 export const TERMINAL_OPTIONS = {
 	allowProposedApi: false,
@@ -12,7 +13,7 @@ export const TERMINAL_OPTIONS = {
 	scrollback: 10_000,
 } satisfies ITerminalOptions;
 
-export function readTerminalStyle(): Pick<ITerminalOptions, "fontFamily" | "theme"> {
+function readTerminalStyle(): Pick<ITerminalOptions, "fontFamily" | "theme"> {
 	const styles = getComputedStyle(document.documentElement);
 
 	const token = (name: string) => {
@@ -34,9 +35,9 @@ export function readTerminalStyle(): Pick<ITerminalOptions, "fontFamily" | "them
 			cursorAccent: color("terminal-background"),
 			selectionBackground: color("terminal-selection"),
 			black: color("terminal-black"),
-			red: color("removed"),
-			green: color("added"),
-			yellow: color("tertiary"),
+			red: color("terminal-red"),
+			green: color("terminal-green"),
+			yellow: color("terminal-yellow"),
 			blue: color("terminal-blue"),
 			magenta: color("terminal-magenta"),
 			cyan: color("terminal-cyan"),
@@ -51,4 +52,17 @@ export function readTerminalStyle(): Pick<ITerminalOptions, "fontFamily" | "them
 			brightWhite: color("primary"),
 		},
 	};
+}
+
+function applyTerminalStyle(terminal: Pick<Terminal, "options">) {
+	const style = readTerminalStyle();
+
+	terminal.options.fontFamily = style.fontFamily;
+	terminal.options.theme = style.theme;
+}
+
+export function registerTerminalStyle(terminal: Pick<Terminal, "options">): () => void {
+	applyTerminalStyle(terminal);
+
+	return Theme.subscribe(() => applyTerminalStyle(terminal));
 }

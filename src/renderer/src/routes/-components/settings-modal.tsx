@@ -4,6 +4,7 @@ import type { HarnessProfile, HarnessSettings } from "@main/store/settings";
 import { PickerHint } from "@renderer/routes/-components/picker-hint";
 import { Setting } from "@renderer/routes/-components/settings-controls";
 import { MobileAccessSetting } from "@renderer/routes/-components/settings-mobile-access";
+import { ThemeSetting } from "@renderer/routes/-components/settings-theme";
 import { useHarnessSettings } from "@renderer/routes/-utils/use-harness-settings";
 import { DEFAULT_SESSION_NAMING } from "@shared/activity";
 
@@ -116,6 +117,7 @@ function SettingsBody({
 				onToggle={() => onSaveProfile({ naming: !naming })}
 			/>
 			<MobileAccessSetting />
+			<ThemeSetting />
 		</div>
 	);
 }

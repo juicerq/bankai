@@ -14,7 +14,8 @@ import { UpdateIpc } from "@main/desktop/update-ipc";
 import { DesktopAttention } from "@main/desktop/desktop-attention";
 import { DesktopWindow } from "@main/desktop/desktop-window";
 import { AUTH_IPC } from "@shared/server";
-import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
+import { DEFAULT_THEME, resolveTheme, THEME_ARGUMENTS, THEME_BACKGROUND } from "@shared/theme";
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, screen } from "electron";
 
 const here = import.meta.dirname;
 
@@ -68,18 +69,20 @@ async function createWindow() {
 	Startup.mark("settings-read");
 
 	const saved = visibleBounds(settings.windowBounds);
+	const theme = resolveTheme(settings.theme ?? DEFAULT_THEME, () => nativeTheme.shouldUseDarkColors);
 
 	const win = new BrowserWindow({
 		width: saved?.width ?? 1440,
 		height: saved?.height ?? 900,
 		minWidth: 900,
 		minHeight: 620,
-		backgroundColor: "#060606",
+		backgroundColor: THEME_BACKGROUND[theme],
 		x: saved?.x,
 		y: saved?.y,
 		frame: false,
 		webPreferences: {
 			preload: join(here, "../preload/index.cjs"),
+			additionalArguments: [THEME_ARGUMENTS[theme]],
 			sandbox: true,
 			contextIsolation: true,
 			nodeIntegration: false,

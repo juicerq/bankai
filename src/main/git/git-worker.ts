@@ -1,3 +1,4 @@
+import { BrowseFiles } from "@main/git/browse-files";
 import { ChangedFiles } from "@main/git/changed-files";
 import { FileDiff } from "@main/git/file-diff";
 import { gitRequestSchema, type GitResponse } from "@main/git/git-protocol";
@@ -35,6 +36,10 @@ async function execute(request: typeof gitRequestSchema.infer) {
 			return await FileDiff.one(request);
 		case "fullFile":
 			return await FileDiff.full(request);
+		case "browseFiles":
+			return await BrowseFiles.list(request.path);
+		case "browseFile":
+			return await BrowseFiles.read(request);
 		case "worktrees":
 			return await Worktrees.read(request.path);
 		case "removeWorktree":

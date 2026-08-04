@@ -1,7 +1,34 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { AUTH_IPC, type BankaiAuthApi } from "@shared/server";
+import { THEME_LIGHT_CLASS, themeFromArguments } from "@shared/theme";
 import { UPDATE_IPC, type BankaiUpdateApi, type UpdateDownloadedEvent } from "@shared/update";
 import type { BankaiWindowApi } from "@shared/window";
+
+function paintStartupTheme() {
+	if (themeFromArguments(process.argv) === "dark") {
+		return;
+	}
+
+	const root = document.querySelector("html");
+
+	if (root) {
+		root.classList.add(THEME_LIGHT_CLASS);
+		return;
+	}
+
+	const parser = new MutationObserver(() => {
+		const created = document.querySelector("html");
+
+		if (created) {
+			parser.disconnect();
+			created.classList.add(THEME_LIGHT_CLASS);
+		}
+	});
+
+	parser.observe(document, { childList: true });
+}
+
+paintStartupTheme();
 
 const authApi: BankaiAuthApi = {
 	getToken: () => ipcRenderer.invoke(AUTH_IPC.getToken),

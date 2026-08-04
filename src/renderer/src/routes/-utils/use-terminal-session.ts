@@ -5,7 +5,7 @@ import { useCallback, useRef } from "react";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { terminalStream } from "@renderer/lib/stream/terminal";
 import type { ResumeOutcome } from "@renderer/routes/-utils/resume-state";
-import { readTerminalStyle, TERMINAL_OPTIONS } from "@renderer/routes/-utils/terminal-style";
+import { registerTerminalStyle, TERMINAL_OPTIONS } from "@renderer/routes/-utils/terminal-style";
 import type { TerminalAttached, TerminalCommandErrorEvent } from "@shared/terminal";
 import { throttle } from "@shared/throttle";
 
@@ -123,6 +123,7 @@ export class RendererTerminalSession {
 	private readonly removeDataListener;
 	private readonly removeExitListener;
 	private readonly removeCommandErrorListener;
+	private readonly stopStyle;
 	private readonly stopResync;
 	private sessionId: string | undefined;
 	private lastCols: number | undefined;
@@ -143,10 +144,11 @@ export class RendererTerminalSession {
 	) {
 		this.terminal = new Terminal({
 			...TERMINAL_OPTIONS,
-			...readTerminalStyle(),
 			cursorBlink: !options.attachOnly,
 			disableStdin: options.attachOnly,
 		});
+		this.stopStyle = registerTerminalStyle(this.terminal);
+
 		this.resizeDeferred = options.resizeDeferred;
 		this.resumeAttempt = options.resume;
 		this.terminal.loadAddon(this.fit);
@@ -258,6 +260,7 @@ export class RendererTerminalSession {
 		this.removeDataListener();
 		this.removeExitListener();
 		this.removeCommandErrorListener();
+		this.stopStyle();
 		this.stopResync();
 		if (this.sessionId) {
 			terminalStream.detach(this.sessionId);

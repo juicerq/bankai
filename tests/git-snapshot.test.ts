@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
 import { type DiffLine, type ReviewContent } from "@main/git/git-contracts";
@@ -571,5 +571,47 @@ describe("Git in a linked worktree", () => {
 		writeFileSync(join(path, "a.txt"), "one\nmine\n");
 
 		expect((await ChangedFiles.snapshot({ path, mode: "last-turn", shellId })).state).toBe("no-turn");
+	});
+
+	it("stops offering a worktree whose directory was wiped", async () => {
+		const { path, worktree } = linkedRepo("worktree-wiped");
+		rmSync(worktree, { recursive: true, force: true });
+
+		expect(await Worktrees.read(path)).toEqual([{ path, branch: "main" }]);
+	});
+
+	it("restores a wiped worktree on its branch", async () => {
+		const { path, worktree } = linkedRepo("worktree-restore");
+		rmSync(worktree, { recursive: true, force: true });
+
+		expect(await Worktrees.restore(path, join(worktree, "src"))).toBe(true);
+		expect(existsSync(worktree)).toBe(true);
+		expect(await Worktrees.read(path)).toEqual([
+			{ path, branch: "main" },
+			{ path: worktree, branch: "feat/worktree-restore" },
+		]);
+	});
+
+	it("restores the worktree without bringing back an untracked subdirectory", async () => {
+		const { path, worktree } = linkedRepo("worktree-untracked-subdir");
+		const scratch = join(worktree, "scratch");
+		mkdirSync(scratch);
+		rmSync(worktree, { recursive: true, force: true });
+
+		expect(await Worktrees.restore(path, scratch)).toBe(true);
+		expect(existsSync(worktree)).toBe(true);
+		expect(existsSync(scratch)).toBe(false);
+	});
+
+	it("restores nothing for a directory no worktree owns", async () => {
+		const { path } = linkedRepo("worktree-unknown");
+
+		expect(await Worktrees.restore(path, join(path, "..", "somewhere-else"))).toBe(false);
+	});
+
+	it("restores nothing for a worktree that is still on disk", async () => {
+		const { path, worktree } = linkedRepo("worktree-alive");
+
+		expect(await Worktrees.restore(path, worktree)).toBe(false);
 	});
 });

@@ -16,17 +16,20 @@ branch refs/heads/feat/last-turn-review-scope
 `;
 
 describe("worktree listing", () => {
-	test("reads every usable worktree with its branch, main tree first", () => {
+	test("reads every worktree with its branch, main tree first", () => {
 		expect(Worktrees.parse(PORCELAIN)).toEqual([
 			{ path: "/home/jui/projects/bankai", branch: "main" },
+			{ path: "/tmp/bankai-dnd-projects-tabs", branch: "feat/dnd-projects-tabs", prunable: true },
 			{ path: "/tmp/bankai-last-turn-scope", branch: "feat/last-turn-review-scope" },
 		]);
 	});
 
-	test("a worktree whose directory is gone is not offered", () => {
-		expect(Worktrees.parse(PORCELAIN).map((worktree) => worktree.path)).not.toContain(
-			"/tmp/bankai-dnd-projects-tabs",
-		);
+	test("a worktree whose directory is gone keeps its branch for a restore", () => {
+		expect(Worktrees.parse(PORCELAIN).at(1)).toEqual({
+			path: "/tmp/bankai-dnd-projects-tabs",
+			branch: "feat/dnd-projects-tabs",
+			prunable: true,
+		});
 	});
 
 	test("a bare repository is not a place to read a diff from", () => {

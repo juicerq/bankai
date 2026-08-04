@@ -1,4 +1,6 @@
+import { existsSync } from "node:fs";
 import { Harnesses } from "@main/agents/harness/harnesses";
+import { Worktrees } from "@main/git/worktree/worktrees";
 import { Logger } from "@main/infra/logger";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
@@ -45,11 +47,30 @@ export const TerminalSessions = {
 
 		return spawnOrAttach(attachment, {
 			...input,
-			cwd: session.cwd,
+			cwd: await resumableCwd(input, session.cwd),
 			launch: await ShellAutostart.harnessLine(command, session.harness),
 		});
 	},
 };
+
+async function resumableCwd(input: ShellRef, cwd: string): Promise<string> {
+	if (existsSync(cwd)) {
+		return cwd;
+	}
+
+	const project = await Projects.find(input.projectId);
+	const restored = await Worktrees.restore(project.path, cwd);
+	Logger.info("terminal:resume-worktree-restore", { shellId: input.shellId, cwd, restored });
+
+	if (restored && existsSync(cwd)) {
+		return cwd;
+	}
+
+	Logger.warn("terminal:resume-cwd-missing", { shellId: input.shellId, cwd });
+	await Continuity.clearShellSession(input);
+
+	throw new Error(`The session directory no longer exists: ${cwd}`);
+}
 
 function spawnOrAttach(attachment: ShellAttachment, input: SpawnInput): TerminalAttached {
 	const running = shellProcesses.find(input);

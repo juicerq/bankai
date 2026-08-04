@@ -21,7 +21,7 @@ colors:
   syntax-constant: "#b5cea8"
   syntax-entity: "#dcdcaa"
   syntax-type: "#4ec9b0"
-  terminal-background: "#020202"
+  terminal-background: "#0a0a0a"
   terminal-black: "#232322"
   terminal-blue: "#6f86a8"
   terminal-magenta: "#ab85ad"

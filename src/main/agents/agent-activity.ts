@@ -318,10 +318,15 @@ class AgentActivityTracker {
 			}
 
 			const previous = this.shellStates.get(shell.sessionId);
+			const owesDelivery =
+				status === "idle" && presence !== undefined && ShellActivity.turnOpen(previous)
+					? await Harnesses.owesDelivery(presence)
+					: false;
 			const next = ShellActivity.next({
 				previous,
 				bound: status,
 				idleFor: idleAt === undefined ? 0 : now - idleAt,
+				owesDelivery,
 			});
 			if (next !== undefined) {
 				nextStates.set(shell.sessionId, next);

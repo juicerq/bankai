@@ -3,7 +3,7 @@ import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activi
 
 type BoundStatus = "working" | "waiting" | "idle";
 
-const TURN_SETTLE_MS = 5000;
+const PENDING_HOLD_MAX_MS = 30_000;
 
 export interface ShellOwner {
 	projectId: string;
@@ -15,10 +15,11 @@ export interface DoneShell {
 	at: number;
 }
 
-function next({ previous, bound, idleFor }: {
+function next({ previous, bound, idleFor, owesDelivery }: {
 	previous?: AgentActivityState;
 	bound?: BoundStatus;
 	idleFor: number;
+	owesDelivery: boolean;
 }): AgentActivityState | undefined {
 	if (bound === "waiting") {
 		return "needs-attention";
@@ -27,14 +28,13 @@ function next({ previous, bound, idleFor }: {
 		return "working";
 	}
 
-	const wasActive = previous === "working" || previous === "needs-attention";
-	if (!wasActive) {
+	if (!turnOpen(previous)) {
 		return previous;
 	}
 	if (bound !== "idle") {
 		return undefined;
 	}
-	if (idleFor < TURN_SETTLE_MS) {
+	if (owesDelivery && idleFor < PENDING_HOLD_MAX_MS) {
 		return previous;
 	}
 
@@ -273,8 +273,9 @@ function snapshotsByProject({
 }
 
 export const ShellActivity = {
-	TURN_SETTLE_MS,
+	PENDING_HOLD_MAX_MS,
 	next,
+	turnOpen,
 	clockSince,
 	turnStarts,
 	attentionEntries,

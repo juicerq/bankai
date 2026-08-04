@@ -16,81 +16,85 @@ const BUSY_RECORD =
 const IDLE_RECORD =
 	'{"pid":336333,"sessionId":"5daa2868-d467-4a46-b335-cd6405f22327","cwd":"/home/jui/dogama/app","startedAt":1784896966459,"procStart":"483184","version":"2.1.220","kind":"interactive","status":"idle","updatedAt":1784901169072,"statusUpdatedAt":1784901169072}';
 
-const SETTLED = ShellActivity.TURN_SETTLE_MS;
+const HOLD = ShellActivity.PENDING_HOLD_MAX_MS;
 
 describe("shell activity transitions", () => {
 	test("a bound working agent yields working regardless of prior state", () => {
-		expect(ShellActivity.next({ bound: "working", idleFor: 0 })).toBe("working");
-		expect(ShellActivity.next({ previous: "done", bound: "working", idleFor: 0 })).toBe("working");
+		expect(ShellActivity.next({ bound: "working", idleFor: 0, owesDelivery: false })).toBe("working");
+		expect(ShellActivity.next({ previous: "done", bound: "working", idleFor: 0, owesDelivery: false })).toBe("working");
 	});
 
-	test("a turn finishing (working then idle) yields done once the quiet settles", () => {
-		expect(ShellActivity.next({ previous: "working", bound: "idle", idleFor: SETTLED })).toBe("done");
+	test("a turn finishing (working then idle) yields done at once", () => {
+		expect(ShellActivity.next({ previous: "working", bound: "idle", idleFor: 0, owesDelivery: false })).toBe("done");
 	});
 
 	test("an idle agent with no observed turn yields no activity", () => {
-		expect(ShellActivity.next({ bound: "idle", idleFor: SETTLED })).toBeUndefined();
+		expect(ShellActivity.next({ bound: "idle", idleFor: 0, owesDelivery: false })).toBeUndefined();
 	});
 
 	test("done persists while the agent rests or disappears", () => {
-		expect(ShellActivity.next({ previous: "done", bound: "idle", idleFor: SETTLED })).toBe("done");
-		expect(ShellActivity.next({ previous: "done", idleFor: 0 })).toBe("done");
+		expect(ShellActivity.next({ previous: "done", bound: "idle", idleFor: 0, owesDelivery: false })).toBe("done");
+		expect(ShellActivity.next({ previous: "done", idleFor: 0, owesDelivery: false })).toBe("done");
 	});
 
 	test("killing the agent mid-turn removes the working signal", () => {
-		expect(ShellActivity.next({ previous: "working", idleFor: 0 })).toBeUndefined();
+		expect(ShellActivity.next({ previous: "working", idleFor: 0, owesDelivery: false })).toBeUndefined();
 	});
 
 });
 
-describe("quiet that has not settled yet", () => {
-	test("an agent that just went quiet is still working, not done", () => {
-		expect(ShellActivity.next({ previous: "working", bound: "idle", idleFor: 0 })).toBe("working");
-		expect(ShellActivity.next({ previous: "working", bound: "idle", idleFor: SETTLED - 1 })).toBe("working");
+describe("quiet while a delivery is still owed", () => {
+	test("an agent owed a background result is still working, not done", () => {
+		expect(ShellActivity.next({ previous: "working", bound: "idle", idleFor: 0, owesDelivery: true })).toBe("working");
+		expect(ShellActivity.next({ previous: "working", bound: "idle", idleFor: HOLD - 1, owesDelivery: true })).toBe("working");
 	});
 
 	test("a shell blocked on the user survives the same gap", () => {
-		expect(ShellActivity.next({ previous: "needs-attention", bound: "idle", idleFor: 0 })).toBe("needs-attention");
+		expect(ShellActivity.next({ previous: "needs-attention", bound: "idle", idleFor: 0, owesDelivery: true })).toBe("needs-attention");
 	});
 
 	test("the agent picking the turn back up leaves no done behind", () => {
-		const held = ShellActivity.next({ previous: "working", bound: "idle", idleFor: 1500 });
+		const held = ShellActivity.next({ previous: "working", bound: "idle", idleFor: 1500, owesDelivery: true });
 
-		expect(ShellActivity.next({ previous: held, bound: "working", idleFor: 0 })).toBe("working");
+		expect(ShellActivity.next({ previous: held, bound: "working", idleFor: 0, owesDelivery: false })).toBe("working");
+	});
+
+	test("a delivery that never arrives stops holding the turn open", () => {
+		expect(ShellActivity.next({ previous: "working", bound: "idle", idleFor: HOLD, owesDelivery: true })).toBe("done");
 	});
 
 	test("a subagent handing the turn back stays working across the whole gap", () => {
 		const gap = [0, 1500, 2700];
-		let state = ShellActivity.next({ previous: "working", bound: "working", idleFor: 0 });
+		let state = ShellActivity.next({ previous: "working", bound: "working", idleFor: 0, owesDelivery: false });
 
 		for (const idleFor of gap) {
-			state = ShellActivity.next({ previous: state, bound: "idle", idleFor });
+			state = ShellActivity.next({ previous: state, bound: "idle", idleFor, owesDelivery: true });
 			expect(state).toBe("working");
 		}
 
-		expect(ShellActivity.next({ previous: state, bound: "working", idleFor: 0 })).toBe("working");
+		expect(ShellActivity.next({ previous: state, bound: "working", idleFor: 0, owesDelivery: false })).toBe("working");
 	});
 });
 
 describe("needs-attention", () => {
 	test("a prompt while the agent waits mid-turn yields needs-attention", () => {
-		expect(ShellActivity.next({ previous: "working", bound: "waiting", idleFor: 0 })).toBe("needs-attention");
+		expect(ShellActivity.next({ previous: "working", bound: "waiting", idleFor: 0, owesDelivery: false })).toBe("needs-attention");
 	});
 
 	test("needs-attention persists across ticks while still waiting", () => {
-		expect(ShellActivity.next({ previous: "needs-attention", bound: "waiting", idleFor: 0 })).toBe("needs-attention");
+		expect(ShellActivity.next({ previous: "needs-attention", bound: "waiting", idleFor: 0, owesDelivery: false })).toBe("needs-attention");
 	});
 
 	test("answering the prompt returns the shell to working as the turn continues", () => {
-		expect(ShellActivity.next({ previous: "needs-attention", bound: "working", idleFor: 0 })).toBe("working");
+		expect(ShellActivity.next({ previous: "needs-attention", bound: "working", idleFor: 0, owesDelivery: false })).toBe("working");
 	});
 
-	test("answering into a finished turn hands off to done once the quiet settles", () => {
-		expect(ShellActivity.next({ previous: "needs-attention", bound: "idle", idleFor: SETTLED })).toBe("done");
+	test("answering into a finished turn hands off to done at once", () => {
+		expect(ShellActivity.next({ previous: "needs-attention", bound: "idle", idleFor: 0, owesDelivery: false })).toBe("done");
 	});
 
 	test("a waiting agent needs attention even on the first tick that sees it", () => {
-		expect(ShellActivity.next({ bound: "waiting", idleFor: 0 })).toBe("needs-attention");
+		expect(ShellActivity.next({ bound: "waiting", idleFor: 0, owesDelivery: false })).toBe("needs-attention");
 	});
 
 });

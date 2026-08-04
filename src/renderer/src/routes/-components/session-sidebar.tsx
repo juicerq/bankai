@@ -364,6 +364,9 @@ function SessionShelfRow({ row, gestures }: { row: SessionRow; gestures: Session
 	);
 }
 
+const HOVER_ACTION_CLASS =
+	"relative flex size-3.5 shrink-0 items-center justify-center hover:text-primary before:absolute before:-inset-1.5";
+
 function SessionEntry({
 	row,
 	gestures,
@@ -409,14 +412,12 @@ function SessionEntry({
 						{children}
 					</button>
 				)}
-			<span className="absolute top-0 right-0 hidden bg-inherit group-hover:flex">
+			<span className="absolute top-0 right-0 hidden items-center gap-3.5 bg-inherit pt-2 pr-3 group-hover:flex">
 				{!archived && (
 					<button
 						type="button"
 						data-slot={pinned ? "unpin-session" : "pin-session"}
-						className={`flex h-7 w-7 items-center justify-center hover:text-primary ${
-							pinned ? "text-tertiary" : "text-secondary"
-						}`}
+						className={`${HOVER_ACTION_CLASS} ${pinned ? "text-tertiary" : "text-secondary"}`}
 						aria-label={`${pinned ? "Unpin" : "Pin"} ${row.title}`}
 						title={pinned ? "Unpin" : "Pin — keeps it on top and out of the archive"}
 						onClick={() => gestures.onTogglePin(row)}
@@ -431,7 +432,7 @@ function SessionEntry({
 						<button
 							type="button"
 							data-slot="unarchive-session"
-							className="flex h-7 w-7 items-center justify-center text-secondary hover:text-primary"
+							className={`${HOVER_ACTION_CLASS} text-secondary`}
 							aria-label={`Unarchive ${row.title}`}
 							title="Unarchive"
 							onClick={() => gestures.onUnarchive(row.projectId, row.shellId)}
@@ -443,7 +444,7 @@ function SessionEntry({
 						<button
 							type="button"
 							data-slot="archive-session"
-							className="flex h-7 w-7 items-center justify-center text-secondary hover:text-primary"
+							className={`${HOVER_ACTION_CLASS} text-secondary`}
 							aria-label={`Archive ${row.title}`}
 							title="Archive"
 							onClick={() => gestures.onArchive(row.projectId, row.shellId)}
@@ -454,7 +455,7 @@ function SessionEntry({
 				<button
 					type="button"
 					data-slot="close-session"
-					className="flex h-7 w-7 items-center justify-center text-secondary hover:text-primary"
+					className={`${HOVER_ACTION_CLASS} text-secondary`}
 					aria-label={`Close ${row.title}`}
 					onClick={() => gestures.onClose(row.projectId, row.shellId)}
 				>

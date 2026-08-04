@@ -47,6 +47,7 @@ function renderSidebar(
 		onRename?: (projectId: string, shellId: string, title: string) => void;
 		onRequestShell?: (plain: boolean) => void;
 		onToggleProject?: (projectId: string) => void;
+		onExcludeProject?: (projectId: string, listedIds: readonly string[]) => void;
 		canCreateShell?: boolean;
 		projects?: Project[];
 		chosenProjectIds?: ReadonlySet<string>;
@@ -76,6 +77,7 @@ function renderSidebar(
 				onCreate={handlers.onCreate ?? (() => {})}
 				onRequestShell={handlers.onRequestShell ?? (() => {})}
 				onToggleProject={handlers.onToggleProject ?? (() => {})}
+				onExcludeProject={handlers.onExcludeProject ?? (() => {})}
 				onClose={handlers.onClose ?? (() => {})}
 				onArchive={handlers.onArchive ?? (() => {})}
 				onUnarchive={handlers.onUnarchive ?? (() => {})}

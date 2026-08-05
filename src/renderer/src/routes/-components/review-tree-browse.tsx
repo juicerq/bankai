@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { FileChange } from "@main/git/git-contracts";
 import {
 	ReviewTreeDirectoryRow,
@@ -12,14 +12,17 @@ export function ReviewTreeBrowse({
 	paths,
 	files,
 	focusedPath,
+	expanded,
+	onExpandedChange,
 	onOpenFile,
 }: {
 	paths?: string[];
 	files: FileChange[];
 	focusedPath?: string;
+	expanded: ReadonlySet<string>;
+	onExpandedChange: (expanded: ReadonlySet<string>) => void;
 	onOpenFile: (path: string) => void;
 }) {
-	const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 	const tree = useMemo(() => {
 		const changed = new Map(files.map((file) => [file.path, file]));
 
@@ -43,7 +46,7 @@ export function ReviewTreeBrowse({
 						node={row.node}
 						depth={row.depth}
 						collapsed={collapsed.has(row.node.path)}
-						onToggle={(node) => setExpanded((current) => toggledSet(current, node.path))}
+						onToggle={(node) => onExpandedChange(toggledSet(expanded, node.path))}
 					/>
 				) : (
 					<ReviewTreeFileRow

@@ -78,6 +78,7 @@ export function ReviewTreeFileRow({
 			{onToggleFocus && (
 				<button
 					type="button"
+					data-slot="focus"
 					className={`shrink-0 p-1 hover:text-primary ${
 						focused ? "text-primary" : "text-secondary opacity-0 group-hover:opacity-100"
 					}`}

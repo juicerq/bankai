@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import type { FileChange } from "@main/git/git-contracts";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
 import { redistributeReviewTree } from "@renderer/routes/-utils/review-layout";
-import { createReviewPanelStore } from "@renderer/routes/-utils/review-panel-store";
+import { createReviewPanelStore, type ReviewTreeView } from "@renderer/routes/-utils/review-panel-store";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
@@ -42,7 +42,7 @@ function ReviewTreeHarness() {
 				files={[]}
 				treeView="changes"
 				divider={divider}
-				onToggleTreeView={() => {}}
+				onSelectTreeView={() => {}}
 				onOpenFile={() => {}}
 				onToggleFocusFile={() => {}}
 				onCloseFiles={() => {}}
@@ -87,13 +87,17 @@ function ReviewTreeFilesHarness({ browsePaths }: { browsePaths?: string[] }) {
 				treeView={treeView}
 				focusedPath={focusedPath}
 				divider={divider}
-				onToggleTreeView={panel.actions.toggleTreeView}
+				onSelectTreeView={panel.actions.selectTreeView}
 				onOpenFile={() => {}}
 				onToggleFocusFile={panel.actions.focusFile}
 				onCloseFiles={panel.actions.closeScope}
 			/>
 		</main>
 	);
+}
+
+function selectView(view: ReviewTreeView) {
+	fireEvent.click(slot(get("review-tree"), `tree-view-${view}`));
 }
 
 function directoryRow(name: string) {
@@ -113,7 +117,7 @@ function rowPaths() {
 	);
 }
 
-function browseRow(path: string) {
+function treeRow(path: string) {
 	const match = [...get("review-tree").querySelectorAll<HTMLElement>("[data-component='review-tree-row']")].find(
 		(row) => row.dataset.path === path,
 	);
@@ -161,7 +165,7 @@ test("browsing the repository starts with every directory collapsed", () => {
 
 	expect(get("review-tree").dataset.treeView).toBe("changes");
 
-	fireEvent.click(slot(get("review-tree"), "tree-view"));
+	selectView("browse");
 
 	expect(get("review-tree").dataset.treeView).toBe("browse");
 	expect(rowPaths()).toEqual(["docs", "src/app", ".env", "README.md"]);
@@ -170,8 +174,8 @@ test("browsing the repository starts with every directory collapsed", () => {
 test("a browsed file carries the mark of its change and nothing when it has none", () => {
 	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
 
-	fireEvent.click(slot(get("review-tree"), "tree-view"));
-	fireEvent.click(browseRow("src/app"));
+	selectView("browse");
+	fireEvent.click(treeRow("src/app"));
 
 	expect(rowPaths()).toEqual([
 		"docs",
@@ -181,19 +185,76 @@ test("a browsed file carries the mark of its change and nothing when it has none
 		".env",
 		"README.md",
 	]);
-	expect(browseRow("src/app/one.ts").dataset.status).toBe("modified");
-	expect(browseRow("src/app/untracked.ts").dataset.status).toBeUndefined();
+	expect(treeRow("src/app/one.ts").dataset.status).toBe("modified");
+	expect(treeRow("src/app/untracked.ts").dataset.status).toBeUndefined();
 });
 
-test("browsing focuses the clicked file and leaving the view clears that focus", () => {
+test("a browsed directory stays open when the view leaves and comes back", () => {
 	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
 
-	fireEvent.click(slot(get("review-tree"), "tree-view"));
-	fireEvent.click(slot(browseRow(".env"), "open"));
+	selectView("browse");
+	fireEvent.click(treeRow("src/app"));
+	selectView("changes");
+	selectView("browse");
+
+	expect(rowPaths()).toEqual([
+		"docs",
+		"src/app",
+		"src/app/one.ts",
+		"src/app/untracked.ts",
+		".env",
+		"README.md",
+	]);
+});
+
+test("a collapsed changed directory stays collapsed when the view leaves and comes back", () => {
+	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
+
+	fireEvent.click(directoryRow("src/app"));
+	selectView("browse");
+	selectView("changes");
+
+	expect(rowPaths()).toEqual(["src/app", "README.md"]);
+	expect(get("review-split").dataset.closed).toBe("src/app/one.ts src/app/two.ts");
+});
+
+test("each view keeps its own focused file across a view switch", () => {
+	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
+
+	fireEvent.click(slot(treeRow("README.md"), "focus"));
+
+	expect(get("review-split").dataset.focused).toBe("README.md");
+
+	selectView("browse");
+
+	expect(get("review-split").dataset.focused).toBeUndefined();
+
+	fireEvent.click(slot(treeRow(".env"), "open"));
 
 	expect(get("review-split").dataset.focused).toBe(".env");
 
-	fireEvent.click(slot(get("review-tree"), "tree-view"));
+	selectView("changes");
 
-	expect(get("review-split").dataset.focused).toBeUndefined();
+	expect(get("review-split").dataset.focused).toBe("README.md");
+
+	selectView("browse");
+
+	expect(get("review-split").dataset.focused).toBe(".env");
+});
+
+test("selecting the view already on screen keeps the focused file", () => {
+	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
+
+	fireEvent.click(slot(treeRow("README.md"), "focus"));
+	selectView("changes");
+
+	expect(get("review-tree").dataset.treeView).toBe("changes");
+	expect(get("review-split").dataset.focused).toBe("README.md");
+
+	selectView("browse");
+	fireEvent.click(slot(treeRow(".env"), "open"));
+	selectView("browse");
+
+	expect(get("review-tree").dataset.treeView).toBe("browse");
+	expect(get("review-split").dataset.focused).toBe(".env");
 });

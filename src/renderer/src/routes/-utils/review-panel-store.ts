@@ -10,6 +10,7 @@ export interface ReviewPanelState {
 	treeView: ReviewTreeView;
 	closedFiles: ReadonlySet<string>;
 	focusedPath?: string;
+	hiddenFocusedPath?: string;
 	pinnedWorktree?: string;
 }
 
@@ -25,15 +26,25 @@ export function createReviewPanelStore() {
 
 		return {
 			selectMode: (mode: ReviewMode) => {
-				patch({ mode, focusedPath: undefined });
+				patch({ mode, focusedPath: undefined, hiddenFocusedPath: undefined });
 			},
 
-			toggleTreeView: () => {
-				patch({ treeView: get().treeView === "browse" ? "changes" : "browse", focusedPath: undefined });
+			selectTreeView: (treeView: ReviewTreeView) => {
+				const { treeView: current, focusedPath, hiddenFocusedPath } = get();
+
+				if (treeView === current) {
+					return;
+				}
+
+				patch({
+					treeView,
+					focusedPath: hiddenFocusedPath,
+					hiddenFocusedPath: focusedPath,
+				});
 			},
 
 			pinWorktree: (pinnedWorktree?: string) => {
-				patch({ pinnedWorktree, focusedPath: undefined });
+				patch({ pinnedWorktree, focusedPath: undefined, hiddenFocusedPath: undefined });
 			},
 
 			openFile: (path: string) => {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { FileChange } from "@main/git/git-contracts";
 import {
 	ReviewTreeDirectoryRow,
@@ -11,24 +11,27 @@ import { toggledSet } from "@renderer/routes/-utils/toggled-set";
 export function ReviewTreeChanges({
 	files,
 	focusedPath,
+	collapsed,
+	onCollapsedChange,
 	onOpenFile,
 	onToggleFocusFile,
 	onCloseFiles,
 }: {
 	files: FileChange[];
 	focusedPath?: string;
+	collapsed: ReadonlySet<string>;
+	onCollapsedChange: (collapsed: ReadonlySet<string>) => void;
 	onOpenFile: (path: string) => void;
 	onToggleFocusFile: (path: string) => void;
 	onCloseFiles: (paths: string[], closed: boolean) => void;
 }) {
-	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	const tree = useMemo(
 		() => fileTree<ReviewTreeItem>(files.map((file) => ({ path: file.path, item: file }))),
 		[files],
 	);
 
 	const toggleDirectory = (node: FileTreeDirectory<ReviewTreeItem>) => {
-		setCollapsed((current) => toggledSet(current, node.path));
+		onCollapsedChange(toggledSet(collapsed, node.path));
 		onCloseFiles(fileTreePaths(node), !collapsed.has(node.path));
 	};
 

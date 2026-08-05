@@ -145,7 +145,7 @@ export function ReviewPanel({
 					treeView={treeView}
 					focusedPath={focusedPath}
 					divider={treeDivider}
-					onToggleTreeView={panel.actions.toggleTreeView}
+					onSelectTreeView={panel.actions.selectTreeView}
 					onOpenFile={openFromTree}
 					onToggleFocusFile={toggleFocus}
 					onCloseFiles={panel.actions.closeScope}

@@ -6,10 +6,27 @@ import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 export type ReviewTreeItem = FileChange | undefined;
 
 const ROW_PADDING = 12;
-const ROW_INDENT = 8;
+const ROW_INDENT = 16;
+const ROW_CHEVRON_CENTER = 8;
 
-function rowPadding(depth: number) {
-	return { paddingLeft: ROW_PADDING + depth * ROW_INDENT };
+function ReviewTreeRowIndent({ depth }: { depth: number }) {
+	return (
+		<>
+			<span
+				aria-hidden="true"
+				className="shrink-0 self-stretch"
+				style={{ width: depth > 0 ? ROW_PADDING + ROW_CHEVRON_CENTER : ROW_PADDING }}
+			/>
+			{Array.from({ length: depth }, (_, level) => (
+				<span
+					key={level}
+					aria-hidden="true"
+					className="shrink-0 self-stretch border-outline/70 border-l"
+					style={{ width: level === depth - 1 ? ROW_CHEVRON_CENTER : ROW_INDENT }}
+				/>
+			))}
+		</>
+	);
 }
 
 export function ReviewTreeDirectoryRow({
@@ -31,13 +48,13 @@ export function ReviewTreeDirectoryRow({
 			data-component="review-tree-row"
 			data-path={node.path}
 			data-kind="directory"
-			className="flex w-full items-center gap-1 py-1 pr-3 text-left text-body text-secondary hover:bg-surface-hover hover:text-primary"
-			style={rowPadding(depth)}
+			className="flex w-full items-center pr-3 text-left text-body text-secondary hover:bg-surface-hover hover:text-primary"
 			aria-expanded={!collapsed}
 			onClick={() => onToggle(node)}
 		>
-			<ChevronIcon className="size-4 shrink-0" />
-			<span className="truncate">{node.name}</span>
+			<ReviewTreeRowIndent depth={depth} />
+			<ChevronIcon className="mr-1 size-4 shrink-0" />
+			<span className="truncate py-1">{node.name}</span>
 		</button>
 	);
 }
@@ -62,8 +79,8 @@ export function ReviewTreeFileRow({
 			data-kind="file"
 			data-status={node.item?.status}
 			className={`group flex items-center pr-1 hover:bg-surface-hover ${focused ? "bg-surface-active" : ""}`}
-			style={rowPadding(depth)}
 		>
+			<ReviewTreeRowIndent depth={depth} />
 			<button
 				type="button"
 				data-slot="open"

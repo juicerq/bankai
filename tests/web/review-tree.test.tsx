@@ -89,7 +89,14 @@ function ReviewTreeFilesHarness({ browsePaths }: { browsePaths?: string[] }) {
 				divider={divider}
 				onSelectTreeView={panel.actions.selectTreeView}
 				onOpenFile={() => {}}
-				onToggleFocusFile={panel.actions.focusFile}
+				onToggleFocusFile={(path) => {
+					if (focusedPath === path) {
+						panel.actions.clearFocus();
+						return;
+					}
+
+					panel.actions.focusFile(path);
+				}}
 				onCloseFiles={panel.actions.closeScope}
 			/>
 		</main>
@@ -238,6 +245,19 @@ test("each view keeps its own focused file across a view switch", () => {
 	expect(get("review-split").dataset.focused).toBe("README.md");
 
 	selectView("browse");
+
+	expect(get("review-split").dataset.focused).toBe(".env");
+});
+
+test("clicking the browsed file already open keeps it open", () => {
+	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
+
+	selectView("browse");
+	fireEvent.click(slot(treeRow(".env"), "open"));
+
+	expect(get("review-split").dataset.focused).toBe(".env");
+
+	fireEvent.click(slot(treeRow(".env"), "open"));
 
 	expect(get("review-split").dataset.focused).toBe(".env");
 });

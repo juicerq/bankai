@@ -98,7 +98,11 @@ export function ReviewTree({
 						focusedPath={focusedPath}
 						expanded={expandedBrowse}
 						onExpandedChange={setExpandedBrowse}
-						onOpenFile={onToggleFocusFile}
+						onOpenFile={(path) => {
+							if (path !== focusedPath) {
+								onToggleFocusFile(path);
+							}
+						}}
 					/>
 				) : (
 					<ReviewTreeChanges

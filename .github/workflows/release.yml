@@ -17,13 +17,6 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
-      - name: Provide the local check package
-        run: |
-          git clone --depth 1 https://github.com/juicerq/agent-setup ../agent-setup
-          cd ../agent-setup/check
-          bun install
-          bun run build
-
       - name: Install
         run: bun install --frozen-lockfile
 

@@ -329,22 +329,30 @@ export class RendererTerminalSession {
 	}
 
 	private handleClipboardChord(event: KeyboardEvent) {
-		if (!event.ctrlKey || !event.shiftKey || event.altKey || event.metaKey) {
+		if (!event.ctrlKey || event.altKey || event.metaKey) {
 			return true;
 		}
-		if (event.code !== "KeyC" && event.code !== "KeyV") {
+
+		const isCopy = event.shiftKey && event.code === "KeyC";
+		const isPaste = event.code === "KeyV";
+
+		if (!isCopy && !isPaste) {
 			return true;
 		}
+
 		if (event.type !== "keydown") {
 			return false;
 		}
 
 		event.preventDefault();
-		if (event.code === "KeyC") {
+
+		if (isCopy) {
 			this.copySelection();
-		} else {
-			this.pasteClipboard();
+
+			return false;
 		}
+
+		this.pasteClipboard();
 
 		return false;
 	}

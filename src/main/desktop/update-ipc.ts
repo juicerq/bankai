@@ -2,7 +2,9 @@ import electronUpdater from "electron-updater";
 import { app, BrowserWindow, ipcMain } from "electron";
 import { Logger } from "@main/infra/logger";
 import { SelfUpdate } from "@main/desktop/self-update";
-import { UPDATE_IPC, type UpdateDownloadedEvent } from "@shared/update";
+import { AgentActivity } from "@main/agents/agent-activity";
+import { shellProcesses } from "@main/terminal/shell-processes";
+import { UPDATE_IPC, type UpdateDownloadedEvent, type UpdateWorkload } from "@shared/update";
 
 const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
 const UPDATE_CHECK_TTL_MS = 5 * 60 * 1000;
@@ -14,6 +16,8 @@ function setupUpdateIpc(): void {
 	const { autoUpdater } = electronUpdater;
 
 	ipcMain.handle(UPDATE_IPC.getPending, () => pending ?? null);
+
+	ipcMain.handle(UPDATE_IPC.activeWork, () => countActiveWork());
 
 	ipcMain.on(UPDATE_IPC.install, () => {
 		if (!pending) {
@@ -67,6 +71,27 @@ function setupUpdateIpc(): void {
 	checkForUpdates(autoUpdater);
 	setInterval(() => checkForUpdates(autoUpdater), UPDATE_CHECK_INTERVAL_MS);
 	app.on("browser-window-focus", () => checkForUpdates(autoUpdater));
+}
+
+function countActiveWork(): UpdateWorkload {
+	const shells = shellProcesses.list();
+
+	if (process.platform !== "linux") {
+		return { kind: "shells", count: shells.length };
+	}
+
+	const projectIds = new Set(shells.map((shell) => shell.projectId));
+	let count = 0;
+
+	for (const projectId of projectIds) {
+		for (const state of Object.values(AgentActivity.getProjectSnapshot(projectId).shells)) {
+			if (state === "working" || state === "needs-attention") {
+				count += 1;
+			}
+		}
+	}
+
+	return { kind: "agents", count };
 }
 
 function checkForUpdates(autoUpdater: electronUpdater.AppUpdater): void {

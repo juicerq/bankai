@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld("bankaiAuth", authApi);
 
 const updateApi: BankaiUpdateApi = {
 	getPending: () => ipcRenderer.invoke(UPDATE_IPC.getPending),
+	countActiveWork: () => ipcRenderer.invoke(UPDATE_IPC.activeWork),
 	install: () => ipcRenderer.send(UPDATE_IPC.install),
 	onDownloaded: (listener) => {
 		const handler = (_event: Electron.IpcRendererEvent, payload: UpdateDownloadedEvent) => {

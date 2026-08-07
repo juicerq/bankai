@@ -8,7 +8,9 @@ import { Harnesses } from "@main/agents/harness/harnesses";
 import { ProcFs } from "@main/infra/proc-fs";
 import { type ParentOf } from "@main/agents/session/session-binder";
 import { SessionBinder } from "@main/agents/session/session-binder";
+import { SHELL_ID_ENV } from "@main/terminal/shell-agents";
 import { ShellCommandLine } from "@main/terminal/shell-command-line";
+import { environ, readerOf } from "./utils/proc-reader";
 import { aggregateActivity, type AgentActivityState } from "@shared/activity";
 
 const BUSY_RECORD =
@@ -451,66 +453,114 @@ describe("shell to agent binding", () => {
 		return (pid) => Promise.resolve(parents.get(pid) ?? null);
 	}
 
+	const unstamped = readerOf({});
+
 	test("binds an agent the shell launched itself", async () => {
-		const bindings = await SessionBinder.bind(
-			[{ sessionId: "shell-a", pid: 100 }],
-			[200],
-			chain([[200, 100]]),
-		);
-		expect(bindings.get("shell-a")).toBe(200);
+		const bindings = await SessionBinder.bind({
+			shells: [{ sessionId: "session-a", shellId: "shell-a", pid: 100 }],
+			agents: [200],
+			parentOf: chain([[200, 100]]),
+			reader: unstamped,
+		});
+		expect(bindings.get("session-a")).toBe(200);
+	});
+
+	test("binds an agent setsid orphaned, by the shell id stamped in its environment", async () => {
+		const bindings = await SessionBinder.bind({
+			shells: [{ sessionId: "session-a", shellId: "shell-a", pid: 100 }],
+			agents: [200],
+			parentOf: chain([[200, 1]]),
+			reader: readerOf({ 200: environ({ [SHELL_ID_ENV]: "shell-a" }) }),
+		});
+
+		expect(bindings.get("session-a")).toBe(200);
+	});
+
+	test("does not bind an agent stamped with another shell's id", async () => {
+		const bindings = await SessionBinder.bind({
+			shells: [{ sessionId: "session-a", shellId: "shell-a", pid: 100 }],
+			agents: [200],
+			parentOf: chain([[200, 1]]),
+			reader: readerOf({ 200: environ({ [SHELL_ID_ENV]: "shell-b" }) }),
+		});
+
+		expect(bindings.size).toBe(0);
+	});
+
+	test("prefers the stamped shell over the one the parent chain leads to", async () => {
+		const bindings = await SessionBinder.bind({
+			shells: [
+				{ sessionId: "session-a", shellId: "shell-a", pid: 100 },
+				{ sessionId: "session-b", shellId: "shell-b", pid: 101 },
+			],
+			agents: [200],
+			parentOf: chain([[200, 101]]),
+			reader: readerOf({ 200: environ({ [SHELL_ID_ENV]: "shell-a" }) }),
+		});
+
+		expect(bindings).toEqual(new Map([["session-a", 200]]));
 	});
 
 	test("binds an agent sitting further down the shell's tree", async () => {
-		const bindings = await SessionBinder.bind(
-			[{ sessionId: "shell-a", pid: 100 }],
-			[300],
-			chain([[300, 250], [250, 100]]),
-		);
-		expect(bindings.get("shell-a")).toBe(300);
+		const bindings = await SessionBinder.bind({
+			shells: [{ sessionId: "session-a", shellId: "shell-a", pid: 100 }],
+			agents: [300],
+			parentOf: chain([[300, 250], [250, 100]]),
+			reader: unstamped,
+		});
+		expect(bindings.get("session-a")).toBe(300);
 	});
 
 	test("does not bind a shell with no agent under it, nor an agent outside every shell", async () => {
-		const bindings = await SessionBinder.bind(
-			[{ sessionId: "empty", pid: 100 }],
-			[300],
-			chain([[300, 900], [900, 1]]),
-		);
+		const bindings = await SessionBinder.bind({
+			shells: [{ sessionId: "empty", shellId: "shell-empty", pid: 100 }],
+			agents: [300],
+			parentOf: chain([[300, 900], [900, 1]]),
+			reader: unstamped,
+		});
 		expect(bindings.size).toBe(0);
 	});
 
 	test("prefers the agent nearest the shell over one nested below it", async () => {
-		const bindings = await SessionBinder.bind(
-			[{ sessionId: "shell-a", pid: 100 }],
-			[400, 200],
-			chain([[200, 100], [400, 300], [300, 200]]),
-		);
-		expect(bindings.get("shell-a")).toBe(200);
+		const bindings = await SessionBinder.bind({
+			shells: [{ sessionId: "session-a", shellId: "shell-a", pid: 100 }],
+			agents: [400, 200],
+			parentOf: chain([[200, 100], [400, 300], [300, 200]]),
+			reader: unstamped,
+		});
+		expect(bindings.get("session-a")).toBe(200);
 	});
 
 	test("gives each shell the agent under it", async () => {
-		const bindings = await SessionBinder.bind(
-			[{ sessionId: "shell-a", pid: 100 }, { sessionId: "shell-b", pid: 101 }],
-			[200, 201],
-			chain([[200, 100], [201, 101]]),
-		);
-		expect(bindings).toEqual(new Map([["shell-a", 200], ["shell-b", 201]]));
+		const bindings = await SessionBinder.bind({
+			shells: [
+				{ sessionId: "session-a", shellId: "shell-a", pid: 100 },
+				{ sessionId: "session-b", shellId: "shell-b", pid: 101 },
+			],
+			agents: [200, 201],
+			parentOf: chain([[200, 100], [201, 101]]),
+			reader: unstamped,
+		});
+		expect(bindings).toEqual(new Map([["session-a", 200], ["session-b", 201]]));
 	});
 
 	test("stops walking a parent chain that cycles back on itself", async () => {
-		const bindings = await SessionBinder.bind(
-			[{ sessionId: "shell-a", pid: 100 }],
-			[200],
-			chain([[200, 250], [250, 200]]),
-		);
+		const bindings = await SessionBinder.bind({
+			shells: [{ sessionId: "session-a", shellId: "shell-a", pid: 100 }],
+			agents: [200],
+			parentOf: chain([[200, 250], [250, 200]]),
+			reader: unstamped,
+		});
 		expect(bindings.size).toBe(0);
 	});
 
 	test("stops at init rather than binding pid 1", async () => {
-		const bindings = await SessionBinder.bind(
-			[{ sessionId: "init", pid: 1 }],
-			[200],
-			chain([[200, 1]]),
-		);
+		const bindings = await SessionBinder.bind({
+			shells: [{ sessionId: "init", shellId: "shell-init", pid: 1 }],
+			agents: [200],
+			parentOf: chain([[200, 1]]),
+			reader: unstamped,
+		});
 		expect(bindings.size).toBe(0);
 	});
 });
@@ -522,12 +572,38 @@ describe.if(process.platform === "linux")("binding against real processes", () =
 			throw new Error("this test process has no parent to bind to");
 		}
 
-		const bindings = await SessionBinder.bind([{ sessionId: "shell-a", pid: parent }], [process.pid], ProcFs.parent);
-		expect(bindings).toEqual(new Map([["shell-a", process.pid]]));
+		const bindings = await SessionBinder.bind({
+			shells: [{ sessionId: "session-a", shellId: "shell-a", pid: parent }],
+			agents: [process.pid],
+			parentOf: ProcFs.parent,
+		});
+		expect(bindings).toEqual(new Map([["session-a", process.pid]]));
 	});
 
 	test("reports no parent for a pid that does not exist", async () => {
 		expect(await ProcFs.parent(0x7f_ff_ff_ff)).toBeNull();
+	});
+
+	test("binds a harness the shell orphaned, by its stamped environment", async () => {
+		const shellId = `shell-${process.pid}`;
+		const orphan = Bun.spawn(["sh", "-c", "echo ready; exec sleep 30"], {
+			env: { ...process.env, [SHELL_ID_ENV]: shellId },
+			stdin: "ignore",
+			stdout: "pipe",
+			stderr: "ignore",
+		});
+		try {
+			await orphan.stdout.getReader().read();
+			const bindings = await SessionBinder.bind({
+				shells: [{ sessionId: "pane", shellId, pid: 1 }],
+				agents: [orphan.pid],
+				parentOf: () => Promise.resolve(null),
+			});
+			expect(bindings).toEqual(new Map([["pane", orphan.pid]]));
+		} finally {
+			orphan.kill("SIGKILL");
+			await orphan.exited;
+		}
 	});
 
 	test("binds a harness launched the way a pane launches it", async () => {
@@ -543,7 +619,11 @@ describe.if(process.platform === "linux")("binding against real processes", () =
 			const harness = Number(listed.trim().split("\n")[0]);
 			expect(harness).toBeGreaterThan(0);
 
-			const bindings = await SessionBinder.bind([{ sessionId: "pane", pid: pane.pid }], [harness], ProcFs.parent);
+			const bindings = await SessionBinder.bind({
+				shells: [{ sessionId: "pane", shellId: "shell-pane", pid: pane.pid }],
+				agents: [harness],
+				parentOf: ProcFs.parent,
+			});
 			expect(bindings).toEqual(new Map([["pane", harness]]));
 		} finally {
 			Bun.spawnSync(["pkill", "-9", "-P", String(pane.pid)]);

@@ -8,6 +8,8 @@ import { Reach } from "@main/transport/server/server-reach";
 import { Services } from "@main/services";
 import { Startup } from "@main/startup";
 import { StorePaths } from "@main/store/store-paths";
+import { ShellAgents } from "@main/terminal/shell-agents";
+import { shellProcesses } from "@main/terminal/shell-processes";
 import { type SettingsValue, Settings } from "@main/store/settings";
 import { MobileAccess } from "@main/infra/tailscale/mobile-access";
 import { UpdateIpc } from "@main/desktop/update-ipc";
@@ -179,6 +181,8 @@ if (identity.desktopName) {
 	app.setDesktopName(identity.desktopName);
 }
 
+let quitting = false;
+
 if (identity.singleInstanceLock && !app.requestSingleInstanceLock()) {
 	app.quit();
 } else {
@@ -186,9 +190,20 @@ if (identity.singleInstanceLock && !app.requestSingleInstanceLock()) {
 	app.on("ready", () => {
 		start().catch((err) => Logger.error("app:start-failed", { err: String(err) }));
 	});
-	app.on("before-quit", () => {
+	app.on("before-quit", (event) => {
+		if (quitting) {
+			return;
+		}
+
+		quitting = true;
+		event.preventDefault();
+
 		Services.stopAll();
 		GitProcess.close();
+
+		ShellAgents.terminate({ shells: shellProcesses.list() })
+			.catch((err) => Logger.error("app:shell-shutdown-failed", { err: String(err) }))
+			.finally(() => app.quit());
 	});
 	app.on("window-all-closed", () => app.quit());
 }

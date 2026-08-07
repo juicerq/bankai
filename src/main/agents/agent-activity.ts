@@ -290,7 +290,11 @@ class AgentActivityTracker {
 				}
 			}),
 		);
-		const bindings = await SessionBinder.bind(shells, liveByPid.keys(), ProcFs.parent);
+		const bindings = await SessionBinder.bind({
+			shells,
+			agents: liveByPid.keys(),
+			parentOf: ProcFs.parent,
+		});
 		this.boundSessions = new Set(bindings.keys());
 
 		this.captureSessionRefs(shells, bindings, liveByPid);

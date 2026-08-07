@@ -5,6 +5,7 @@ import { Logger } from "@main/infra/logger";
 import { TerminalEnv } from "@main/terminal/terminal-env";
 import { SHELL } from "@main/terminal/shell-binary";
 import { shellProcesses, type ShellRef } from "@main/terminal/shell-processes";
+import { SHELL_ID_ENV, ShellAgents } from "@main/terminal/shell-agents";
 
 interface SpawnShellInput extends ShellRef {
 	cwd: string;
@@ -29,7 +30,7 @@ export const ShellSpawn = {
 			cols: input.cols,
 			rows: input.rows,
 			cwd: input.cwd,
-			env: TerminalEnv.of(process.env),
+			env: { ...TerminalEnv.of(process.env), [SHELL_ID_ENV]: input.shellId },
 		});
 
 		shellProcesses.register({
@@ -43,7 +44,7 @@ export const ShellSpawn = {
 					terminal.resize(cols, rows);
 					forwardResizeSignal(terminal.pid);
 				},
-				kill: (signal) => kill(terminal, input.killGroup === true, signal),
+				kill: (signal) => kill({ terminal, shellId: input.shellId, group: input.killGroup === true, signal }),
 			},
 		});
 
@@ -73,17 +74,43 @@ function forwardResizeSignal(shellPid: number): void {
 		.catch(() => {});
 }
 
-function kill(terminal: IPty, group: boolean, signal?: string): void {
-	if (!group) {
-		terminal.kill(signal);
+interface KillInput {
+	terminal: IPty;
+	shellId: string;
+	group: boolean;
+	signal?: string;
+}
+
+function kill(input: KillInput): void {
+	if (!input.group) {
+		input.terminal.kill(input.signal);
 
 		return;
 	}
 
-	try {
-		process.kill(-terminal.pid, signal ?? "SIGTERM");
-	} catch (err) {
-		Logger.warn("terminal:group-kill-failed", { pid: terminal.pid, err: String(err) });
+	killShellAndAgents(input).catch((err) =>
+		Logger.warn("terminal:group-kill-failed", { pid: input.terminal.pid, err: String(err) })
+	);
+}
+
+async function killShellAndAgents({ terminal, shellId, signal }: KillInput): Promise<void> {
+	for (const agent of await ShellAgents.of(shellId)) {
+		if (agent !== terminal.pid) {
+			send(agent, signal ?? "SIGTERM");
+		}
+	}
+
+	if (!send(-terminal.pid, signal ?? "SIGTERM")) {
 		terminal.kill(signal);
+	}
+}
+
+function send(pid: number, signal: string): boolean {
+	try {
+		process.kill(pid, signal);
+
+		return true;
+	} catch {
+		return false;
 	}
 }

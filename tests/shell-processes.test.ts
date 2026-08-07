@@ -176,6 +176,13 @@ test("an exit nobody asked for reports itself as spontaneous", () => {
 	expect(processes.noteExit("session-1", 1)).toEqual({ spontaneous: true });
 });
 
+test("shutdown reports the shells to terminate and keeps their exit from reading as spontaneous", () => {
+	register("session-1");
+
+	expect(processes.noteShutdown()).toEqual([{ ...SHELL, sessionId: "session-1", pid: terminal.pid }]);
+	expect(processes.noteExit("session-1", 0)).toEqual({ spontaneous: false });
+});
+
 test("every attached connection is told the process exited", () => {
 	register("session-1");
 	const desktop = new FakeConnection("desktop");

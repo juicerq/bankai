@@ -147,6 +147,16 @@ export class ShellProcesses {
 		}
 	}
 
+	noteShutdown(): TerminalSessionInfo[] {
+		const shells = this.list();
+
+		for (const session of this.sessions.values()) {
+			session.closing = true;
+		}
+
+		return shells;
+	}
+
 	list(): TerminalSessionInfo[] {
 		const infos: TerminalSessionInfo[] = [];
 

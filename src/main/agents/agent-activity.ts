@@ -139,6 +139,7 @@ class AgentActivityTracker {
 	private readonly noteWrite = throttle(() => this.runTick("event"), EVENT_PASS_MS);
 	private readonly harnessWatchers = new Map<string, FSWatcher>();
 	private timer: ReturnType<typeof setInterval> | undefined;
+	private stopped = false;
 	private ticking = false;
 	private queuedPass: ActivityPass | undefined;
 	private tickWaiters: (() => void)[] = [];
@@ -156,6 +157,13 @@ class AgentActivityTracker {
 			.catch((err) =>
 				Logger.error("activity:continuity-load-failed", { err: String(err) }),
 			);
+	}
+
+	stop(): void {
+		this.stopped = true;
+		clearInterval(this.timer);
+		this.timer = undefined;
+		this.watchHarnessFiles([]);
 	}
 
 	private noteContinuity(value: ContinuityValue): void {
@@ -262,6 +270,10 @@ class AgentActivityTracker {
 	}
 
 	private async tick(pass: ActivityPass): Promise<void> {
+		if (this.stopped) {
+			return;
+		}
+
 		const shells = shellProcesses.list();
 		const owners = ShellActivity.owners(shells);
 		if (shells.length === 0) {
@@ -400,6 +412,10 @@ class AgentActivityTracker {
 		bindings: Map<string, number>,
 		liveByPid: Map<number, AgentPresence>,
 	): void {
+		if (this.stopped) {
+			return;
+		}
+
 		const observations = shells.map((shell) => {
 			const boundPid = bindings.get(shell.sessionId);
 			const presence =

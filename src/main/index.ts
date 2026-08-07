@@ -200,8 +200,9 @@ if (identity.singleInstanceLock && !app.requestSingleInstanceLock()) {
 
 		Services.stopAll();
 		GitProcess.close();
+		AgentActivity.stop();
 
-		ShellAgents.terminate({ shells: shellProcesses.list() })
+		ShellAgents.terminate({ shells: shellProcesses.noteShutdown() })
 			.catch((err) => Logger.error("app:shell-shutdown-failed", { err: String(err) }))
 			.finally(() => app.quit());
 	});

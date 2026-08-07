@@ -343,7 +343,7 @@ function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGest
 					? (
 						<span
 							data-slot="session-activity"
-							className={`flex shrink-0 items-baseline ${ACTIVITY_TEXT_CLASS[row.activity]}`}
+							className={`flex shrink-0 items-baseline gap-1 ${ACTIVITY_TEXT_CLASS[row.activity]}`}
 						>
 							{ACTIVITY_LABEL[row.activity]}
 							{row.since ? <ElapsedClock since={row.since} /> : null}

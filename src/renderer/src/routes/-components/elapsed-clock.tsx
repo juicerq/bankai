@@ -6,7 +6,7 @@ export function ElapsedClock({ since }: { since: number }) {
 
 	return (
 		<span data-slot="session-elapsed" className="shrink-0 text-outline-strong">
-			· {elapsedLabel(now - since)}
+			{elapsedLabel(now - since)}
 		</span>
 	);
 }

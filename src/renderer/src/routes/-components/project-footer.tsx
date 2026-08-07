@@ -2,6 +2,7 @@ import { ChevronDownIcon, ChevronRightIcon, PlusIcon } from "@heroicons/react/24
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Project } from "@main/store/projects";
+import { ConfirmDialog } from "@renderer/routes/-components/confirm-dialog";
 import { MenuItem } from "@renderer/routes/-components/menu-item";
 import { useMenuDismissal } from "@renderer/routes/-utils/use-menu-dismissal";
 
@@ -41,7 +42,6 @@ export function ProjectFooter({
 		onOverlayChange?.(false);
 	}, [onOverlayChange]);
 	const registerMenuDismissal = useMenuDismissal(closeMenu);
-	const registerConfirmDismissal = useMenuDismissal(cancelRemoval);
 	const sorted = [...projects].sort((left, right) => left.name.localeCompare(right.name));
 
 	const requestRemoval = (project: Project) => {
@@ -152,50 +152,23 @@ export function ProjectFooter({
 				</div>,
 				document.body,
 			)}
-			{confirming && createPortal(
-				<div
-					className="picker-backdrop fixed inset-0 z-50 flex justify-center bg-surface-sunken/70 pt-[24vh]"
-					onPointerDown={cancelRemoval}
+			{confirming && (
+				<ConfirmDialog
+					component="remove-project-confirm"
+					title="REMOVE PROJECT"
+					label={`Remove ${confirming.name}`}
+					action="REMOVE"
+					danger
+					onCancel={cancelRemoval}
+					onConfirm={() => {
+						const projectId = confirming.id;
+						cancelRemoval();
+						onRemove(projectId);
+					}}
 				>
-					<div
-						ref={registerConfirmDismissal}
-						data-component="remove-project-confirm"
-						data-project-id={confirming.id}
-						role="dialog"
-						aria-label={`Remove ${confirming.name}`}
-						className="picker-enter h-fit w-[420px] max-w-[90vw] border border-outline-strong bg-surface-raised shadow-2xl"
-						onPointerDown={(event) => event.stopPropagation()}
-					>
-						<p className="border-outline border-b px-3 py-2.5 text-label text-secondary">REMOVE PROJECT</p>
-						<p data-slot="confirm-message" className="px-3 py-3 text-body text-primary">
-							{confirming.name} has {shellCounts.get(confirming.id)} open{" "}
-							{shellCounts.get(confirming.id) === 1 ? "shell" : "shells"}. Removing it closes them.
-						</p>
-						<div className="flex items-center justify-end gap-2 border-outline border-t px-3 py-2">
-							<button
-								type="button"
-								data-slot="cancel-removal"
-								className="border border-outline px-2 py-1 text-label text-secondary hover:border-outline-strong hover:text-primary"
-								onClick={cancelRemoval}
-							>
-								CANCEL
-							</button>
-							<button
-								type="button"
-								data-slot="confirm-removal"
-								className="border border-removed px-2 py-1 text-label text-removed hover:bg-removed hover:text-surface"
-								onClick={() => {
-									const projectId = confirming.id;
-									cancelRemoval();
-									onRemove(projectId);
-								}}
-							>
-								REMOVE
-							</button>
-						</div>
-					</div>
-				</div>,
-				document.body,
+					{confirming.name} has {shellCounts.get(confirming.id)} open{" "}
+					{shellCounts.get(confirming.id) === 1 ? "shell" : "shells"}. Removing it closes them.
+				</ConfirmDialog>
 			)}
 		</section>
 	);

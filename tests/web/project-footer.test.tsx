@@ -99,7 +99,7 @@ test("removing a project with open shells names how many before it goes", () => 
 	expect(slot(confirm, "confirm-message").textContent).toContain("3 open shells");
 	expect(get("footer-state").dataset.removed).toBe("");
 
-	fireEvent.click(slot(confirm, "confirm-removal"));
+	fireEvent.click(slot(confirm, "confirm-accept"));
 
 	expect(query("remove-project-confirm")).toBeNull();
 	expect(get("footer-state").dataset.removed).toBe("alpha");
@@ -113,7 +113,7 @@ test("cancelling the confirmation keeps the project", () => {
 
 	expect(slot(get("remove-project-confirm"), "confirm-message").textContent).toContain("1 open shell");
 
-	fireEvent.click(slot(get("remove-project-confirm"), "cancel-removal"));
+	fireEvent.click(slot(get("remove-project-confirm"), "confirm-cancel"));
 
 	expect(query("remove-project-confirm")).toBeNull();
 	expect(get("footer-state").dataset.removed).toBe("");

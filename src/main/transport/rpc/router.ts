@@ -1,3 +1,4 @@
+import { clipboardRouter } from "@main/transport/rpc/clipboard-router";
 import { commandsRouter } from "@main/transport/rpc/commands-router";
 import { continuityRouter } from "@main/transport/rpc/continuity-router";
 import { loggerRouter } from "@main/transport/rpc/logger-router";
@@ -9,6 +10,7 @@ import { servicesRouter } from "@main/transport/rpc/services-router";
 import { settingsRouter } from "@main/transport/rpc/settings-router";
 
 export const router = {
+	clipboard: clipboardRouter,
 	commands: commandsRouter,
 	continuity: continuityRouter,
 	logger: loggerRouter,

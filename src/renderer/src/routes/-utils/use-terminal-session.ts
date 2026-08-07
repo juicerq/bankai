@@ -2,6 +2,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { type IDisposable, Terminal } from "@xterm/xterm";
 import { useCallback, useRef } from "react";
+import { client } from "@renderer/lib/api";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { terminalStream } from "@renderer/lib/stream/terminal";
 import type { ResumeOutcome } from "@renderer/routes/-utils/resume-state";
@@ -352,7 +353,7 @@ export class RendererTerminalSession {
 			return false;
 		}
 
-		this.pasteClipboard();
+		this.pasteClipboard().catch((err) => this.fail("Paste failed", err));
 
 		return false;
 	}
@@ -366,11 +367,18 @@ export class RendererTerminalSession {
 		navigator.clipboard.writeText(selection).catch((err) => this.fail("Copy failed", err));
 	}
 
-	private pasteClipboard() {
-		navigator.clipboard
-			.readText()
-			.then((text) => this.terminal.paste(text))
-			.catch((err) => this.fail("Paste failed", err));
+	private async pasteClipboard() {
+		const text = await navigator.clipboard.readText();
+		if (text) {
+			this.terminal.paste(text);
+
+			return;
+		}
+
+		const image = await client.clipboard.image();
+		if (image) {
+			this.terminal.paste(`${image} `);
+		}
 	}
 
 	private paint(data: string) {

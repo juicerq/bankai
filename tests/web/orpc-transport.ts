@@ -150,6 +150,9 @@ function requireMobile() {
 export interface ContinuityTransport {
 	value: ContinuityValue;
 	calls: { procedure: string; input: unknown }[];
+	load?: () => Promise<ContinuityValue>;
+	mutation?: (procedure: string, input: unknown) => Promise<ContinuityValue>;
+	mutationFailure?: string;
 }
 
 let currentContinuity: ContinuityTransport | undefined;
@@ -243,6 +246,12 @@ function recordContinuity(procedure: string) {
 	return os.handler(({ input }) => {
 		const transport = requireContinuity();
 		transport.calls.push({ procedure, input });
+		if (transport.mutation) {
+			return transport.mutation(procedure, input);
+		}
+		if (transport.mutationFailure) {
+			throw new Error(transport.mutationFailure);
+		}
 
 		return transport.value;
 	});
@@ -288,7 +297,10 @@ const router = {
 		stop: recordService("stop", "stopped"),
 	},
 	continuity: {
-		get: os.handler(() => ({ value: requireContinuity().value, failed: false })),
+		get: os.handler(async () => {
+			const transport = requireContinuity();
+			return { value: transport.load ? await transport.load() : transport.value, failed: false };
+		}),
 		openShell: recordContinuity("openShell"),
 		closeShell: recordContinuity("closeShell"),
 		selectShell: recordContinuity("selectShell"),

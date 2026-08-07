@@ -19,9 +19,9 @@ export function Divider({
 			aria-valuenow={control.valueNow}
 			tabIndex={0}
 			data-slot="resize"
-			className={`absolute inset-y-0 z-10 w-px cursor-col-resize touch-none focus-visible:bg-primary focus-visible:outline-none ${
+			className={`absolute inset-y-0 z-10 w-px cursor-col-resize touch-none transition-colors focus-visible:bg-primary focus-visible:outline-none ${
 				side === "left" ? "left-0" : "right-0"
-			} ${control.resizing ? "bg-primary" : "bg-outline hover:bg-primary"}`}
+			} ${control.resizing ? "bg-primary" : "bg-outline hover:bg-secondary"}`}
 			onKeyDown={control.onKeyDown}
 			{...control.pointerProps}
 		>

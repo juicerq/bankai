@@ -109,14 +109,12 @@ export function ServicesFooter({
 									</span>
 									<span
 										data-slot="service-detail"
-										className={`shrink-0 text-data text-outline-strong transition-transform ${
-											status === "running" ? "group-hover:-translate-x-20" : "group-hover:-translate-x-14"
-										}`}
+										className="shrink-0 text-data text-outline-strong"
 									>
 										{state?.pid && status === "running" ? state.pid : project?.name}
 									</span>
 								</button>
-								<span className="absolute top-0 right-1.5 hidden items-center group-hover:flex">
+								<span className="flex shrink-0 items-center pl-1">
 									{status === "running" && (
 										<>
 											<button

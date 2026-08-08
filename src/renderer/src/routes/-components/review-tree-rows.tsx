@@ -70,7 +70,7 @@ export function ReviewTreeFileRow({
 	depth: number;
 	focused: boolean;
 	onOpen: (path: string) => void;
-	onToggleFocus?: (path: string) => void;
+	onToggleFocus: (path: string) => void;
 }) {
 	return (
 		<div
@@ -92,20 +92,18 @@ export function ReviewTreeFileRow({
 				</span>
 				<span className="truncate text-primary group-hover:underline">{node.name}</span>
 			</button>
-			{onToggleFocus && (
-				<button
-					type="button"
-					data-slot="focus"
-					className={`shrink-0 p-1 hover:text-primary ${
-						focused ? "text-primary" : "text-secondary opacity-0 group-hover:opacity-100"
-					}`}
-					aria-pressed={focused}
-					aria-label={`${focused ? "Return from focused file" : "Focus"} ${node.path}`}
-					onClick={() => onToggleFocus(node.path)}
-				>
-					<ViewfinderCircleIcon className="size-4" />
-				</button>
-			)}
+			<button
+				type="button"
+				data-slot="focus"
+				className={`shrink-0 p-1 hover:text-primary ${
+					focused ? "text-primary" : "text-secondary opacity-0 group-hover:opacity-100"
+				}`}
+				aria-pressed={focused}
+				aria-label={`${focused ? "Return from focused file" : "Focus"} ${node.path}`}
+				onClick={() => onToggleFocus(node.path)}
+			>
+				<ViewfinderCircleIcon className="size-4" />
+			</button>
 		</div>
 	);
 }

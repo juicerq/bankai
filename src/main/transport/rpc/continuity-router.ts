@@ -12,7 +12,7 @@ const shellInput = type({
 	"plain?": "boolean",
 	"launch?": "string",
 	"title?": "string",
-	"titleSource?": "'user' | 'published' | 'model'",
+	"titleSource?": "'user' | 'harness'",
 });
 
 async function stamped(

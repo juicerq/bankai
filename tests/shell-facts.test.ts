@@ -116,10 +116,14 @@ describe("ShellFacts.stamp titles", () => {
 		ShellTitles.forget("s1");
 	});
 
-	function claudeSession(input: { projectId: string; sessionId: string; cwd: string; intent: string }) {
+	function claudeSession(input: { projectId: string; sessionId: string; cwd: string; intent: string; title?: string }) {
 		const path = ClaudeTranscript.path({ sessionId: input.sessionId, cwd: input.cwd });
 		mkdirSync(join(path, ".."), { recursive: true });
-		writeFileSync(path, `${JSON.stringify({ type: "user", message: { content: input.intent } })}\n`);
+		const records = [
+			JSON.stringify({ type: "user", message: { content: input.intent } }),
+			...(input.title ? [JSON.stringify({ type: "ai-title", aiTitle: input.title, sessionId: input.sessionId })] : []),
+		];
+		writeFileSync(path, `${records.join("\n")}\n`);
 
 		return Continuity.setShellSession({
 			projectId: input.projectId,
@@ -128,14 +132,14 @@ describe("ShellFacts.stamp titles", () => {
 		});
 	}
 
-	it("titles a shell with its agent's first real intent", async () => {
+	it("does not use the agent's first message as its session name", async () => {
 		const cwd = repo("agent-titled", "main");
 		const project = await Projects.add(cwd);
 		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
 		await claudeSession({ projectId: project.id, sessionId: "abc", cwd, intent: "arruma o header" });
 		await ShellFacts.stamp({ projectId: project.id, shellId: "s1" });
 
-		expect((await shell(project.id, "s1"))?.title).toBe("arruma o header");
+		expect((await shell(project.id, "s1"))?.title).toBeUndefined();
 	});
 
 	it("titles an agentless shell with the raw title its own shell wrote", async () => {
@@ -147,16 +151,27 @@ describe("ShellFacts.stamp titles", () => {
 		expect((await shell(project.id, "s1"))?.title).toBe("jui@box: ~/projects");
 	});
 
-	it("keeps the title it already had when the session resumes under a new id", async () => {
+	it("follows the harness's title when the session resumes under a new id", async () => {
 		const cwd = repo("resumed", "main");
 		const project = await Projects.add(cwd);
 		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
-		await claudeSession({ projectId: project.id, sessionId: "first", cwd, intent: "a intencao original" });
+		await claudeSession({ projectId: project.id, sessionId: "first", cwd, intent: "a intencao original", title: "A intenção original" });
 		await ShellFacts.stamp({ projectId: project.id, shellId: "s1" });
-		await claudeSession({ projectId: project.id, sessionId: "second", cwd, intent: "outra coisa" });
+		await claudeSession({ projectId: project.id, sessionId: "second", cwd, intent: "outra coisa", title: "Outro assunto" });
 		await ShellFacts.stamp({ projectId: project.id, shellId: "s1" });
 
-		expect((await shell(project.id, "s1"))?.title).toBe("a intencao original");
+		expect((await shell(project.id, "s1"))?.title).toBe("Outro assunto");
+	});
+
+	it("never takes a harness title back from a name the user typed", async () => {
+		const cwd = repo("user-named", "main");
+		const project = await Projects.add(cwd);
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
+		await claudeSession({ projectId: project.id, sessionId: "abc", cwd, intent: "arruma o header" });
+		await Continuity.renameShell({ projectId: project.id, shellId: "s1", title: "meu nome" });
+		await ShellFacts.stamp({ projectId: project.id, shellId: "s1" });
+
+		expect((await shell(project.id, "s1"))?.title).toBe("meu nome");
 	});
 
 	it("leaves a shell untitled when nothing yields a title, and still stamps its branch", async () => {
@@ -176,16 +191,16 @@ describe("ShellFacts.stamp titles", () => {
 		expect(stamped?.branch).toBe("feat/no-title");
 	});
 
-	it("takes the name the harness publishes over the first message of the transcript", async () => {
+	it("takes only the session name the harness publishes", async () => {
 		const cwd = repo("published", "main");
 		const project = await Projects.add(cwd);
 		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
-		await claudeSession({ projectId: project.id, sessionId: "abc", cwd, intent: "oi" });
-		await ShellFacts.stamp({ projectId: project.id, shellId: "s1", publishedName: "revisar o sidebar" });
+		await claudeSession({ projectId: project.id, sessionId: "abc", cwd, intent: "oi", title: "Revisar o sidebar" });
+		await ShellFacts.stamp({ projectId: project.id, shellId: "s1" });
 
 		const stamped = await shell(project.id, "s1");
-		expect(stamped?.title).toBe("revisar o sidebar");
-		expect(stamped?.titleSource).toBe("published");
+		expect(stamped?.title).toBe("Revisar o sidebar");
+		expect(stamped?.titleSource).toBe("harness");
 		expect(stamped?.branch).toBe("main");
 	});
 
@@ -193,9 +208,9 @@ describe("ShellFacts.stamp titles", () => {
 		const cwd = repo("hand-named", "feat/mine");
 		const project = await Projects.add(cwd);
 		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
-		await claudeSession({ projectId: project.id, sessionId: "abc", cwd, intent: "arruma o header" });
+		await claudeSession({ projectId: project.id, sessionId: "abc", cwd, intent: "arruma o header", title: "Arrumar o header" });
 		await Continuity.renameShell({ projectId: project.id, shellId: "s1", title: "psql" });
-		await ShellFacts.stamp({ projectId: project.id, shellId: "s1", publishedName: "revisar o sidebar" });
+		await ShellFacts.stamp({ projectId: project.id, shellId: "s1" });
 
 		const stamped = await shell(project.id, "s1");
 		expect(stamped?.title).toBe("psql");

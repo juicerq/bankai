@@ -6,6 +6,7 @@ import { type } from "arktype";
 import { WebSocket } from "ws";
 import { StreamConnection } from "@main/transport/stream/stream-connection";
 import { ConversationMessages } from "@main/transport/stream/conversation-messages";
+import { CodexAppServerTest } from "./utils/codex-app-server";
 
 const SESSION_ID = "019fb897-3f89-77e0-9fea-5f059c48f5a3";
 
@@ -14,10 +15,12 @@ const snapshotSchema = type({
 });
 
 let codexHome: string | undefined;
+let appServer: ReturnType<typeof CodexAppServerTest.install>;
 
 beforeEach(() => {
 	codexHome = mkdtempSync(join(tmpdir(), "bankai-codex-mobile-"));
 	process.env.CODEX_HOME = codexHome;
+	appServer = CodexAppServerTest.install();
 });
 
 afterEach(() => {
@@ -27,6 +30,7 @@ afterEach(() => {
 
 	codexHome = undefined;
 	delete process.env.CODEX_HOME;
+	appServer.close();
 });
 
 test("the conversation stream serves a persisted Codex session to the phone", async () => {
@@ -36,8 +40,9 @@ test("the conversation stream serves a persisted Codex session to the phone", as
 
 	const directory = join(codexHome, "sessions", "2026", "07", "31");
 	mkdirSync(directory, { recursive: true });
+	const transcript = join(directory, `rollout-2026-07-31T12-00-00-${SESSION_ID}.jsonl`);
 	writeFileSync(
-		join(directory, `rollout-2026-07-31T12-00-00-${SESSION_ID}.jsonl`),
+		transcript,
 		[
 			JSON.stringify({
 				timestamp: "2026-07-31T12:00:00.000Z",
@@ -57,6 +62,10 @@ test("the conversation stream serves a persisted Codex session to the phone", as
 			}),
 		].map((line) => `${line}\n`).join(""),
 	);
+	appServer.respond({
+		id: 2,
+		result: { thread: { id: SESSION_ID, name: null, preview: "adiciona retry", path: transcript } },
+	});
 
 	if (!process.env.DATA_DIR) {
 		throw new Error("Test data directory is required");

@@ -2,12 +2,11 @@ import { CodexConversationParser } from "@main/agents/harness/codex/codex-conver
 import { CodexConfig } from "@main/agents/harness/codex/codex-config";
 import { type CodexRolloutState } from "@main/agents/harness/codex/codex-rollout";
 import { CodexRollout } from "@main/agents/harness/codex/codex-rollout";
-import { CodexTranscript } from "@main/agents/harness/codex/codex-transcript";
+import { CodexSession } from "@main/agents/harness/codex/codex-session";
 import type { AgentPresence, Harness, HarnessCommand } from "@main/agents/harness/harness";
 import { CODEX_HARNESS_ID } from "@main/agents/harness/harness";
 import { ProcFs } from "@main/infra/proc-fs";
 import { SessionRefs } from "@main/agents/session/session-refs";
-import { CodexNamer } from "@main/agents/harness/codex/codex-namer";
 
 const CODEX_PROCESS = "codex";
 
@@ -134,7 +133,7 @@ export const CodexHarness: Harness = {
 	id: CODEX_HARNESS_ID,
 	label: "Codex",
 	conversation: {
-		transcript: ({ sessionId }) => CodexTranscript.path(sessionId),
+		transcript: async ({ sessionId }) => (await CodexSession.read(sessionId))?.transcript ?? null,
 		parser: () => new CodexConversationParser(),
 	},
 	launch(): HarnessCommand {
@@ -147,8 +146,7 @@ export const CodexHarness: Harness = {
 
 		return { file: "codex", args: [RESUME_COMMAND, ref.sessionId] };
 	},
-	title: CodexTranscript.title,
-	proposeName: CodexNamer.proposeName,
+	title: async ({ sessionId }) => (await CodexSession.read(sessionId))?.name ?? null,
 	watch: () => rootRollouts,
 	async discover() {
 		const pids = await ProcFs.named(CODEX_PROCESS);

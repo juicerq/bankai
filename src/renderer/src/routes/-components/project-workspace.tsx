@@ -48,6 +48,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		onPersistLayout: control.onPersistLayout,
 	});
 	const [motion, setMotion] = useState<ReviewPanelMotion>();
+	const [pathPickerOpen, setPathPickerOpen] = useState(false);
 	const startMotion = useCallback((kind: ReviewPanelMotion) => {
 		setMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : kind);
 	}, []);
@@ -67,12 +68,21 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		startMotion("expand");
 		control.onToggleReviewFocus();
 	}, [control.onToggleReviewFocus, startMotion]);
+	const handleOpenPathPicker = useCallback(() => {
+		if (!reviewOpen) {
+			startMotion("open");
+			control.onReviewOpenChange(true);
+		}
+
+		setPathPickerOpen(true);
+	}, [control.onReviewOpenChange, reviewOpen, startMotion]);
 
 	const registerWorkspaceShortcuts = useProjectWorkspaceShortcuts({
 		active,
 		onToggleReview: handleToggleReview,
 		onToggleReviewExpanded: handleToggleReviewExpanded,
 		onOpenCommands: control.onOpenCommands,
+		onOpenPathPicker: handleOpenPathPicker,
 	});
 
 	return (
@@ -119,9 +129,10 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 						shells={shells}
 						treeOpen={treeOpen}
 						treeDivider={geometry.treeDivider}
-						expanded={reviewExpanded}
-						onToggleExpanded={handleToggleReviewExpanded}
-					/>
+							expanded={reviewExpanded}
+							onToggleExpanded={handleToggleReviewExpanded}
+							pathPicker={{ open: pathPickerOpen, onClose: () => setPathPickerOpen(false) }}
+						/>
 				</ReviewPanelFrame>
 			</div>
 		</section>

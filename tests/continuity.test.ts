@@ -376,6 +376,34 @@ describe("continuity store", () => {
 		expect(value.workspaces[0]?.shells[0]?.doneAt).toBeUndefined();
 	});
 
+	it("drops names bankai invented while preserving user and harness names", async () => {
+		writeContinuityFile({
+			version: 9,
+			data: {
+				workspaces: [{
+					projectId: "p1",
+					shells: [
+						{ id: "s1", label: "Shell 1", createdAt: 1, title: "do modelo", titleSource: "model", namings: 3 },
+						{ id: "s2", label: "Shell 2", createdAt: 1, title: "meu nome", titleSource: "user" },
+						{ id: "s3", label: "Shell 3", createdAt: 1, title: "primeira mensagem", session: { harness: "claude", sessionId: "abc", cwd: "/repo" } },
+						{ id: "s4", label: "Shell 4", createdAt: 1, title: "do cli", titleSource: "published" },
+						{ id: "s5", label: "Shell 5", createdAt: 1, title: "fish" },
+					],
+				}],
+			},
+		});
+
+		const { value, failed } = await Continuity.load();
+		const shells = value.workspaces[0]?.shells;
+
+		expect(failed).toBe(false);
+		expect(shells?.[0]).toEqual({ id: "s1", label: "Shell 1", createdAt: 1 });
+		expect(shells?.[1]?.titleSource).toBe("user");
+		expect(shells?.[2]?.title).toBeUndefined();
+		expect(shells?.[3]?.titleSource).toBe("harness");
+		expect(shells?.[4]?.title).toBe("fish");
+	});
+
 	it("keeps a v1 topology while dropping session refs that predate the recorded directory", async () => {
 		writeContinuityFile({
 			version: 1,

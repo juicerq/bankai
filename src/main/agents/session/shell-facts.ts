@@ -1,63 +1,80 @@
 import { Harnesses } from "@main/agents/harness/harnesses";
 import { BranchLabel } from "@main/git/branch-label";
 import { Logger } from "@main/infra/logger";
-import { Continuity, type ContinuityShell, type ContinuityValue } from "@main/store/continuity";
+import { Continuity, type ContinuitySessionRef, type ContinuityShell, type ContinuityValue } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { ShellTitles } from "@main/terminal/shell-titles";
+import type { ShellName } from "@shared/continuity-reducers";
 
-async function deriveTitle(shell: ContinuityShell): Promise<string | null> {
-	if (!shell.session) {
-		return ShellTitles.byShell.get(shell.id) ?? null;
-	}
-
-	const fromHarness = Harnesses.title(shell.session.harness);
+async function harnessTitle(shellId: string, session: ContinuitySessionRef): Promise<string | null> {
+	const fromHarness = Harnesses.title(session.harness);
 	if (!fromHarness) {
 		return null;
 	}
 
-	return await fromHarness(shell.session);
+	return await fromHarness(session).catch((err) => {
+		Logger.warn("continuity:title-failed", { shellId, err: String(err) });
+
+		return null;
+	});
 }
 
-async function firstTitle(shell: ContinuityShell | undefined): Promise<string | null> {
-	if (!shell || shell.title) {
+async function shellName(
+	shell: ContinuityShell,
+	session: ContinuitySessionRef | undefined,
+): Promise<ShellName | null> {
+	if (shell.titleSource === "user") {
 		return null;
 	}
 
-	return await deriveTitle(shell).catch((err) => {
-		Logger.warn("continuity:title-failed", { shellId: shell.id, err: String(err) });
+	if (!session) {
 		return null;
-	});
+	}
+
+	const title = await harnessTitle(shell.id, session);
+	if (!title) {
+		return null;
+	}
+
+	return { title, source: "harness" };
+}
+
+async function nameShell(input: {
+	projectId: string;
+	shellId: string;
+	session?: ContinuitySessionRef;
+}): Promise<void> {
+	const shell = await Continuity.findShell(input);
+	if (!shell) {
+		return;
+	}
+
+	const name = await shellName(shell, input.session ?? shell.session);
+	if (name) {
+		await Continuity.nameShell({ projectId: input.projectId, shellId: input.shellId, ...name });
+	}
 }
 
 async function stampShell(input: {
 	projectId: string;
 	shellId: string;
 	cwd?: string;
-	publishedName?: string;
 }): Promise<ContinuityValue> {
 	const shell = await Continuity.findShell(input);
 	const cwd = input.cwd ?? shell?.session?.cwd ?? (await Projects.find(input.projectId)).path;
-	const published = shell?.titleSource === "user" ? undefined : input.publishedName;
+	const address = { projectId: input.projectId, shellId: input.shellId };
+	await nameShell({ ...address, ...(shell?.session && { session: shell.session }) });
 
-	if (published) {
-		await Continuity.nameShell({
-			projectId: input.projectId,
-			shellId: input.shellId,
-			title: published,
-			source: "published",
-		});
-	}
-
-	const title = published ? null : await firstTitle(shell);
+	const terminalTitle = shell?.session ? undefined : ShellTitles.byShell.get(input.shellId);
 
 	return await Continuity.touchShell({
-		projectId: input.projectId,
-		shellId: input.shellId,
+		...address,
 		branch: await BranchLabel.of(cwd),
-		...(title ? { title } : {}),
+		...(terminalTitle ? { title: terminalTitle } : {}),
 	});
 }
 
 export const ShellFacts = {
+	name: nameShell,
 	stamp: stampShell,
 };

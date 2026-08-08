@@ -670,28 +670,6 @@ describe("claude session registry parsing", () => {
 		expect(parseSessionRecord('{"pid":1}')).toBeNull();
 	});
 
-	function publishedNameOf(fields: { name?: string; nameSource?: string }): string | undefined {
-		const busy: object = JSON.parse(BUSY_RECORD);
-
-		return parseSessionRecord(JSON.stringify({ ...busy, ...fields }))?.publishedName;
-	}
-
-	test("a name the session or the user gave it reaches the presence", () => {
-		expect(publishedNameOf({ name: "revisar o sidebar", nameSource: "auto" })).toBe("revisar o sidebar");
-		expect(publishedNameOf({ name: "revisar o sidebar", nameSource: "user" })).toBe("revisar o sidebar");
-	});
-
-	test("a name derived from the working directory never reaches the presence", () => {
-		expect(publishedNameOf({ name: "bankai-94", nameSource: "derived" })).toBeUndefined();
-	});
-
-	test("a name with no source behind it never reaches the presence", () => {
-		expect(publishedNameOf({ name: "bankai-94" })).toBeUndefined();
-	});
-
-	test("a blank published name is no name at all", () => {
-		expect(publishedNameOf({ name: "   ", nameSource: "auto" })).toBeUndefined();
-	});
 });
 
 describe("claude harness discovery", () => {
@@ -732,6 +710,19 @@ describe("claude harness discovery", () => {
 		process.env.CLAUDE_CONFIG_DIR = configDir;
 
 		expect(Harnesses.watchPaths()).toContain(join(configDir, "sessions"));
+	});
+
+	test("watches the native transcript that publishes the session name", async () => {
+		configDir = mkdtempSync(join(tmpdir(), "claude-config-"));
+		const sessions = join(configDir, "sessions");
+		mkdirSync(sessions);
+		writeFileSync(join(sessions, "141653.json"), BUSY_RECORD);
+		process.env.CLAUDE_CONFIG_DIR = configDir;
+		await ClaudeHarness.discover();
+
+		expect(Harnesses.watchPaths()).toContain(
+			join(configDir, "projects", "-home-jui-projects-bankai", "67af1e51-358c-475f-b33a-7de1e199d0a5.jsonl"),
+		);
 	});
 });
 

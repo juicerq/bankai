@@ -1,34 +1,39 @@
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useRef, useState } from "react";
-import type { FileChange, FullFile } from "@main/git/git-contracts";
+import { useCallback, useMemo, useRef, useState } from "react";
+import type { DiffLine, FileChange, FullFile } from "@main/git/git-contracts";
 import { ReviewDiffLine, ReviewNotice } from "@renderer/routes/-components/review-line";
 import { reviewContentNotice } from "@renderer/routes/-utils/review-notice";
-import { diffContentWidth, DIFF_TAB_SIZE } from "@renderer/routes/-utils/review-rows";
+import { diffContentWidth, DIFF_TAB_SIZE, REVIEW_ROW_HEIGHT } from "@renderer/routes/-utils/review-rows";
 import { STATUS_MARK } from "@renderer/routes/-utils/status-mark";
 
-const LINE_HEIGHT = 20;
-const LEADING_CONTEXT = 3;
+export const LEADING_CONTEXT = 3;
+
+const takeFocus = (element: HTMLElement | null) => element?.focus();
 
 export function ReviewFocusedFile({
 	content,
+	error,
 	path,
+	line,
 	change,
 	onClose,
 }: {
 	content?: FullFile;
+	error?: string;
 	path: string;
+	line?: number;
 	change?: FileChange;
 	onClose: () => void;
 }) {
-	const notice = content && content.status !== "ready" ? reviewContentNotice({ content, full: true }) : "Reading file\u2026";
-
 	return (
 		<section
 			data-component="review-focused-file"
 			data-path={path}
-			className="absolute inset-0 z-30 flex flex-col bg-surface-raised"
+			className="absolute inset-0 z-30 flex flex-col bg-surface-raised outline-none"
 			aria-label={`Focused file ${path}`}
+			tabIndex={-1}
+			ref={takeFocus}
 			onKeyDown={(event) => {
 				if (event.key === "Escape") {
 					onClose();
@@ -38,39 +43,69 @@ export function ReviewFocusedFile({
 			<ReviewFocusedFileHeader path={path} change={change} onClose={onClose} />
 			<div
 				data-slot="body"
-				data-content-status={content ? content.status : "pending"}
+				data-content-status={focusedFileStatus({ content, error })}
 				className="relative min-h-0 flex-1 bg-surface-raised"
 			>
-				{content?.status === "ready" && <ReviewFocusedFileReader path={path} content={content} />}
-				{content?.status !== "ready" && <ReviewNotice>{notice}</ReviewNotice>}
+				<ReviewFocusedFileBody path={path} line={line} content={content} error={error} />
 			</div>
 		</section>
 	);
 }
 
+function focusedFileStatus({ content, error }: { content?: FullFile; error?: string }) {
+	if (content) {
+		return content.status;
+	}
+	if (error) {
+		return "error";
+	}
+
+	return "pending";
+}
+
+function ReviewFocusedFileBody({
+	path,
+	line,
+	content,
+	error,
+}: {
+	path: string;
+	line?: number;
+	content?: FullFile;
+	error?: string;
+}) {
+	if (content?.status === "ready") {
+		return <ReviewFocusedFileReader path={path} line={line} content={content} />;
+	}
+	if (content) {
+		return <ReviewNotice>{reviewContentNotice({ content, full: true })}</ReviewNotice>;
+	}
+	if (error) {
+		return <ReviewNotice reason="error">{error}</ReviewNotice>;
+	}
+
+	return <ReviewNotice>Reading file…</ReviewNotice>;
+}
+
 function ReviewFocusedFileReader({
 	path,
+	line,
 	content,
 }: {
 	path: string;
+	line?: number;
 	content: Extract<FullFile, { status: "ready" }>;
 }) {
 	const scroll = useRef<HTMLDivElement>(null);
-	const [initialOffset] = useState(() => {
-		const firstChange = content.lines.findIndex((line) => line.kind !== "context");
-		if (firstChange <= 0) {
-			return 0;
-		}
-
-		return Math.max(0, firstChange - LEADING_CONTEXT) * LINE_HEIGHT;
-	});
+	const [initialOffset] = useState(() => readerOffset({ lines: content.lines, line }));
 	const virtualizer = useVirtualizer({
 		count: content.lines.length,
 		getScrollElement: () => scroll.current,
-		estimateSize: () => LINE_HEIGHT,
+		estimateSize: () => REVIEW_ROW_HEIGHT.line,
 		initialOffset,
 		overscan: 24,
 	});
+	const contentWidth = useMemo(() => diffContentWidth(content.lines), [content.lines]);
 	const virtualRows = virtualizer.getVirtualItems();
 	const registerScroll = useCallback((node: HTMLDivElement | null) => {
 		scroll.current = node;
@@ -80,11 +115,12 @@ function ReviewFocusedFileReader({
 	}, [initialOffset]);
 
 	return (
-		<div ref={registerScroll} className="size-full overflow-auto">
+		<div data-slot="scroll" ref={registerScroll} className="size-full overflow-auto">
 			{virtualRows.length === 0 && <ReviewNotice>Reading file…</ReviewNotice>}
 			<div
+				data-slot="content"
 				style={{
-					width: diffContentWidth(content.lines),
+					width: contentWidth,
 					height: virtualizer.getTotalSize(),
 					tabSize: DIFF_TAB_SIZE,
 				}}
@@ -114,6 +150,17 @@ function ReviewFocusedFileReader({
 			</div>
 		</div>
 	);
+}
+
+function readerOffset({ lines, line }: { lines: DiffLine[]; line?: number }) {
+	const asked = line === undefined ? -1 : lines.findIndex((entry) => entry.number === line);
+	const index = asked >= 0 ? asked : lines.findIndex((entry) => entry.kind !== "context");
+
+	if (index <= 0) {
+		return 0;
+	}
+
+	return Math.max(0, index - LEADING_CONTEXT) * REVIEW_ROW_HEIGHT.line;
 }
 
 function ReviewFocusedFileHeader({
@@ -147,7 +194,6 @@ function ReviewFocusedFileHeader({
 				)}
 				<button
 					type="button"
-					autoFocus
 					className="-m-1 p-1 text-secondary hover:text-primary"
 					aria-label={`Return from focused file ${path}`}
 					onClick={onClose}

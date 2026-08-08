@@ -10,11 +10,13 @@ function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 	const [reviewOpen, setReviewOpen] = useState(true);
 	const [reviewExpanded, setReviewExpanded] = useState(false);
 	const [commandsOpen, setCommandsOpen] = useState(false);
+	const [pathPickerOpen, setPathPickerOpen] = useState(false);
 	const registerShortcuts = useProjectWorkspaceShortcuts({
 		active,
 		onToggleReview: () => setReviewOpen((open) => !open),
 		onToggleReviewExpanded: () => setReviewExpanded((expanded) => !expanded),
 		onOpenCommands: () => setCommandsOpen(true),
+		onOpenPathPicker: () => setPathPickerOpen(true),
 	});
 
 	return (
@@ -24,6 +26,7 @@ function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 			data-review-open={reviewOpen}
 			data-review-expanded={reviewExpanded}
 			data-commands-open={commandsOpen}
+			data-path-picker-open={pathPickerOpen}
 		/>
 	);
 }
@@ -61,6 +64,25 @@ test("the leader followed by c opens the commands palette", () => {
 
 	expect(commandsPassedThrough).toBe(false);
 	expect(get("workspace-shortcut-state").dataset.commandsOpen).toBe("true");
+});
+
+test("the leader followed by p opens the path picker", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	const pickerPassedThrough = fireEvent.keyDown(window, { key: "p", code: "KeyP" });
+
+	expect(pickerPassedThrough).toBe(false);
+	expect(get("workspace-shortcut-state").dataset.pathPickerOpen).toBe("true");
+});
+
+test("p on its own reaches the Shell instead of opening the path picker", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	const typedPassedThrough = fireEvent.keyDown(window, { key: "p", code: "KeyP", ctrlKey: true });
+
+	expect(typedPassedThrough).toBe(true);
+	expect(get("workspace-shortcut-state").dataset.pathPickerOpen).toBe("false");
 });
 
 test("c on its own reaches the Shell instead of opening commands", () => {

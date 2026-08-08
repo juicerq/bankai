@@ -12,6 +12,8 @@ export function reviewContentNotice({
 			return "Empty file.";
 		case "binary":
 			return "Binary content cannot be shown.";
+		case "image":
+			return "Image content cannot be shown yet.";
 		case "too-large":
 			if (content.lineCount) {
 				return `${full ? "Too large to show in full" : "Too large to show"}: ${content.lineCount} lines.`;

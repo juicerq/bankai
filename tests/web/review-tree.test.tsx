@@ -3,13 +3,32 @@ import { useSelector } from "@tanstack/react-store";
 import { useRef, useState } from "react";
 import type { FileChange } from "@main/git/git-contracts";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
-import { redistributeReviewTree } from "@renderer/routes/-utils/review-layout";
+import { BROWSE_ROW_HEIGHT } from "@renderer/routes/-components/review-tree-browse";
+import { DEFAULT_TREE_WIDTH, redistributeReviewTree } from "@renderer/routes/-utils/review-layout";
 import { createReviewPanelStore, type ReviewTreeView } from "@renderer/routes/-utils/review-panel-store";
 import { useDivider } from "@renderer/routes/-utils/use-divider";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
 afterEach(cleanup);
+
+const TREE_VIEWPORT_HEIGHT = 480;
+
+class SizedBox {
+	constructor(
+		private readonly resized: (entries: { borderBoxSize: { inlineSize: number; blockSize: number }[] }[]) => void,
+	) {}
+
+	observe() {
+		this.resized([{ borderBoxSize: [{ inlineSize: DEFAULT_TREE_WIDTH, blockSize: TREE_VIEWPORT_HEIGHT }] }]);
+	}
+
+	unobserve() {}
+
+	disconnect() {}
+}
+
+Object.assign(globalThis, { ResizeObserver: SizedBox });
 
 function ReviewTreeHarness() {
 	const [widths, setWidths] = useState({ tree: 200, diff: 810 });
@@ -58,6 +77,11 @@ function change(path: string): FileChange {
 const TREE_FILES = [change("src/app/one.ts"), change("src/app/two.ts"), change("README.md")];
 
 const BROWSE_PATHS = ["README.md", ".env", "src/app/one.ts", "src/app/untracked.ts", "docs/guide.md"];
+
+const MANY_BROWSE_PATHS = Array.from(
+	{ length: 500 },
+	(_, index) => `src/app/file-${String(index).padStart(3, "0")}.ts`,
+);
 
 function ReviewTreeFilesHarness({ browsePaths }: { browsePaths?: string[] }) {
 	const row = useRef<HTMLDivElement>(null);
@@ -249,7 +273,7 @@ test("each view keeps its own focused file across a view switch", () => {
 	expect(get("review-split").dataset.focused).toBe(".env");
 });
 
-test("clicking the browsed file already open keeps it open", () => {
+test("clicking the browsed file already open closes it", () => {
 	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
 
 	selectView("browse");
@@ -259,7 +283,53 @@ test("clicking the browsed file already open keeps it open", () => {
 
 	fireEvent.click(slot(treeRow(".env"), "open"));
 
+	expect(get("review-split").dataset.focused).toBeUndefined();
+});
+
+test("clicking the changed file already open closes it", () => {
+	render(<ReviewTreeFilesHarness />);
+
+	fireEvent.click(slot(treeRow("README.md"), "focus"));
+
+	expect(get("review-split").dataset.focused).toBe("README.md");
+
+	fireEvent.click(slot(treeRow("README.md"), "open"));
+
+	expect(get("review-split").dataset.focused).toBeUndefined();
+});
+
+test("a browsed file carries the focus control of the changed files", () => {
+	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
+
+	selectView("browse");
+	fireEvent.click(slot(treeRow(".env"), "focus"));
+
 	expect(get("review-split").dataset.focused).toBe(".env");
+
+	fireEvent.click(slot(treeRow(".env"), "focus"));
+
+	expect(get("review-split").dataset.focused).toBeUndefined();
+});
+
+test("an expanded browse tree only reaches the DOM as the window under the reader", () => {
+	render(<ReviewTreeFilesHarness browsePaths={MANY_BROWSE_PATHS} />);
+
+	selectView("browse");
+	fireEvent.click(treeRow("src/app"));
+
+	expect(rowPaths().length).toBeLessThan(MANY_BROWSE_PATHS.length / 4);
+	expect(rowPaths()).toContain("src/app/file-000.ts");
+});
+
+test("scrolling the browse tree moves the window to the rows under the reader", () => {
+	render(<ReviewTreeFilesHarness browsePaths={MANY_BROWSE_PATHS} />);
+
+	selectView("browse");
+	fireEvent.click(treeRow("src/app"));
+	fireEvent.scroll(slot(get("review-tree"), "list"), { target: { scrollTop: 400 * BROWSE_ROW_HEIGHT } });
+
+	expect(rowPaths()).toContain("src/app/file-399.ts");
+	expect(rowPaths()).not.toContain("src/app/file-000.ts");
 });
 
 test("selecting the view already on screen keeps the focused file", () => {

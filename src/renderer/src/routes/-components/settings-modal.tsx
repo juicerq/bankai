@@ -6,7 +6,6 @@ import { Setting } from "@renderer/routes/-components/settings-controls";
 import { MobileAccessSetting } from "@renderer/routes/-components/settings-mobile-access";
 import { ThemeSetting } from "@renderer/routes/-components/settings-theme";
 import { useHarnessSettings } from "@renderer/routes/-utils/use-harness-settings";
-import { DEFAULT_SESSION_NAMING } from "@shared/activity";
 
 interface LaunchableHarness {
 	id: string;
@@ -79,8 +78,6 @@ function SettingsBody({
 	onSave: (patch: Partial<Pick<HarnessSettings, "autostart" | "id">>) => void;
 	onSaveProfile: (patch: Partial<HarnessProfile>) => void;
 }) {
-	const naming = profile.naming ?? DEFAULT_SESSION_NAMING;
-
 	return (
 		<div className="divide-y divide-outline">
 			<Setting
@@ -109,13 +106,6 @@ function SettingsBody({
 					onCommit={(args) => onSaveProfile({ args })}
 				/>
 			</Setting>
-			<Setting
-				title="Name every session from its conversation"
-				description="Asks the harness for a short name a few times as a session grows. Off, a card keeps the first thing you typed."
-				slot="naming"
-				on={naming}
-				onToggle={() => onSaveProfile({ naming: !naming })}
-			/>
 			<MobileAccessSetting />
 			<ThemeSetting />
 		</div>

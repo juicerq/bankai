@@ -45,10 +45,6 @@ function harnessTitle(harnessId: string): Harness["title"] {
 	return harnesses.find((harness) => harness.id === harnessId)?.title;
 }
 
-function harnessProposeName(harnessId: string): Harness["proposeName"] {
-	return harnesses.find((harness) => harness.id === harnessId)?.proposeName;
-}
-
 function harnessWatchPaths(): string[] {
 	return harnesses.flatMap((harness) => harness.watch?.() ?? []);
 }
@@ -73,7 +69,6 @@ export const Harnesses = {
 	launch: harnessLaunch,
 	resume: harnessResume,
 	title: harnessTitle,
-	proposeName: harnessProposeName,
 	watchPaths: harnessWatchPaths,
 	discoverAgents,
 };

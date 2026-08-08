@@ -28,10 +28,6 @@ const assistantRecordSchema = type({
 
 const compactBoundarySchema = type({ type: "'system'", subtype: "'compact_boundary'", "uuid?": "string" });
 
-const aiTitleSchema = type({ type: "'ai-title'", aiTitle: "string" });
-
-const customTitleSchema = type({ type: "'custom-title'", customTitle: "string" });
-
 const textBlockSchema = type({ type: "'text'", text: "string" });
 
 const thinkingBlockSchema = type({ type: "'thinking'", thinking: "string" });
@@ -106,20 +102,6 @@ function conversationRecord(line: string): unknown {
 	}
 }
 
-function recordTitle(value: unknown): string | undefined {
-	const ai = aiTitleSchema(value);
-	if (!(ai instanceof type.errors)) {
-		return ai.aiTitle;
-	}
-
-	const custom = customTitleSchema(value);
-	if (custom instanceof type.errors) {
-		return undefined;
-	}
-
-	return custom.customTitle;
-}
-
 export class ConversationParser {
 	title: string | undefined;
 	private sequence = 0;
@@ -136,7 +118,7 @@ export class ConversationParser {
 			return [];
 		}
 
-		const title = recordTitle(value);
+		const title = ClaudeTranscript.recordTitle(value);
 		if (title) {
 			this.title = title;
 

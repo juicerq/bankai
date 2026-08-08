@@ -1,7 +1,5 @@
 export type AgentActivityState = "working" | "needs-attention" | "done";
 
-export const DEFAULT_SESSION_NAMING = true;
-
 const AGGREGATE_PRIORITY: AgentActivityState[] = ["needs-attention", "done", "working"];
 
 export function aggregateActivity(states: AgentActivityState[]): AgentActivityState | null {

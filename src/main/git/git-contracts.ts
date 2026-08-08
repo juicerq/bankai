@@ -16,6 +16,11 @@ export const reviewContentSchema = type({ status: "'ready'", lines: diffLineSche
 	.or({ status: "'empty'" })
 	.or({ status: "'binary'" })
 	.or({ status: "'too-large'", "lineCount?": "number" })
+	.or({
+		status: "'image'",
+		mime: "'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'",
+		data: "string",
+	})
 	.or({ status: "'unavailable'" });
 export type ReviewContent = typeof reviewContentSchema.infer;
 
@@ -25,6 +30,15 @@ export const reviewFilesSchema = type({
 export type ReviewFiles = typeof reviewFilesSchema.infer;
 
 export const browsePathsSchema = type("string[]");
+
+const searchMatchSchema = type({ file: "string", line: "number", text: "string" });
+export type SearchMatch = typeof searchMatchSchema.infer;
+
+export const searchResultsSchema = type({
+	matches: searchMatchSchema.array(),
+	truncated: "boolean",
+});
+export type SearchResults = typeof searchResultsSchema.infer;
 
 const fileStatusSchema = type("'modified' | 'added' | 'deleted' | 'renamed' | 'untracked'");
 const fileChangeSchema = type({

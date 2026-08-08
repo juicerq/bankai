@@ -1,9 +1,9 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { DiffLine, ReviewContent } from "@main/git/git-contracts";
 import { GitRun } from "@main/git/git-run";
+import { ImageFile } from "@main/git/image-file";
 import { RepoPath } from "@main/git/repo-path";
-import { ReviewBase } from "@main/git/review-base";
 
 async function list(path: string): Promise<string[]> {
 	const inside = await GitRun.isRepo(path);
@@ -25,7 +25,30 @@ async function list(path: string): Promise<string[]> {
 async function read({ path, file }: { path: string; file: string }): Promise<ReviewContent> {
 	await RepoPath.assertWithin({ root: path, file });
 
-	const raw = await readFile(resolve(path, file)).catch(() => null);
+	const target = resolve(path, file);
+	const stats = await stat(target).catch(() => null);
+	if (!stats) {
+		return { status: "unavailable" };
+	}
+	if (stats.size > GitRun.GIT_OUTPUT_MAX_BYTES) {
+		return { status: "too-large" };
+	}
+
+	const mime = await ImageFile.detect(target);
+	if (mime) {
+		if (stats.size > ImageFile.MAX_BYTES) {
+			return { status: "too-large" };
+		}
+
+		const bytes = await readFile(target).catch(() => null);
+		if (!bytes) {
+			return { status: "unavailable" };
+		}
+
+		return { status: "image", mime, data: bytes.toString("base64") };
+	}
+
+	const raw = await readFile(target).catch(() => null);
 	if (!raw) {
 		return { status: "unavailable" };
 	}
@@ -38,9 +61,6 @@ async function read({ path, file }: { path: string; file: string }): Promise<Rev
 
 	const text = raw.toString("utf8");
 	const rows = (text.endsWith("\n") ? text.slice(0, -1) : text).split("\n");
-	if (rows.length > ReviewBase.FULL_FILE_MAX_LINES) {
-		return { status: "too-large", lineCount: rows.length };
-	}
 
 	return { status: "ready", lines: rows.map(contextLine) };
 }

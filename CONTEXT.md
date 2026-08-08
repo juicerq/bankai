@@ -133,8 +133,16 @@ The single letter that names how a changed file differs: modified, added, delete
 _Avoid_: State, type, kind
 
 **Tree**:
-The navigator that arranges the current scope's changed files as a folder hierarchy. It contains only changed files — never the rest of the project.
+The navigator that arranges files as a folder hierarchy. It offers two readings of the same worktree — the Changes view and the Files view — and the control in its header picks which one is showing. Each reading remembers the Focused file it was left on, so switching back returns to that file rather than to nothing.
 _Avoid_: Explorer, file browser, sidebar
+
+**Changes view**:
+The Tree reading that holds only the current Scope's changed files, and the one the Tree opens on. Its header button reads "Diff".
+_Avoid_: Diff view, changes tab, diff tree
+
+**Files view**:
+The Tree reading that holds every file of the current Worktree, changed or not, so reading one costs no trip to an outside editor. Its set comes from git rather than from the disk: tracked files, untracked files git does not ignore, and ignored files sitting loose among them, while a directory that is ignored whole stays out — a directory git does not track at all lists nothing. It only ever reads. The code calls this reading `browse`, so there is no `files` to grep for.
+_Avoid_: Browse view, browser, explorer, project tree, disk listing
 
 **Prewarm**:
 Preparing a mounted project's review in the background before its first activation, so the first visit paints from already-known state.
@@ -165,12 +173,8 @@ The promise that reopening Bankai returns Projects and their Shells to their las
 _Avoid_: Workspace, Layout preferences, snapshot
 
 **Session name**:
-The line that says what a Shell is about, and the only part of its card the user reads to find it again. It has one owner at a time: the user, once they have named it by hand, and otherwise whatever source the Harness makes available — a name the agent CLI publishes about its own conversation, or one derived from the conversation. A Shell nobody has named yet falls back to its branch.
+The line that says what a Shell is about, and the only part of its card the user reads to find it again. It has one owner at a time: the user, once they have named it by hand, and otherwise the Harness. Bankai never composes a name of its own — it reads the one the agent CLI already keeps for that conversation, the same name its own resume list shows. Until the CLI publishes one, the Shell falls back to its branch.
 _Avoid_: Title, label, tag, description
-
-**Naming milestone**:
-A point in a Shell's life at which its Session name is worth reconsidering, counted in Shell turns and spaced further apart as the session grows. It exists because a conversation's subject settles late — the opening message is the worst evidence available — while a name that moves every turn stops being a landmark.
-_Avoid_: Refresh, interval, poll, tick
 
 **Agent activity**:
 The current disposition of Agent work in a Shell: Working, Needs attention, or Done. A Shell with no recognized Agent turn carries no activity. A project's activity is the most urgent among its Shells' — Needs attention over Done over Working.

@@ -76,4 +76,10 @@ export const reviewRouter = {
 		.handler(async ({ input }) =>
 			await GitProcess.browseFile({ path: await ProjectWorktrees.resolve(input), file: input.path })
 		),
+
+	searchContent: base
+		.input(worktreeInput.and({ query: "string" }))
+		.handler(async ({ input }) =>
+			await GitProcess.searchContent({ path: await ProjectWorktrees.resolve(input), query: input.query })
+		),
 };

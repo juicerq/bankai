@@ -420,6 +420,73 @@ test("a focused file outside the diff is read raw instead of as a full diff", as
 	await waitFor(() => expect(contentText(view.result.current.fullFile)).toBe("raw-guide"));
 });
 
+test("a focused file outside the diff is read even when the snapshot query fails", async () => {
+	const view = renderReviewReading(base({}));
+	await reachReady(view);
+	view.transport.reject("snapshot", new Error("snapshot broke"));
+	await waitFor(() => expect(view.result.current.error).toBeDefined());
+
+	view.rerender(base({ focusedPath: "docs/guide.md" }));
+
+	await waitFor(() => expect(view.transport.pendingCount("browseFile")).toBe(1));
+	view.transport.resolve("browseFile", readyContent("raw-guide"));
+
+	await waitFor(() => expect(contentText(view.result.current.fullFile)).toBe("raw-guide"));
+});
+
+test("a focused file outside the diff is read even when the watch fails", async () => {
+	const view = renderReviewReading(base({}));
+	view.ipc.rejectWatch(new Error("watch broke"));
+	await waitFor(() => expect(view.result.current.error).toBeDefined());
+
+	view.rerender(base({ focusedPath: "docs/guide.md" }));
+
+	await waitFor(() => expect(view.transport.pendingCount("browseFile")).toBe(1));
+	view.transport.resolve("browseFile", readyContent("raw-guide"));
+
+	await waitFor(() => expect(contentText(view.result.current.fullFile)).toBe("raw-guide"));
+	expect(view.result.current.error).toContain("watch broke");
+});
+
+test("a raw read that fails after the watch failed reports its own failure", async () => {
+	const view = renderReviewReading(base({ focusedPath: "docs/guide.md" }));
+	view.ipc.rejectWatch(new Error("watch broke"));
+
+	await waitFor(() => expect(view.transport.pendingCount("browseFile")).toBe(1));
+	view.transport.reject("browseFile", new Error("raw read broke"));
+
+	await waitFor(() => expect(view.result.current.fullFileError).toBeDefined());
+	expect(view.result.current.fullFile).toBeUndefined();
+});
+
+test("a failed raw read reports the failure instead of leaving the file unread", async () => {
+	const view = renderReviewReading(base({}));
+	await settle(view, ["a", "b"]);
+
+	view.rerender(base({ focusedPath: "docs/guide.md" }));
+	await waitFor(() => expect(view.transport.pendingCount("browseFile")).toBe(1));
+	view.transport.reject("browseFile", new Error("raw read broke"));
+
+	await waitFor(() => expect(view.result.current.fullFileError).toBeDefined());
+	expect(view.result.current.fullFile).toBeUndefined();
+});
+
+test("a raw refetch failure keeps the cached file instead of reporting it", async () => {
+	const view = renderReviewReading(base({ focusedPath: "docs/guide.md" }));
+	await settle(view, ["a", "b"]);
+	await waitFor(() => expect(view.transport.pendingCount("browseFile")).toBe(1));
+	view.transport.resolve("browseFile", readyContent("raw-guide"));
+	await waitFor(() => expect(contentText(view.result.current.fullFile)).toBe("raw-guide"));
+
+	view.ipc.emitChange("p1");
+	await waitFor(() => expect(view.transport.pendingCount("browseFile")).toBeGreaterThan(0));
+	view.transport.reject("browseFile", new Error("refetch broke"));
+	await wait(20);
+
+	expect(contentText(view.result.current.fullFile)).toBe("raw-guide");
+	expect(view.result.current.fullFileError).toBeUndefined();
+});
+
 test("a focused file inside the diff never falls back to a raw read", async () => {
 	const view = renderReviewReading(base({ focusedPath: "a" }));
 	await settle(view, ["a", "b"]);
@@ -428,13 +495,13 @@ test("a focused file inside the diff never falls back to a raw read", async () =
 	expect(view.transport.callsFor("browseFile")).toEqual([]);
 });
 
-test("a cold full-file error keeps the full file undefined", async () => {
+test("a cold full-file error keeps the full file undefined and reports the failure", async () => {
 	const view = renderReviewReading(base({ focusedPath: "a" }));
 	await settle(view, ["a", "b"]);
 	await waitFor(() => expect(view.transport.pendingCount("fullFile")).toBe(1));
 	view.transport.reject("fullFile", new Error("full file broke"));
 
-	await wait(20);
+	await waitFor(() => expect(view.result.current.fullFileError).toBeDefined());
 	expect(view.result.current.fullFile).toBeUndefined();
 });
 

@@ -80,7 +80,7 @@ await streamSocket.request("review", HANDSHAKE);
 
 export type ReviewReadingProps = Parameters<typeof useReviewReading>[0];
 
-export function renderReviewReading(initialProps: ReviewReadingProps) {
+export function installReviewEnvironment() {
 	const ipc = new ReviewIpc();
 	current = ipc;
 
@@ -92,6 +92,12 @@ export function renderReviewReading(initialProps: ReviewReadingProps) {
 	});
 	const wrapper = ({ children }: { children: ReactNode }) =>
 		createElement(QueryClientProvider, { client: queryClient }, children);
+
+	return { ipc, transport, queryClient, wrapper };
+}
+
+export function renderReviewReading(initialProps: ReviewReadingProps) {
+	const { ipc, transport, queryClient, wrapper } = installReviewEnvironment();
 
 	const renders: ReviewReading[] = [];
 	const view = renderHook(

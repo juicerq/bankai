@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Project } from "@main/store/projects";
 import { PickerHint } from "@renderer/routes/-components/picker-hint";
+import { usePickerNavigation } from "@renderer/routes/-utils/use-picker-navigation";
 
 export function ShellPicker({
 	projects,
@@ -16,53 +17,29 @@ export function ShellPicker({
 	onClose: () => void;
 }) {
 	const [filter, setFilter] = useState("");
-	const [highlightedId, setHighlightedId] = useState<string>();
 	const term = filter.trim().toLowerCase();
 	// Name only, never the path: a project's name is its directory's basename,
 	// so the rest of the path is the one part every project here shares.
 	const items = projects
 		.filter((project) => project.name.toLowerCase().includes(term))
 		.sort((left, right) => left.name.localeCompare(right.name));
-	const highlighted = items.find((project) => project.id === highlightedId)
-		?? items.find((project) => project.id === activeProjectId)
-		?? items[0];
-
-	const moveHighlight = (step: number) => {
-		if (items.length === 0) {
-			return;
-		}
-
-		const current = items.findIndex((project) => project.id === highlighted?.id);
-		const next = items[(current + step + items.length) % items.length];
-		if (next) {
-			setHighlightedId(next.id);
-		}
-	};
 
 	const create = (projectId: string) => {
 		onClose();
 		onCreate(projectId);
 	};
 
-	const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-		if (event.key === "Escape") {
-			onClose();
-			return;
-		}
-
-		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-			event.preventDefault();
-			moveHighlight(event.key === "ArrowDown" ? 1 : -1);
-			return;
-		}
-
-		if (event.key !== "Enter" || !highlighted) {
-			return;
-		}
-
-		event.preventDefault();
-		create(highlighted.id);
-	};
+	const picker = usePickerNavigation({
+		items,
+		key: (project) => project.id,
+		fallback: (matches) => matches.find((project) => project.id === activeProjectId) ?? matches[0],
+		onChoose: (highlighted) => {
+			if (highlighted) {
+				create(highlighted.id);
+			}
+		},
+		onClose,
+	});
 
 	return (
 		<div
@@ -71,7 +48,7 @@ export function ShellPicker({
 		>
 			<div
 				data-component="shell-picker"
-				data-highlighted={highlighted?.id}
+				data-highlighted={picker.highlightedKey}
 				className="picker-enter flex h-fit w-[560px] max-w-[90vw] flex-col border border-outline-strong bg-surface-raised shadow-2xl"
 				onPointerDown={(event) => event.stopPropagation()}
 			>
@@ -90,9 +67,9 @@ export function ShellPicker({
 						value={filter}
 						onInput={(event) => {
 							setFilter(event.currentTarget.value);
-							setHighlightedId(undefined);
+							picker.clear();
 						}}
-						onKeyDown={handleKeyDown}
+						onKeyDown={picker.onKeyDown}
 					/>
 				</div>
 				<span className="px-3 pt-2.5 pb-1 text-label text-secondary">NEW SHELL IN</span>
@@ -103,8 +80,7 @@ export function ShellPicker({
 							project={project}
 							index={index}
 							shells={shellCounts.get(project.id) ?? 0}
-							highlighted={project.id === highlighted?.id}
-							onHighlight={setHighlightedId}
+							{...picker.itemProps(project)}
 							onSelect={() => create(project.id)}
 						/>
 					))}
@@ -125,14 +101,16 @@ function ShellPickerItem({
 	index,
 	shells,
 	highlighted,
-	onHighlight,
+	ref,
+	onMouseMove,
 	onSelect,
 }: {
 	project: Project;
 	index: number;
 	shells: number;
 	highlighted: boolean;
-	onHighlight: (projectId: string) => void;
+	ref?: (element: HTMLElement | null) => void;
+	onMouseMove: () => void;
 	onSelect: () => void;
 }) {
 	return (
@@ -143,11 +121,11 @@ function ShellPickerItem({
 			data-component="shell-picker-item"
 			data-name={project.name}
 			data-index={index}
-			ref={highlighted ? (element) => element?.scrollIntoView({ block: "nearest" }) : undefined}
+			ref={ref}
 			className={`group relative flex w-full items-center gap-2.5 px-3 py-1.5 text-left ${
 				highlighted ? "bg-surface-active" : ""
 			}`}
-			onMouseMove={() => onHighlight(project.id)}
+			onMouseMove={onMouseMove}
 			onMouseDown={(event) => event.preventDefault()}
 			onClick={onSelect}
 		>

@@ -1,5 +1,7 @@
 # Sessions are named by the agent CLI, at turn milestones
 
+Superseded by ADR-0012: Claude Code now publishes the name itself, so bankai reads it instead of paying an LLM for one.
+
 A session's name was the first non-noise user message in its transcript, stamped once at the first turn and never revisited. `claude-transcript-format.md` measured what that costs: 7% of sessions get junk too short to identify anything, 11% have no user message at all, and every resumed transcript opens mid-conversation, so its "first" message is an answer rather than a subject. Bankai now derives the name with an LLM instead, run as a headless call to the same agent CLI the session belongs to, and reconsiders it at turn milestones rather than once.
 
 ## What was rejected

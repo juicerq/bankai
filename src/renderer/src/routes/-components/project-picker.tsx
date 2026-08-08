@@ -10,6 +10,7 @@ import {
 	browseParentPath,
 	browseSeparator,
 } from "@renderer/routes/-utils/browse-path";
+import { usePickerNavigation } from "@renderer/routes/-utils/use-picker-navigation";
 
 const HOME_PATH = "~";
 
@@ -27,7 +28,6 @@ export function ProjectPicker({
 	onClose: () => void;
 }) {
 	const [typedPath, setTypedPath] = useState<string>();
-	const [highlighted, setHighlighted] = useState<string>();
 	const [submittedPath, setSubmittedPath] = useState<string>();
 	const queryPath = typedPath === undefined ? HOME_PATH : browseDirectoryPath(typedPath);
 	const { data, isError } = useQuery(
@@ -49,47 +49,32 @@ export function ProjectPicker({
 	];
 	const failure = submittedPath === path.trim() ? addError : undefined;
 
-	const browseTo = (nextPath: string) => {
-		setTypedPath(nextPath);
-		setHighlighted(undefined);
-	};
-
 	const submit = () => {
 		setSubmittedPath(path.trim());
 		onAdd(path.trim());
 	};
 
-	const moveHighlight = (step: number) => {
-		const current = items.findIndex((item) => item.name === highlighted);
-		const position = current < 0 ? items.length : current;
+	const picker = usePickerNavigation({
+		items,
+		key: (item) => item.name,
+		onChoose: (highlighted, event) => {
+			if (adding) {
+				return;
+			}
 
-		setHighlighted(items[(position + step + items.length + 1) % (items.length + 1)]?.name);
-	};
+			if (highlighted && !event.ctrlKey && !event.metaKey) {
+				browseTo(highlighted.nextPath);
+				return;
+			}
 
-	const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-		if (event.key === "Escape") {
-			onClose();
-			return;
-		}
+			submit();
+		},
+		onClose,
+	});
 
-		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-			event.preventDefault();
-			moveHighlight(event.key === "ArrowDown" ? 1 : -1);
-			return;
-		}
-
-		if (event.key !== "Enter" || adding) {
-			return;
-		}
-
-		event.preventDefault();
-		const item = items.find((entry) => entry.name === highlighted);
-		if (item && !event.ctrlKey && !event.metaKey) {
-			browseTo(item.nextPath);
-			return;
-		}
-
-		submit();
+	const browseTo = (nextPath: string) => {
+		setTypedPath(nextPath);
+		picker.clear();
 	};
 
 	return (
@@ -100,7 +85,7 @@ export function ProjectPicker({
 			<div
 				data-component="project-picker"
 				data-path={path}
-				data-highlighted={highlighted}
+				data-highlighted={picker.highlightedKey}
 				className="picker-enter flex h-fit w-[560px] max-w-[90vw] flex-col border border-outline-strong bg-surface-raised shadow-2xl"
 				onPointerDown={(event) => event.stopPropagation()}
 			>
@@ -119,9 +104,9 @@ export function ProjectPicker({
 						value={path}
 						onInput={(event) => {
 							setTypedPath(event.currentTarget.value);
-							setHighlighted(undefined);
+							picker.clear();
 						}}
-						onKeyDown={handleKeyDown}
+						onKeyDown={picker.onKeyDown}
 					/>
 					<button
 						type="button"
@@ -150,8 +135,7 @@ export function ProjectPicker({
 							key={item.name}
 							name={item.name}
 							index={index}
-							highlighted={item.name === highlighted}
-							onHighlight={setHighlighted}
+							{...picker.itemProps(item)}
 							onSelect={() => browseTo(item.nextPath)}
 						/>
 					))}
@@ -164,7 +148,7 @@ export function ProjectPicker({
 				<div className="flex items-center justify-between gap-3 border-outline border-t px-3 py-2">
 					<div className="flex items-center gap-3">
 						<PickerHint keys={["↑", "↓"]} label="Navigate" />
-						<PickerHint keys={["Enter"]} label={highlighted ? "Open" : "Add"} />
+						<PickerHint keys={["Enter"]} label={picker.highlighted ? "Open" : "Add"} />
 						<PickerHint keys={["Esc"]} label="Close" />
 					</div>
 					<button
@@ -185,13 +169,15 @@ function PickerItem({
 	name,
 	index,
 	highlighted,
-	onHighlight,
+	ref,
+	onMouseMove,
 	onSelect,
 }: {
 	name: string;
 	index: number;
 	highlighted: boolean;
-	onHighlight: (name: string) => void;
+	ref?: (element: HTMLElement | null) => void;
+	onMouseMove: () => void;
 	onSelect: () => void;
 }) {
 	return (
@@ -202,11 +188,11 @@ function PickerItem({
 			data-component="project-picker-item"
 			data-name={name}
 			data-index={index}
-			ref={highlighted ? (element) => element?.scrollIntoView({ block: "nearest" }) : undefined}
+			ref={ref}
 			className={`relative flex w-full items-center gap-2.5 px-3 py-1.5 text-left ${
 				highlighted ? "bg-surface-active" : ""
 			}`}
-			onMouseMove={() => onHighlight(name)}
+			onMouseMove={onMouseMove}
 			onMouseDown={(event) => event.preventDefault()}
 			onClick={onSelect}
 		>

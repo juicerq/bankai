@@ -28,6 +28,7 @@ interface ReviewReadingGeneration {
 export interface ReviewReading {
 	generation?: ReviewReadingGeneration;
 	fullFile?: FullFile;
+	fullFileError?: string;
 	error?: string;
 	refreshing: boolean;
 }
@@ -123,7 +124,8 @@ export function useReviewReading({
 	});
 
 	const focusedChanged = !!focusedPath && files.some((file) => file.path === focusedPath);
-	const focusedRaw = !!focusedPath && !focusedChanged && prepare && !!currentSnapshot;
+	const snapshotComing = !watchError && snapshotQuery.isPending;
+	const focusedRaw = !!focusedPath && !focusedChanged && !snapshotComing;
 
 	const fullFileQuery = useQuery(
 		orpc.review.fullFile.queryOptions({
@@ -137,7 +139,7 @@ export function useReviewReading({
 			enabled: focusedRaw,
 		}),
 	);
-	const focusedContent = focusedChanged ? fullFileQuery.data : browseFileQuery.data;
+	const focusedQuery = focusedChanged ? fullFileQuery : browseFileQuery;
 
 	const reading: ReviewReadingGeneration | undefined = currentSnapshot
 		? {
@@ -148,16 +150,20 @@ export function useReviewReading({
 		: undefined;
 	const published = useRetainedReading(scope, reading);
 
-	if (watchError) {
-		return { error: watchError, refreshing: false };
+	const focused: Pick<ReviewReading, "fullFile" | "fullFileError"> = {};
+	if (focusedQuery.data) {
+		focused.fullFile = focusedQuery.data;
+	} else if (focusedQuery.error) {
+		focused.fullFileError = String(focusedQuery.error);
 	}
 
-	const result: ReviewReading = { refreshing: !!published && published !== reading };
+	if (watchError) {
+		return { ...focused, error: watchError, refreshing: false };
+	}
+
+	const result: ReviewReading = { ...focused, refreshing: !!published && published !== reading };
 	if (published) {
 		result.generation = published;
-	}
-	if (focusedContent) {
-		result.fullFile = focusedContent;
 	}
 	if (queryError) {
 		result.error = queryError;

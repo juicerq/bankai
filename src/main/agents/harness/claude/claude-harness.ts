@@ -8,7 +8,6 @@ import { ClaudeTranscript } from "@main/agents/harness/claude/claude-transcript"
 import { SubagentTranscript } from "@main/agents/transcript/subagent-transcript";
 import { CLAUDE_HARNESS_ID } from "@main/agents/harness/harness";
 import { SessionRefs } from "@main/agents/session/session-refs";
-import { ClaudeNamer } from "@main/agents/harness/claude/claude-namer";
 
 const PRESENCE_STATUS: Record<string, AgentPresence["status"]> = {
 	busy: "working",
@@ -16,8 +15,6 @@ const PRESENCE_STATUS: Record<string, AgentPresence["status"]> = {
 	waiting: "waiting",
 	idle: "idle",
 };
-
-const PUBLISHED_NAME_SOURCES = new Set(["auto", "user"]);
 
 function presenceStatus(status: string | undefined): AgentPresence["status"] {
 	return (status === undefined ? undefined : PRESENCE_STATUS[status]) ?? "idle";
@@ -30,11 +27,8 @@ const sessionRecordSchema = type({
 	procStart: "string",
 	"status?": "string",
 	"statusUpdatedAt?": "number",
-	"name?": "string",
-	"nameSource?": "string",
 }).pipe((raw): AgentPresence => {
 	const status = presenceStatus(raw.status);
-	const publishedName = PUBLISHED_NAME_SOURCES.has(raw.nameSource ?? "") ? raw.name?.trim() : undefined;
 
 	return {
 		harness: CLAUDE_HARNESS_ID,
@@ -44,7 +38,6 @@ const sessionRecordSchema = type({
 		cwd: raw.cwd,
 		status,
 		...(raw.statusUpdatedAt !== undefined && { statusSince: raw.statusUpdatedAt }),
-		...(publishedName ? { publishedName } : {}),
 	};
 });
 
@@ -68,6 +61,8 @@ function sessionsDirectory(): string {
 	return join(ClaudeConfig.dir(), "sessions");
 }
 
+let transcriptFiles: string[] = [];
+
 export const ClaudeHarness: Harness = {
 	id: CLAUDE_HARNESS_ID,
 	label: "Claude Code",
@@ -87,8 +82,7 @@ export const ClaudeHarness: Harness = {
 		return { file: "claude", args: ["--resume", ref.sessionId] };
 	},
 	title: ClaudeTranscript.title,
-	proposeName: ClaudeNamer.proposeName,
-	watch: () => [sessionsDirectory()],
+	watch: () => [sessionsDirectory(), ...transcriptFiles],
 	async discover() {
 		const directory = sessionsDirectory();
 		const files = await readdir(directory).catch((): string[] => []);
@@ -98,7 +92,7 @@ export const ClaudeHarness: Harness = {
 				.map((file) => readFile(join(directory, file), "utf8").catch(() => null)),
 		);
 
-		return contents.flatMap((raw) => {
+		const presences = contents.flatMap((raw) => {
 			const record = raw === null ? null : parseSessionRecord(raw);
 			if (!record) {
 				return [];
@@ -106,5 +100,12 @@ export const ClaudeHarness: Harness = {
 
 			return [record];
 		});
+		transcriptFiles = await Promise.all(
+			presences.flatMap((presence) => presence.sessionId
+				? [ClaudeTranscript.locate({ sessionId: presence.sessionId, cwd: presence.cwd })]
+				: []),
+		);
+
+		return presences;
 	},
 };

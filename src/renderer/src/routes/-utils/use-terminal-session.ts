@@ -6,6 +6,7 @@ import { client } from "@renderer/lib/api";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { terminalStream } from "@renderer/lib/stream/terminal";
 import type { ResumeOutcome } from "@renderer/routes/-utils/resume-state";
+import { type TerminalFileTarget, terminalFileLinks } from "@renderer/routes/-utils/terminal-file-links";
 import { registerTerminalStyle, TERMINAL_OPTIONS } from "@renderer/routes/-utils/terminal-style";
 import type { TerminalAttached, TerminalCommandErrorEvent } from "@shared/terminal";
 import { throttle } from "@shared/throttle";
@@ -29,6 +30,7 @@ export function useTerminalSession(options: {
 	resizeDeferred: boolean;
 	resumeOnMount: boolean;
 	attachOnly?: boolean;
+	fileLinks?: TerminalFileLinkContext;
 	onResumeOutcome?: (outcome: ResumeOutcome) => void;
 	onFirstOutput?: () => void;
 }) {
@@ -44,6 +46,8 @@ export function useTerminalSession(options: {
 	onResumeOutcomeRef.current = options.onResumeOutcome;
 	const onFirstOutputRef = useRef(options.onFirstOutput);
 	onFirstOutputRef.current = options.onFirstOutput;
+	const fileLinksRef = useRef(options.fileLinks);
+	fileLinksRef.current = options.fileLinks;
 	const registerContainer = useCallback((container: HTMLDivElement | null) => {
 		if (!container) {
 			return;
@@ -57,6 +61,7 @@ export function useTerminalSession(options: {
 				resume: resumeOnMountRef.current,
 				attachOnly: attachOnly === true,
 				resizeDeferred: resizeDeferredRef.current,
+				fileLinks: fileLinksRef.current ? () => fileLinksRef.current : undefined,
 				onResumeOutcome: (outcome) => onResumeOutcomeRef.current?.(outcome),
 				onFirstOutput: () => onFirstOutputRef.current?.(),
 			});
@@ -105,6 +110,12 @@ export function useTerminalSession(options: {
 	return { registerContainer, registerActivation, registerFocusRequest, registerResizeDeferral, retryResume };
 }
 
+export interface TerminalFileLinkContext {
+	paths: ReadonlySet<string>;
+	worktree?: string;
+	onOpen: (target: TerminalFileTarget) => void;
+}
+
 interface RendererTerminalOptions {
 	projectId: string;
 	shellId: string;
@@ -113,6 +124,7 @@ interface RendererTerminalOptions {
 	resizeDeferred: boolean;
 	onResumeOutcome: (outcome: ResumeOutcome) => void;
 	onFirstOutput: () => void;
+	fileLinks?: () => TerminalFileLinkContext | undefined;
 }
 
 export class RendererTerminalSession {
@@ -126,6 +138,7 @@ export class RendererTerminalSession {
 	private readonly removeCommandErrorListener;
 	private readonly stopStyle;
 	private readonly stopResync;
+	private readonly fileLinkProvider;
 	private sessionId: string | undefined;
 	private lastCols: number | undefined;
 	private lastRows: number | undefined;
@@ -175,6 +188,7 @@ export class RendererTerminalSession {
 				terminalStream.write(this.sessionId, data);
 			}
 		});
+		this.fileLinkProvider = this.registerFileLinks();
 		this.stopResync = streamResync.register("terminal", () => this.reattach());
 		this.resizeProcess = throttle(() => this.syncProcessDimensions(), TERMINAL_RESIZE_THROTTLE_MS);
 		this.resizeObserver = new ResizeObserver(() => this.handleContainerResize());
@@ -263,6 +277,7 @@ export class RendererTerminalSession {
 		this.removeCommandErrorListener();
 		this.stopStyle();
 		this.stopResync();
+		this.fileLinkProvider?.dispose();
 		if (this.sessionId) {
 			terminalStream.detach(this.sessionId);
 		}
@@ -327,6 +342,41 @@ export class RendererTerminalSession {
 		}
 
 		return await terminalStream.open(projectId, shellId, this.terminal.cols, this.terminal.rows);
+	}
+
+	private registerFileLinks() {
+		const fileLinks = this.options.fileLinks;
+
+		if (!fileLinks) {
+			return;
+		}
+
+		return this.terminal.registerLinkProvider({
+			provideLinks: (row, callback) => {
+				const context = fileLinks();
+				const text = this.terminal.buffer.active.getLine(row - 1)?.translateToString(true);
+
+				if (!context || !text) {
+					callback([]);
+
+					return;
+				}
+
+				const links = terminalFileLinks({ text, paths: context.paths, worktree: context.worktree });
+
+				if (links.length === 0) {
+					callback([]);
+
+					return;
+				}
+
+				callback(links.map(({ start, end, ...target }) => ({
+					range: { start: { x: start + 1, y: row }, end: { x: end, y: row } },
+					text: text.slice(start, end),
+					activate: () => context.onOpen(target),
+				})));
+			},
+		});
 	}
 
 	private handleClipboardChord(event: KeyboardEvent) {

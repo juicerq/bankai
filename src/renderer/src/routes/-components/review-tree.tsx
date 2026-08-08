@@ -43,9 +43,12 @@ export function ReviewTree({
 	const [collapsedChanges, setCollapsedChanges] = useState<ReadonlySet<string>>(new Set());
 	const [expandedBrowse, setExpandedBrowse] = useState<ReadonlySet<string>>(new Set());
 	const scrollTops = useRef<Record<ReviewTreeView, number>>({ changes: 0, browse: 0 });
+	const [listNode, setListNode] = useState<HTMLDivElement | null>(null);
 
 	const attachList = useCallback(
 		(node: HTMLDivElement | null) => {
+			setListNode(node);
+
 			if (node) {
 				// Imperative scroll: the other view remounts the list, so put it back where the user left it.
 				node.scrollTop = scrollTops.current[treeView];
@@ -56,6 +59,15 @@ export function ReviewTree({
 
 	const trackScroll = (event: UIEvent<HTMLDivElement>) => {
 		scrollTops.current[treeView] = event.currentTarget.scrollTop;
+	};
+
+	const openChangedFile = (path: string) => {
+		if (path === focusedPath) {
+			onToggleFocusFile(path);
+			return;
+		}
+
+		onOpenFile(path);
 	};
 
 	return (
@@ -87,6 +99,7 @@ export function ReviewTree({
 			</div>
 			<div
 				key={treeView}
+				data-slot="list"
 				ref={attachList}
 				onScroll={trackScroll}
 				className="min-h-0 flex-1 overflow-auto"
@@ -97,12 +110,10 @@ export function ReviewTree({
 						files={files}
 						focusedPath={focusedPath}
 						expanded={expandedBrowse}
+						scrollElement={listNode}
+						initialOffset={scrollTops.current[treeView]}
 						onExpandedChange={setExpandedBrowse}
-						onOpenFile={(path) => {
-							if (path !== focusedPath) {
-								onToggleFocusFile(path);
-							}
-						}}
+						onToggleFocus={onToggleFocusFile}
 					/>
 				) : (
 					<ReviewTreeChanges
@@ -110,7 +121,7 @@ export function ReviewTree({
 						focusedPath={focusedPath}
 						collapsed={collapsedChanges}
 						onCollapsedChange={setCollapsedChanges}
-						onOpenFile={onOpenFile}
+						onOpenFile={openChangedFile}
 						onToggleFocusFile={onToggleFocusFile}
 						onCloseFiles={onCloseFiles}
 					/>

@@ -12,7 +12,6 @@ import { ProjectWorktrees } from "@main/git/worktree/project-worktrees";
 import { ReviewChanges } from "@main/git/review/review-changes";
 import { Worktrees } from "@main/git/worktree/worktrees";
 import { Logger } from "@main/infra/logger";
-import { SessionNamer } from "@main/agents/naming/session-namer";
 import { NotifyAttention } from "@main/push/notify-attention";
 import { Continuity, type ContinuityValue } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
@@ -287,7 +286,6 @@ class AgentActivityTracker {
 				worktrees: new Map(),
 				statusSince: new Map(),
 				harnesses: new Map(),
-				publishedNames: new Map(),
 			});
 			return;
 		}
@@ -309,14 +307,13 @@ class AgentActivityTracker {
 		});
 		this.boundSessions = new Set(bindings.keys());
 
-		this.captureSessionRefs(shells, bindings, liveByPid);
+		const sessionRefsChanged = this.captureSessionRefs(shells, bindings, liveByPid);
 		const worktrees = pass === "full"
 			? await this.observeWorktrees(shells, bindings, liveByPid)
 			: this.shellWorktrees;
 
 		const nextStates = new Map<string, AgentActivityState>();
 		const statusSince = new Map<string, number>();
-		const publishedNames = new Map<string, string>();
 		const harnesses = new Map<string, string>();
 		for (const shell of shells) {
 			const boundPid = bindings.get(shell.sessionId);
@@ -328,9 +325,6 @@ class AgentActivityTracker {
 			const next = ShellActivity.next(previous, status);
 			if (next !== undefined) {
 				nextStates.set(shell.sessionId, next);
-			}
-			if (presence?.publishedName) {
-				publishedNames.set(shell.sessionId, presence.publishedName);
 			}
 			if (presence) {
 				harnesses.set(shell.shellId, presence.harness);
@@ -350,14 +344,40 @@ class AgentActivityTracker {
 		if (pass === "full") {
 			this.watchHarnessFiles(Harnesses.watchPaths());
 		}
+		const stateChanged = ShellActivity.turnStarts(this.shellStates, nextStates).length > 0
+			|| ShellActivity.doneEntries(this.shellStates, nextStates).length > 0;
+		if (pass === "event" || sessionRefsChanged || stateChanged) {
+			await this.refreshSessionNames(shells, bindings, liveByPid);
+		}
 		this.commit({
 			shellStates: nextStates,
 			owners,
 			worktrees,
 			statusSince,
 			harnesses,
-			publishedNames,
 		});
+	}
+
+	private async refreshSessionNames(
+		shells: { sessionId: string; shellId: string; projectId: string }[],
+		bindings: Map<string, number>,
+		liveByPid: Map<number, AgentPresence>,
+	): Promise<void> {
+		await Promise.all(shells.map(async (shell) => {
+			const boundPid = bindings.get(shell.sessionId);
+			const presence = boundPid === undefined ? undefined : liveByPid.get(boundPid);
+			if (!presence?.sessionId) {
+				return;
+			}
+
+			await ShellFacts.name({
+				projectId: shell.projectId,
+				shellId: shell.shellId,
+				session: { harness: presence.harness, sessionId: presence.sessionId, cwd: presence.cwd },
+			}).catch((err) => {
+				Logger.error("activity:name-failed", { projectId: shell.projectId, shellId: shell.shellId, err: String(err) });
+			});
+		}));
 	}
 
 	private async observeWorktrees(
@@ -411,9 +431,9 @@ class AgentActivityTracker {
 		shells: { sessionId: string; shellId: string; projectId: string }[],
 		bindings: Map<string, number>,
 		liveByPid: Map<number, AgentPresence>,
-	): void {
+	): boolean {
 		if (this.stopped) {
-			return;
+			return false;
 		}
 
 		const observations = shells.map((shell) => {
@@ -459,6 +479,8 @@ class AgentActivityTracker {
 				}),
 			);
 		}
+
+		return changes.some((change) => change.kind === "upsert");
 	}
 
 	private commit({
@@ -467,14 +489,12 @@ class AgentActivityTracker {
 		worktrees,
 		statusSince,
 		harnesses,
-		publishedNames,
 	}: {
 		shellStates: Map<string, AgentActivityState>;
 		owners: Map<string, ShellOwner>;
 		worktrees: Map<string, string>;
 		statusSince: Map<string, number>;
 		harnesses: Map<string, string>;
-		publishedNames: Map<string, string>;
 	}): void {
 		const previousStates = this.shellStates;
 		const previousWorktrees = this.shellWorktrees;
@@ -508,10 +528,6 @@ class AgentActivityTracker {
 			);
 		}
 
-		SessionNamer.forget(
-			new Set([...owners.values()].map((owner) => owner.shellId)),
-		);
-
 		for (const sessionId of ShellActivity.turnStarts(previousStates, shellStates)) {
 			const owner = owners.get(sessionId);
 			if (!owner) {
@@ -522,15 +538,12 @@ class AgentActivityTracker {
 				Logger.error("activity:turn-start-save-failed", { ...owner, err: String(err) }),
 			);
 			const worktree = worktrees.get(owner.shellId);
-			const publishedName = publishedNames.get(sessionId);
 			ShellFacts.stamp({
 				...owner,
 				...(worktree ? { cwd: worktree } : {}),
-				...(publishedName ? { publishedName } : {}),
 			}).catch((err) =>
 				Logger.error("activity:stamp-failed", { ...owner, err: String(err) }),
 			);
-			SessionNamer.noteTurn(owner);
 		}
 
 		const attentionEntries = ShellActivity.attentionEntries(previousStates, shellStates);

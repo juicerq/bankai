@@ -1,13 +1,12 @@
-import { createReadStream } from "node:fs";
-import { readdir, stat } from "node:fs/promises";
+import { open, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { createInterface } from "node:readline";
 import { type } from "arktype";
 import { ClaudeConfig } from "@main/agents/harness/claude/claude-config";
-import { TranscriptMaterial } from "@main/agents/transcript/transcript-material";
 import { Logger } from "@main/infra/logger";
 
 const TITLE_LIMIT = 120;
+
+const PUBLISHED_TITLE_TAIL_BYTES = 128 * 1024;
 
 const NOISE_PREFIXES = [
 	"<local-command-caveat>",
@@ -34,6 +33,36 @@ const userRecordSchema = type({
 });
 
 const textBlockSchema = type({ type: "'text'", text: "string" });
+
+const aiTitleSchema = type({ type: "'ai-title'", aiTitle: "string" });
+
+const customTitleSchema = type({ type: "'custom-title'", customTitle: "string" });
+
+function recordTitle(value: unknown): string | undefined {
+	const ai = aiTitleSchema(value);
+	if (!(ai instanceof type.errors)) {
+		return ai.aiTitle;
+	}
+
+	const custom = customTitleSchema(value);
+	if (custom instanceof type.errors) {
+		return undefined;
+	}
+
+	return custom.customTitle;
+}
+
+function lineTitle(raw: string): string | undefined {
+	if (!raw.includes("-title")) {
+		return undefined;
+	}
+
+	try {
+		return recordTitle(JSON.parse(raw));
+	} catch {
+		return undefined;
+	}
+}
 
 function noisyText(trimmed: string): boolean {
 	return NOISE_PREFIXES.some((prefix) => trimmed.startsWith(prefix));
@@ -129,58 +158,47 @@ async function locateTranscript(ref: { sessionId: string; cwd: string }): Promis
 	return found;
 }
 
-async function* transcriptIntents(ref: { sessionId: string; cwd: string }, limit: number): AsyncGenerator<string> {
-	const path = await locateTranscript(ref);
-	const stream = createReadStream(path, { encoding: "utf8" });
-	const lines = createInterface({ input: stream, crlfDelay: Number.POSITIVE_INFINITY });
+async function publishedTitle(path: string): Promise<string | null> {
+	const handle = await open(path, "r").catch(() => null);
+	if (!handle) {
+		return null;
+	}
 
 	try {
-		for await (const line of lines) {
-			const found = recordIntent(line, limit);
+		const { size } = await handle.stat();
+		const length = Math.min(PUBLISHED_TITLE_TAIL_BYTES, size);
+		const { buffer, bytesRead } = await handle.read({
+			buffer: Buffer.alloc(length),
+			position: size - length,
+		});
+		const lines = buffer.subarray(0, bytesRead).toString("utf8").split("\n").reverse();
+
+		for (const line of lines) {
+			const found = lineTitle(line);
 			if (found) {
-				yield found;
+				return found.trim().replace(/\s+/g, " ").slice(0, TITLE_LIMIT);
 			}
 		}
+
+		return null;
 	} catch (err) {
 		Logger.warn("claude:transcript-unreadable", { path, err: String(err) });
+
+		return null;
 	} finally {
-		lines.close();
-		stream.destroy();
+		await handle.close();
 	}
 }
 
 async function transcriptTitle(ref: { sessionId: string; cwd: string }): Promise<string | null> {
-	for await (const found of transcriptIntents(ref, TITLE_LIMIT)) {
-		return found;
-	}
-
-	return null;
-}
-
-async function transcriptMaterial(ref: { sessionId: string; cwd: string }): Promise<string[]> {
-	const opening: string[] = [];
-	const recent: string[] = [];
-
-	for await (const found of transcriptIntents(ref, TranscriptMaterial.MATERIAL_MESSAGE_LIMIT)) {
-		if (opening.length < TranscriptMaterial.MATERIAL_EDGE_COUNT) {
-			opening.push(found);
-			continue;
-		}
-
-		recent.push(found);
-		if (recent.length > TranscriptMaterial.MATERIAL_EDGE_COUNT) {
-			recent.shift();
-		}
-	}
-
-	return TranscriptMaterial.withinTotal([...opening, ...recent]);
+	return await publishedTitle(await locateTranscript(ref));
 }
 
 export const ClaudeTranscript = {
 	noisyText,
 	recordIntent,
+	recordTitle,
 	path: transcriptPath,
 	locate: locateTranscript,
 	title: transcriptTitle,
-	material: transcriptMaterial,
 };

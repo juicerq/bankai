@@ -72,7 +72,7 @@ test("no reducer mutates the value it was given", () => {
 	ContinuityReducers.pinShell(before, address);
 	ContinuityReducers.unpinShell(before, address);
 	ContinuityReducers.renameShell(before, { ...address, title: "psql" });
-	ContinuityReducers.nameShell(before, { ...address, title: "psql", source: "model" });
+	ContinuityReducers.nameShell(before, { ...address, title: "psql", source: "harness" });
 	ContinuityReducers.touchShell(before, { ...address, branch: "main" });
 	ContinuityReducers.startTurn(before, address);
 	ContinuityReducers.finishTurn(before, { ...address, at: NOW });
@@ -237,7 +237,7 @@ test("purging the last project with sessions leaves no selection", () => {
 
 const A1 = { projectId: "p1", shellId: "a1" };
 
-const AUTOMATIC_SOURCES: ShellName["source"][] = ["model", "published"];
+const AUTOMATIC_SOURCES: ShellName["source"][] = ["harness"];
 
 function oneShell(extra: Partial<ContinuityShell> = {}): ContinuityValue {
 	return { workspaces: [{ projectId: "p1", shells: [shell("a1", extra)] }] };
@@ -291,33 +291,17 @@ test("a name the user typed by hand survives every automatic source", () => {
 	}
 });
 
-test("a model name counts as a naming and a published one does not", () => {
-	const model = ContinuityReducers.nameShell(oneShell(), { ...A1, title: "ajusta o header", source: "model" });
-	const published = ContinuityReducers.nameShell(oneShell(), { ...A1, title: "ajusta o header", source: "published" });
-
-	expect(onlyShell(model)?.namings).toBe(1);
-	expect(onlyShell(published)?.namings).toBeUndefined();
-});
-
-test("a published name outranks a model one, which cannot take it back", () => {
-	const model = ContinuityReducers.nameShell(oneShell(), { ...A1, title: "modelo", source: "model" });
-	const published = ContinuityReducers.nameShell(model, { ...A1, title: "publicado", source: "published" });
-
-	expect(onlyShell(published)?.title).toBe("publicado");
-	expect(ContinuityReducers.nameShell(published, { ...A1, title: "modelo", source: "model" })).toEqual(published);
-});
-
 test("writing the name a shell already carries counts nothing and changes nothing", () => {
-	const model = ContinuityReducers.nameShell(oneShell(), { ...A1, title: "modelo", source: "model" });
+	const harness = ContinuityReducers.nameShell(oneShell(), { ...A1, title: "do harness", source: "harness" });
 
-	expect(ContinuityReducers.nameShell(model, { ...A1, title: "modelo", source: "model" })).toEqual(model);
+	expect(ContinuityReducers.nameShell(harness, { ...A1, title: "do harness", source: "harness" })).toEqual(harness);
 });
 
 test("a title stamped before name origins existed is still open to naming", () => {
 	const named = ContinuityReducers.nameShell(oneShell({ title: "oi" }), {
 		...A1,
 		title: "sessao de naming",
-		source: "model",
+		source: "harness",
 	});
 
 	expect(onlyShell(named)?.title).toBe("sessao de naming");

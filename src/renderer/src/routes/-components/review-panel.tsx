@@ -7,6 +7,7 @@ import { orpc } from "@renderer/lib/api";
 import { ReviewDiff, type ReviewDiffHandle } from "@renderer/routes/-components/review-diff";
 import { ReviewFocusedFile } from "@renderer/routes/-components/review-focused-file";
 import { ReviewHeader } from "@renderer/routes/-components/review-header";
+import { ReviewPathPicker } from "@renderer/routes/-components/review-path-picker";
 import { ReviewTree } from "@renderer/routes/-components/review-tree";
 import type { ReviewWorktreeSelection } from "@renderer/routes/-components/review-worktree";
 import { MIN_DIFF_WIDTH, REVIEW_DIFF_WIDTH_VALUE } from "@renderer/routes/-utils/review-layout";
@@ -26,6 +27,7 @@ export function ReviewPanel({
 	treeDivider,
 	expanded,
 	onToggleExpanded,
+	pathPicker,
 }: {
 	project: Project;
 	shellId?: string;
@@ -34,6 +36,7 @@ export function ReviewPanel({
 	treeDivider: ReturnType<typeof useDivider>;
 	expanded: boolean;
 	onToggleExpanded: () => void;
+	pathPicker: { open: boolean; onClose: () => void };
 }) {
 	const { onTreeOpenChange } = useWorkspaceControl();
 	const agents = useWorkspaceAgents();
@@ -62,11 +65,11 @@ export function ReviewPanel({
 	const { data: browsePaths } = useQuery(
 		orpc.review.browseFiles.queryOptions({
 			input: { projectId: project.id, worktree },
-			enabled: treeOpen && treeView === "browse",
+			enabled: pathPicker.open || (treeOpen && treeView === "browse"),
 		}),
 	);
 
-	const { generation, fullFile, error, refreshing } = useReviewReading({
+	const { generation, fullFile, fullFileError, error, refreshing } = useReviewReading({
 		projectId: project.id,
 		worktree,
 		mode,
@@ -112,7 +115,6 @@ export function ReviewPanel({
 		revealFile(path);
 	};
 
-	const readingKey = `${mode} ${worktree}`;
 	const sharedWith = sharedWorktreeShells({
 		shellId,
 		worktree,
@@ -137,9 +139,12 @@ export function ReviewPanel({
 
 	return (
 		<aside className="flex bg-surface-raised" aria-label="Review">
+			{pathPicker.open && (
+				<ReviewPathPicker paths={browsePaths ?? []} onOpenFile={panel.actions.focusFile} onClose={pathPicker.onClose} />
+			)}
 			{treeOpen && (
 				<ReviewTree
-					key={readingKey}
+					key={worktree}
 					files={files}
 					browsePaths={browsePaths}
 					treeView={treeView}
@@ -170,7 +175,7 @@ export function ReviewPanel({
 
 				<div className="relative flex min-h-0 flex-1 flex-col">
 					<ReviewDiff
-						key={readingKey}
+						key={`${mode} ${worktree}`}
 						ref={diff}
 						mode={mode}
 						generation={generation}
@@ -184,6 +189,7 @@ export function ReviewPanel({
 						<ReviewFocusedFile
 							key={focusedPath}
 							content={fullFile}
+							error={fullFileError}
 							path={focusedPath}
 							change={focusedFile}
 							onClose={closeFocus}

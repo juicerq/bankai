@@ -327,21 +327,6 @@ test("pairs against the tailnet address while it is the only way in", async () =
 	expect(slot(modal, "mobile-access").getAttribute("aria-checked")).toBe("true");
 });
 
-test("keeps naming in the profile of the harness it was toggled on", async () => {
-	const modal = await loadedModal();
-
-	fireEvent.click(get("settings-harness", { id: "codex" }));
-	await waitFor(() => {
-		expect(transport.harness.id).toBe("codex");
-	});
-	fireEvent.click(slot(get("settings-modal"), "naming"));
-
-	await waitFor(() => {
-		expect(transport.updates.at(-1)?.profiles).toEqual({ codex: { naming: false } });
-	});
-	expect(modal).not.toBeNull();
-});
-
 test("marks the stored theme among the three choices", async () => {
 	theme.theme = "system";
 	await loadedModal();

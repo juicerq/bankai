@@ -71,8 +71,8 @@ describe("settings harness", () => {
 
 	it("keeps each harness profile apart", async () => {
 		const profiles = {
-			claude: { args: "--model opus", naming: true },
-			codex: { args: "--model gpt-5.6", naming: false },
+			claude: { args: "--model opus" },
+			codex: { args: "--model gpt-5.6" },
 		};
 		await Settings.updateHarness({ autostart: true, id: "codex", profiles });
 
@@ -106,7 +106,7 @@ describe("settings harness", () => {
 					harness: {
 						autostart: true,
 						id: "claude",
-						profiles: { claude: { args: "--model opus", liveTrace: false }, codex: { naming: false } },
+						profiles: { claude: { args: "--model opus", liveTrace: false }, codex: { args: "--model gpt-5.6" } },
 					},
 				},
 			}),
@@ -115,7 +115,7 @@ describe("settings harness", () => {
 		expect((await Settings.get()).harness).toEqual({
 			autostart: true,
 			id: "claude",
-			profiles: { claude: { args: "--model opus" }, codex: { naming: false } },
+			profiles: { claude: { args: "--model opus" }, codex: { args: "--model gpt-5.6" } },
 		});
 	});
 

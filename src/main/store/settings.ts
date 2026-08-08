@@ -1,7 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { type } from "arktype";
 import { Store } from "@main/store/store";
-import { DEFAULT_SESSION_NAMING } from "@shared/activity";
 import { SERVER_DEFAULT_PORT, SERVER_TOKEN_BYTES, type ServerReach } from "@shared/server";
 import { DEFAULT_THEME, THEME_PREFERENCES, type ThemePreference } from "@shared/theme";
 
@@ -27,7 +26,6 @@ export type LayoutSettings = typeof layoutSchema.infer;
 
 const harnessProfileSchema = type({
 	"args?": "string",
-	"naming?": "boolean",
 	"+": "delete",
 });
 export type HarnessProfile = typeof harnessProfileSchema.infer;
@@ -54,10 +52,6 @@ export type HarnessSettings = typeof harnessSchema.infer;
 
 export function harnessProfile(harness: HarnessSettings | undefined, harnessId: string): HarnessProfile {
 	return harness?.profiles?.[harnessId] ?? {};
-}
-
-export function sessionNamingEnabled(profile: HarnessProfile): boolean {
-	return profile.naming ?? DEFAULT_SESSION_NAMING;
 }
 
 const serverSchema = type({
@@ -103,7 +97,6 @@ const singleHarnessSchema = type({
 	id: "string",
 	"args?": "string",
 	"liveTrace?": "boolean",
-	"naming?": "boolean",
 });
 
 function withHarnessProfiles(raw: unknown): unknown {

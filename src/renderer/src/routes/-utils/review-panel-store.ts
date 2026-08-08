@@ -10,7 +10,9 @@ export interface ReviewPanelState {
 	treeView: ReviewTreeView;
 	closedFiles: ReadonlySet<string>;
 	focusedPath?: string;
+	focusedLine?: number;
 	hiddenFocusedPath?: string;
+	hiddenFocusedLine?: number;
 	pinnedWorktree?: string;
 }
 
@@ -26,11 +28,11 @@ export function createReviewPanelStore() {
 
 		return {
 			selectMode: (mode: ReviewMode) => {
-				patch({ mode, focusedPath: undefined, hiddenFocusedPath: undefined });
+				patch({ mode });
 			},
 
 			selectTreeView: (treeView: ReviewTreeView) => {
-				const { treeView: current, focusedPath, hiddenFocusedPath } = get();
+				const { treeView: current, focusedPath, focusedLine, hiddenFocusedPath, hiddenFocusedLine } = get();
 
 				if (treeView === current) {
 					return;
@@ -39,12 +41,20 @@ export function createReviewPanelStore() {
 				patch({
 					treeView,
 					focusedPath: hiddenFocusedPath,
+					focusedLine: hiddenFocusedLine,
 					hiddenFocusedPath: focusedPath,
+					hiddenFocusedLine: focusedLine,
 				});
 			},
 
 			pinWorktree: (pinnedWorktree?: string) => {
-				patch({ pinnedWorktree, focusedPath: undefined, hiddenFocusedPath: undefined });
+				patch({
+					pinnedWorktree,
+					focusedPath: undefined,
+					focusedLine: undefined,
+					hiddenFocusedPath: undefined,
+					hiddenFocusedLine: undefined,
+				});
 			},
 
 			openFile: (path: string) => {
@@ -77,12 +87,12 @@ export function createReviewPanelStore() {
 				patch({ closedFiles });
 			},
 
-			focusFile: (focusedPath: string) => {
-				patch({ focusedPath });
+			focusFile: (focusedPath: string, focusedLine?: number) => {
+				patch({ focusedPath, focusedLine });
 			},
 
 			clearFocus: () => {
-				patch({ focusedPath: undefined });
+				patch({ focusedPath: undefined, focusedLine: undefined });
 			},
 		};
 	});

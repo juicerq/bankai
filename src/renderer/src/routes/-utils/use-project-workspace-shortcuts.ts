@@ -7,11 +7,13 @@ export function useProjectWorkspaceShortcuts({
 	onToggleReview,
 	onToggleReviewExpanded,
 	onOpenCommands,
+	onOpenPathPicker,
 }: {
 	active: boolean;
 	onToggleReview: () => void;
 	onToggleReviewExpanded: () => void;
 	onOpenCommands: () => void;
+	onOpenPathPicker: () => void;
 }) {
 	return useCallback(() => {
 		let leaderArmed = false;
@@ -33,6 +35,10 @@ export function useProjectWorkspaceShortcuts({
 
 				if (event.code === "KeyC") {
 					return onOpenCommands;
+				}
+
+				if (event.code === "KeyP") {
+					return onOpenPathPicker;
 				}
 
 				return;
@@ -71,5 +77,5 @@ export function useProjectWorkspaceShortcuts({
 			window.removeEventListener("keydown", handleKeyDown, true);
 			window.removeEventListener("blur", handleWindowBlur);
 		};
-	}, [active, onOpenCommands, onToggleReview, onToggleReviewExpanded]);
+	}, [active, onOpenCommands, onOpenPathPicker, onToggleReview, onToggleReviewExpanded]);
 }

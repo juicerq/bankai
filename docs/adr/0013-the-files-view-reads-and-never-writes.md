@@ -1,0 +1,9 @@
+# The Files view reads, and never writes
+
+The Files view exists for one reason: reading a file the current Scope does not report should not cost a trip to an outside editor, because the answer to "what does this function actually do?" arrives mid-review and leaving to get it costs the review. Having the file open in full, in a surface that already knows how to paint it, makes the next pressure obvious — the line that is wrong is right there, the fix is one character, and an editable surface is a small step from a readable one. We decided against it: the Files view reads the worktree and offers no way to change it. The user asks the Agent for the edit, as they would have without the view, and the file repaints when the agent writes it. The cost accepted is real and will be felt: a typo the user could have fixed in two seconds still leaves Bankai, and the more comfortable the view is to read in, the more that gap stings.
+
+## Consequences
+
+- The opening promise holds unchanged — Bankai never writes to a repository — and it stays a property of the whole app rather than a claim with an exception attached. A single writable surface would turn every future statement about what Bankai does to a repository into a qualified one.
+- The Agent stays the sole author of every change in the worktree, which is what keeps the Review honest: a changed file means the agent changed it. A hand edit made inside Bankai would land in the same diff, indistinguishable from the agent's work, and the Review would stop answering who changed what.
+- The escape hatch, if the gap hurts enough, is to open the Focused file in the user's own editor — an action that hands the writing to a tool that owns it rather than growing an editor inside the Files view. It leaves this decision intact, which is why it is the direction to reach for first.

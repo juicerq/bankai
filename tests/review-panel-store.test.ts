@@ -7,14 +7,79 @@ test("opens on the working tree against HEAD", () => {
 	expect(DEFAULT_REVIEW_MODE).toBe("uncommitted");
 });
 
-test("abandons the focused file when the scope changes", () => {
+test("keeps the focused file when the scope changes", () => {
 	const panel = createReviewPanelStore();
 	panel.actions.focusFile("src/a.ts");
 
 	panel.actions.selectMode("branch");
 
 	expect(panel.state.mode).toBe("branch");
+	expect(panel.state.focusedPath).toBe("src/a.ts");
+});
+
+test("keeps the other view's focused file when the scope changes", () => {
+	const panel = createReviewPanelStore();
+	panel.actions.focusFile("src/a.ts");
+	panel.actions.selectTreeView("browse");
+	panel.actions.focusFile("docs/guide.md");
+
+	panel.actions.selectMode("branch");
+	panel.actions.selectTreeView("changes");
+
+	expect(panel.state.focusedPath).toBe("src/a.ts");
+});
+
+test("focuses a file at a line and keeps the line with it", () => {
+	const panel = createReviewPanelStore();
+
+	panel.actions.focusFile("src/a.ts", 120);
+
+	expect(panel.state.focusedPath).toBe("src/a.ts");
+	expect(panel.state.focusedLine).toBe(120);
+});
+
+test("focusing another file without a line leaves no line behind", () => {
+	const panel = createReviewPanelStore();
+	panel.actions.focusFile("src/a.ts", 120);
+
+	panel.actions.focusFile("src/b.ts");
+
+	expect(panel.state.focusedPath).toBe("src/b.ts");
+	expect(panel.state.focusedLine).toBeUndefined();
+});
+
+test("clearing the focus drops the line with the file", () => {
+	const panel = createReviewPanelStore();
+	panel.actions.focusFile("src/a.ts", 120);
+
+	panel.actions.clearFocus();
+
 	expect(panel.state.focusedPath).toBeUndefined();
+	expect(panel.state.focusedLine).toBeUndefined();
+});
+
+test("each view remembers the line its focused file was left on", () => {
+	const panel = createReviewPanelStore();
+	panel.actions.focusFile("src/a.ts", 120);
+
+	panel.actions.selectTreeView("browse");
+	panel.actions.focusFile("docs/guide.md");
+
+	expect(panel.state.focusedLine).toBeUndefined();
+
+	panel.actions.selectTreeView("changes");
+
+	expect(panel.state.focusedPath).toBe("src/a.ts");
+	expect(panel.state.focusedLine).toBe(120);
+});
+
+test("abandons the focused line along with the file when another worktree is picked", () => {
+	const panel = createReviewPanelStore();
+	panel.actions.focusFile("src/a.ts", 120);
+
+	panel.actions.pinWorktree("/tmp/feature");
+
+	expect(panel.state.focusedLine).toBeUndefined();
 });
 
 test("abandons the focused file when another worktree is picked", () => {

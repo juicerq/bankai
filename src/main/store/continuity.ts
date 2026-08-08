@@ -19,8 +19,7 @@ const shellSchema = type({
 	"lastTouchedAt?": "number",
 	"branch?": "string",
 	"title?": "string",
-	"titleSource?": "'user' | 'published' | 'model'",
-	"namings?": "number",
+	"titleSource?": "'user' | 'harness'",
 	"archivedAt?": "number",
 	"pinnedAt?": "number",
 	"doneAt?": "number",
@@ -96,7 +95,36 @@ const selectionPerWorkspaceSchema = type({
 	),
 );
 
-export const CONTINUITY_STORE_VERSION = 9;
+const modelNamedShellSchema = shellSchema
+	.merge({
+		"titleSource?": "'user' | 'published' | 'model' | 'harness'",
+		"namings?": "number",
+	})
+	.pipe(({ namings: _namings, ...shell }): ContinuityShell => {
+		if (shell.titleSource === "published") {
+			return { ...shell, titleSource: "harness" };
+		}
+
+		if (shell.titleSource === "model" || (shell.session && !shell.titleSource)) {
+			const { title: _title, titleSource: _titleSource, ...unnamed } = shell;
+
+			return unnamed;
+		}
+
+		const { titleSource, ...current } = shell;
+		if (titleSource === "user" || titleSource === "harness") {
+			return { ...current, titleSource };
+		}
+
+		return current;
+	});
+
+const modelNamedShellsSchema = type({
+	"selectedShellId?": "string",
+	workspaces: type({ projectId: "string", shells: modelNamedShellSchema.array() }).array(),
+});
+
+export const CONTINUITY_STORE_VERSION = 10;
 
 const store = new Store({
 	name: "continuity",
@@ -111,6 +139,7 @@ const store = new Store({
 		6: (raw) => raw,
 		7: (raw) => raw,
 		8: (raw) => raw,
+		9: (raw) => modelNamedShellsSchema.assert(raw),
 	},
 	seed: (): ContinuityValue => ({ workspaces: [] }),
 });

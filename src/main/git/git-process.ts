@@ -7,11 +7,13 @@ import {
 	reviewContentSchema,
 	reviewFilesSchema,
 	reviewSnapshotSchema,
+	searchResultsSchema,
 	worktreesSchema,
 	type FullFile,
 	type ReviewContent,
 	type ReviewFiles,
 	type ReviewSnapshot,
+	type SearchResults,
 	type Worktree,
 } from "@main/git/git-contracts";
 import { gitResponseSchema, type GitRequest } from "@main/git/git-protocol";
@@ -27,6 +29,7 @@ type GitRequestInput =
 	| ({ operation: "fullFile"; file: string } & ReviewScope)
 	| { operation: "browseFiles"; path: string }
 	| { operation: "browseFile"; path: string; file: string }
+	| { operation: "searchContent"; path: string; query: string }
 	| { operation: "worktrees"; path: string }
 	| { operation: "removeWorktree"; path: string; worktree: string }
 	| { operation: "startTurn"; path: string; shellId: string }
@@ -86,6 +89,10 @@ class GitUtilityProcess {
 
 	async browseFile(input: { path: string; file: string }): Promise<ReviewContent> {
 		return reviewContentSchema.assert(await this.request({ operation: "browseFile", ...input }));
+	}
+
+	async searchContent(input: { path: string; query: string }): Promise<SearchResults> {
+		return searchResultsSchema.assert(await this.request({ operation: "searchContent", ...input }));
 	}
 
 	close(): void {

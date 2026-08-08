@@ -110,7 +110,7 @@ describe("ClaudeTranscript.title", () => {
 		);
 	});
 
-	it("stops at the first user message that is real intent", async () => {
+	it("does not use a user message as the session name", async () => {
 		transcript(REF, [
 			JSON.stringify({ type: "summary", summary: "old" }),
 			userRecord("<command-name>/wayfinder</command-name>"),
@@ -118,7 +118,58 @@ describe("ClaudeTranscript.title", () => {
 			userRecord("a segunda mensagem"),
 		]);
 
-		expect(await ClaudeTranscript.title(REF)).toBe("vamos comecar a implementacao");
+		expect(await ClaudeTranscript.title(REF)).toBeNull();
+	});
+
+	it("prefers the name Claude Code published over the first message", async () => {
+		transcript(REF, [
+			userRecord("vamos comecar a implementacao"),
+			JSON.stringify({ type: "ai-title", aiTitle: "Usar nome de sessão do Claude Code", sessionId: REF.sessionId }),
+		]);
+
+		expect(await ClaudeTranscript.title(REF)).toBe("Usar nome de sessão do Claude Code");
+	});
+
+	it("takes the last published name, so a rename lands", async () => {
+		transcript(REF, [
+			JSON.stringify({ type: "ai-title", aiTitle: "Primeiro assunto", sessionId: REF.sessionId }),
+			userRecord("agora outra coisa"),
+			JSON.stringify({ type: "ai-title", aiTitle: "Segundo assunto", sessionId: REF.sessionId }),
+		]);
+
+		expect(await ClaudeTranscript.title(REF)).toBe("Segundo assunto");
+	});
+
+	it("prefers a name the user typed into Claude Code over the one it derived", async () => {
+		transcript(REF, [
+			JSON.stringify({ type: "ai-title", aiTitle: "Nome derivado", sessionId: REF.sessionId }),
+			JSON.stringify({ type: "custom-title", customTitle: "Nome do usuário", sessionId: REF.sessionId }),
+		]);
+
+		expect(await ClaudeTranscript.title(REF)).toBe("Nome do usuário");
+	});
+
+	it("reads the published name off the tail of a transcript too big to scan", async () => {
+		const padding = Array.from({ length: 400 }, (_entry, index) => userRecord(`mensagem ${index} ${"x".repeat(1024)}`));
+
+		transcript(REF, [
+			userRecord("a primeira mensagem"),
+			...padding,
+			JSON.stringify({ type: "ai-title", aiTitle: "Nome no fim do arquivo", sessionId: REF.sessionId }),
+		]);
+
+		expect(await ClaudeTranscript.title(REF)).toBe("Nome no fim do arquivo");
+	});
+
+	it("collapses whitespace and cuts a long published name down to a title", async () => {
+		transcript(REF, [
+			JSON.stringify({ type: "ai-title", aiTitle: `linha um\n  linha dois ${"a".repeat(200)}`, sessionId: REF.sessionId }),
+		]);
+
+		const title = await ClaudeTranscript.title(REF);
+
+		expect(title).toHaveLength(120);
+		expect(title).toContain("linha um linha dois");
 	});
 
 	it("yields nothing for a transcript that is all noise", async () => {
@@ -169,11 +220,14 @@ describe("ClaudeTranscript.locate", () => {
 	it("finds the origin transcript of a session that entered a worktree", async () => {
 		freshConfigDir();
 		const sessionId = "22f0838a-5ef9-40a6-bdef-706514079823";
-		const origin = write({ sessionId, cwd: "/home/jui/dogama/app" }, [userRecord("conserta o bug")]);
+		const origin = write({ sessionId, cwd: "/home/jui/dogama/app" }, [
+			userRecord("conserta o bug"),
+			JSON.stringify({ type: "ai-title", aiTitle: "Consertar bug", sessionId }),
+		]);
 		const moved = { sessionId, cwd: "/tmp/claude-worktrees/app/fix-bug" };
 
 		expect(await ClaudeTranscript.locate(moved)).toBe(origin);
-		expect(await ClaudeTranscript.title(moved)).toBe("conserta o bug");
+		expect(await ClaudeTranscript.title(moved)).toBe("Consertar bug");
 	});
 
 	it("falls back to the cwd-derived path when no transcript exists anywhere", async () => {

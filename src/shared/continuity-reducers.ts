@@ -20,7 +20,7 @@ export interface ShellName {
 	source: Exclude<ShellTitleSource, "user">;
 }
 
-const TITLE_RANK: Record<ShellTitleSource, number> = { model: 1, published: 2, user: 3 };
+const TITLE_RANK: Record<ShellTitleSource, number> = { harness: 1, user: 2 };
 
 function titleRank(shell: ContinuityShell): number {
 	if (!shell.titleSource) {
@@ -203,12 +203,7 @@ export const ContinuityReducers = {
 				return shell;
 			}
 
-			return {
-				...shell,
-				title: input.title,
-				titleSource: input.source,
-				...(input.source === "model" ? { namings: (shell.namings ?? 0) + 1 } : {}),
-			};
+			return { ...shell, title: input.title, titleSource: input.source };
 		}),
 
 	touchShell: (

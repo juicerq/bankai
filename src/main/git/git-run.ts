@@ -59,6 +59,7 @@ function isGitOutputOverflow(err: unknown): boolean {
 
 export const GitRun = {
 	GIT_OUTPUT_MAX_BYTES,
+	GIT_TIMEOUT_MS,
 	NULL_FILE,
 	text: gitText,
 	isRepo,

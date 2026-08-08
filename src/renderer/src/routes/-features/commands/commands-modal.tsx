@@ -334,7 +334,7 @@ function CommandRow({
 				onMouseDown={(event) => event.preventDefault()}
 				onClick={onRun}
 			>
-				<span className="flex min-w-0 items-baseline gap-2">
+				<span className="flex min-w-0 items-baseline gap-1.5">
 					{status && (
 						<span
 							data-slot="service-status"
@@ -343,13 +343,16 @@ function CommandRow({
 						/>
 					)}
 					<span className="min-w-0 truncate text-body text-primary">{command.label}</span>
+					{showProject && project && (
+						<>
+							<span className="shrink-0 text-data text-outline-strong" aria-hidden="true">·</span>
+							<span data-slot="project-name" className="min-w-0 truncate text-data text-secondary">
+								{project.name}
+							</span>
+						</>
+					)}
 				</span>
 				<span className="min-w-0 truncate text-data text-outline-strong">{command.command}</span>
-				{showProject && (
-					<span data-slot="project-name" className="col-span-2 -mt-1 truncate text-data text-secondary">
-						{project?.name}
-					</span>
-				)}
 			</button>
 			<CommandRowAction slotName="edit-command" label={`Edit ${command.label}`} onClick={onEdit}>
 				<PencilSquareIcon className="size-3.5" aria-hidden="true" />
@@ -379,7 +382,7 @@ function CommandRowAction({
 			type="button"
 			data-slot={slotName}
 			aria-label={label}
-			className={`shrink-0 px-2 py-2 text-secondary opacity-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring group-hover:opacity-100 focus-visible:opacity-100 ${
+			className={`shrink-0 px-2 py-2 text-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring ${
 				danger ? "hover:text-removed" : "hover:text-primary"
 			}`}
 			onMouseDown={(event) => event.preventDefault()}

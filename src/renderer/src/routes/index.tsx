@@ -7,6 +7,7 @@ import { orpc } from "@renderer/lib/api";
 import { isBrowserClient } from "@renderer/lib/platform";
 import { queryClient } from "@renderer/lib/query-client";
 import { CommandsModal } from "@renderer/routes/-features/commands/commands-modal";
+import { CommandsFooter } from "@renderer/routes/-features/commands/commands-footer";
 import { ContinuityFailedNotice } from "@renderer/routes/-features/app/status/continuity-failed-notice";
 import { EmptyState } from "@renderer/routes/-features/app/status/empty-state";
 import { ProjectPicker } from "@renderer/routes/-features/projects/project-picker";
@@ -160,6 +161,10 @@ function Bankai() {
 		() => commands.commands.filter((command) => command.kind === "service"),
 		[commands.commands],
 	);
+	const taskCommands = useMemo(
+		() => commands.commands.filter((command) => command.kind === "task"),
+		[commands.commands],
+	);
 	const closeReview = useCallback(() => {
 		if (reviewPanel.open) {
 			reviewPanel.changeOpen(false);
@@ -256,6 +261,8 @@ function Bankai() {
 	);
 	const [servicesOpen, setServicesOpen] = useState(true);
 	const toggleServices = useCallback(() => setServicesOpen((open) => !open), []);
+	const [taskCommandsOpen, setTaskCommandsOpen] = useState(true);
+	const toggleTaskCommands = useCallback(() => setTaskCommandsOpen((open) => !open), []);
 	const changeReviewOpen = useCallback(
 		(open: boolean) => {
 			reviewPanel.changeOpen(open);
@@ -393,6 +400,14 @@ function Bankai() {
 					onRename={sessions.renameShell}
 					footer={
 						<>
+							<CommandsFooter
+								commands={taskCommands}
+								projects={availableProjects}
+								open={taskCommandsOpen}
+								onToggle={toggleTaskCommands}
+								onRun={(command) => runCommand(command.projectId, command)}
+								onRemove={commands.remove}
+							/>
 							<ServicesFooter
 								services={serviceCommands}
 								projects={availableProjects}
@@ -407,17 +422,17 @@ function Bankai() {
 								onOpenLog={serviceLog.toggle}
 							/>
 							<ProjectFooter
-							projects={availableProjects}
-							loading={projects.isPending}
-							open={projectsOpen}
-							shellCounts={shellCounts}
-							chosenProjectIds={chosen.projectIds}
-							onToggle={toggleProjects}
-							onToggleProject={chosen.toggle}
-							onAdd={openPicker}
-							onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
-							onRemove={(projectId) => removeProject.mutate({ projectId })}
-							onOverlayChange={projectRail.setMenuOpen}
+								projects={availableProjects}
+								loading={projects.isPending}
+								open={projectsOpen}
+								shellCounts={shellCounts}
+								chosenProjectIds={chosen.projectIds}
+								onToggle={toggleProjects}
+								onToggleProject={chosen.toggle}
+								onAdd={openPicker}
+								onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
+								onRemove={(projectId) => removeProject.mutate({ projectId })}
+								onOverlayChange={projectRail.setMenuOpen}
 							/>
 						</>
 					}

@@ -47,10 +47,6 @@ export function ServicesFooter({
 }) {
 	const [armedId, setArmedId] = useState<string>();
 
-	if (services.length === 0) {
-		return null;
-	}
-
 	const running = services.filter((service) => states.get(service.id)?.status === "running").length;
 
 	return (
@@ -71,6 +67,9 @@ export function ServicesFooter({
 			</div>
 			{open && (
 				<nav className="min-h-0 flex-1 overflow-auto pb-1" aria-label="Services">
+					{services.length === 0 && (
+						<p data-slot="empty-services" className="px-3 py-1 text-data text-outline-strong">No services yet</p>
+					)}
 					{services.map((service) => {
 						const state = states.get(service.id);
 						const status = state?.status ?? "stopped";
@@ -101,18 +100,20 @@ export function ServicesFooter({
 									type="button"
 									data-slot="open-service-log"
 									aria-label={`Open ${service.label} output`}
-									className="flex h-full min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+									className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
 									onClick={() => onOpenLog(service.id)}
 								>
-									<span className="min-w-0 flex-1 truncate text-body text-secondary group-hover:text-primary">
+									<span className="min-w-0 max-w-1/2 shrink-0 truncate text-body text-secondary group-hover:text-primary">
 										{service.label}
 									</span>
-									<span
-										data-slot="service-detail"
-										className="shrink-0 text-data text-outline-strong"
-									>
-										{state?.pid && status === "running" ? state.pid : project?.name}
-									</span>
+									{project && (
+										<>
+											<span className="shrink-0 text-data text-outline-strong" aria-hidden="true">·</span>
+											<span data-slot="service-project" className="min-w-0 flex-1 truncate text-data text-outline-strong">
+												{project.name}
+											</span>
+										</>
+									)}
 								</button>
 								<span className="flex shrink-0 items-center pl-1">
 									{status === "running" && (

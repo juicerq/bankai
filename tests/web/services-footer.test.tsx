@@ -114,3 +114,24 @@ test("arming one row leaves the other row unarmed", () => {
 	expect(actionSlots("worker")).toEqual(["start-service", "delete-service"]);
 	expect(actionSlots("api")).toEqual(["restart-service", "stop-service", "confirm-delete-service"]);
 });
+
+test("the services section remains available when there are no services", () => {
+	render(
+		<ServicesFooter
+			services={[]}
+			projects={projects}
+			open
+			states={new Map()}
+			openedCommandId={undefined}
+			onToggle={() => {}}
+			onStart={() => {}}
+			onStop={() => {}}
+			onRestart={() => {}}
+			onRemove={() => {}}
+			onOpenLog={() => {}}
+		/>,
+	);
+
+	expect(get("services-footer").textContent).toContain("SERVICES 0/0");
+	expect(slot(get("services-footer"), "empty-services").textContent).toContain("No services yet");
+});

@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import type { Worktree } from "@main/git/git-contracts";
+import type { Worktree } from "@shared/review";
 import { GitProcess } from "@main/git/git-process";
 import { Projects } from "@main/store/projects";
 

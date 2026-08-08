@@ -1,6 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { DiffLine, ReviewContent } from "@main/git/git-contracts";
+import type { DiffLine, ReviewContent } from "@shared/review";
 import { GitRun } from "@main/git/git-run";
 import { ImageFile } from "@main/git/image-file";
 import { RepoPath } from "@main/git/repo-path";

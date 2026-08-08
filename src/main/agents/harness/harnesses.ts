@@ -2,7 +2,7 @@ import type { AgentPresence, Harness } from "@main/agents/harness/harness";
 import { ClaudeHarness } from "@main/agents/harness/claude/claude-harness";
 import { CodexHarness } from "@main/agents/harness/codex/codex-harness";
 import { Logger } from "@main/infra/logger";
-import type { HarnessSettings } from "@main/store/settings";
+import type { HarnessSettings } from "@shared/settings";
 
 const harnesses: Harness[] = [ClaudeHarness, CodexHarness];
 
@@ -29,20 +29,8 @@ function launchableHarnesses() {
 	});
 }
 
-function harnessConversation(harnessId: string): Harness["conversation"] {
-	return harnesses.find((harness) => harness.id === harnessId)?.conversation;
-}
-
-function harnessLaunch(harnessId: string): Harness["launch"] {
-	return harnesses.find((harness) => harness.id === harnessId)?.launch;
-}
-
-function harnessResume(harnessId: string): Harness["resume"] {
-	return harnesses.find((harness) => harness.id === harnessId)?.resume;
-}
-
-function harnessTitle(harnessId: string): Harness["title"] {
-	return harnesses.find((harness) => harness.id === harnessId)?.title;
+function getHarness(harnessId: string): Harness | undefined {
+	return harnesses.find((harness) => harness.id === harnessId);
 }
 
 function harnessWatchPaths(): string[] {
@@ -65,10 +53,7 @@ async function discoverAgents(): Promise<AgentPresence[]> {
 export const Harnesses = {
 	DEFAULT_HARNESS_SETTINGS,
 	launchable: launchableHarnesses,
-	conversation: harnessConversation,
-	launch: harnessLaunch,
-	resume: harnessResume,
-	title: harnessTitle,
+	get: getHarness,
 	watchPaths: harnessWatchPaths,
 	discoverAgents,
 };

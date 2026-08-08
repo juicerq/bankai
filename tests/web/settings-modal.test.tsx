@@ -8,7 +8,7 @@ import {
 } from "./orpc-transport";
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { SettingsModal } from "@renderer/routes/-components/settings-modal";
+import { SettingsModal } from "@renderer/routes/-features/settings/settings-modal";
 import { TailscaleAccess } from "@main/infra/tailscale/tailscale-access";
 import { pairingUrl } from "@shared/server";
 import { DEFAULT_THEME, THEME_LIGHT_CLASS } from "@shared/theme";

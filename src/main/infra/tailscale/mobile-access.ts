@@ -1,12 +1,10 @@
 import { Logger } from "@main/infra/logger";
 import { Reach } from "@main/transport/server/server-reach";
 import { TailnetListener } from "@main/transport/server/tailnet-listener";
-import { Settings } from "@main/store/settings";
-import {
-	TailscaleAccess,
-	type MobileAccessStatus,
-} from "@main/infra/tailscale/tailscale-access";
+import { ServerSettings } from "@main/settings/server-settings";
+import { TailscaleAccess } from "@main/infra/tailscale/tailscale-access";
 import { Tailscale } from "@main/infra/tailscale/tailscale-run";
+import type { MobileAccessStatus } from "@shared/mobile-access";
 import { pairingUrl } from "@shared/server";
 
 async function mobileAccess(): Promise<MobileAccessStatus> {
@@ -28,7 +26,7 @@ async function mobileAccess(): Promise<MobileAccessStatus> {
 }
 
 async function restoreTailnetAccess(): Promise<void> {
-	if (!(await Settings.tailnetAccess())) {
+	if (!(await ServerSettings.tailnetAccess())) {
 		return;
 	}
 
@@ -62,7 +60,7 @@ async function serve(enabled: boolean): Promise<MobileAccessStatus> {
 async function setMobileAccess(enabled: boolean): Promise<MobileAccessStatus> {
 	if (!enabled) {
 		await TailnetListener.close();
-		await Settings.setTailnetAccess(false);
+		await ServerSettings.setTailnetAccess(false);
 
 		const closed = await mobileAccess();
 
@@ -86,7 +84,7 @@ async function setMobileAccess(enabled: boolean): Promise<MobileAccessStatus> {
 	}
 
 	await TailnetListener.open(address);
-	await Settings.setTailnetAccess(true);
+	await ServerSettings.setTailnetAccess(true);
 
 	return await mobileAccess();
 }

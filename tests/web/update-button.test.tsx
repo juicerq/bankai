@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import type { BankaiUpdateApi, UpdateDownloadedEvent, UpdateWorkload } from "@shared/update";
-import { UpdateButton } from "@renderer/routes/-components/update-button";
+import { UpdateButton } from "@renderer/routes/-features/app/update/update-button";
 import { get, query, slot } from "./dom";
 import { act, cleanup, fireEvent, render } from "./testing-library";
 

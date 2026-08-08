@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { worktreeActivity } from "@renderer/routes/-utils/worktree-activity";
+import { worktreeActivity } from "@renderer/routes/-features/review/header/worktree-activity";
 
 const SOLO = "/tmp/bankai-worktrees";
 const PROJECT = "/home/jui/projects/bankai";

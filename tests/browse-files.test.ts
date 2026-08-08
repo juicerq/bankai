@@ -3,7 +3,7 @@ import { mkdirSync, truncateSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
 import { BrowseFiles } from "@main/git/browse-files";
-import { reviewContentSchema } from "@main/git/git-contracts";
+import { reviewContentSchema } from "@shared/review";
 import { GitRun } from "@main/git/git-run";
 import { ImageFile } from "@main/git/image-file";
 import { ReviewBase } from "@main/git/review-base";

@@ -1,6 +1,6 @@
 import "./register-dom";
 import { expect, test } from "bun:test";
-import { useReviewPanelState } from "@renderer/routes/-utils/use-review-panel-state";
+import { useReviewPanelState } from "@renderer/routes/-features/review/panel/use-review-panel-state";
 import { act, renderHook } from "./testing-library";
 
 test("focus restores a closed review panel to closed", () => {

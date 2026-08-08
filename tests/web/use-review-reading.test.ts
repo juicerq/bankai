@@ -1,6 +1,6 @@
 import { type } from "arktype";
 import { afterEach, expect, test } from "bun:test";
-import type { ReviewContent, ReviewFiles, ReviewSnapshot } from "@main/git/git-contracts";
+import type { ReviewContent, ReviewFiles, ReviewSnapshot } from "@shared/review";
 import { cleanup, waitFor } from "./testing-library";
 import { renderReviewReading, type ReviewReadingProps } from "./review-harness";
 

@@ -2,7 +2,7 @@ import "./register-dom";
 import { streamTransport } from "./stream-transport";
 import { beforeEach, expect, test } from "bun:test";
 import { QueryClient } from "@tanstack/react-query";
-import type { ContinuityValue } from "@main/store/continuity";
+import type { ContinuityValue } from "@shared/continuity";
 import { orpc } from "@renderer/lib/api";
 import { installContinuityPush } from "@renderer/lib/continuity-push";
 

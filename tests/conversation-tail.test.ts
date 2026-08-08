@@ -2,6 +2,7 @@ import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "bun:test";
+import { ConversationParser } from "@main/agents/harness/claude/claude-conversation";
 import { CONVERSATION_BACKFILL_BYTES, ConversationTail } from "@main/agents/transcript/conversation-tail";
 import type { ConversationBlock } from "@shared/conversation";
 
@@ -32,6 +33,15 @@ function titleLine(title: string): string {
 
 const WATCH_INTERVAL_MS = 10;
 
+function follow(path: string, onAppended: (event: { blocks: ConversationBlock[]; title?: string }) => void) {
+	return new ConversationTail({
+		path,
+		onAppended,
+		parser: new ConversationParser(),
+		watchIntervalMs: WATCH_INTERVAL_MS,
+	});
+}
+
 async function settle(): Promise<void> {
 	await new Promise((resolve) => setTimeout(resolve, WATCH_INTERVAL_MS * 8));
 }
@@ -53,7 +63,7 @@ function collect() {
 describe("the history the phone gets when it opens a conversation", () => {
 	it("reads the whole transcript when it fits in the backfill", async () => {
 		const sink = collect();
-		const tail = new ConversationTail(transcript([userLine("u1", "primeiro"), userLine("u2", "segundo")]), sink.onAppended, WATCH_INTERVAL_MS);
+		const tail = follow(transcript([userLine("u1", "primeiro"), userLine("u2", "segundo")]), sink.onAppended);
 
 		const snapshot = await tail.start();
 		tail.stop();
@@ -71,7 +81,7 @@ describe("the history the phone gets when it opens a conversation", () => {
 
 	it("carries the title the session was given", async () => {
 		const sink = collect();
-		const tail = new ConversationTail(transcript([titleLine("Retry no upload"), userLine("u1", "oi")]), sink.onAppended, WATCH_INTERVAL_MS);
+		const tail = follow(transcript([titleLine("Retry no upload"), userLine("u1", "oi")]), sink.onAppended);
 
 		const snapshot = await tail.start();
 		tail.stop();
@@ -82,10 +92,9 @@ describe("the history the phone gets when it opens a conversation", () => {
 	it("cuts the backfill forward to a line boundary and says it was cut", async () => {
 		const sink = collect();
 		const padding = userLine("old", "x".repeat(CONVERSATION_BACKFILL_BYTES));
-		const tail = new ConversationTail(
+		const tail = follow(
 			transcript([padding, userLine("u1", "primeiro"), userLine("u2", "segundo")]),
 			sink.onAppended,
-			WATCH_INTERVAL_MS,
 		);
 
 		const snapshot = await tail.start();
@@ -110,7 +119,7 @@ describe("the history the phone gets when it opens a conversation", () => {
 			uuid: "u2",
 			message: { content: [{ type: "tool_result", tool_use_id: "t1" }] },
 		});
-		const tail = new ConversationTail(transcript([call, result, userLine("u3", "obrigado")]), collect().onAppended, WATCH_INTERVAL_MS);
+		const tail = follow(transcript([call, result, userLine("u3", "obrigado")]), collect().onAppended);
 
 		const snapshot = await tail.start();
 		tail.stop();
@@ -125,7 +134,7 @@ describe("the history the phone gets when it opens a conversation", () => {
 		const sink = collect();
 		const directory = mkdtempSync(join(tmpdir(), "bankai-conversation-"));
 		directories.push(directory);
-		const tail = new ConversationTail(join(directory, "missing.jsonl"), sink.onAppended, WATCH_INTERVAL_MS);
+		const tail = follow(join(directory, "missing.jsonl"), sink.onAppended);
 
 		const snapshot = await tail.start();
 		tail.stop();
@@ -139,7 +148,7 @@ describe("the history the phone asks for when it pulls the top", () => {
 		const sink = collect();
 		const first = `${userLine("u1", "primeiro")}\n`;
 		const path = transcript([userLine("u1", "primeiro"), userLine("u2", "segundo"), userLine("u3", "terceiro")]);
-		const tail = new ConversationTail(path, sink.onAppended, WATCH_INTERVAL_MS);
+		const tail = follow(path, sink.onAppended);
 
 		const snapshot = await tail.start(first.length + 4);
 		tail.stop();
@@ -162,13 +171,13 @@ describe("the history the phone asks for when it pulls the top", () => {
 		});
 		const path = transcript([call, result]);
 
-		const cut = new ConversationTail(path, collect().onAppended, WATCH_INTERVAL_MS);
+		const cut = follow(path, collect().onAppended);
 		const partial = await cut.start(call.length + 1);
 		cut.stop();
 
 		expect(partial.blocks).toEqual([]);
 
-		const whole = new ConversationTail(path, collect().onAppended, WATCH_INTERVAL_MS);
+		const whole = follow(path, collect().onAppended);
 		const stepped = await whole.start(0);
 		whole.stop();
 
@@ -180,7 +189,7 @@ describe("what the phone gets while the agent keeps writing", () => {
 	it("pushes the records appended after the backfill, once each", async () => {
 		const sink = collect();
 		const path = transcript([userLine("u1", "primeiro")]);
-		const tail = new ConversationTail(path, sink.onAppended, WATCH_INTERVAL_MS);
+		const tail = follow(path, sink.onAppended);
 
 		await tail.start();
 		await settle();
@@ -194,7 +203,7 @@ describe("what the phone gets while the agent keeps writing", () => {
 	it("waits for a record to be complete before parsing it", async () => {
 		const sink = collect();
 		const path = transcript([userLine("u1", "primeiro")]);
-		const tail = new ConversationTail(path, sink.onAppended, WATCH_INTERVAL_MS);
+		const tail = follow(path, sink.onAppended);
 
 		await tail.start();
 		await settle();
@@ -214,7 +223,7 @@ describe("what the phone gets while the agent keeps writing", () => {
 	it("stops reading once the phone leaves the conversation", async () => {
 		const sink = collect();
 		const path = transcript([userLine("u1", "primeiro")]);
-		const tail = new ConversationTail(path, sink.onAppended, WATCH_INTERVAL_MS);
+		const tail = follow(path, sink.onAppended);
 
 		await tail.start();
 		tail.stop();

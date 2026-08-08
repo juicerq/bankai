@@ -5,7 +5,7 @@ import type {
 	FullFile,
 	ReviewContent,
 	ReviewFiles,
-} from "@main/git/git-contracts";
+} from "@shared/review";
 import { GitRun } from "@main/git/git-run";
 import { RepoPath } from "@main/git/repo-path";
 import { ReviewBase, type ReviewScope } from "@main/git/review-base";

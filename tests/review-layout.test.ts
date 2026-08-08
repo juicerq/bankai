@@ -4,7 +4,7 @@ import {
 	redistributeReviewTree,
 	REVIEW_SEPARATOR_WIDTH,
 	squeezeReviewDiff,
-} from "@renderer/routes/-utils/review-layout";
+} from "@renderer/routes/-features/review/panel/review-layout";
 
 test("squeezes the tree once the diff floors", () => {
 	expect(squeezeReviewDiff({ proposed: 180, minDiff: 280, maxDiff: 1340, treeOpen: true, minTree: 120, treeWidth: 300 })).toEqual({

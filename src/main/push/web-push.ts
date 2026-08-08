@@ -2,8 +2,9 @@ import webpush from "web-push";
 import { Logger } from "@main/infra/logger";
 import { type AttentionPushPayload } from "@main/push/attention-push";
 import { AttentionPush } from "@main/push/attention-push";
+import { PushSettings } from "@main/settings/push-settings";
 import type { PushSubscription } from "@main/store/push-subscriptions";
-import { Settings, type VapidKeys } from "@main/store/settings";
+import type { VapidKeys } from "@shared/settings";
 
 const VAPID_SUBJECT = "https://github.com/juicerq/bankai";
 
@@ -54,7 +55,7 @@ function endpointLabel(endpoint: string): string {
 }
 
 function vapidKeys(): Promise<VapidKeys> {
-	return Settings.ensureVapid(() => webpush.generateVAPIDKeys());
+	return PushSettings.ensureKeys(() => webpush.generateVAPIDKeys());
 }
 
 export const WebPush = {

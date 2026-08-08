@@ -1,9 +1,9 @@
 import { ReviewTransport, setReviewTransport } from "./orpc-transport";
 import { afterEach, expect, test } from "bun:test";
-import type { Project } from "@main/store/projects";
+import type { Project } from "@shared/projects";
 import { orpc } from "@renderer/lib/api";
 import { installReviewPrewarm } from "@renderer/lib/prewarm-reviews";
-import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-utils/review-scope";
+import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-features/review/header/review-scope";
 import { QueryClient } from "@tanstack/react-query";
 import { type } from "arktype";
 import { waitFor } from "./testing-library";

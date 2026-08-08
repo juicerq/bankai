@@ -1,7 +1,7 @@
 import type { StreamConnection } from "@main/transport/stream/stream-connection";
 import { ConnectionWatches } from "@main/transport/stream/connection-watches";
-import { Continuity, type ContinuityValue } from "@main/store/continuity";
-import type { ContinuityChangedEvent } from "@shared/continuity";
+import { Continuity } from "@main/store/continuity";
+import type { ContinuityChangedEvent, ContinuityValue } from "@shared/continuity";
 import type { StreamEnvelope } from "@shared/stream";
 
 async function handleContinuityMessage(

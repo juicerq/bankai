@@ -1,13 +1,13 @@
 import { afterEach, expect, mock, test } from "bun:test";
-import type { FileChange, FullFile } from "@main/git/git-contracts";
-import * as reviewRows from "@renderer/routes/-utils/review-rows";
+import type { FileChange, FullFile } from "@shared/review";
+import * as reviewRows from "@renderer/routes/-features/review/reading/review-rows";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
 const measureWidth = reviewRows.diffContentWidth;
 let widthCalls = 0;
 
-void mock.module("@renderer/routes/-utils/review-rows", () => ({
+void mock.module("@renderer/routes/-features/review/reading/review-rows", () => ({
 	...reviewRows,
 	diffContentWidth: (lines: Parameters<typeof measureWidth>[0]) => {
 		widthCalls++;
@@ -16,7 +16,7 @@ void mock.module("@renderer/routes/-utils/review-rows", () => ({
 	},
 }));
 
-const { ReviewFocusedFile, LEADING_CONTEXT } = await import("@renderer/routes/-components/review-focused-file");
+const { ReviewFocusedFile, LEADING_CONTEXT } = await import("@renderer/routes/-features/review/reading/review-focused-file");
 const { REVIEW_ROW_HEIGHT } = reviewRows;
 
 afterEach(() => {

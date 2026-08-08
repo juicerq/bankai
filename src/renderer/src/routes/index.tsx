@@ -1,51 +1,51 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { ProjectCommand } from "@main/store/project-commands";
-import type { ContinuityShell } from "@main/store/continuity";
+import type { ProjectCommand } from "@shared/project-commands";
+import type { ContinuityShell } from "@shared/continuity";
 import { orpc } from "@renderer/lib/api";
 import { isBrowserClient } from "@renderer/lib/platform";
 import { queryClient } from "@renderer/lib/query-client";
-import { CommandsModal } from "@renderer/routes/-components/commands-modal";
-import { ContinuityFailedNotice } from "@renderer/routes/-components/continuity-failed-notice";
-import { EmptyState } from "@renderer/routes/-components/empty-state";
-import { ProjectPicker } from "@renderer/routes/-components/project-picker";
-import { ProjectFooter } from "@renderer/routes/-components/project-footer";
-import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
-import { ProjectWorkspace } from "@renderer/routes/-components/project-workspace";
-import { ServiceLogPane } from "@renderer/routes/-components/service-log-pane";
-import { ServicesFooter } from "@renderer/routes/-components/services-footer";
-import { SessionSidebar } from "@renderer/routes/-components/session-sidebar";
-import { SettingsModal } from "@renderer/routes/-components/settings-modal";
-import { ShellPicker } from "@renderer/routes/-components/shell-picker";
-import { WindowControls } from "@renderer/routes/-components/window-controls";
-import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-utils/layout-motion";
+import { CommandsModal } from "@renderer/routes/-features/commands/commands-modal";
+import { ContinuityFailedNotice } from "@renderer/routes/-features/app/status/continuity-failed-notice";
+import { EmptyState } from "@renderer/routes/-features/app/status/empty-state";
+import { ProjectPicker } from "@renderer/routes/-features/projects/project-picker";
+import { ProjectFooter } from "@renderer/routes/-features/projects/project-footer";
+import { ProjectRailFrame } from "@renderer/routes/-features/workspace/layout/project-rail-frame";
+import { ProjectWorkspace } from "@renderer/routes/-features/workspace/surface/project-workspace";
+import { ServiceLogPane } from "@renderer/routes/-features/services/service-log-pane";
+import { ServicesFooter } from "@renderer/routes/-features/services/services-footer";
+import { SessionSidebar } from "@renderer/routes/-features/sessions/list/session-sidebar";
+import { SettingsModal } from "@renderer/routes/-features/settings/settings-modal";
+import { ShellPicker } from "@renderer/routes/-features/projects/shell-picker";
+import { WindowControls } from "@renderer/routes/-features/app/chrome/window-controls";
+import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-features/workspace/layout/layout-motion";
 import {
 	MAX_RAIL_WIDTH,
 	MIN_RAIL_WIDTH,
 	RAIL_WIDTH_PROPERTY,
 	resolveRailWidth,
-} from "@renderer/routes/-utils/rail-layout";
-import { useSessionRows } from "@renderer/routes/-utils/use-session-rows";
-import { useAgentActivities } from "@renderer/routes/-utils/use-agent-activity";
-import { useBankaiShortcuts } from "@renderer/routes/-utils/use-bankai-shortcuts";
-import { useDivider } from "@renderer/routes/-utils/use-divider";
-import { useFocusTopBand } from "@renderer/routes/-utils/use-focus-top-band";
-import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
-import { useLayoutPreferences } from "@renderer/routes/-utils/use-layout-preferences";
-import { useReviewPanelState } from "@renderer/routes/-utils/use-review-panel-state";
-import { useChosenProjects } from "@renderer/routes/-utils/use-chosen-projects";
-import { useSessionList } from "@renderer/routes/-utils/use-session-list";
-import { useShellFocus } from "@renderer/routes/-utils/use-shell-focus";
-import { useProjectCommands } from "@renderer/routes/-utils/use-project-commands";
-import { useServiceLog } from "@renderer/routes/-utils/use-service-log";
-import { useServiceOutput, useServices } from "@renderer/routes/-utils/use-services";
-import { useSessions } from "@renderer/routes/-utils/use-sessions";
+} from "@renderer/routes/-features/workspace/layout/rail-layout";
+import { useSessionRows } from "@renderer/routes/-features/sessions/list/use-session-rows";
+import { useAgentActivities } from "@renderer/routes/-features/sessions/list/use-agent-activity";
+import { useBankaiShortcuts } from "@renderer/routes/-features/app/use-bankai-shortcuts";
+import { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
+import { useFocusTopBand } from "@renderer/routes/-features/workspace/layout/use-focus-top-band";
+import { useFullscreenProjectRail } from "@renderer/routes/-features/workspace/layout/use-fullscreen-project-rail";
+import { useLayoutPreferences } from "@renderer/routes/-features/workspace/layout/use-layout-preferences";
+import { useReviewPanelState } from "@renderer/routes/-features/review/panel/use-review-panel-state";
+import { useChosenProjects } from "@renderer/routes/-features/projects/use-chosen-projects";
+import { useSessionList } from "@renderer/routes/-features/sessions/list/use-session-list";
+import { useShellFocus } from "@renderer/routes/-features/sessions/lifecycle/use-shell-focus";
+import { useProjectCommands } from "@renderer/routes/-features/commands/use-project-commands";
+import { useServiceLog } from "@renderer/routes/-features/services/use-service-log";
+import { useServiceOutput, useServices } from "@renderer/routes/-features/services/use-services";
+import { useSessions } from "@renderer/routes/-features/sessions/lifecycle/use-sessions";
 import {
 	restoredResidentProjectIds,
 	useWorkspaceActivation,
-} from "@renderer/routes/-utils/use-workspace-activation";
-import { WorkspaceProvider } from "@renderer/routes/-utils/workspace-context";
+} from "@renderer/routes/-features/workspace/surface/use-workspace-activation";
+import { WorkspaceProvider } from "@renderer/routes/-features/workspace/layout/workspace-context";
 
 const NO_SHELLS: ContinuityShell[] = [];
 

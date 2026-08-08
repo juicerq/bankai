@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { CodexHarness, interactiveCommandLine, rolloutCandidates } from "@main/agents/harness/codex/codex-harness";
 import { CodexConfig } from "@main/agents/harness/codex/codex-config";
-import { Settings } from "@main/store/settings";
+import { HarnessSettings } from "@main/settings/harness-settings";
 import { ShellAutostart } from "@main/terminal/shell-autostart";
 import { assertDefined } from "./utils/assertions";
 
@@ -33,7 +33,7 @@ describe("codex resume command", () => {
 	});
 
 	test("quotes an extra argument that carries a space", async () => {
-		await Settings.updateHarness({
+		await HarnessSettings.update({
 			autostart: true,
 			id: CodexHarness.id,
 			profiles: { [CodexHarness.id]: { args: "--config 'a b'" } },

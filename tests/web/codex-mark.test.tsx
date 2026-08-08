@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
-import type { Project } from "@main/store/projects";
-import { SessionSidebar } from "@renderer/routes/-components/session-sidebar";
-import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import type { Project } from "@shared/projects";
+import { SessionSidebar } from "@renderer/routes/-features/sessions/list/session-sidebar";
+import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 import { get } from "./dom";
 import { cleanup, render } from "./testing-library";
 

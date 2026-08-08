@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { elapsedLabel } from "@renderer/routes/-utils/elapsed";
+import { elapsedLabel } from "@renderer/routes/-features/shared/time/elapsed";
 
 describe("saying how long a session has held its state", () => {
 	test("the first minute counts in seconds", () => {

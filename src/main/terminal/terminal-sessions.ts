@@ -35,7 +35,7 @@ export const TerminalSessions = {
 			throw new Error("No resumable agent session for this shell");
 		}
 
-		const resume = Harnesses.resume(session.harness);
+		const resume = Harnesses.get(session.harness)?.resume;
 		if (!resume) {
 			throw new Error(`Resume is not supported for harness "${session.harness}"`);
 		}

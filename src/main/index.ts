@@ -10,12 +10,13 @@ import { Startup } from "@main/startup";
 import { StorePaths } from "@main/store/store-paths";
 import { ShellAgents } from "@main/terminal/shell-agents";
 import { shellProcesses } from "@main/terminal/shell-processes";
-import { type SettingsValue, Settings } from "@main/store/settings";
+import { type WindowStartupSettings, WindowSettings } from "@main/settings/window-settings";
 import { MobileAccess } from "@main/infra/tailscale/mobile-access";
 import { UpdateIpc } from "@main/desktop/update-ipc";
 import { DesktopAttention } from "@main/desktop/desktop-attention";
 import { DesktopWindow } from "@main/desktop/desktop-window";
 import { AUTH_IPC } from "@shared/server";
+import type { WindowBounds } from "@shared/settings";
 import { DEFAULT_THEME, resolveTheme, THEME_ARGUMENTS, THEME_BACKGROUND } from "@shared/theme";
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, screen } from "electron";
 
@@ -32,7 +33,7 @@ process.on("unhandledRejection", (reason) => {
 	app.exit(1);
 });
 
-function visibleBounds(bounds: SettingsValue["windowBounds"]): SettingsValue["windowBounds"] {
+function visibleBounds(bounds: WindowBounds | undefined): WindowBounds | undefined {
 	if (!bounds || ![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite)) {
 		return undefined;
 	}
@@ -62,16 +63,16 @@ function debounce<A extends unknown[]>(
 }
 
 async function createWindow() {
-	const settings = await Settings.get().catch(
-		(err): SettingsValue => {
+	const settings = await WindowSettings.startup().catch(
+		(err): WindowStartupSettings => {
 			Logger.error("settings:read-failed", { err: String(err) });
-			return {};
+			return { theme: DEFAULT_THEME };
 		},
 	);
 	Startup.mark("settings-read");
 
 	const saved = visibleBounds(settings.windowBounds);
-	const theme = resolveTheme(settings.theme ?? DEFAULT_THEME, () => nativeTheme.shouldUseDarkColors);
+	const theme = resolveTheme(settings.theme, () => nativeTheme.shouldUseDarkColors);
 
 	const win = new BrowserWindow({
 		width: saved?.width ?? 1440,
@@ -106,12 +107,10 @@ async function createWindow() {
 	}
 
 	const saveBounds = debounce(() => {
-		Settings.update({
-			windowBounds: {
+		WindowSettings.update({
 				...win.getNormalBounds(),
 				maximized: win.isMaximized(),
-			},
-		}).catch((err) =>
+			}).catch((err) =>
 			Logger.error("settings:windowBounds-save-failed", { err: String(err) }),
 		);
 	}, 500);

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { type DiffLine, type ReviewContent } from "@main/git/git-contracts";
+import { type DiffLine, type ReviewContent } from "@shared/review";
 import { ChangedFiles } from "@main/git/changed-files";
 import { FileDiff } from "@main/git/file-diff";
 import { ReviewBase } from "@main/git/review-base";

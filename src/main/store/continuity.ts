@@ -8,39 +8,14 @@ import {
 	type ShellName,
 	withSelection,
 } from "@shared/continuity-reducers";
-
-const sessionRefSchema = type({ harness: "string", sessionId: "string", cwd: "string" });
-
-const shellSchema = type({
-	id: "string",
-	label: "string",
-	createdAt: "number",
-	"session?": sessionRefSchema,
-	"lastTouchedAt?": "number",
-	"branch?": "string",
-	"title?": "string",
-	"titleSource?": "'user' | 'harness'",
-	"archivedAt?": "number",
-	"pinnedAt?": "number",
-	"doneAt?": "number",
-	"plain?": "boolean",
-	"launch?": "string",
-});
-
-const workspaceSchema = type({
-	projectId: "string",
-	shells: shellSchema.array(),
-});
-
-const continuitySchema = type({
-	"selectedShellId?": "string",
-	workspaces: workspaceSchema.array(),
-});
-
-export type ContinuitySessionRef = typeof sessionRefSchema.infer;
-export type ContinuityShell = typeof shellSchema.infer;
-export type ContinuityWorkspace = typeof workspaceSchema.infer;
-export type ContinuityValue = typeof continuitySchema.infer;
+import {
+	type ContinuitySessionRef,
+	type ContinuityShell,
+	type ContinuityValue,
+	continuitySchema,
+	continuitySessionRefSchema,
+	continuityShellSchema,
+} from "@shared/continuity";
 
 const shellsWithoutCwdSchema = type({
 	"activeProjectId?": "string",
@@ -65,7 +40,7 @@ const shellsWithoutCreatedAtSchema = type({
 		shells: type({
 			id: "string",
 			label: "string",
-			"session?": sessionRefSchema,
+			"session?": continuitySessionRefSchema,
 			"lastTouchedAt?": "number",
 			"branch?": "string",
 			"title?": "string",
@@ -84,7 +59,7 @@ const selectionPerWorkspaceSchema = type({
 	workspaces: type({
 		projectId: "string",
 		"activeShellId?": "string",
-		shells: shellSchema.array(),
+		shells: continuityShellSchema.array(),
 	}).array(),
 }).pipe((legacy): ContinuityValue =>
 	withSelection(
@@ -95,7 +70,7 @@ const selectionPerWorkspaceSchema = type({
 	),
 );
 
-const modelNamedShellSchema = shellSchema
+const modelNamedShellSchema = continuityShellSchema
 	.merge({
 		"titleSource?": "'user' | 'published' | 'model' | 'harness'",
 		"namings?": "number",

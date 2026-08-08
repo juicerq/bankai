@@ -1,12 +1,12 @@
 import { afterEach, expect, test } from "bun:test";
 import { useSelector } from "@tanstack/react-store";
 import { useRef, useState } from "react";
-import type { FileChange } from "@main/git/git-contracts";
-import { ReviewTree } from "@renderer/routes/-components/review-tree";
-import { BROWSE_ROW_HEIGHT } from "@renderer/routes/-components/review-tree-browse";
-import { DEFAULT_TREE_WIDTH, redistributeReviewTree } from "@renderer/routes/-utils/review-layout";
-import { createReviewPanelStore, type ReviewTreeView } from "@renderer/routes/-utils/review-panel-store";
-import { useDivider } from "@renderer/routes/-utils/use-divider";
+import type { FileChange } from "@shared/review";
+import { ReviewTree } from "@renderer/routes/-features/review/tree/review-tree";
+import { BROWSE_ROW_HEIGHT } from "@renderer/routes/-features/review/tree/review-tree-browse";
+import { DEFAULT_TREE_WIDTH, redistributeReviewTree } from "@renderer/routes/-features/review/panel/review-layout";
+import { createReviewPanelStore, type ReviewTreeView } from "@renderer/routes/-features/review/panel/review-panel-store";
+import { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 

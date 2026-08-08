@@ -3,10 +3,10 @@ import { TEST_AUTH_TOKEN } from "./auth-bridge";
 import { os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { type } from "arktype";
-import { commandDraftSchema, type ProjectCommand } from "@main/store/project-commands";
-import type { ContinuityValue } from "@main/store/continuity";
-import type { MobileAccessStatus } from "@main/infra/tailscale/tailscale-access";
-import { type HarnessSettings, harnessSchema, themeSchema } from "@main/store/settings";
+import { projectCommandDraftSchema, type ProjectCommand } from "@shared/project-commands";
+import type { ContinuityValue } from "@shared/continuity";
+import type { MobileAccessStatus } from "@shared/mobile-access";
+import { type HarnessSettings, harnessSchema, themeSchema } from "@shared/settings";
 import { SERVER_RPC_PREFIX } from "@shared/server";
 import { DEFAULT_THEME, type ThemePreference } from "@shared/theme";
 import type { ServiceState, ServiceStatus } from "@shared/services";
@@ -268,7 +268,7 @@ const router = {
 			return transport.commands.filter((command) => command.projectId === input.projectId);
 		}),
 		add: os
-			.input(commandDraftSchema.and({ projectId: "string" }))
+			.input(projectCommandDraftSchema.and({ projectId: "string" }))
 			.handler(({ input }) => {
 				const transport = requireWritableCommands();
 				const command = { id: `c${transport.commands.length + 1}`, createdAt: 0, ...input };
@@ -277,7 +277,7 @@ const router = {
 				return command;
 			}),
 		update: os
-			.input(commandDraftSchema.and({ id: "string" }))
+			.input(projectCommandDraftSchema.and({ id: "string" }))
 			.handler(({ input }) => {
 				const transport = requireWritableCommands();
 				transport.commands = transport.commands.map((command) =>

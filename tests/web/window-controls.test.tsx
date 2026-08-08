@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
-import { WindowControls } from "@renderer/routes/-components/window-controls";
-import { useFocusTopBand } from "@renderer/routes/-utils/use-focus-top-band";
+import { WindowControls } from "@renderer/routes/-features/app/chrome/window-controls";
+import { useFocusTopBand } from "@renderer/routes/-features/workspace/layout/use-focus-top-band";
 import type { BankaiWindowApi } from "@shared/window";
 import { slot } from "./dom";
 import { act, cleanup, fireEvent, render } from "./testing-library";

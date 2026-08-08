@@ -1,4 +1,4 @@
-import type { ContinuityValue } from "@main/store/continuity";
+import type { ContinuityValue } from "@shared/continuity";
 import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
 
 type BoundStatus = "working" | "waiting" | "idle";

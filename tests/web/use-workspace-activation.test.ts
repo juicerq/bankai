@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import {
 	restoredResidentProjectIds,
 	useWorkspaceActivation,
-} from "@renderer/routes/-utils/use-workspace-activation";
+} from "@renderer/routes/-features/workspace/surface/use-workspace-activation";
 import { act, cleanup, renderHook } from "./testing-library";
 
 afterEach(cleanup);

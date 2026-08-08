@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback } from "react";
-import { useSessions } from "@renderer/routes/-utils/use-sessions";
+import { useSessions } from "@renderer/routes/-features/sessions/lifecycle/use-sessions";
 
 export function useNewShell() {
 	const navigate = useNavigate();

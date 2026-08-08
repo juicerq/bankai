@@ -4,7 +4,7 @@ import { get, query, slot } from "./dom";
 import { act, cleanup, render } from "./testing-library";
 import { afterEach, expect, test } from "bun:test";
 import { streamStatus } from "@renderer/lib/stream/status";
-import { StreamOverlay } from "@renderer/routes/-components/stream-overlay";
+import { StreamOverlay } from "@renderer/routes/-features/app/status/stream-overlay";
 
 afterEach(() => {
 	cleanup();

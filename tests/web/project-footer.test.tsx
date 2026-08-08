@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
-import type { Project } from "@main/store/projects";
-import { ProjectFooter } from "@renderer/routes/-components/project-footer";
+import type { Project } from "@shared/projects";
+import { ProjectFooter } from "@renderer/routes/-features/projects/project-footer";
 import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 

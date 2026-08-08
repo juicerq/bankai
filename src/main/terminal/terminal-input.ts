@@ -1,9 +1,7 @@
+import { TERMINAL_KEYS, type TerminalKey } from "@shared/terminal";
+
 const BRACKETED_PASTE_START = "\x1b[200~";
 const BRACKETED_PASTE_END = "\x1b[201~";
-
-const TERMINAL_KEYS = ["1", "2", "3", "up", "down", "enter", "escape"] as const;
-
-export type TerminalKey = (typeof TERMINAL_KEYS)[number];
 
 const TERMINAL_KEY_BYTES: Record<TerminalKey, string> = {
 	"1": "1",

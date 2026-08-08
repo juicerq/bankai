@@ -1,7 +1,7 @@
 import { BookmarkIcon } from "@heroicons/react/24/outline";
-import { ElapsedClock } from "@renderer/routes/-components/elapsed-clock";
-import { ACTIVITY_BORDER_CLASS, ACTIVITY_LABEL, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-utils/agent-activity";
-import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import { ElapsedClock } from "@renderer/routes/-features/shared/time/elapsed-clock";
+import { ACTIVITY_BORDER_CLASS, ACTIVITY_LABEL, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-features/sessions/list/agent-activity";
+import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 import { useLongPress } from "@renderer/routes/mobile/-utils/use-long-press";
 
 export function MobileSessionCard({

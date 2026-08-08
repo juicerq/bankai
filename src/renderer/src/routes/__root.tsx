@@ -1,6 +1,6 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
-import { PairingScreen } from "@renderer/routes/-components/pairing-screen";
-import { StreamOverlay } from "@renderer/routes/-components/stream-overlay";
+import { PairingScreen } from "@renderer/routes/-features/settings/pairing-screen";
+import { StreamOverlay } from "@renderer/routes/-features/app/status/stream-overlay";
 
 export const Route = createRootRoute({ component: RootLayout });
 

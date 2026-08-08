@@ -1,5 +1,5 @@
 import { resolve as resolvePath } from "node:path";
-import type { ReviewMode } from "@main/git/git-contracts";
+import type { ReviewMode } from "@shared/review";
 import { GitRun } from "@main/git/git-run";
 import { TurnBaseline, type Baseline } from "@main/git/review/turn-baseline";
 

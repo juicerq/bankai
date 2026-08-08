@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
-import type { TerminalKey } from "@main/terminal/terminal-input";
-import { ACTIVITY_LABEL } from "@renderer/routes/-utils/agent-activity";
-import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import type { TerminalKey } from "@shared/terminal";
+import { ACTIVITY_LABEL } from "@renderer/routes/-features/sessions/list/agent-activity";
+import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 import { AGENT_START_MS } from "@renderer/routes/mobile/-components/mobile-composer";
 import { MobileConversation } from "@renderer/routes/mobile/-components/mobile-conversation";
 import type { ConversationView } from "@renderer/routes/mobile/-utils/use-conversation";

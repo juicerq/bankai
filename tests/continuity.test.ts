@@ -1,7 +1,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { CONTINUITY_STORE_VERSION, Continuity, type ContinuityValue } from "@main/store/continuity";
+import { CONTINUITY_STORE_VERSION, Continuity } from "@main/store/continuity";
+import type { ContinuityValue } from "@shared/continuity";
 import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity";
 import { assertDefined } from "./utils/assertions";
 

@@ -6,8 +6,8 @@ import {
 } from "./orpc-transport";
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Project } from "@main/store/projects";
-import { CommandsModal } from "@renderer/routes/-components/commands-modal";
+import type { Project } from "@shared/projects";
+import { CommandsModal } from "@renderer/routes/-features/commands/commands-modal";
 import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render, waitFor } from "./testing-library";
 

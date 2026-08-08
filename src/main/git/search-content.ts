@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import type { SearchMatch, SearchResults } from "@main/git/git-contracts";
+import type { SearchMatch, SearchResults } from "@shared/review";
 
 const SEARCH_TIMEOUT_MS = 30_000;
 const MAX_MATCHES = 500;

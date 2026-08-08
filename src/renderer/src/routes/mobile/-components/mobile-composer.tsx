@@ -1,7 +1,7 @@
 import { ArrowUpIcon, StopIcon } from "@heroicons/react/24/outline";
 import { useRef, useState } from "react";
-import { problemText } from "@renderer/routes/-utils/problem-text";
-import { SECOND_MS, useClock } from "@renderer/routes/-utils/use-clock";
+import { problemText } from "@renderer/routes/-features/app/status/problem-text";
+import { SECOND_MS, useClock } from "@renderer/routes/-features/shared/time/use-clock";
 
 const SAFE_BOTTOM_CLASS = "pb-[calc(8px+env(safe-area-inset-bottom))]";
 

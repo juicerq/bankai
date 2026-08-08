@@ -1,17 +1,17 @@
 import { LiveConnections } from "@main/transport/server/live-connections";
-import { Settings } from "@main/store/settings";
+import { ServerSettings } from "@main/settings/server-settings";
 import type { ServerReach } from "@shared/server";
 
 let current: ServerReach | undefined;
 
 async function openServerReach(): Promise<ServerReach> {
-	current = await Settings.ensureServer();
+	current = await ServerSettings.ensure();
 
 	return current;
 }
 
 async function regenerateServerToken(): Promise<ServerReach> {
-	current = await Settings.regenerateServerToken();
+	current = await ServerSettings.regenerateToken();
 	LiveConnections.closeAll();
 
 	return current;

@@ -1,11 +1,11 @@
 import "./register-dom";
 import { afterEach, expect, test } from "bun:test";
-import type { FileChange, ReviewSnapshot, Worktree } from "@main/git/git-contracts";
-import type { Project } from "@main/store/projects";
-import { ReviewPanel } from "@renderer/routes/-components/review-panel";
-import { ReviewPathPicker, VISIBLE_MATCHES } from "@renderer/routes/-components/review-path-picker";
-import type { useDivider } from "@renderer/routes/-utils/use-divider";
-import { WorkspaceProvider } from "@renderer/routes/-utils/workspace-context";
+import type { FileChange, ReviewSnapshot, Worktree } from "@shared/review";
+import type { Project } from "@shared/projects";
+import { ReviewPanel } from "@renderer/routes/-features/review/panel/review-panel";
+import { ReviewPathPicker, VISIBLE_MATCHES } from "@renderer/routes/-features/review/header/review-path-picker";
+import type { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
+import { WorkspaceProvider } from "@renderer/routes/-features/workspace/layout/workspace-context";
 import { get, query, slot } from "./dom";
 import type { ReviewProcedure } from "./orpc-transport";
 import { installReviewEnvironment } from "./review-harness";
@@ -15,7 +15,7 @@ afterEach(cleanup);
 
 const PATHS = [
 	"src/main/agents/harness/claude/claude-harness.ts",
-	"src/renderer/src/routes/-components/review-panel.tsx",
+	"src/renderer/src/routes/-features/review/panel/review-panel.tsx",
 	"README.md",
 ];
 
@@ -54,9 +54,9 @@ test("a folder the tree would have merged away is still offered on its own", () 
 test("the filter matches against the whole path, not the file name", () => {
 	renderPicker();
 
-	type("routes/-components");
+	type("routes/-features");
 
-	expect(item("src/renderer/src/routes/-components/review-panel.tsx").dataset.kind).toBe("file");
+	expect(item("src/renderer/src/routes/-features/review/panel/review-panel.tsx").dataset.kind).toBe("file");
 	expect(query("review-path-picker-item", { path: "README.md" })).toBeNull();
 });
 
@@ -119,7 +119,7 @@ test("choosing a folder narrows the filter into it and leaves the picker open", 
 
 	expect(opened).toEqual([]);
 	expect(closed).toBe(0);
-	expect(item("src/renderer/src/routes/-components/review-panel.tsx").dataset.index).toBe("0");
+	expect(item("src/renderer/src/routes/-features/review/panel/review-panel.tsx").dataset.index).toBe("0");
 	expect(query("review-path-picker-item", { path: "README.md" })).toBeNull();
 });
 

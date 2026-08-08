@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { ReviewHeader } from "@renderer/routes/-components/review-header";
+import { ReviewHeader } from "@renderer/routes/-features/review/header/review-header";
 import { get } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 

@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import type { ConversationLineParser } from "@main/agents/transcript/conversation-tail";
+import type { ConversationLineParser } from "@main/agents/harness/harness";
 import type { ConversationBlock } from "@shared/conversation";
 
 const CONVERSATION_LINE_LIMIT = 128 * 1024;

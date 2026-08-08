@@ -15,7 +15,7 @@ import {
 	type ReviewSnapshot,
 	type SearchResults,
 	type Worktree,
-} from "@main/git/git-contracts";
+} from "@shared/review";
 import { gitResponseSchema, type GitRequest } from "@main/git/git-protocol";
 import type { ReviewScope } from "@main/git/review-base";
 import { Logger } from "@main/infra/logger";

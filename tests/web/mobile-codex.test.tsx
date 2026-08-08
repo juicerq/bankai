@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 import { MobileConversation } from "@renderer/routes/mobile/-components/mobile-conversation";
 import type { ConversationView } from "@renderer/routes/mobile/-utils/use-conversation";
 import { get, query, slot } from "./dom";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { REVIEW_LANGUAGE_LOADERS, reviewLanguage } from "@renderer/routes/-utils/review-language";
+import { REVIEW_LANGUAGE_LOADERS, reviewLanguage } from "@renderer/routes/-features/review/reading/review-language";
 
 const PREVIOUSLY_COVERED_EXTENSIONS = {
 	bash: "bash",

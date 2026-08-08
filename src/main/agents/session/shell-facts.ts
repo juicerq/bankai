@@ -1,13 +1,14 @@
 import { Harnesses } from "@main/agents/harness/harnesses";
 import { BranchLabel } from "@main/git/branch-label";
 import { Logger } from "@main/infra/logger";
-import { Continuity, type ContinuitySessionRef, type ContinuityShell, type ContinuityValue } from "@main/store/continuity";
+import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { ShellTitles } from "@main/terminal/shell-titles";
+import type { ContinuitySessionRef, ContinuityShell, ContinuityValue } from "@shared/continuity";
 import type { ShellName } from "@shared/continuity-reducers";
 
 async function harnessTitle(shellId: string, session: ContinuitySessionRef): Promise<string | null> {
-	const fromHarness = Harnesses.title(session.harness);
+	const fromHarness = Harnesses.get(session.harness)?.title;
 	if (!fromHarness) {
 		return null;
 	}

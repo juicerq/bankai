@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
-import { ReviewPanelFrame } from "@renderer/routes/-components/review-panel-frame";
-import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-utils/layout-motion";
-import type { useDivider } from "@renderer/routes/-utils/use-divider";
+import { ReviewPanelFrame } from "@renderer/routes/-features/review/panel/review-panel-frame";
+import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-features/workspace/layout/layout-motion";
+import type { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 

@@ -3,9 +3,10 @@ import { ShellFacts } from "@main/agents/session/shell-facts";
 import { GitProcess } from "@main/git/git-process";
 import { Logger } from "@main/infra/logger";
 import { base } from "@main/transport/rpc/rpc-base";
-import { Continuity, type ContinuityValue } from "@main/store/continuity";
+import { Continuity } from "@main/store/continuity";
 import { shellProcesses } from "@main/terminal/shell-processes";
 import { type } from "arktype";
+import type { ContinuityValue } from "@shared/continuity";
 
 const shellInput = type({
 	id: "string",

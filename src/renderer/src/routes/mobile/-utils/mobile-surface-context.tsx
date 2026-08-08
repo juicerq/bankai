@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, use } from "react";
-import type { Project } from "@main/store/projects";
-import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import type { Project } from "@shared/projects";
+import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 
 interface MobileSurface {
 	projects: Project[];

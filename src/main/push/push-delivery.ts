@@ -1,7 +1,7 @@
 import type { AttentionPushPayload } from "@main/push/attention-push";
 import type { PushResult, PushSender } from "@main/push/web-push";
 import { PushSubscriptions } from "@main/store/push-subscriptions";
-import type { VapidKeys } from "@main/store/settings";
+import type { VapidKeys } from "@shared/settings";
 
 async function deliverAttentionPush(input: {
 	payload: AttentionPushPayload;

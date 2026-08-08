@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import type { Project } from "@main/store/projects";
+import type { Project } from "@shared/projects";
 import type { AgentActivityState } from "@shared/activity";
 import { MobileNewShell } from "@renderer/routes/mobile/-components/mobile-new-shell";
 import { get, query, slot } from "./dom";

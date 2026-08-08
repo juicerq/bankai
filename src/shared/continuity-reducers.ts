@@ -1,5 +1,10 @@
-import type { ContinuitySessionRef, ContinuityShell, ContinuityValue, ContinuityWorkspace } from "@main/store/continuity";
-import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity";
+import {
+	type ContinuitySessionRef,
+	type ContinuityShell,
+	type ContinuityValue,
+	type ContinuityWorkspace,
+	SESSION_AUTO_ARCHIVE_MS,
+} from "@shared/continuity";
 
 export interface ShellAddress {
 	projectId: string;

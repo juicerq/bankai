@@ -18,15 +18,6 @@ const serveStatusSchema = type({
 	"Web?": { "[string]": { "Handlers?": { "[string]": { "Proxy?": "string" } } } },
 });
 
-export interface MobileAccessStatus {
-	host: string | undefined;
-	url: string | undefined;
-	exposed: boolean;
-	tailnetUrl: string | undefined;
-	tailnetOpen: boolean;
-	problem?: string;
-}
-
 function readJson<Schema extends Type>(raw: string, schema: Schema): Schema["infer"] | undefined {
 	try {
 		return schema.assert(JSON.parse(raw));

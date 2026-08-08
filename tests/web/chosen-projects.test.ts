@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { useChosenProjects } from "@renderer/routes/-utils/use-chosen-projects";
+import { useChosenProjects } from "@renderer/routes/-features/projects/use-chosen-projects";
 import { act, cleanup, renderHook } from "./testing-library";
 
 afterEach(cleanup);

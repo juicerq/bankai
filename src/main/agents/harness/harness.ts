@@ -1,4 +1,4 @@
-import type { ConversationLineParser } from "@main/agents/transcript/conversation-tail";
+import type { ConversationBlock } from "@shared/conversation";
 
 export const CLAUDE_HARNESS_ID = "claude";
 
@@ -17,6 +17,11 @@ export interface AgentPresence {
 export interface HarnessCommand {
 	file: string;
 	args: string[];
+}
+
+export interface ConversationLineParser {
+	title: string | undefined;
+	consume: (line: string) => ConversationBlock[];
 }
 
 export interface Harness {

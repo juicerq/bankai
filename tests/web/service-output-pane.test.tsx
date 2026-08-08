@@ -1,10 +1,10 @@
 import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
-import type { ProjectCommand } from "@main/store/project-commands";
-import type { Project } from "@main/store/projects";
-import { ServiceLogPane } from "@renderer/routes/-components/service-log-pane";
-import { ServicesFooter } from "@renderer/routes/-components/services-footer";
-import { useServiceLog } from "@renderer/routes/-utils/use-service-log";
+import type { ProjectCommand } from "@shared/project-commands";
+import type { Project } from "@shared/projects";
+import { ServiceLogPane } from "@renderer/routes/-features/services/service-log-pane";
+import { ServicesFooter } from "@renderer/routes/-features/services/services-footer";
+import { useServiceLog } from "@renderer/routes/-features/services/use-service-log";
 import type { ServiceState } from "@shared/services";
 import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";

@@ -1,6 +1,6 @@
 import { useId } from "react";
-import type { TerminalKey } from "@main/terminal/terminal-input";
-import { ACTIVITY_LABEL } from "@renderer/routes/-utils/agent-activity";
+import type { TerminalKey } from "@shared/terminal";
+import { ACTIVITY_LABEL } from "@renderer/routes/-features/sessions/list/agent-activity";
 import { useKeyAck } from "@renderer/routes/mobile/-utils/use-key-ack";
 
 const KEYPAD: { key: TerminalKey; label: string; name?: string }[] = [

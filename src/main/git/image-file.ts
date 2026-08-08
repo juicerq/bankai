@@ -1,5 +1,5 @@
 import { open } from "node:fs/promises";
-import type { ReviewContent } from "@main/git/git-contracts";
+import type { ReviewContent } from "@shared/review";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const HEADER_BYTES = 16;

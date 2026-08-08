@@ -1,9 +1,9 @@
 import { type ContinuityTransport, setContinuityTransport } from "./orpc-transport";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ContinuityValue } from "@main/store/continuity";
+import type { ContinuityValue } from "@shared/continuity";
 import { orpc } from "@renderer/lib/api";
-import { useSessions } from "@renderer/routes/-utils/use-sessions";
+import { useSessions } from "@renderer/routes/-features/sessions/lifecycle/use-sessions";
 import { act, cleanup, renderHook, waitFor } from "./testing-library";
 
 const { queryKey } = orpc.continuity.get.queryOptions();

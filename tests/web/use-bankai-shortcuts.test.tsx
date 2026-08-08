@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
-import { useBankaiShortcuts } from "@renderer/routes/-utils/use-bankai-shortcuts";
+import { useBankaiShortcuts } from "@renderer/routes/-features/app/use-bankai-shortcuts";
 import { get } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 

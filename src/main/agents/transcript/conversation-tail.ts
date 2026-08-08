@@ -1,19 +1,21 @@
 import { unwatchFile, watchFile } from "node:fs";
 import { type FileHandle, open } from "node:fs/promises";
 import { StringDecoder } from "node:string_decoder";
-import { ConversationParser } from "@main/agents/harness/claude/claude-conversation";
+import type { ConversationLineParser } from "@main/agents/harness/harness";
 import { Logger } from "@main/infra/logger";
 import { type ConversationBlock, type ConversationSnapshot, mergeConversationBlocks } from "@shared/conversation";
 
 export const CONVERSATION_BACKFILL_BYTES = 512 * 1024;
 
-export interface ConversationLineParser {
-	title: string | undefined;
-	consume: (line: string) => ConversationBlock[];
-}
-
 const READ_CHUNK_BYTES = 256 * 1024;
 const WATCH_INTERVAL_MS = 500;
+
+interface ConversationTailOptions {
+	path: string;
+	onAppended: (event: { blocks: ConversationBlock[]; title?: string }) => void;
+	parser: ConversationLineParser;
+	watchIntervalMs?: number;
+}
 
 async function openTranscript(path: string): Promise<FileHandle | undefined> {
 	try {
@@ -38,12 +40,17 @@ export class ConversationTail {
 	private again = false;
 	private backfill: ConversationBlock[] | undefined;
 
-	constructor(
-		private readonly path: string,
-		private readonly onAppended: (event: { blocks: ConversationBlock[]; title?: string }) => void,
-		private readonly watchIntervalMs: number = WATCH_INTERVAL_MS,
-		private readonly parser: ConversationLineParser = new ConversationParser(),
-	) {}
+	private readonly path: string;
+	private readonly onAppended: ConversationTailOptions["onAppended"];
+	private readonly parser: ConversationLineParser;
+	private readonly watchIntervalMs: number;
+
+	constructor(options: ConversationTailOptions) {
+		this.path = options.path;
+		this.onAppended = options.onAppended;
+		this.parser = options.parser;
+		this.watchIntervalMs = options.watchIntervalMs ?? WATCH_INTERVAL_MS;
+	}
 
 	async start(from?: number): Promise<ConversationSnapshot> {
 		this.backfill = [];

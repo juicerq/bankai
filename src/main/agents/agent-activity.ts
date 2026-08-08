@@ -6,18 +6,19 @@ import { SessionBinder } from "@main/agents/session/session-binder";
 import { type SessionRef } from "@main/agents/session/session-refs";
 import { SessionRefs } from "@main/agents/session/session-refs";
 import { ShellFacts } from "@main/agents/session/shell-facts";
-import type { Worktree } from "@main/git/git-contracts";
+import type { Worktree } from "@shared/review";
 import { GitProcess } from "@main/git/git-process";
 import { ProjectWorktrees } from "@main/git/worktree/project-worktrees";
 import { ReviewChanges } from "@main/git/review/review-changes";
 import { Worktrees } from "@main/git/worktree/worktrees";
 import { Logger } from "@main/infra/logger";
 import { NotifyAttention } from "@main/push/notify-attention";
-import { Continuity, type ContinuityValue } from "@main/store/continuity";
+import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { shellProcesses } from "@main/terminal/shell-processes";
 import { DesktopAttention } from "@main/desktop/desktop-attention";
 import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
+import type { ContinuityValue } from "@shared/continuity";
 import {
 	ShellActivity,
 	type DoneShell,

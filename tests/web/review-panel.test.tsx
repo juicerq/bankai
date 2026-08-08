@@ -1,11 +1,11 @@
 import "./register-dom";
 import { afterEach, expect, test } from "bun:test";
-import type { FileChange, ReviewSnapshot, Worktree } from "@main/git/git-contracts";
-import type { Project } from "@main/store/projects";
-import { ReviewPanel } from "@renderer/routes/-components/review-panel";
-import { REVIEW_SCOPES } from "@renderer/routes/-utils/review-scope";
-import type { useDivider } from "@renderer/routes/-utils/use-divider";
-import { WorkspaceProvider } from "@renderer/routes/-utils/workspace-context";
+import type { FileChange, ReviewSnapshot, Worktree } from "@shared/review";
+import type { Project } from "@shared/projects";
+import { ReviewPanel } from "@renderer/routes/-features/review/panel/review-panel";
+import { REVIEW_SCOPES } from "@renderer/routes/-features/review/header/review-scope";
+import type { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
+import { WorkspaceProvider } from "@renderer/routes/-features/workspace/layout/workspace-context";
 import { get, query, slot } from "./dom";
 import type { ReviewProcedure } from "./orpc-transport";
 import { installReviewEnvironment } from "./review-harness";

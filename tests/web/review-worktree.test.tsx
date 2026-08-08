@@ -1,9 +1,9 @@
 import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
-import type { Worktree } from "@main/git/git-contracts";
+import type { Worktree } from "@shared/review";
 import type { AgentActivityState } from "@shared/activity";
-import { ReviewWorktree } from "@renderer/routes/-components/review-worktree";
-import { resolveReviewWorktree } from "@renderer/routes/-utils/review-worktree";
+import { ReviewWorktree } from "@renderer/routes/-features/review/header/review-worktree-menu";
+import { resolveReviewWorktree } from "@renderer/routes/-features/review/header/review-worktree";
 import { get, query } from "./dom";
 import { cleanup, fireEvent, render, waitFor } from "./testing-library";
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import type { Project } from "@main/store/projects";
+import type { Project } from "@shared/projects";
 import type { AgentActivityState } from "@shared/activity";
-import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 import { MobileArchivedShelf } from "@renderer/routes/mobile/-components/mobile-archived-shelf";
 import { MobileNewShell } from "@renderer/routes/mobile/-components/mobile-new-shell";
 import { MobileProjectStrip } from "@renderer/routes/mobile/-components/mobile-project-strip";

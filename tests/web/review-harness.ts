@@ -5,7 +5,7 @@ import { createElement, type ReactNode } from "react";
 import { streamSocket } from "@renderer/lib/stream/socket";
 import type { ReviewWatchInput } from "@shared/review";
 import { renderHook } from "./testing-library";
-import { type ReviewReading, useReviewReading } from "@renderer/routes/-utils/use-review-reading";
+import { type ReviewReading, useReviewReading } from "@renderer/routes/-features/review/reading/use-review-reading";
 
 interface PendingWatch {
 	input: ReviewWatchInput;

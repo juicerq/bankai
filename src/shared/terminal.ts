@@ -1,4 +1,6 @@
-import type { TerminalKey } from "@main/terminal/terminal-input";
+export const TERMINAL_KEYS = ["1", "2", "3", "up", "down", "enter", "escape"] as const;
+
+export type TerminalKey = (typeof TERMINAL_KEYS)[number];
 
 interface TerminalEvent {
 	sessionId: string;

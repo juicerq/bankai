@@ -1,5 +1,5 @@
 import { resolve, sep } from "node:path";
-import type { Worktree } from "@main/git/git-contracts";
+import type { Worktree } from "@shared/review";
 import { GitRun } from "@main/git/git-run";
 
 interface ParsedWorktree extends Worktree {

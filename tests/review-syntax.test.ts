@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { DiffLine } from "@main/git/git-contracts";
-import { reviewLanguage } from "@renderer/routes/-utils/review-language";
-import { highlightDiff } from "@renderer/routes/-utils/review-syntax";
+import type { DiffLine } from "@shared/review";
+import { reviewLanguage } from "@renderer/routes/-features/review/reading/review-language";
+import { highlightDiff } from "@renderer/routes/-features/review/reading/review-syntax";
 
 describe("review syntax", () => {
 	it("selects a grammar from the filename without guessing unknown files", () => {

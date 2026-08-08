@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
-import { useProjectWorkspaceShortcuts } from "@renderer/routes/-utils/use-project-workspace-shortcuts";
+import { useProjectWorkspaceShortcuts } from "@renderer/routes/-features/workspace/surface/use-project-workspace-shortcuts";
 import { get } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 

@@ -1,9 +1,9 @@
 import "./register-dom";
 import { afterEach, expect, test } from "bun:test";
-import type { Project } from "@main/store/projects";
+import type { Project } from "@shared/projects";
 import type { AgentActivityState } from "@shared/activity";
-import { ACTIVITY_LABEL } from "@renderer/routes/-utils/agent-activity";
-import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import { ACTIVITY_LABEL } from "@renderer/routes/-features/sessions/list/agent-activity";
+import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 import { MobileSessionList } from "@renderer/routes/mobile/-components/mobile-session-list";
 import { LONG_PRESS_MS } from "@renderer/routes/mobile/-utils/use-long-press";
 import { get, query, slot } from "./dom";

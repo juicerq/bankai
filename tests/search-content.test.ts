@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { searchResultsSchema } from "@main/git/git-contracts";
+import { searchResultsSchema } from "@shared/review";
 import { GitRun } from "@main/git/git-run";
 import { SearchContent } from "@main/git/search-content";
 import { assertDefined } from "./utils/assertions";

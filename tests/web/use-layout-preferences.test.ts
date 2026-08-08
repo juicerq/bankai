@@ -1,13 +1,13 @@
 import "./register-dom";
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH } from "@renderer/routes/-utils/rail-layout";
+import { DEFAULT_RAIL_WIDTH, MAX_RAIL_WIDTH, MIN_RAIL_WIDTH } from "@renderer/routes/-features/workspace/layout/rail-layout";
 import {
 	DEFAULT_DIFF_WIDTH,
 	DEFAULT_TREE_WIDTH,
 	MIN_DIFF_WIDTH,
 	MIN_TREE_WIDTH,
-} from "@renderer/routes/-utils/review-layout";
-import { clampLayout } from "@renderer/routes/-utils/use-layout-preferences";
+} from "@renderer/routes/-features/review/panel/review-layout";
+import { clampLayout } from "@renderer/routes/-features/workspace/layout/use-layout-preferences";
 
 describe("clampLayout", () => {
 	test("falls back to the region defaults when nothing is stored", () => {

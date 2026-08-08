@@ -1,6 +1,6 @@
 import "./register-dom";
 import { expect, test } from "bun:test";
-import { type ResidencyShell, useShellResidency } from "@renderer/routes/-utils/use-shell-residency";
+import { type ResidencyShell, useShellResidency } from "@renderer/routes/-features/sessions/lifecycle/use-shell-residency";
 import { act, renderHook } from "./testing-library";
 
 const SESSION = { harness: "claude", sessionId: "abc", cwd: "/repo" };

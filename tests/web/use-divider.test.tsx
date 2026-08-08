@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { useRef, useState } from "react";
-import { Divider } from "@renderer/routes/-components/divider";
-import { useDivider } from "@renderer/routes/-utils/use-divider";
+import { Divider } from "@renderer/routes/-features/shared/interaction/divider";
+import { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 

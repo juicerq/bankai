@@ -1,20 +1,26 @@
 import { statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "bun:test";
-import { Settings, serverPort } from "@main/store/settings";
+import { HarnessSettings } from "@main/settings/harness-settings";
+import { LayoutSettings } from "@main/settings/layout-settings";
+import { PushSettings } from "@main/settings/push-settings";
+import { ServerSettings } from "@main/settings/server-settings";
+import { ThemeSettings } from "@main/settings/theme-settings";
+import { WindowSettings } from "@main/settings/window-settings";
+import { SettingsStore } from "@main/store/settings-store";
 import { SERVER_DEFAULT_PORT, SERVER_TOKEN_BYTES } from "@shared/server";
 import { DEFAULT_THEME } from "@shared/theme";
 import { assertDefined } from "./utils/assertions";
 
 describe("settings layout", () => {
 	it("returns no layout for a fresh store", async () => {
-		expect((await Settings.get()).layout).toBeUndefined();
+		expect((await SettingsStore.read()).layout).toBeUndefined();
 	});
 
 	it("persists a layout patch and reads it back", async () => {
-		await Settings.updateLayout({ railWidth: 300, diffWidth: 700, treeWidth: 240, fullscreen: true });
+		await LayoutSettings.update({ railWidth: 300, diffWidth: 700, treeWidth: 240, fullscreen: true });
 
-		expect((await Settings.get()).layout).toEqual({
+		expect((await SettingsStore.read()).layout).toEqual({
 			railWidth: 300,
 			diffWidth: 700,
 			treeWidth: 240,
@@ -23,18 +29,18 @@ describe("settings layout", () => {
 	});
 
 	it("merges partial patches without clobbering the other regions", async () => {
-		await Settings.updateLayout({ railWidth: 300 });
-		await Settings.updateLayout({ fullscreen: true });
-		const merged = await Settings.updateLayout({ diffWidth: 512 });
+		await LayoutSettings.update({ railWidth: 300 });
+		await LayoutSettings.update({ fullscreen: true });
+		const merged = await LayoutSettings.update({ diffWidth: 512 });
 
 		expect(merged).toEqual({ railWidth: 300, fullscreen: true, diffWidth: 512 });
 	});
 
 	it("keeps window bounds intact when the layout changes", async () => {
-		await Settings.update({ windowBounds: { x: 1, y: 2, width: 900, height: 620, maximized: false } });
-		await Settings.updateLayout({ railWidth: 260 });
+		await WindowSettings.update({ x: 1, y: 2, width: 900, height: 620, maximized: false });
+		await LayoutSettings.update({ railWidth: 260 });
 
-		const settings = await Settings.get();
+		const settings = await SettingsStore.read();
 		expect(settings.windowBounds?.width).toBe(900);
 		expect(settings.layout).toEqual({ railWidth: 260 });
 	});
@@ -42,31 +48,31 @@ describe("settings layout", () => {
 
 describe("settings harness", () => {
 	it("returns no harness choice for a fresh store", async () => {
-		expect((await Settings.get()).harness).toBeUndefined();
+		expect((await SettingsStore.read()).harness).toBeUndefined();
 	});
 
 	it("persists the harness choice and reads it back", async () => {
-		expect(await Settings.updateHarness({ autostart: true, id: "claude" })).toEqual({
+		expect(await HarnessSettings.update({ autostart: true, id: "claude" })).toEqual({
 			autostart: true,
 			id: "claude",
 		});
-		expect((await Settings.get()).harness).toEqual({ autostart: true, id: "claude" });
+		expect((await SettingsStore.read()).harness).toEqual({ autostart: true, id: "claude" });
 	});
 
 	it("replaces the whole choice rather than merging it", async () => {
-		await Settings.updateHarness({ autostart: true, id: "claude" });
-		await Settings.updateHarness({ autostart: false, id: "codex" });
+		await HarnessSettings.update({ autostart: true, id: "claude" });
+		await HarnessSettings.update({ autostart: false, id: "codex" });
 
-		expect((await Settings.get()).harness).toEqual({ autostart: false, id: "codex" });
+		expect((await SettingsStore.read()).harness).toEqual({ autostart: false, id: "codex" });
 	});
 
 	it("drops the extra arguments when the choice is saved without them", async () => {
 		const profiles = { claude: { args: "--model opus" } };
-		await Settings.updateHarness({ autostart: true, id: "claude", profiles });
-		expect((await Settings.get()).harness).toEqual({ autostart: true, id: "claude", profiles });
+		await HarnessSettings.update({ autostart: true, id: "claude", profiles });
+		expect((await SettingsStore.read()).harness).toEqual({ autostart: true, id: "claude", profiles });
 
-		await Settings.updateHarness({ autostart: true, id: "claude" });
-		expect((await Settings.get()).harness).toEqual({ autostart: true, id: "claude" });
+		await HarnessSettings.update({ autostart: true, id: "claude" });
+		expect((await SettingsStore.read()).harness).toEqual({ autostart: true, id: "claude" });
 	});
 
 	it("keeps each harness profile apart", async () => {
@@ -74,9 +80,9 @@ describe("settings harness", () => {
 			claude: { args: "--model opus" },
 			codex: { args: "--model gpt-5.6" },
 		};
-		await Settings.updateHarness({ autostart: true, id: "codex", profiles });
+		await HarnessSettings.update({ autostart: true, id: "codex", profiles });
 
-		expect((await Settings.get()).harness).toEqual({ autostart: true, id: "codex", profiles });
+		expect((await SettingsStore.read()).harness).toEqual({ autostart: true, id: "codex", profiles });
 	});
 
 	it("moves a v4 flat harness choice into the profile of the harness it belonged to", async () => {
@@ -89,7 +95,7 @@ describe("settings harness", () => {
 			}),
 		);
 
-		expect((await Settings.get()).harness).toEqual({
+		expect((await SettingsStore.read()).harness).toEqual({
 			autostart: true,
 			id: "claude",
 			profiles: { claude: { args: "--model opus" } },
@@ -112,7 +118,7 @@ describe("settings harness", () => {
 			}),
 		);
 
-		expect((await Settings.get()).harness).toEqual({
+		expect((await SettingsStore.read()).harness).toEqual({
 			autostart: true,
 			id: "claude",
 			profiles: { claude: { args: "--model opus" }, codex: { args: "--model gpt-5.6" } },
@@ -126,7 +132,7 @@ describe("settings harness", () => {
 			JSON.stringify({ version: 2, data: { layout: { railWidth: 260 } } }),
 		);
 
-		const settings = await Settings.get();
+		const settings = await SettingsStore.read();
 		expect(settings.layout).toEqual({ railWidth: 260 });
 		expect(settings.harness).toBeUndefined();
 	});
@@ -134,24 +140,24 @@ describe("settings harness", () => {
 
 describe("settings theme", () => {
 	it("opens on the default theme until a choice is stored", async () => {
-		expect((await Settings.get()).theme).toBeUndefined();
-		expect(await Settings.theme()).toBe(DEFAULT_THEME);
+		expect((await SettingsStore.read()).theme).toBeUndefined();
+		expect(await ThemeSettings.get()).toBe(DEFAULT_THEME);
 	});
 
 	it("persists the chosen theme and reads it back", async () => {
-		expect(await Settings.updateTheme("light")).toBe("light");
-		expect(await Settings.theme()).toBe("light");
+		expect(await ThemeSettings.update("light")).toBe("light");
+		expect(await ThemeSettings.get()).toBe("light");
 
-		await Settings.updateTheme("system");
+		await ThemeSettings.update("system");
 
-		expect(await Settings.theme()).toBe("system");
+		expect(await ThemeSettings.get()).toBe("system");
 	});
 
 	it("keeps the rest of the settings when the theme changes", async () => {
-		await Settings.updateHarness({ autostart: true, id: "claude" });
-		await Settings.updateTheme("light");
+		await HarnessSettings.update({ autostart: true, id: "claude" });
+		await ThemeSettings.update("light");
 
-		expect((await Settings.get()).harness).toEqual({ autostart: true, id: "claude" });
+		expect((await SettingsStore.read()).harness).toEqual({ autostart: true, id: "claude" });
 	});
 
 	it("leaves a v6 file on the dark theme it was already showing", async () => {
@@ -164,7 +170,7 @@ describe("settings theme", () => {
 			}),
 		);
 
-		const settings = await Settings.get();
+		const settings = await SettingsStore.read();
 
 		expect(settings.theme).toBe("dark");
 		expect(settings.layout).toEqual({ railWidth: 260 });
@@ -178,43 +184,43 @@ describe("settings server", () => {
 	});
 
 	it("lets the environment move the port off the stored one, and refuses a value that is not a port", () => {
-		expect(serverPort(5000)).toBe(5000);
+		expect(ServerSettings.port(5000)).toBe(5000);
 
 		process.env.SERVER_PORT = "4700";
 
-		expect(serverPort(5000)).toBe(4700);
+		expect(ServerSettings.port(5000)).toBe(4700);
 
 		process.env.SERVER_PORT = "nope";
 
-		expect(() => serverPort(5000)).toThrow("SERVER_PORT");
+		expect(() => ServerSettings.port(5000)).toThrow("SERVER_PORT");
 	});
 
 	it("generates the token once and keeps it across calls", async () => {
-		const first = await Settings.ensureServer();
-		const second = await Settings.ensureServer();
+		const first = await ServerSettings.ensure();
+		const second = await ServerSettings.ensure();
 
 		expect(first.token).toHaveLength(SERVER_TOKEN_BYTES * 2);
 		expect(second.token).toBe(first.token);
-		expect((await Settings.get()).server?.token).toBe(first.token);
+		expect((await SettingsStore.read()).server?.token).toBe(first.token);
 	});
 
 	it("defaults the port and honours a configured one", async () => {
-		expect((await Settings.ensureServer()).port).toBe(SERVER_DEFAULT_PORT);
+		expect((await ServerSettings.ensure()).port).toBe(SERVER_DEFAULT_PORT);
 
-		await Settings.update({ server: { token: "kept", port: 5000 } });
+		await SettingsStore.mutate((current) => ({ ...current, server: { token: "kept", port: 5000 } }));
 
-		expect(await Settings.ensureServer()).toEqual({ port: 5000, token: "kept" });
+		expect(await ServerSettings.ensure()).toEqual({ port: 5000, token: "kept" });
 	});
 
 	it("mints a new token on regeneration and keeps the configured port", async () => {
-		await Settings.update({ server: { token: "revoked", port: 5000 } });
+		await SettingsStore.mutate((current) => ({ ...current, server: { token: "revoked", port: 5000 } }));
 
-		const regenerated = await Settings.regenerateServerToken();
+		const regenerated = await ServerSettings.regenerateToken();
 
 		expect(regenerated.port).toBe(5000);
 		expect(regenerated.token).toHaveLength(SERVER_TOKEN_BYTES * 2);
 		expect(regenerated.token).not.toBe("revoked");
-		expect(await Settings.ensureServer()).toEqual(regenerated);
+		expect(await ServerSettings.ensure()).toEqual(regenerated);
 	});
 });
 
@@ -224,10 +230,10 @@ describe("settings vapid", () => {
 		const path = join(process.env.DATA_DIR, "settings.json");
 		const minted = { publicKey: "public", privateKey: "private" };
 
-		expect(await Settings.ensureVapid(() => minted)).toEqual(minted);
+		expect(await PushSettings.ensureKeys(() => minted)).toEqual(minted);
 		const writtenAt = statSync(path, { bigint: true }).mtimeNs;
 
-		expect(await Settings.ensureVapid(() => ({ publicKey: "other", privateKey: "other" }))).toEqual(minted);
+		expect(await PushSettings.ensureKeys(() => ({ publicKey: "other", privateKey: "other" }))).toEqual(minted);
 		expect(statSync(path, { bigint: true }).mtimeNs).toBe(writtenAt);
 	});
 });

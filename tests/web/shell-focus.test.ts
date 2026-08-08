@@ -1,6 +1,6 @@
 import { streamTransport } from "./stream-transport";
 import { afterEach, beforeAll, beforeEach, expect, jest, test } from "bun:test";
-import { FOCUS_IDLE_MS, useShellFocus } from "@renderer/routes/-utils/use-shell-focus";
+import { FOCUS_IDLE_MS, useShellFocus } from "@renderer/routes/-features/sessions/lifecycle/use-shell-focus";
 import { cleanup, renderHook, waitFor } from "./testing-library";
 
 const AWAY = { shellId: undefined };

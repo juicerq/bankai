@@ -1,6 +1,6 @@
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
-import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 import { useLongPress } from "@renderer/routes/mobile/-utils/use-long-press";
 
 export function MobileArchivedShelf({

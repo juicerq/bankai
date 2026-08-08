@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { enablePushNotifications, type PushPermission, pushPermission } from "@renderer/lib/push";
-import { problemText } from "@renderer/routes/-utils/problem-text";
+import { problemText } from "@renderer/routes/-features/app/status/problem-text";
 
 export function MobilePushBanner() {
 	const [permission, setPermission] = useState<PushPermission>(pushPermission);

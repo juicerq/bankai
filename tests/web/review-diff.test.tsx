@@ -1,9 +1,9 @@
 import { afterEach, expect, test } from "bun:test";
-import type { FileChange, ReviewContent, ReviewMode, ReviewSnapshot } from "@main/git/git-contracts";
-import { ReviewDiff } from "@renderer/routes/-components/review-diff";
-import { diffContentWidth, DIFF_TAB_SIZE, REVIEW_ROW_HEIGHT } from "@renderer/routes/-utils/review-rows";
-import { REVIEW_SCOPES } from "@renderer/routes/-utils/review-scope";
-import type { ReviewReading } from "@renderer/routes/-utils/use-review-reading";
+import type { FileChange, ReviewContent, ReviewMode, ReviewSnapshot } from "@shared/review";
+import { ReviewDiff } from "@renderer/routes/-features/review/reading/review-diff";
+import { diffContentWidth, DIFF_TAB_SIZE, REVIEW_ROW_HEIGHT } from "@renderer/routes/-features/review/reading/review-rows";
+import { REVIEW_SCOPES } from "@renderer/routes/-features/review/header/review-scope";
+import type { ReviewReading } from "@renderer/routes/-features/review/reading/use-review-reading";
 import { get } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 

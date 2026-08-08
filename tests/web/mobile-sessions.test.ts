@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import type { Project } from "@main/store/projects";
-import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import type { Project } from "@shared/projects";
+import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 import { mobileSessionList } from "@renderer/routes/mobile/-utils/mobile-session-list";
 
 const NOW = 1_800_000_000_000;

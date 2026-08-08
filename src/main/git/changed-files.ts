@@ -1,7 +1,7 @@
 import { createReadStream } from "node:fs";
 import { lstat, readFile, readlink } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { FileChange, ReviewSnapshot } from "@main/git/git-contracts";
+import type { FileChange, ReviewSnapshot } from "@shared/review";
 import { GitRun } from "@main/git/git-run";
 import { ReviewBase, type ReviewScope } from "@main/git/review-base";
 import { TurnBaseline, type Baseline, type BaselineFile } from "@main/git/review/turn-baseline";

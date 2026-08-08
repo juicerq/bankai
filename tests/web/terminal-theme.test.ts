@@ -2,7 +2,7 @@ import "./orpc-transport";
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import type { ITerminalOptions } from "@xterm/xterm";
 import { Theme } from "@renderer/lib/theme";
-import { registerTerminalStyle } from "@renderer/routes/-utils/terminal-style";
+import { registerTerminalStyle } from "@renderer/routes/-features/terminal/terminal-style";
 import { THEME_LIGHT_CLASS } from "@shared/theme";
 
 const STYLES_PATH = new URL("../../src/renderer/src/styles.css", import.meta.url);

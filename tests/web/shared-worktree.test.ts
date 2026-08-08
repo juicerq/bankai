@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { AgentActivityState } from "@shared/activity";
-import { sharedWorktreeShells } from "@renderer/routes/-utils/shared-worktree";
+import { sharedWorktreeShells } from "@renderer/routes/-features/review/header/shared-worktree";
 
 const PROJECT = "/home/jui/projects/bankai";
 const SOLO = "/tmp/bankai-worktrees";

@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity";
-import type { SessionRow } from "@renderer/routes/-utils/session-rows";
-import { useSessionList } from "@renderer/routes/-utils/use-session-list";
+import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
+import { useSessionList } from "@renderer/routes/-features/sessions/list/use-session-list";
 import { act, cleanup, renderHook } from "./testing-library";
 
 afterEach(cleanup);

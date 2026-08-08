@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { CrashScreen } from "@renderer/routes/-components/crash-screen";
+import { CrashScreen } from "@renderer/routes/-features/app/status/crash-screen";
 import { get, slot } from "./dom";
 import { cleanup, render } from "./testing-library";
 

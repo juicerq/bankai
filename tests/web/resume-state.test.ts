@@ -3,7 +3,7 @@ import {
 	initialResumeState,
 	nextResumeState,
 	resumeNoticeVariant,
-} from "@renderer/routes/-utils/resume-state";
+} from "@renderer/routes/-features/sessions/lifecycle/resume-state";
 
 const NO_SESSION = "No resumable agent session for this shell";
 

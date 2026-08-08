@@ -5,7 +5,7 @@ import {
 	browseLeafSegment,
 	browseParentPath,
 	browseSeparator,
-} from "@renderer/routes/-utils/browse-path";
+} from "@renderer/routes/-features/review/tree/browse-path";
 
 describe("browse path", () => {
 	test("reads the directory a path is browsing", () => {

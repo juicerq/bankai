@@ -4,7 +4,8 @@ import { Logger } from "@main/infra/logger";
 import type { StreamConnection } from "@main/transport/stream/stream-connection";
 import { ConnectionWatches } from "@main/transport/stream/connection-watches";
 import { ConversationSchemas } from "@main/transport/stream/stream-messages";
-import { Continuity, type ContinuitySessionRef, type ContinuityValue } from "@main/store/continuity";
+import { Continuity } from "@main/store/continuity";
+import type { ContinuitySessionRef, ContinuityValue } from "@shared/continuity";
 import type {
 	ConversationAddress,
 	ConversationAppendedEvent,
@@ -150,7 +151,7 @@ class ConversationWatch {
 			return EMPTY_CONVERSATION;
 		}
 
-		const conversation = Harnesses.conversation(session.harness);
+		const conversation = Harnesses.get(session.harness)?.conversation;
 		if (!conversation) {
 			return EMPTY_CONVERSATION;
 		}
@@ -163,16 +164,15 @@ class ConversationWatch {
 			return EMPTY_CONVERSATION;
 		}
 
-		const tail = new ConversationTail(
+		const tail = new ConversationTail({
 			path,
-			(event) =>
+			onAppended: (event) =>
 				this.connection.send("conversation", "appended", {
 					...this.address,
 					...event,
 				} satisfies ConversationAppendedEvent),
-			undefined,
-			conversation.parser(),
-		);
+			parser: conversation.parser(),
+		});
 		const snapshot = await tail.start(from);
 
 		if (generation !== this.generation) {

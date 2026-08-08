@@ -1,6 +1,6 @@
-import type { Project } from "@main/store/projects";
+import type { Project } from "@shared/projects";
 import type { AgentActivityState } from "@shared/activity";
-import { partitionSessions, type SessionRow } from "@renderer/routes/-utils/session-rows";
+import { partitionSessions, type SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 
 const ATTENTION_RANK: Record<AgentActivityState, number> = {
 	"needs-attention": 0,

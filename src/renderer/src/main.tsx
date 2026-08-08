@@ -13,7 +13,7 @@ import { installServicesPush } from "@renderer/lib/services-push";
 import { installServiceWorker } from "@renderer/lib/service-worker";
 import { installStartupTiming, markStartup } from "@renderer/lib/startup";
 import { Theme } from "@renderer/lib/theme";
-import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-utils/review-scope";
+import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-features/review/header/review-scope";
 import "@renderer/styles.css";
 
 markStartup("module");

@@ -31,10 +31,10 @@ describe("claude resume command", () => {
 
 describe("harness resume lookup", () => {
 	test("resolves the claude resume capability", () => {
-		expect(Harnesses.resume("claude")).toBe(ClaudeHarness.resume);
+		expect(Harnesses.get("claude")?.resume).toBe(ClaudeHarness.resume);
 	});
 
 	test("returns nothing for an unknown harness", () => {
-		expect(Harnesses.resume("aider")).toBeUndefined();
+		expect(Harnesses.get("aider")).toBeUndefined();
 	});
 });

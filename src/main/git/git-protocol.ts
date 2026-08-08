@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { reviewModeSchema } from "@main/git/git-contracts";
+import { reviewModeSchema } from "@shared/review";
 
 export const gitRequestSchema = type({
 	id: "string",

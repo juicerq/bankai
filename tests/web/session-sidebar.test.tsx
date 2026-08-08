@@ -1,10 +1,10 @@
 import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
-import type { Project } from "@main/store/projects";
+import type { Project } from "@shared/projects";
 import type { AgentActivityState } from "@shared/activity";
-import { SessionSidebar } from "@renderer/routes/-components/session-sidebar";
-import { ACTIVITY_LABEL } from "@renderer/routes/-utils/agent-activity";
-import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import { SessionSidebar } from "@renderer/routes/-features/sessions/list/session-sidebar";
+import { ACTIVITY_LABEL } from "@renderer/routes/-features/sessions/list/agent-activity";
+import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 

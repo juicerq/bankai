@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { DropdownMenu, DropdownMenuItem } from "@renderer/routes/-components/dropdown-menu";
+import { DropdownMenu, DropdownMenuItem } from "@renderer/routes/-features/shared/menus/dropdown-menu";
 import { get, query } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 

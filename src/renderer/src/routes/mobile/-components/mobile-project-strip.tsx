@@ -1,4 +1,4 @@
-import type { Project } from "@main/store/projects";
+import type { Project } from "@shared/projects";
 
 export function MobileProjectStrip({
 	projects,

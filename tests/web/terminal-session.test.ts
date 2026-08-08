@@ -1,9 +1,7 @@
 import "./register-dom";
 import { streamTransport } from "./stream-transport";
 import { afterEach, expect, mock, test } from "bun:test";
-import type { ILink, ILinkProvider } from "@xterm/xterm";
 import { streamResync } from "@renderer/lib/stream/resync";
-import type { TerminalFileTarget } from "@renderer/routes/-utils/terminal-file-links";
 import type { TerminalAttached } from "@shared/terminal";
 
 const webglInstances: MockWebglAddon[] = [];
@@ -47,34 +45,10 @@ class MockTerminal {
 	pastes: string[] = [];
 	writes: string[] = [];
 	resets = 0;
-	lines: string[] = [];
-	linkProvider: ILinkProvider | undefined;
-	readonly buffer = {
-		active: {
-			getLine: (index: number) => {
-				const text = this.lines[index];
-				if (text === undefined) {
-					return;
-				}
-
-				return { translateToString: () => text };
-			},
-		},
-	};
 	private keyEventHandler: ((event: KeyboardEvent) => boolean) | undefined;
 
 	constructor() {
 		terminals.push(this);
-	}
-
-	registerLinkProvider(provider: ILinkProvider) {
-		this.linkProvider = provider;
-
-		return {
-			dispose: () => {
-				this.linkProvider = undefined;
-			},
-		};
 	}
 
 	loadAddon() {}
@@ -104,7 +78,7 @@ class MockTerminal {
 void mock.module("@xterm/xterm", () => ({ Terminal: MockTerminal }));
 void mock.module("@xterm/addon-fit", () => ({ FitAddon: MockFitAddon }));
 void mock.module("@xterm/addon-webgl", () => ({ WebglAddon: MockWebglAddon }));
-void mock.module("@renderer/routes/-utils/terminal-style", () => ({
+void mock.module("@renderer/routes/-features/terminal/terminal-style", () => ({
 	registerTerminalStyle: () => () => {},
 	TERMINAL_OPTIONS: {},
 }));
@@ -135,9 +109,9 @@ globalThis.cancelIdleCallback = (id: number) => {
 	idleTimers.delete(id);
 };
 
-const { RendererTerminalSession } = await import("@renderer/routes/-utils/use-terminal-session");
+const { RendererTerminalSession } = await import("@renderer/routes/-features/terminal/use-terminal-session");
 
-async function startSession(fileLinks?: () => { paths: ReadonlySet<string>; worktree?: string; onOpen: (target: TerminalFileTarget) => void }) {
+async function startSession() {
 	const container = document.createElement("div");
 	document.body.appendChild(container);
 	const session = new RendererTerminalSession(container, {
@@ -148,7 +122,6 @@ async function startSession(fileLinks?: () => { paths: ReadonlySet<string>; work
 		resizeDeferred: false,
 		onResumeOutcome: () => {},
 		onFirstOutput: () => {},
-		fileLinks,
 	});
 
 	for (let tick = 0; tick < 4; tick++) {
@@ -312,59 +285,6 @@ test("a reconnect reattaches the shell and repaints its scrollback", async () =>
 	expect(streamTransport.payloads("terminal", "detach")).toEqual([]);
 	expect(lastTerminal().resets).toBe(1);
 	expect(lastTerminal().writes).toEqual(["restored output"]);
-
-	session.dispose();
-});
-
-function provideLinks(row: number) {
-	const provider = lastTerminal().linkProvider;
-
-	if (!provider) {
-		throw new Error("no link provider was registered");
-	}
-
-	let links: ILink[] | undefined;
-	provider.provideLinks(row, (result) => {
-		links = result;
-	});
-
-	return links;
-}
-
-test("a path printed in the shell becomes a link that opens the file at its line", async () => {
-	const opened: TerminalFileTarget[] = [];
-	const session = await startSession(() => ({
-		paths: new Set(["src/a.ts"]),
-		onOpen: (target) => opened.push(target),
-	}));
-	lastTerminal().lines = ["  at src/a.ts:12"];
-
-	const links = provideLinks(1) ?? [];
-
-	expect(links).toHaveLength(1);
-	expect(links[0]?.range).toEqual({ start: { x: 6, y: 1 }, end: { x: 16, y: 1 } });
-	expect(links[0]?.text).toBe("src/a.ts:12");
-
-	links[0]?.activate(new MouseEvent("click"), "src/a.ts:12");
-
-	expect(opened).toEqual([{ file: "src/a.ts", line: 12 }]);
-
-	session.dispose();
-});
-
-test("a path the worktree does not have is left plain in the shell", async () => {
-	const session = await startSession(() => ({ paths: new Set(["src/a.ts"]), onOpen: () => {} }));
-	lastTerminal().lines = ["  at src/ghost.ts:12"];
-
-	expect(provideLinks(1)).toEqual([]);
-
-	session.dispose();
-});
-
-test("a shell with no file links registers no link provider", async () => {
-	const session = await startSession();
-
-	expect(lastTerminal().linkProvider).toBeUndefined();
 
 	session.dispose();
 });

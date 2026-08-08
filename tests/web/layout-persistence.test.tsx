@@ -6,9 +6,9 @@ import {
 	MIN_RAIL_WIDTH,
 	RAIL_WIDTH_PROPERTY,
 	resolveRailWidth,
-} from "@renderer/routes/-utils/rail-layout";
-import { useDivider } from "@renderer/routes/-utils/use-divider";
-import { useFullscreenProjectRail } from "@renderer/routes/-utils/use-fullscreen-project-rail";
+} from "@renderer/routes/-features/workspace/layout/rail-layout";
+import { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
+import { useFullscreenProjectRail } from "@renderer/routes/-features/workspace/layout/use-fullscreen-project-rail";
 import { get } from "./dom";
 import { act, cleanup, fireEvent, render, renderHook } from "./testing-library";
 

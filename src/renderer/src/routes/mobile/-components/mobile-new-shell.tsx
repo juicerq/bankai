@@ -1,9 +1,9 @@
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { useRef, useState } from "react";
-import type { Project } from "@main/store/projects";
+import type { Project } from "@shared/projects";
 import type { AgentActivityState } from "@shared/activity";
-import { projectDotClass } from "@renderer/routes/-utils/agent-activity";
-import { problemText } from "@renderer/routes/-utils/problem-text";
+import { projectDotClass } from "@renderer/routes/-features/sessions/list/agent-activity";
+import { problemText } from "@renderer/routes/-features/app/status/problem-text";
 
 export function MobileNewShell({
 	projects,

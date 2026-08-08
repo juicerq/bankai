@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { reviewModeSchema, type ReviewMode } from "@main/git/git-contracts";
+import { reviewModeSchema, type ReviewMode } from "@shared/review";
 import { GitProcess } from "@main/git/git-process";
 import { ProjectWorktrees } from "@main/git/worktree/project-worktrees";
 import { base } from "@main/transport/rpc/rpc-base";

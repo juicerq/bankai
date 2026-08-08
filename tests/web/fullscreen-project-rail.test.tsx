@@ -1,21 +1,21 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { useRef, useState } from "react";
-import type { Project } from "@main/store/projects";
-import { ProjectFooter } from "@renderer/routes/-components/project-footer";
-import { ProjectRailFrame } from "@renderer/routes/-components/project-rail-frame";
-import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-utils/layout-motion";
+import type { Project } from "@shared/projects";
+import { ProjectFooter } from "@renderer/routes/-features/projects/project-footer";
+import { ProjectRailFrame } from "@renderer/routes/-features/workspace/layout/project-rail-frame";
+import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-features/workspace/layout/layout-motion";
 import {
 	DEFAULT_RAIL_WIDTH,
 	MAX_RAIL_WIDTH,
 	MIN_RAIL_WIDTH,
 	RAIL_WIDTH_PROPERTY,
 	resolveRailWidth,
-} from "@renderer/routes/-utils/rail-layout";
-import { useDivider } from "@renderer/routes/-utils/use-divider";
+} from "@renderer/routes/-features/workspace/layout/rail-layout";
+import { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
 import {
 	PROJECT_RAIL_WITHDRAW_DELAY_MS,
 	useFullscreenProjectRail,
-} from "@renderer/routes/-utils/use-fullscreen-project-rail";
+} from "@renderer/routes/-features/workspace/layout/use-fullscreen-project-rail";
 import { get, query, slot } from "./dom";
 import { act, cleanup, fireEvent, render } from "./testing-library";
 

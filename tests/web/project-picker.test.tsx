@@ -1,7 +1,7 @@
 import { setBrowseDirectories } from "./orpc-transport";
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ProjectPicker } from "@renderer/routes/-components/project-picker";
+import { ProjectPicker } from "@renderer/routes/-features/projects/project-picker";
 import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render, waitFor } from "./testing-library";
 

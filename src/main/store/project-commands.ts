@@ -1,16 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { type } from "arktype";
 import { Store } from "@main/store/store";
-
-const commandSchema = type({
-	id: "string",
-	projectId: "string",
-	label: "string",
-	command: "string",
-	kind: "'task' | 'service'",
-	"autostart?": "boolean",
-	createdAt: "number",
-});
+import {
+	type ProjectCommand,
+	type ProjectCommandDraft,
+	projectCommandSchema,
+} from "@shared/project-commands";
 
 const commandsWithoutKindSchema = type({
 	id: "string",
@@ -20,20 +15,10 @@ const commandsWithoutKindSchema = type({
 	createdAt: "number",
 }).array().pipe((commands): ProjectCommand[] => commands.map((command) => ({ ...command, kind: "task" })));
 
-export const commandDraftSchema = type({
-	label: type("string").atLeastLength(1).atMostLength(60),
-	command: type("string").atLeastLength(1).atMostLength(2000),
-	kind: "'task' | 'service'",
-	"autostart?": "boolean",
-});
-
-export type ProjectCommand = typeof commandSchema.infer;
-export type ProjectCommandDraft = typeof commandDraftSchema.infer;
-
 const store = new Store({
 	name: "commands",
 	version: 2,
-	contract: commandSchema.array(),
+	contract: projectCommandSchema.array(),
 	migrators: {
 		1: (raw) => commandsWithoutKindSchema.assert(raw),
 	},

@@ -22,7 +22,7 @@ class MockTerminal {
 
 void mock.module("@xterm/xterm", () => ({ Terminal: MockTerminal }));
 void mock.module("@xterm/addon-fit", () => ({ FitAddon: MockAddon }));
-void mock.module("@renderer/routes/-utils/terminal-style", () => ({
+void mock.module("@renderer/routes/-features/terminal/terminal-style", () => ({
 	registerTerminalStyle: () => () => {},
 	TERMINAL_OPTIONS: {},
 }));
@@ -33,7 +33,7 @@ globalThis.ResizeObserver = class {
 	disconnect() {}
 };
 
-const { ServiceLogPane } = await import("@renderer/routes/-components/service-log-pane");
+const { ServiceLogPane } = await import("@renderer/routes/-features/services/service-log-pane");
 
 afterEach(() => {
 	replayed = "";

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { SessionRow } from "@renderer/routes/-utils/session-rows";
+import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 
 export function MobileSessionActions({
 	row,

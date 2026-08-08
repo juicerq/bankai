@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
-import type { Project } from "@main/store/projects";
-import { ShellPicker } from "@renderer/routes/-components/shell-picker";
+import type { Project } from "@shared/projects";
+import { ShellPicker } from "@renderer/routes/-features/projects/shell-picker";
 import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 

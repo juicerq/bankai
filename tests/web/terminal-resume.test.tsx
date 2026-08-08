@@ -31,7 +31,7 @@ class MockTerminal {
 void mock.module("@xterm/xterm", () => ({ Terminal: MockTerminal }));
 void mock.module("@xterm/addon-fit", () => ({ FitAddon: MockAddon }));
 void mock.module("@xterm/addon-webgl", () => ({ WebglAddon: MockAddon }));
-void mock.module("@renderer/routes/-utils/terminal-style", () => ({
+void mock.module("@renderer/routes/-features/terminal/terminal-style", () => ({
 	registerTerminalStyle: () => () => {},
 	TERMINAL_OPTIONS: {},
 }));
@@ -89,7 +89,7 @@ globalThis.cancelIdleCallback = (id: number) => {
 	idleTimers.delete(id);
 };
 
-const { TerminalPane } = await import("@renderer/routes/-components/terminal-pane");
+const { TerminalPane } = await import("@renderer/routes/-features/terminal/terminal-pane");
 
 function renderPane(resumeOnMount: boolean) {
 	return render(

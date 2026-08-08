@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { ClaudeHarness } from "@main/agents/harness/claude/claude-harness";
 import { CodexHarness } from "@main/agents/harness/codex/codex-harness";
 import { Harnesses } from "@main/agents/harness/harnesses";
-import { Settings } from "@main/store/settings";
+import { HarnessSettings } from "@main/settings/harness-settings";
 import { ShellAutostart } from "@main/terminal/shell-autostart";
 import { ShellCommandLine } from "@main/terminal/shell-command-line";
 import { HarnessAvailability } from "@main/agents/harness/harness-availability";
@@ -26,15 +26,15 @@ describe("launchable harnesses", () => {
 	});
 
 	test("resolves the claude launch capability", () => {
-		expect(Harnesses.launch(ClaudeHarness.id)).toBe(ClaudeHarness.launch);
+		expect(Harnesses.get(ClaudeHarness.id)?.launch).toBe(ClaudeHarness.launch);
 	});
 
 	test("resolves the codex launch capability", () => {
-		expect(Harnesses.launch(CodexHarness.id)).toBe(CodexHarness.launch);
+		expect(Harnesses.get(CodexHarness.id)?.launch).toBe(CodexHarness.launch);
 	});
 
 	test("returns nothing for an unknown harness", () => {
-		expect(Harnesses.launch("aider")).toBeUndefined();
+		expect(Harnesses.get("aider")).toBeUndefined();
 	});
 
 	test("defaults to autostarting a harness that is actually launchable", () => {
@@ -49,25 +49,25 @@ describe("autostart command line", () => {
 	});
 
 	test("types the configured harness", async () => {
-		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id });
+		await HarnessSettings.update({ autostart: true, id: ClaudeHarness.id });
 
 		expect(await ShellAutostart.commandLine()).toBe("claude");
 	});
 
 	test("types nothing when autostart is off", async () => {
-		await Settings.updateHarness({ autostart: false, id: ClaudeHarness.id });
+		await HarnessSettings.update({ autostart: false, id: ClaudeHarness.id });
 
 		expect(await ShellAutostart.commandLine()).toBeUndefined();
 	});
 
 	test("types nothing when the configured harness is gone", async () => {
-		await Settings.updateHarness({ autostart: true, id: "aider" });
+		await HarnessSettings.update({ autostart: true, id: "aider" });
 
 		expect(await ShellAutostart.commandLine()).toBeUndefined();
 	});
 
 	test("appends the configured extra arguments", async () => {
-		await Settings.updateHarness({
+		await HarnessSettings.update({
 			autostart: true,
 			id: ClaudeHarness.id,
 			profiles: { [ClaudeHarness.id]: { args: "--model opus" } },
@@ -79,7 +79,7 @@ describe("autostart command line", () => {
 
 describe("harness command line", () => {
 	test("appends the extra arguments of the configured harness to a resume", async () => {
-		await Settings.updateHarness({
+		await HarnessSettings.update({
 			autostart: true,
 			id: ClaudeHarness.id,
 			profiles: { [ClaudeHarness.id]: { args: "--model opus" } },
@@ -91,7 +91,7 @@ describe("harness command line", () => {
 	});
 
 	test("appends the resumed harness's own arguments, not the selected harness's", async () => {
-		await Settings.updateHarness({
+		await HarnessSettings.update({
 			autostart: true,
 			id: ClaudeHarness.id,
 			profiles: {
@@ -106,7 +106,7 @@ describe("harness command line", () => {
 	});
 
 	test("leaves a resume of a harness with no profile untouched", async () => {
-		await Settings.updateHarness({
+		await HarnessSettings.update({
 			autostart: true,
 			id: ClaudeHarness.id,
 			profiles: { [ClaudeHarness.id]: { args: "--model opus" } },
@@ -156,19 +156,19 @@ describe("shell command line", () => {
 
 describe("shell launch line", () => {
 	test("launches the harness in an ordinary shell", async () => {
-		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id });
+		await HarnessSettings.update({ autostart: true, id: ClaudeHarness.id });
 
 		expect(await ShellAutostart.launchLine({})).toBe("claude");
 	});
 
 	test("launches nothing in a plain shell", async () => {
-		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id });
+		await HarnessSettings.update({ autostart: true, id: ClaudeHarness.id });
 
 		expect(await ShellAutostart.launchLine({ plain: true })).toBeUndefined();
 	});
 
 	test("launches the saved command instead of the harness", async () => {
-		await Settings.updateHarness({ autostart: true, id: ClaudeHarness.id });
+		await HarnessSettings.update({ autostart: true, id: ClaudeHarness.id });
 
 		expect(await ShellAutostart.launchLine({ plain: true, launch: "bun run dev" })).toBe("bun run dev");
 	});

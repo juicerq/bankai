@@ -3,7 +3,7 @@ import { get, query, slot } from "./dom";
 import { act, cleanup, fireEvent, render, waitFor } from "./testing-library";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { streamStatus } from "@renderer/lib/stream/status";
-import { PairingScreen } from "@renderer/routes/-components/pairing-screen";
+import { PairingScreen } from "@renderer/routes/-features/settings/pairing-screen";
 import { pairingUrl, SERVER_TOKEN_STORAGE_KEY } from "@shared/server";
 
 const TOKEN = "a".repeat(64);

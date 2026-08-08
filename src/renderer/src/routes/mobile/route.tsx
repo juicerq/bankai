@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { orpc } from "@renderer/lib/api";
-import { useAgentActivities } from "@renderer/routes/-utils/use-agent-activity";
-import { useChosenProjects } from "@renderer/routes/-utils/use-chosen-projects";
-import { useSessionRows } from "@renderer/routes/-utils/use-session-rows";
-import { useSessions } from "@renderer/routes/-utils/use-sessions";
+import { useAgentActivities } from "@renderer/routes/-features/sessions/list/use-agent-activity";
+import { useChosenProjects } from "@renderer/routes/-features/projects/use-chosen-projects";
+import { useSessionRows } from "@renderer/routes/-features/sessions/list/use-session-rows";
+import { useSessions } from "@renderer/routes/-features/sessions/lifecycle/use-sessions";
 import { MobileSurfaceProvider } from "@renderer/routes/mobile/-utils/mobile-surface-context";
 import { useVisualViewport } from "@renderer/routes/mobile/-utils/use-visual-viewport";
 

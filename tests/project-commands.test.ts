@@ -1,7 +1,8 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
-import { commandDraftSchema, ProjectCommands } from "@main/store/project-commands";
+import { ProjectCommands } from "@main/store/project-commands";
+import { projectCommandDraftSchema } from "@shared/project-commands";
 import { assertDefined } from "./utils/assertions";
 
 describe("project commands", () => {
@@ -96,9 +97,9 @@ describe("project commands", () => {
 	});
 
 	it("refuses a draft with an empty name or an empty command line", () => {
-		expect(() => commandDraftSchema.assert({ label: "", command: "bun test", kind: "task" })).toThrow();
-		expect(() => commandDraftSchema.assert({ label: "Tests", command: "", kind: "task" })).toThrow();
-		expect(commandDraftSchema.assert({ label: "Tests", command: "bun test", kind: "task" })).toEqual({
+		expect(() => projectCommandDraftSchema.assert({ label: "", command: "bun test", kind: "task" })).toThrow();
+		expect(() => projectCommandDraftSchema.assert({ label: "Tests", command: "", kind: "task" })).toThrow();
+		expect(projectCommandDraftSchema.assert({ label: "Tests", command: "bun test", kind: "task" })).toEqual({
 			label: "Tests",
 			command: "bun test",
 			kind: "task",

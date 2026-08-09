@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Project } from "@shared/projects";
 import { CommandsModal } from "@renderer/routes/-features/commands/commands-modal";
 import { get, query, slot } from "./dom";
-import { cleanup, fireEvent, render, waitFor } from "./testing-library";
+import { act, cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 const PROJECTS: Project[] = [
 	{ id: "p1", name: "bankai", path: "/home/jui/projects/bankai", createdAt: 0 },
@@ -209,6 +209,10 @@ test("editing changes the command without moving its project", async () => {
 test("deleting a command removes it from its project and global counts", async () => {
 	await listedModal();
 	fireEvent.click(slot(row("c1"), "delete-command"));
+	await act(async () => {
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+	});
 
 	await waitFor(() => {
 		expect(query("command-row", { commandId: "c1" })).toBeNull();

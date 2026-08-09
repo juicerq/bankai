@@ -148,5 +148,31 @@ test("a filter that matches more paths than the list shows says how many it foun
 
 	type("file");
 
-	expect(slot(get("review-quick-open"), "match-count").textContent).toBe(`${VISIBLE_MATCHES} OF ${paths.length}`);
+	const count = slot(get("review-quick-open"), "match-count");
+	expect(count.dataset.visible).toBe(`${VISIBLE_MATCHES}`);
+	expect(count.dataset.total).toBe(`${paths.length}`);
+});
+
+test("the first 100 quick open results keep the exact total and the best-ranked file", () => {
+	const paths = [
+		...Array.from({ length: 101 }, (_, index) => `docs/harness/file-${index}.ts`),
+		"src/harness.ts",
+	];
+	renderQuickOpen({ paths });
+
+	type("harness");
+
+	const count = slot(get("review-quick-open"), "match-count");
+	expect(count.dataset.visible).toBe("100");
+	expect(count.dataset.total).toBe("103");
+	expect(item("src/harness.ts").dataset.index).toBe("0");
+	expect(query("review-quick-open-item", { path: "docs/harness/file-100.ts" })).toBeNull();
+});
+
+test("quick open keeps matching Unicode paths", () => {
+	renderQuickOpen({ paths: ["src/ação/Árvore.ts", "src/plain/file.ts"] });
+
+	type("ação");
+
+	expect(item("src/ação/Árvore.ts").dataset.kind).toBe("file");
 });

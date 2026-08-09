@@ -3,9 +3,20 @@ import type { SearchMatch, SearchResults } from "@shared/review";
 
 const SEARCH_TIMEOUT_MS = 30_000;
 const MAX_MATCHES = 500;
+const MAX_OUTPUT_BYTES = 1024 * 1024;
 const CAPITAL_LETTER = /\p{Lu}/u;
 
-async function run({ path, query }: { path: string; query: string }): Promise<SearchResults> {
+async function run({
+	path,
+	query,
+	signal: abortSignal,
+}: {
+	path: string;
+	query: string;
+	signal?: AbortSignal;
+}): Promise<SearchResults> {
+	abortSignal?.throwIfAborted();
+
 	if (!query) {
 		return { matches: [], truncated: false };
 	}
@@ -30,16 +41,27 @@ async function run({ path, query }: { path: string; query: string }): Promise<Se
 	let truncated = false;
 	let pending = "";
 	let stderr = "";
+	let outputBytes = 0;
 
 	const stop = () => {
 		truncated = true;
 		child.kill();
 	};
 	const timer = setTimeout(stop, SEARCH_TIMEOUT_MS);
+	const abort = () => {
+		clearTimeout(timer);
+		child.kill();
+	};
+	abortSignal?.addEventListener("abort", abort, { once: true });
 
 	child.stdout.setEncoding("utf8");
 	child.stdout.on("data", (chunk: string) => {
-		if (truncated) {
+		if (truncated || abortSignal?.aborted) {
+			return;
+		}
+		outputBytes += Buffer.byteLength(chunk);
+		if (outputBytes > MAX_OUTPUT_BYTES) {
+			stop();
 			return;
 		}
 
@@ -62,17 +84,36 @@ async function run({ path, query }: { path: string; query: string }): Promise<Se
 
 	child.stderr.setEncoding("utf8");
 	child.stderr.on("data", (chunk: string) => {
+		if (truncated || abortSignal?.aborted) {
+			return;
+		}
+		outputBytes += Buffer.byteLength(chunk);
+		if (outputBytes > MAX_OUTPUT_BYTES) {
+			stop();
+			return;
+		}
+
 		stderr += chunk;
 	});
 
 	child.once("error", (err) => {
 		clearTimeout(timer);
+		abortSignal?.removeEventListener("abort", abort);
+		if (abortSignal?.aborted) {
+			return;
+		}
+
 		reject(err);
 	});
 
-	child.once("close", (code, signal) => {
+	child.once("close", (code, closeSignal) => {
 		clearTimeout(timer);
-		if (signal !== null || code === 0 || code === 1) {
+		abortSignal?.removeEventListener("abort", abort);
+		if (abortSignal?.aborted) {
+			reject(abortSignal.reason);
+			return;
+		}
+		if (closeSignal !== null || code === 0 || code === 1) {
 			resolve({ matches, truncated });
 			return;
 		}
@@ -100,6 +141,7 @@ function parseRecord(record: string): SearchMatch | undefined {
 
 export const SearchContent = {
 	MAX_MATCHES,
+	MAX_OUTPUT_BYTES,
 	SEARCH_TIMEOUT_MS,
 	run,
 };

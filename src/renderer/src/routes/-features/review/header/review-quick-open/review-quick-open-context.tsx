@@ -6,7 +6,6 @@ import { pathEntries, searchPaths } from "@renderer/routes/-features/review/tree
 import {
 	groupMatches,
 	searchStatus,
-	VISIBLE_MATCHES,
 	type QuickOpenChoice,
 	type QuickOpenContentAction,
 	type QuickOpenMatch,
@@ -58,8 +57,8 @@ export function ReviewQuickOpenProvider({
 	const [mode, setMode] = useState<"paths" | "content">("paths");
 	const [filter, setFilter] = useState("");
 	const entries = useMemo(() => pathEntries(options.paths), [options.paths]);
-	const matches = searchPaths(entries, filter);
-	const visiblePaths: QuickOpenPath[] = matches.slice(0, VISIBLE_MATCHES).map((entry) => ({
+	const matches = useMemo(() => searchPaths(entries, filter), [entries, filter]);
+	const visiblePaths: QuickOpenPath[] = matches.entries.map((entry) => ({
 		kind: "path",
 		key: `path:${entry.path}`,
 		entry,
@@ -145,7 +144,7 @@ export function ReviewQuickOpenProvider({
 				},
 				paths: {
 					filter,
-					matchCount: matches.length,
+					matchCount: matches.total,
 					choices,
 					picker: choicePicker,
 					onFilterChange: setFilter,

@@ -67,6 +67,7 @@ export type FullFile = ReviewContent;
 
 export interface ReviewChangedEvent {
 	projectId: string;
+	worktree: string;
 }
 
 export interface ReviewWatchInput {

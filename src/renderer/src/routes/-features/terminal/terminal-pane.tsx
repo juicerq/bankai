@@ -1,6 +1,6 @@
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { orpc } from "@renderer/lib/api";
 import {
 	initialResumeState,
@@ -10,7 +10,10 @@ import {
 	resumeNoticeVariant,
 } from "@renderer/routes/-features/sessions/lifecycle/resume-state";
 import { useTerminalSession } from "@renderer/routes/-features/terminal/use-terminal-session";
-import type { TerminalFileTarget } from "@renderer/routes/-features/terminal/terminal-file-links";
+import {
+	TerminalFileLinks,
+	type TerminalFileTarget,
+} from "@renderer/routes/-features/terminal/terminal-file-links";
 
 export function TerminalPane({
 	projectId,
@@ -43,6 +46,13 @@ export function TerminalPane({
 		setResumeState((state) => nextResumeState(state, outcome));
 	}, []);
 	const handleFirstOutput = useCallback(() => setPainted(true), []);
+	const fileLinkDetector = useMemo(() => {
+		if (!browsePaths) {
+			return;
+		}
+
+		return TerminalFileLinks.prepare({ paths: new Set(browsePaths), worktree });
+	}, [browsePaths, worktree]);
 	const { registerContainer, registerActivation, registerFocusRequest, registerResizeDeferral, retryResume } =
 		useTerminalSession({
 			projectId,
@@ -50,7 +60,7 @@ export function TerminalPane({
 			focusRequest,
 			resizeDeferred,
 			resumeOnMount,
-			fileLinks: { paths: new Set(browsePaths ?? []), worktree, onOpen: onOpenFile },
+			...(fileLinkDetector ? { fileLinks: { detector: fileLinkDetector, onOpen: onOpenFile } } : {}),
 			onResumeOutcome: handleResumeOutcome,
 			onFirstOutput: handleFirstOutput,
 		});

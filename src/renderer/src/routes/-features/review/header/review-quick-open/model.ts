@@ -1,7 +1,10 @@
 import type { SearchMatch } from "@shared/review";
-import type { PathEntry } from "@renderer/routes/-features/review/tree/path-search";
+import {
+	PATH_SEARCH_LIMIT,
+	type PathEntry,
+} from "@renderer/routes/-features/review/tree/path-search";
 
-export const VISIBLE_MATCHES = 100;
+export const VISIBLE_MATCHES = PATH_SEARCH_LIMIT;
 
 export interface QuickOpenPath {
 	kind: "path";
@@ -35,7 +38,7 @@ export function searchStatus({
 	matches?: SearchMatch[];
 	truncated?: boolean;
 }): QuickOpenSearchStatus {
-	if (isFetching) {
+	if (isFetching && !matches?.length) {
 		return "searching";
 	}
 	if (isError) {

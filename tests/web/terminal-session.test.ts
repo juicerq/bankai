@@ -3,7 +3,11 @@ import { streamTransport } from "./stream-transport";
 import { afterEach, expect, mock, test } from "bun:test";
 import type { ILink, ILinkProvider } from "@xterm/xterm";
 import { streamResync } from "@renderer/lib/stream/resync";
-import type { TerminalFileTarget } from "@renderer/routes/-features/terminal/terminal-file-links";
+import {
+	TerminalFileLinks,
+	type TerminalFileTarget,
+} from "@renderer/routes/-features/terminal/terminal-file-links";
+import type { TerminalFileLinkContext } from "@renderer/routes/-features/terminal/use-terminal-session";
 import type { TerminalAttached } from "@shared/terminal";
 import { act, renderHook, waitFor } from "./testing-library";
 
@@ -155,11 +159,7 @@ const { RendererTerminalSession, useTerminalSession } = await import(
 	"@renderer/routes/-features/terminal/use-terminal-session"
 );
 
-async function startSession(
-	fileLinks: () =>
-		| { paths: ReadonlySet<string>; worktree?: string; onOpen: (target: TerminalFileTarget) => void }
-		| undefined = () => {},
-) {
+async function startSession(fileLinks: () => TerminalFileLinkContext | undefined = () => {}) {
 	const container = document.createElement("div");
 	document.body.appendChild(container);
 	const session = new RendererTerminalSession(container, {
@@ -178,6 +178,17 @@ async function startSession(
 	}
 
 	return session;
+}
+
+function fileLinkContext(options: {
+	paths: ReadonlySet<string>;
+	worktree?: string;
+	onOpen: (target: TerminalFileTarget) => void;
+}) {
+	return {
+		detector: TerminalFileLinks.prepare(options),
+		onOpen: options.onOpen,
+	};
 }
 
 function lastWebgl() {
@@ -356,20 +367,20 @@ test("a reconnect reattaches the shell and repaints its scrollback", async () =>
 test("a path printed in the shell opens the current file target and unregisters with the session", async () => {
 	let firstOpened: TerminalFileTarget | undefined;
 	let currentOpened: TerminalFileTarget | undefined;
-	let context = {
+	let context = fileLinkContext({
 		paths: new Set(["src/a.ts"]),
 		onOpen: (target: TerminalFileTarget) => {
 			firstOpened = target;
 		},
-	};
+	});
 	const session = await startSession(() => context);
 	lastTerminal().lines = ["  at src/a.ts:12"];
-	context = {
+	context = fileLinkContext({
 		paths: new Set(["src/a.ts"]),
 		onOpen: (target) => {
 			currentOpened = target;
 		},
-	};
+	});
 
 	const links = provideLinks(1) ?? [];
 
@@ -389,7 +400,7 @@ test("a path printed in the shell opens the current file target and unregisters 
 
 test("a path wrapped across terminal rows remains one link from either row", async () => {
 	const opened: TerminalFileTarget[] = [];
-	const session = await startSession(() => ({
+	const session = await startSession(() => fileLinkContext({
 		paths: new Set(["src/my file.ts"]),
 		onOpen: (target) => opened.push(target),
 	}));
@@ -435,22 +446,22 @@ test("a shell gains file links when its current worktree paths arrive after the 
 	await waitFor(() => expect(terminals).toHaveLength(1));
 
 	view.rerender({
-		fileLinks: {
+		fileLinks: fileLinkContext({
 			paths: new Set(["src/a.ts"]),
 			onOpen: (target) => {
 				firstOpened = target;
 			},
-		},
+		}),
 	});
 	lastTerminal().lines = ["src/a.ts:12"];
 	const links = provideLinks(1) ?? [];
 	view.rerender({
-		fileLinks: {
+		fileLinks: fileLinkContext({
 			paths: new Set(["src/a.ts"]),
 			onOpen: (target) => {
 				currentOpened = target;
 			},
-		},
+		}),
 	});
 
 	links[0]?.activate(new MouseEvent("click"), "src/a.ts:12");
@@ -463,7 +474,7 @@ test("a shell gains file links when its current worktree paths arrive after the 
 });
 
 test("a path missing from the current worktree stays plain text", async () => {
-	const session = await startSession(() => ({ paths: new Set(["src/a.ts"]), onOpen: () => {} }));
+	const session = await startSession(() => fileLinkContext({ paths: new Set(["src/a.ts"]), onOpen: () => {} }));
 	lastTerminal().lines = ["  at src/ghost.ts:12"];
 
 	expect(provideLinks(1)).toEqual([]);

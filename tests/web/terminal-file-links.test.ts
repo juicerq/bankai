@@ -4,7 +4,7 @@ import { TerminalFileLinks } from "@renderer/routes/-features/terminal/terminal-
 const PATHS = new Set(["src/a.ts", "README.md", "src/my file.ts", "src/we:ird.ts"]);
 
 function linksOf(text: string, worktree?: string) {
-	return TerminalFileLinks.find({ text, paths: PATHS, worktree });
+	return TerminalFileLinks.prepare({ paths: PATHS, worktree }).find(text);
 }
 
 test("a path with a line number becomes a link that carries the line", () => {
@@ -50,4 +50,23 @@ test("punctuation and spaces in existing paths are preserved", () => {
 test("a colon in an existing file name is not mistaken for a line", () => {
 	expect(linksOf("src/we:ird.ts")).toEqual([{ file: "src/we:ird.ts", start: 0, end: 13 }]);
 	expect(linksOf("src/we:ird.ts:12")).toEqual([{ file: "src/we:ird.ts", line: 12, start: 0, end: 16 }]);
+});
+
+test("impossible words stop at the longest external path before querying the catalog", () => {
+	class CountingPaths extends Set<string> {
+		queries = 0;
+
+		override has(path: string) {
+			this.queries += 1;
+
+			return super.has(path);
+		}
+	}
+
+	const paths = new CountingPaths(["src/a.ts"]);
+	const detector = TerminalFileLinks.prepare({ paths });
+	const text = Array.from({ length: 1_200 }, () => "absent-x").join(" ");
+
+	expect(detector.find(text)).toEqual([]);
+	expect(paths.queries).toBe(1_200);
 });

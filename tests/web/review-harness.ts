@@ -35,8 +35,8 @@ class ReviewIpc {
 		});
 	}
 
-	emitChange(projectId: string) {
-		streamTransport.push("review", "changed", { projectId });
+	emitChange(projectId: string, worktree: string) {
+		streamTransport.push("review", "changed", { projectId, worktree });
 	}
 
 	resolveWatch(projectId?: string) {
@@ -100,14 +100,20 @@ export function renderReviewReading(initialProps: ReviewReadingProps) {
 	const { ipc, transport, queryClient, wrapper } = installReviewEnvironment();
 
 	const renders: ReviewReading[] = [];
+	const renderWaiters: (() => void)[] = [];
 	const view = renderHook(
 		(props: ReviewReadingProps) => {
 			const reading = useReviewReading(props);
 			renders.push(reading);
+			for (const rendered of renderWaiters.splice(0)) {
+				rendered();
+			}
 			return reading;
 		},
 		{ initialProps, wrapper },
 	);
 
-	return { ...view, ipc, transport, queryClient, renders };
+	const waitForRender = () => new Promise<void>((resolve) => renderWaiters.push(resolve));
+
+	return { ...view, ipc, transport, queryClient, renders, waitForRender };
 }

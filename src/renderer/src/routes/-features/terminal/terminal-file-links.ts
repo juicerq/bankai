@@ -8,8 +8,7 @@ interface TerminalFileLink extends TerminalFileTarget {
 	end: number;
 }
 
-interface TerminalFileLinkInput {
-	text: string;
+interface TerminalFileLinkOptions {
 	paths: ReadonlySet<string>;
 	worktree?: string;
 }
@@ -18,8 +17,28 @@ const LINE_SUFFIX = /:(\d+)(?::\d+)?$/;
 const LEADING_WRAPPERS = /^[([{'"`]+/;
 const TRAILING_WRAPPERS = /[)\]}'"`.,;!?]+$/;
 
-function find(input: TerminalFileLinkInput): TerminalFileLink[] {
-	const words = [...input.text.matchAll(/\S+/g)].map((match) => ({
+function prepare(options: TerminalFileLinkOptions) {
+	let longestPath = 0;
+	for (const path of options.paths) {
+		longestPath = Math.max(longestPath, path.length);
+	}
+	const maxExternalLength = externalLength(longestPath, options.worktree);
+
+	return {
+		find(text: string) {
+			return find(text, options, maxExternalLength);
+		},
+	};
+}
+
+function externalLength(pathLength: number, worktree?: string) {
+	const root = worktree?.replaceAll("\\", "/").replace(/\/+$/, "");
+
+	return Math.max(pathLength, pathLength + 2, root ? root.length + 1 + pathLength : 0);
+}
+
+function find(text: string, options: TerminalFileLinkOptions, maxExternalLength: number): TerminalFileLink[] {
+	const words = [...text.matchAll(/\S+/g)].map((match) => ({
 		start: match.index,
 		end: match.index + match[0].length,
 	}));
@@ -27,7 +46,7 @@ function find(input: TerminalFileLinkInput): TerminalFileLink[] {
 	let index = 0;
 
 	while (index < words.length) {
-		const match = longestPathAt(input, words, index);
+		const match = longestPathAt(text, options, maxExternalLength, words, index);
 
 		if (!match) {
 			index += 1;
@@ -41,32 +60,47 @@ function find(input: TerminalFileLinkInput): TerminalFileLink[] {
 	return links;
 }
 
-function longestPathAt(input: TerminalFileLinkInput, words: { start: number; end: number }[], index: number) {
+function longestPathAt(
+	text: string,
+	options: TerminalFileLinkOptions,
+	maxExternalLength: number,
+	words: { start: number; end: number }[],
+	index: number,
+) {
 	const first = words[index];
 
 	if (!first) {
 		return;
 	}
 
-	for (let count = words.length - index; count > 0; count -= 1) {
-		const last = words[index + count - 1];
+	let found: { link: TerminalFileLink; words: number } | undefined;
+	for (let cursor = index; cursor < words.length; cursor += 1) {
+		const last = words[cursor];
 
 		if (!last) {
-			continue;
+			break;
 		}
 
-		const span = unwrap(input.text.slice(first.start, last.end));
-		const target = resolveTarget(span.text, input);
+		const span = unwrap(text.slice(first.start, last.end));
+		if (pathLength(span.text) > maxExternalLength) {
+			break;
+		}
+
+		const target = resolveTarget(span.text, options);
 
 		if (target) {
-			return {
+			found = {
 				link: { ...target, start: first.start + span.start, end: first.start + span.end },
-				words: count,
+				words: cursor - index + 1,
 			};
 		}
 	}
 
-	return;
+	return found;
+}
+
+function pathLength(text: string) {
+	return LINE_SUFFIX.exec(text)?.index ?? text.length;
 }
 
 function unwrap(text: string) {
@@ -78,10 +112,10 @@ function unwrap(text: string) {
 	return { text: body.slice(0, end), start, end: start + end };
 }
 
-function resolveTarget(text: string, input: TerminalFileLinkInput): TerminalFileTarget | undefined {
-	const file = repoPath(text, input.worktree);
+function resolveTarget(text: string, options: TerminalFileLinkOptions): TerminalFileTarget | undefined {
+	const file = repoPath(text, options.worktree);
 
-	if (file && input.paths.has(file)) {
+	if (file && options.paths.has(file)) {
 		return { file };
 	}
 
@@ -91,10 +125,10 @@ function resolveTarget(text: string, input: TerminalFileLinkInput): TerminalFile
 		return;
 	}
 
-	const stripped = repoPath(text.slice(0, suffix.index), input.worktree);
+	const stripped = repoPath(text.slice(0, suffix.index), options.worktree);
 	const line = Number(suffix[1]);
 
-	if (!stripped || !input.paths.has(stripped) || !Number.isSafeInteger(line) || line < 1) {
+	if (!stripped || !options.paths.has(stripped) || !Number.isSafeInteger(line) || line < 1) {
 		return;
 	}
 
@@ -121,4 +155,6 @@ function repoPath(text: string, worktree?: string) {
 	return normalized;
 }
 
-export const TerminalFileLinks = { find };
+export type TerminalFileLinkDetector = ReturnType<typeof prepare>;
+
+export const TerminalFileLinks = { prepare };

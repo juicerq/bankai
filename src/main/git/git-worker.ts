@@ -3,7 +3,6 @@ import { ChangedFiles } from "@main/git/changed-files";
 import { FileDiff } from "@main/git/file-diff";
 import { gitRequestSchema, type GitResponse } from "@main/git/git-protocol";
 import { TurnBaseline } from "@main/git/review/turn-baseline";
-import { SearchContent } from "@main/git/search-content";
 import { Worktrees } from "@main/git/worktree/worktrees";
 
 let queue = Promise.resolve();
@@ -41,8 +40,6 @@ async function execute(request: typeof gitRequestSchema.infer) {
 			return await BrowseFiles.list(request.path);
 		case "browseFile":
 			return await BrowseFiles.read(request);
-		case "searchContent":
-			return await SearchContent.run(request);
 		case "worktrees":
 			return await Worktrees.read(request.path);
 		case "removeWorktree":

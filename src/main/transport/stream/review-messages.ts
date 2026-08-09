@@ -17,10 +17,14 @@ async function handleReviewMessage(
 	switch (message.type) {
 		case "watch": {
 			const input = ReviewSchemas.watch.assert(message.payload);
+			const worktree = await ProjectWorktrees.resolve(input);
 
 			await ConnectionWatches.retain({ connection, channel: "review", key: watchKey(input) }, async () =>
-				ReviewChanges.subscribe(await ProjectWorktrees.resolve(input), () => {
-					connection.send("review", "changed", { projectId: input.projectId } satisfies ReviewChangedEvent);
+				ReviewChanges.subscribe(worktree, () => {
+					connection.send("review", "changed", {
+						projectId: input.projectId,
+						worktree,
+					} satisfies ReviewChangedEvent);
 				}),
 			);
 

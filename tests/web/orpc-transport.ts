@@ -31,11 +31,16 @@ interface PendingRequest {
 export class ReviewTransport {
 	readonly calls: { procedure: ReviewProcedure; input: unknown }[] = [];
 	private readonly pending: PendingRequest[] = [];
+	private readonly pendingWaiters = new Map<ReviewProcedure, (() => void)[]>();
 
 	readonly request = (procedure: ReviewProcedure, input: unknown) => {
 		this.calls.push({ procedure, input });
 		return new Promise<unknown>((resolve, reject) => {
 			this.pending.push({ procedure, input, resolve, reject });
+			for (const ready of this.pendingWaiters.get(procedure) ?? []) {
+				ready();
+			}
+			this.pendingWaiters.delete(procedure);
 		});
 	};
 
@@ -45,6 +50,16 @@ export class ReviewTransport {
 
 	pendingCount(procedure: ReviewProcedure) {
 		return this.pending.filter((request) => request.procedure === procedure).length;
+	}
+
+	waitForPending(procedure: ReviewProcedure) {
+		if (this.pendingCount(procedure) > 0) {
+			return Promise.resolve();
+		}
+
+		return new Promise<void>((resolve) => {
+			this.pendingWaiters.set(procedure, [...(this.pendingWaiters.get(procedure) ?? []), resolve]);
+		});
 	}
 
 	resolve(procedure: ReviewProcedure, value: unknown, match?: (input: unknown) => boolean) {

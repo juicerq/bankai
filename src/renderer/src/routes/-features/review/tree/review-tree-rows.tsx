@@ -1,6 +1,11 @@
 import { ChevronDownIcon, ChevronRightIcon, ViewfinderCircleIcon } from "@heroicons/react/24/outline";
+import { createContext, type ReactNode, type Ref, useContext } from "react";
 import type { FileChange } from "@shared/review";
-import type { FileTreeDirectory, FileTreeLeaf } from "@renderer/routes/-features/review/tree/file-tree";
+import {
+	type FileTreeDirectory,
+	type FileTreeLeaf,
+	highlightFileTreeName,
+} from "@renderer/routes/-features/review/tree/file-tree";
 import { STATUS_MARK } from "@renderer/routes/-features/review/tree/status-mark";
 
 export type ReviewTreeItem = FileChange | undefined;
@@ -8,6 +13,11 @@ export type ReviewTreeItem = FileChange | undefined;
 const ROW_PADDING = 12;
 const ROW_INDENT = 16;
 const ROW_CHEVRON_CENTER = 8;
+const ReviewTreeFilterContext = createContext("");
+
+export function ReviewTreeRowFilter({ query, children }: { query: string; children: ReactNode }) {
+	return <ReviewTreeFilterContext value={query}>{children}</ReviewTreeFilterContext>;
+}
 
 function ReviewTreeRowIndent({ depth }: { depth: number }) {
 	return (
@@ -27,6 +37,36 @@ function ReviewTreeRowIndent({ depth }: { depth: number }) {
 			))}
 		</>
 	);
+}
+
+function ReviewTreeRowName({ name, className }: { name: string; className: string }) {
+	const filter = useContext(ReviewTreeFilterContext);
+	const runs = highlightFileTreeName(name, filter);
+	const matching = runs.some((run) => run.highlighted);
+
+	return (
+		<span data-slot="name" data-filter-match={matching || undefined} className={className}>
+			{matching
+				? runs.map((run, index) => (
+						<span key={index} className={run.highlighted ? "text-tertiary" : undefined}>
+							{run.text}
+						</span>
+					))
+				: name}
+		</span>
+	);
+}
+
+function fileRowBackground(focused: boolean, highlighted: boolean) {
+	if (focused) {
+		return "bg-surface-active";
+	}
+
+	if (highlighted) {
+		return "bg-surface-hover";
+	}
+
+	return "";
 }
 
 export function ReviewTreeDirectoryRow({
@@ -54,32 +94,42 @@ export function ReviewTreeDirectoryRow({
 		>
 			<ReviewTreeRowIndent depth={depth} />
 			<ChevronIcon className="mr-1 size-4 shrink-0" />
-			<span className="truncate py-1">{node.name}</span>
+			<ReviewTreeRowName name={node.name} className="min-w-0 truncate py-1" />
 		</button>
 	);
 }
 
 export function ReviewTreeFileRow({
+	ref,
 	node,
 	depth,
 	focused,
+	highlighted,
 	onOpen,
 	onToggleFocus,
 }: {
+	ref?: Ref<HTMLDivElement>;
 	node: FileTreeLeaf<ReviewTreeItem>;
 	depth: number;
 	focused: boolean;
+	highlighted: boolean;
 	onOpen: (path: string) => void;
 	onToggleFocus: (path: string) => void;
 }) {
 	return (
 		<div
+			ref={ref}
 			data-component="review-tree-row"
 			data-path={node.path}
 			data-kind="file"
 			data-status={node.item?.status}
-			className={`group flex items-center pr-1 hover:bg-surface-hover ${focused ? "bg-surface-active" : ""}`}
+			data-focused={focused || undefined}
+			data-highlighted={highlighted || undefined}
+			className={`group relative flex items-center pr-1 hover:bg-surface-hover ${fileRowBackground(focused, highlighted)}`}
 		>
+			{highlighted && (
+				<span data-slot="keyboard-cursor" className="absolute inset-y-0 left-0 w-0.5 bg-tertiary" aria-hidden="true" />
+			)}
 			<ReviewTreeRowIndent depth={depth} />
 			<button
 				type="button"
@@ -90,7 +140,7 @@ export function ReviewTreeFileRow({
 				<span className="flex size-4 shrink-0 items-center justify-center text-data text-secondary">
 					{node.item && STATUS_MARK[node.item.status]}
 				</span>
-				<span className="truncate text-primary group-hover:underline">{node.name}</span>
+				<ReviewTreeRowName name={node.name} className="min-w-0 truncate text-primary group-hover:underline" />
 			</button>
 			<button
 				type="button"

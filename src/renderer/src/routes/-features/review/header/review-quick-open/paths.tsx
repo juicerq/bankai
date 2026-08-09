@@ -42,7 +42,12 @@ export function ReviewQuickOpenPaths() {
 			<div className="flex items-center justify-between px-3 pt-2.5 pb-1">
 				<span className="text-label text-secondary">QUICK OPEN</span>
 				{matchCount > paths.length && (
-					<span data-slot="match-count" className="text-data text-outline-strong">
+					<span
+						data-slot="match-count"
+						data-visible={paths.length}
+						data-total={matchCount}
+						className="text-data text-outline-strong"
+					>
 						{paths.length} OF {matchCount}
 					</span>
 				)}

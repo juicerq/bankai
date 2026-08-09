@@ -6,9 +6,9 @@ import { client } from "@renderer/lib/api";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { terminalStream } from "@renderer/lib/stream/terminal";
 import type { ResumeOutcome } from "@renderer/routes/-features/sessions/lifecycle/resume-state";
-import {
-	TerminalFileLinks,
-	type TerminalFileTarget,
+import type {
+	TerminalFileLinkDetector,
+	TerminalFileTarget,
 } from "@renderer/routes/-features/terminal/terminal-file-links";
 import { registerTerminalStyle, TERMINAL_OPTIONS } from "@renderer/routes/-features/terminal/terminal-style";
 import type { TerminalAttached, TerminalCommandErrorEvent } from "@shared/terminal";
@@ -150,8 +150,7 @@ export function useTerminalSession(options: {
 }
 
 export interface TerminalFileLinkContext {
-	paths: ReadonlySet<string>;
-	worktree?: string;
+	detector: TerminalFileLinkDetector;
 	onOpen: (target: TerminalFileTarget) => void;
 }
 
@@ -396,11 +395,7 @@ export class RendererTerminalSession {
 					return;
 				}
 
-				const links = TerminalFileLinks.find({
-					text: logicalLine.text,
-					paths: context.paths,
-					worktree: context.worktree,
-				});
+				const links = context.detector.find(logicalLine.text);
 
 				callback(links.flatMap(({ start, end, ...target }) => {
 					const startPosition = logicalLine.positions[start];

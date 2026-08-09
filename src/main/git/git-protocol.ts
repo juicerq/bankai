@@ -45,12 +45,6 @@ export const gitRequestSchema = type({
 	})
 	.or({
 		id: "string",
-		operation: "'searchContent'",
-		path: "string",
-		query: "string",
-	})
-	.or({
-		id: "string",
 		operation: "'worktrees'",
 		path: "string",
 	})

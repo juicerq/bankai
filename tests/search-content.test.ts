@@ -1,9 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
 import { searchResultsSchema } from "@shared/review";
-import { GitRun } from "@main/git/git-run";
 import { SearchContent } from "@main/git/search-content";
 import { assertDefined } from "./utils/assertions";
 
@@ -16,6 +15,34 @@ function repo(name: string): string {
 	execFileSync("git", ["config", "user.name", "Bankai"], { cwd: path });
 
 	return path;
+}
+
+async function waitForFile(path: string): Promise<void> {
+	while (!existsSync(path)) {
+		await Bun.sleep(5);
+	}
+}
+
+function useFakeGit(name: string, source: string) {
+	assertDefined(process.env.DATA_DIR);
+	assertDefined(process.env.PATH);
+	const bin = join(process.env.DATA_DIR, `${name}-bin`);
+	const pidFile = join(process.env.DATA_DIR, `${name}.pids`);
+	const git = join(bin, "git");
+	const originalPath = process.env.PATH;
+	mkdirSync(bin);
+	writeFileSync(git, `#!/usr/bin/env bun\n${source}`);
+	chmodSync(git, 0o755);
+	process.env.PATH = `${bin}:${originalPath}`;
+	process.env.SEARCH_PID_FILE = pidFile;
+
+	return {
+		pidFile,
+		restore: () => {
+			process.env.PATH = originalPath;
+			delete process.env.SEARCH_PID_FILE;
+		},
+	};
 }
 
 describe("SearchContent.run", () => {
@@ -53,7 +80,7 @@ describe("SearchContent.run", () => {
 
 	it("stops at the global cap and declares the result truncated", async () => {
 		const path = repo("search-capped");
-		const overflow = SearchContent.MAX_MATCHES + 50;
+		const overflow = SearchContent.MAX_MATCHES + 1;
 		writeFileSync(join(path, "many.txt"), `${Array.from({ length: overflow }, () => "needle").join("\n")}\n`);
 
 		const results = await SearchContent.run({ path, query: "needle" });
@@ -140,8 +167,8 @@ describe("SearchContent.run", () => {
 		});
 	});
 
-	it("produces a result the worker protocol accepts", async () => {
-		const path = repo("search-protocol");
+	it("produces a result the shared search contract accepts", async () => {
+		const path = repo("search-contract");
 		writeFileSync(join(path, "alpha.ts"), "const alpha = 1\n");
 
 		const results = await SearchContent.run({ path, query: "alpha" });
@@ -149,7 +176,113 @@ describe("SearchContent.run", () => {
 		expect(searchResultsSchema.assert(results)).toEqual(results);
 	});
 
-	it("outlives the timeout that would kill a plain git call", () => {
-		expect(SearchContent.SEARCH_TIMEOUT_MS).toBeGreaterThan(GitRun.GIT_TIMEOUT_MS);
+	it("stops a search after thirty seconds", () => {
+		expect(SearchContent.SEARCH_TIMEOUT_MS).toBe(30_000);
+	});
+
+	it("does not start git when the caller already canceled", async () => {
+		const dataDir = process.env.DATA_DIR;
+		assertDefined(dataDir);
+		const fake = useFakeGit(
+			"search-pre-aborted",
+			`import { writeFileSync } from "node:fs";\nwriteFileSync(process.env.SEARCH_PID_FILE, String(process.pid));\n`,
+		);
+		const controller = new AbortController();
+		controller.abort(new Error("search superseded"));
+
+		try {
+			expect(() => SearchContent.run({ path: dataDir, query: "alpha", signal: controller.signal })).toThrow(
+				"search superseded",
+			);
+			expect(existsSync(fake.pidFile)).toBe(false);
+		} finally {
+			fake.restore();
+		}
+	});
+
+	it("kills an active git search and rejects without a partial result", async () => {
+		const dataDir = process.env.DATA_DIR;
+		assertDefined(dataDir);
+		const fake = useFakeGit(
+			"search-cancel",
+			`import { writeFileSync } from "node:fs";\nwriteFileSync(process.env.SEARCH_PID_FILE, String(process.pid));\nprocess.stdout.write("partial.ts\\0" + "1\\0partial match\\n");\nsetInterval(() => {}, 1000);\n`,
+		);
+		const controller = new AbortController();
+
+		try {
+			const search = SearchContent.run({ path: dataDir, query: "partial", signal: controller.signal });
+			await waitForFile(fake.pidFile);
+			const pid = Number(readFileSync(fake.pidFile, "utf8"));
+			controller.abort(new Error("search superseded"));
+
+			expect(() => search).toThrow("search superseded");
+			expect(() => process.kill(pid, 0)).toThrow();
+		} finally {
+			controller.abort();
+			fake.restore();
+		}
+	});
+
+	it("stops after one mebibyte of output before retaining an incomplete line", async () => {
+		const dataDir = process.env.DATA_DIR;
+		assertDefined(dataDir);
+		const fake = useFakeGit(
+			"search-output",
+			`import { writeFileSync } from "node:fs";\nwriteFileSync(process.env.SEARCH_PID_FILE, String(process.pid));\nprocess.stdout.write("x".repeat(1024 * 1024 + 1));\nsetInterval(() => {}, 1000);\n`,
+		);
+
+		try {
+			const results = await SearchContent.run({ path: dataDir, query: "x" });
+			const pid = Number(readFileSync(fake.pidFile, "utf8"));
+
+			expect(SearchContent.MAX_OUTPUT_BYTES).toBe(1024 * 1024);
+			expect(results).toEqual({ matches: [], truncated: true });
+			expect(() => process.kill(pid, 0)).toThrow();
+		} finally {
+			fake.restore();
+		}
+	});
+
+	it("leaves no git processes behind when searches repeatedly supersede each other", async () => {
+		const dataDir = process.env.DATA_DIR;
+		assertDefined(dataDir);
+		const fake = useFakeGit(
+			"search-superseded",
+			`import { appendFileSync } from "node:fs";\nappendFileSync(process.env.SEARCH_PID_FILE, String(process.pid) + "\\n");\nsetInterval(() => {}, 1000);\n`,
+		);
+		const searches: Promise<unknown>[] = [];
+		let previous: AbortController | undefined;
+
+		try {
+			for (let index = 0; index < 10; index++) {
+				previous?.abort(new Error("search superseded"));
+				const controller = new AbortController();
+				searches.push(
+					SearchContent.run({ path: dataDir, query: "needle", signal: controller.signal }).then(
+						(value) => value,
+						(err: unknown) => err,
+					),
+				);
+				previous = controller;
+				while (
+					!existsSync(fake.pidFile) ||
+					readFileSync(fake.pidFile, "utf8").trim().split("\n").length <= index
+				) {
+					await Bun.sleep(5);
+				}
+			}
+			previous?.abort(new Error("search superseded"));
+			const outcomes = await Promise.all(searches);
+			const pids = readFileSync(fake.pidFile, "utf8").trim().split("\n").map(Number);
+
+			expect(outcomes.every((outcome) => outcome instanceof Error)).toBe(true);
+			expect(pids).toHaveLength(10);
+			for (const pid of pids) {
+				expect(() => process.kill(pid, 0)).toThrow();
+			}
+		} finally {
+			previous?.abort();
+			fake.restore();
+		}
 	});
 });

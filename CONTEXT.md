@@ -133,7 +133,7 @@ The single letter that names how a changed file differs: modified, added, delete
 _Avoid_: State, type, kind
 
 **Tree**:
-The navigator for a Worktree, with two readings selected from its header: Changes and Files. Both arrange paths as a folder hierarchy and remember their own Focused file.
+The navigator for a Worktree, with two readings selected from its header: Changes and Files. Both arrange paths as a folder hierarchy and remember their own Focused file. Its always-visible inline filter narrows the visible paths in the current reading by file name, folder, or relative path. Approximate letters stay within one path name, `/` separates path names, and a trailing `/` limits the result to descendants of a matching folder. Matching names are marked inside the preserved hierarchy. Ctrl+F focuses the filter, and the same term follows a switch between the readings while each reading applies it only to its own paths. Clearing it restores the reading's prior expansion and scroll exactly. It is a Tree control, not another reading, and never searches file contents.
 _Avoid_: Explorer, file browser, sidebar
 
 **Changes view**:
@@ -141,11 +141,11 @@ The Tree reading that holds only the current Scope's changed files, and the one 
 _Avoid_: Diff view, changes tab, diff tree
 
 **Files view**:
-The Tree reading that holds every file of the current Worktree, changed or not, so reading one costs no trip to an outside editor. Its set comes from git rather than from the disk: tracked files, untracked files git does not ignore, and ignored files sitting loose among them, while a directory that is ignored whole stays out — a directory git does not track at all lists nothing. It only ever reads. The code calls this reading `browse`, so there is no `files` to grep for.
+The Tree reading that holds every file of the current Worktree, changed or not, so reading one costs no trip to an outside editor. Its set comes from git rather than from the disk: tracked files, untracked files git does not ignore, and ignored files sitting loose among them, while a directory that is ignored whole stays out — a directory git does not track at all lists nothing. Its Tree filter can therefore reveal unchanged paths that the Changes view cannot. It only ever reads. The code calls this reading `browse`, so there is no `files` to grep for.
 _Avoid_: Browse view, browser, explorer, project tree, disk listing
 
 **Quick Open**:
-The temporary picker opened with Ctrl+X, P. It first matches files and folders in the current Worktree. For any typed term it also offers one explicit action to search inside files; that action changes the same picker into occurrences grouped by file. Choosing a file or occurrence closes the picker and focuses the file, at the matching line when there is one. It never changes the Tree reading or its expansion.
+The temporary picker opened with Ctrl+X, P. It first matches files and folders in the current Worktree. For any typed term it also offers one explicit action to search inside files; that action changes the same picker into occurrences grouped by file. Choosing a file or occurrence closes the picker and focuses the file, at the matching line when there is one. It never changes the Tree reading or its expansion. Searching file contents belongs exclusively here, never in the Tree filter.
 _Avoid_: Search view, path picker, search mode, grep panel
 
 **Prewarm**:

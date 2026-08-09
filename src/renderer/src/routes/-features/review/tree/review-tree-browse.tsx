@@ -1,93 +1,78 @@
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo } from "react";
-import type { FileChange } from "@shared/review";
 import {
 	ReviewTreeDirectoryRow,
 	ReviewTreeFileRow,
 	type ReviewTreeItem,
 } from "@renderer/routes/-features/review/tree/review-tree-rows";
-import { fileTree, fileTreeDirectories, fileTreeRows } from "@renderer/routes/-features/review/tree/file-tree";
+import type { FileTreeRow } from "@renderer/routes/-features/review/tree/file-tree";
 import { toggledSet } from "@renderer/routes/-features/shared/interaction/toggled-set";
-
-export const BROWSE_ROW_HEIGHT = 24;
-
-const BROWSE_ROW_OVERSCAN = 24;
+import { ReviewTreeVirtualRows } from "@renderer/routes/-features/review/tree/review-tree-virtual-rows";
 
 export function ReviewTreeBrowse({
-	paths,
-	files,
+	loading,
+	rows,
+	filtering,
+	collapsed,
+	filterCollapsed,
 	focusedPath,
+	highlightedPath,
 	expanded,
 	scrollElement,
 	initialOffset,
 	onExpandedChange,
+	onFilterCollapsedChange,
 	onToggleFocus,
 }: {
-	paths?: string[];
-	files: FileChange[];
+	loading: boolean;
+	rows: FileTreeRow<ReviewTreeItem>[];
+	filtering: boolean;
+	collapsed: ReadonlySet<string>;
+	filterCollapsed: ReadonlySet<string>;
 	focusedPath?: string;
+	highlightedPath?: string;
 	expanded: ReadonlySet<string>;
 	scrollElement: HTMLDivElement | null;
 	initialOffset: number;
 	onExpandedChange: (expanded: ReadonlySet<string>) => void;
+	onFilterCollapsedChange: (collapsed: ReadonlySet<string>) => void;
 	onToggleFocus: (path: string) => void;
 }) {
-	const tree = useMemo(() => {
-		const changed = new Map(files.map((file) => [file.path, file]));
-
-		return fileTree<ReviewTreeItem>((paths ?? []).map((path) => ({ path, item: changed.get(path) })));
-	}, [paths, files]);
-	const collapsed = useMemo(
-		() => new Set(fileTreeDirectories(tree).filter((path) => !expanded.has(path))),
-		[tree, expanded],
-	);
-	const rows = useMemo(() => fileTreeRows(tree, collapsed), [tree, collapsed]);
-	const virtualizer = useVirtualizer({
-		count: rows.length,
-		getScrollElement: () => scrollElement,
-		estimateSize: () => BROWSE_ROW_HEIGHT,
-		initialOffset,
-		overscan: BROWSE_ROW_OVERSCAN,
-	});
-
-	if (!paths) {
+	if (loading) {
 		return <div className="px-3 py-1 text-body text-secondary">Reading files…</div>;
 	}
 
 	return (
-		<div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-			{virtualizer.getVirtualItems().map((virtualRow) => {
-				const row = rows[virtualRow.index];
+		<ReviewTreeVirtualRows
+			rows={rows}
+			highlightedPath={highlightedPath}
+			scrollElement={scrollElement}
+			initialOffset={initialOffset}
+		>
+			{(row) =>
+				row.node.kind === "directory" ? (
+					<ReviewTreeDirectoryRow
+						node={row.node}
+						depth={row.depth}
+						collapsed={collapsed.has(row.node.path)}
+						onToggle={(node) => {
+							if (filtering) {
+								onFilterCollapsedChange(toggledSet(filterCollapsed, node.path));
+								return;
+							}
 
-				if (!row) {
-					return null;
-				}
-
-				return (
-					<div
-						key={virtualRow.key}
-						className="absolute top-0 left-0 w-full overflow-hidden"
-						style={{ height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
-					>
-						{row.node.kind === "directory" ? (
-							<ReviewTreeDirectoryRow
-								node={row.node}
-								depth={row.depth}
-								collapsed={collapsed.has(row.node.path)}
-								onToggle={(node) => onExpandedChange(toggledSet(expanded, node.path))}
-							/>
-						) : (
-							<ReviewTreeFileRow
-								node={row.node}
-								depth={row.depth}
-								focused={row.node.path === focusedPath}
-								onOpen={onToggleFocus}
-								onToggleFocus={onToggleFocus}
-							/>
-						)}
-					</div>
-				);
-			})}
-		</div>
+							onExpandedChange(toggledSet(expanded, node.path));
+						}}
+					/>
+				) : (
+					<ReviewTreeFileRow
+						node={row.node}
+						depth={row.depth}
+						focused={row.node.path === focusedPath}
+						highlighted={row.node.path === highlightedPath}
+						onOpen={onToggleFocus}
+						onToggleFocus={onToggleFocus}
+					/>
+				)
+			}
+		</ReviewTreeVirtualRows>
 	);
 }

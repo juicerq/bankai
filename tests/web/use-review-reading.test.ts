@@ -1,7 +1,10 @@
+import "./register-dom";
 import { type } from "arktype";
 import { afterEach, expect, test } from "bun:test";
+import type { QueryKey } from "@tanstack/react-query";
 import type { ReviewContent, ReviewFiles, ReviewSnapshot } from "@shared/review";
-import { cleanup, waitFor } from "./testing-library";
+import { orpc } from "@renderer/lib/api";
+import { act, cleanup, waitFor } from "./testing-library";
 import { renderReviewReading, type ReviewReadingProps } from "./review-harness";
 
 afterEach(cleanup);
@@ -60,6 +63,95 @@ function contentText(content?: ReviewContent) {
 
 type View = ReturnType<typeof renderReviewReading>;
 
+function exactReviewKeys(projectId: string, worktree: string): { name: string; key: QueryKey }[] {
+	return [
+		{
+			name: "snapshot",
+			key: orpc.review.snapshot.key({ type: "query", input: { projectId, worktree, mode: "branch" } }),
+		},
+		{
+			name: "files",
+			key: orpc.review.files.key({
+				type: "query",
+				input: { projectId, worktree, mode: "branch", files: ["a"] },
+			}),
+		},
+		{
+			name: "file",
+			key: orpc.review.file.key({
+				type: "query",
+				input: { projectId, worktree, mode: "branch", path: "a" },
+			}),
+		},
+		{
+			name: "fullFile",
+			key: orpc.review.fullFile.key({
+				type: "query",
+				input: { projectId, worktree, mode: "branch", path: "a" },
+			}),
+		},
+		{
+			name: "browseFiles",
+			key: orpc.review.browseFiles.key({ type: "query", input: { projectId, worktree } }),
+		},
+		{
+			name: "browseFile",
+			key: orpc.review.browseFile.key({ type: "query", input: { projectId, worktree, path: "a" } }),
+		},
+		{
+			name: "searchContent",
+			key: orpc.review.searchContent.key({ type: "query", input: { projectId, worktree, query: "term" } }),
+		},
+	];
+}
+
+function startCachedReads(view: View, entries: { name: string; key: QueryKey }[], side: string) {
+	const aborted = new Set<string>();
+
+	for (const entry of entries) {
+		void view.queryClient
+			.fetchQuery({
+				queryKey: entry.key,
+				gcTime: Infinity,
+				initialData: `${side}-${entry.name}`,
+				initialDataUpdatedAt: 0,
+				staleTime: 0,
+				queryFn: ({ signal }) =>
+					new Promise<string>((_resolve, reject) => {
+						signal.addEventListener("abort", () => {
+							aborted.add(entry.name);
+							reject(signal.reason);
+						});
+					}),
+			})
+			.catch(() => {});
+	}
+
+	return aborted;
+}
+
+async function rejectRefetch(
+	view: View,
+	procedure: "file" | "browseFile" | "fullFile",
+	error: Error,
+	key: QueryKey,
+) {
+	await act(async () => {
+		view.ipc.emitChange("p1", "/p1");
+		await view.transport.waitForPending(procedure);
+
+		const promise = view.queryClient.getQueryCache().find({ queryKey: key })?.promise;
+		if (!promise) {
+			throw new Error(`No pending ${procedure} query`);
+		}
+
+		const rendered = view.waitForRender();
+		view.transport.reject(procedure, error);
+		await promise.catch(() => {});
+		await rendered;
+	});
+}
+
 async function reachReady(view: View) {
 	view.ipc.resolveWatch();
 	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBe(1));
@@ -96,7 +188,7 @@ test("mounting watches the worktree once", () => {
 test("a change event arriving before watch resolves is still picked up", async () => {
 	const view = renderReviewReading(base({}));
 
-	view.ipc.emitChange("p1");
+	view.ipc.emitChange("p1", "/p1");
 	await reachReady(view);
 	view.transport.resolve("snapshot", snapshotOf(["a"]));
 
@@ -121,7 +213,7 @@ test("unmount unwatches exactly once and stops listening for changes", async () 
 	expect(view.ipc.unwatchCalls).toEqual([{ projectId: "p1", worktree: "/p1" }]);
 
 	const callsBefore = view.transport.calls.length;
-	view.ipc.emitChange("p1");
+	view.ipc.emitChange("p1", "/p1");
 	await wait(20);
 
 	expect(view.transport.calls.length).toBe(callsBefore);
@@ -145,10 +237,62 @@ test("change events for other projects are ignored", async () => {
 	await settle(view, ["a", "b"]);
 
 	const callsBefore = view.transport.calls.length;
-	view.ipc.emitChange("other-project");
+	view.ipc.emitChange("other-project", "/other-project");
 	await wait(20);
 
 	expect(view.transport.calls.length).toBe(callsBefore);
+});
+
+test("a change event for another worktree is ignored", async () => {
+	const view = renderReviewReading(base({}));
+	await settle(view, ["a", "b"]);
+
+	const callsBefore = view.transport.calls.length;
+	view.ipc.emitChange("p1", "/p1-other");
+	await wait(20);
+
+	expect(view.transport.calls.length).toBe(callsBefore);
+});
+
+test("a worktree change cancels and invalidates only its exact cached review reads", async () => {
+	const view = renderReviewReading(base({ worktree: "/p1-a" }));
+	await reachReady(view);
+
+	const changed = exactReviewKeys("p1", "/p1-a");
+	const unchanged = exactReviewKeys("p1", "/p1-b");
+	const changedWorktrees: { name: string; key: QueryKey } = {
+		name: "worktrees",
+		key: orpc.review.worktrees.key({ type: "query", input: { projectId: "p1" } }),
+	};
+	const unchangedWorktrees: { name: string; key: QueryKey } = {
+		name: "worktrees",
+		key: orpc.review.worktrees.key({ type: "query", input: { projectId: "p2" } }),
+	};
+	const changedEntries = [...changed, changedWorktrees];
+	const unchangedEntries = [...unchanged, unchangedWorktrees];
+	const changedAborts = startCachedReads(view, changedEntries, "changed");
+	const unchangedAborts = startCachedReads(view, unchangedEntries, "unchanged");
+
+	await waitFor(() => {
+		for (const entry of [...changedEntries, ...unchangedEntries]) {
+			expect(view.queryClient.getQueryState(entry.key)?.fetchStatus).toBe("fetching");
+		}
+	});
+
+	view.ipc.emitChange("p1", "/p1-a");
+
+	await waitFor(() => expect(changedAborts.size).toBe(changedEntries.length));
+	for (const entry of changedEntries) {
+		expect(view.queryClient.getQueryState(entry.key)?.isInvalidated).toBe(true);
+		expect(view.queryClient.getQueryData<string>(entry.key)).toBe(`changed-${entry.name}`);
+	}
+	for (const entry of unchangedEntries) {
+		expect(view.queryClient.getQueryState(entry.key)?.isInvalidated).toBe(false);
+		expect(view.queryClient.getQueryData<string>(entry.key)).toBe(`unchanged-${entry.name}`);
+	}
+	expect(unchangedAborts.size).toBe(0);
+
+	await view.queryClient.cancelQueries();
 });
 
 test("the initial batch reads exactly the ordered open paths with no single reads", async () => {
@@ -228,10 +372,15 @@ test("a single-read refetch failure keeps the cached content", async () => {
 	view.transport.resolve("file", readyContent("c-original"));
 	await waitFor(() => expect(contentText(view.result.current.generation?.contentByPath?.get("c"))).toBe("c-original"));
 
-	view.ipc.emitChange("p1");
-	await waitFor(() => expect(view.transport.pendingCount("file")).toBeGreaterThan(0));
-	view.transport.reject("file", new Error("refetch failed"));
-	await wait(20);
+	await rejectRefetch(
+		view,
+		"file",
+		new Error("refetch failed"),
+		orpc.review.file.key({
+			type: "query",
+			input: { projectId: "p1", worktree: "/p1", mode: "uncommitted", path: "c" },
+		}),
+	);
 
 	expect(contentText(view.result.current.generation?.contentByPath?.get("c"))).toBe("c-original");
 });
@@ -240,7 +389,7 @@ test("a two-file watcher refresh never publishes a mixed generation", async () =
 	const view = renderReviewReading(base({}));
 	await settle(view, ["a", "b"], { a: "a1", b: "b1" });
 
-	view.ipc.emitChange("p1");
+	view.ipc.emitChange("p1", "/p1");
 	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBe(1));
 	view.transport.resolve("snapshot", snapshotOf(["a", "b"]));
 
@@ -267,7 +416,7 @@ test("the last complete generation stays published while a refresh is in flight"
 	const view = renderReviewReading(base({}));
 	await settle(view, ["a", "b"], { a: "a1", b: "b1" });
 
-	view.ipc.emitChange("p1");
+	view.ipc.emitChange("p1", "/p1");
 	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBe(1));
 
 	expect(contentText(view.result.current.generation?.contentByPath?.get("a"))).toBe("a1");
@@ -278,8 +427,8 @@ test("overlapping change events coalesce to the latest snapshot", async () => {
 	const view = renderReviewReading(base({}));
 	await settle(view, ["a", "b"], { a: "a1", b: "b1" });
 
-	view.ipc.emitChange("p1");
-	view.ipc.emitChange("p1");
+	view.ipc.emitChange("p1", "/p1");
+	view.ipc.emitChange("p1", "/p1");
 	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBeGreaterThan(0));
 
 	while (view.transport.pendingCount("snapshot") > 0) {
@@ -314,7 +463,7 @@ test("a change event refreshes all four query families", async () => {
 		fullFile: view.transport.callsFor("fullFile").length,
 	};
 
-	view.ipc.emitChange("p1");
+	view.ipc.emitChange("p1", "/p1");
 
 	await waitFor(() => expect(view.transport.callsFor("snapshot").length).toBeGreaterThan(before.snapshot));
 	await waitFor(() => expect(view.transport.callsFor("files").length).toBeGreaterThan(before.files));
@@ -368,7 +517,7 @@ test("a snapshot query error is surfaced while retained data still wins", async 
 	const view = renderReviewReading(base({}));
 	await settle(view, ["a", "b"], { a: "a", b: "b" });
 
-	view.ipc.emitChange("p1");
+	view.ipc.emitChange("p1", "/p1");
 	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBe(1));
 	view.transport.reject("snapshot", new Error("snapshot broke"));
 
@@ -478,10 +627,15 @@ test("a raw refetch failure keeps the cached file instead of reporting it", asyn
 	view.transport.resolve("browseFile", readyContent("raw-guide"));
 	await waitFor(() => expect(contentText(view.result.current.fullFile)).toBe("raw-guide"));
 
-	view.ipc.emitChange("p1");
-	await waitFor(() => expect(view.transport.pendingCount("browseFile")).toBeGreaterThan(0));
-	view.transport.reject("browseFile", new Error("refetch broke"));
-	await wait(20);
+	await rejectRefetch(
+		view,
+		"browseFile",
+		new Error("refetch broke"),
+		orpc.review.browseFile.key({
+			type: "query",
+			input: { projectId: "p1", worktree: "/p1", path: "docs/guide.md" },
+		}),
+	);
 
 	expect(contentText(view.result.current.fullFile)).toBe("raw-guide");
 	expect(view.result.current.fullFileError).toBeUndefined();
@@ -512,10 +666,15 @@ test("a full-file refetch error keeps the cached full file", async () => {
 	view.transport.resolve("fullFile", readyContent("full-a"));
 	await waitFor(() => expect(contentText(view.result.current.fullFile)).toBe("full-a"));
 
-	view.ipc.emitChange("p1");
-	await waitFor(() => expect(view.transport.pendingCount("fullFile")).toBeGreaterThan(0));
-	view.transport.reject("fullFile", new Error("refetch broke"));
-	await wait(20);
+	await rejectRefetch(
+		view,
+		"fullFile",
+		new Error("refetch broke"),
+		orpc.review.fullFile.key({
+			type: "query",
+			input: { projectId: "p1", worktree: "/p1", mode: "uncommitted", path: "a" },
+		}),
+	);
 
 	expect(contentText(view.result.current.fullFile)).toBe("full-a");
 });
@@ -525,7 +684,7 @@ test("the layout generation advances only on path-list or mode changes", async (
 	await settle(view, ["a", "b"], { a: "a1", b: "b1" });
 	const first = view.result.current.generation?.layoutGeneration;
 
-	view.ipc.emitChange("p1");
+	view.ipc.emitChange("p1", "/p1");
 	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBe(1));
 	view.transport.resolve("snapshot", snapshotOf(["a", "b"]));
 	await waitFor(() => expect(view.transport.pendingCount("files")).toBe(1));
@@ -533,7 +692,7 @@ test("the layout generation advances only on path-list or mode changes", async (
 	await waitFor(() => expect(contentText(view.result.current.generation?.contentByPath?.get("a"))).toBe("a2"));
 	expect(view.result.current.generation?.layoutGeneration).toBe(first);
 
-	view.ipc.emitChange("p1");
+	view.ipc.emitChange("p1", "/p1");
 	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBe(1));
 	view.transport.resolve("snapshot", snapshotOf(["a", "b", "c"]));
 	await waitFor(() => expect(view.transport.callsFor("files").some(reading(["a", "b", "c"]))).toBe(true));
@@ -556,7 +715,7 @@ test("a refresh that adds a file keeps the previous reading until the replacemen
 	await settle(view, ["a", "b"], { a: "a1", b: "b1" });
 	const complete = view.renders.length;
 
-	view.ipc.emitChange("p1");
+	view.ipc.emitChange("p1", "/p1");
 	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBe(1));
 	view.transport.resolve("snapshot", snapshotOf(["new", "a", "b"]));
 	await waitFor(() => expect(view.transport.callsFor("files").some(reading(["new", "a", "b"]))).toBe(true));
@@ -608,7 +767,7 @@ test("a failed replacement read completes the reading instead of retaining the p
 	const view = renderReviewReading(base({}));
 	await settle(view, ["a", "b"], { a: "a1", b: "b1" });
 
-	view.ipc.emitChange("p1");
+	view.ipc.emitChange("p1", "/p1");
 	await waitFor(() => expect(view.transport.pendingCount("snapshot")).toBe(1));
 	view.transport.resolve("snapshot", snapshotOf(["a", "b", "c"]));
 	await waitFor(() => expect(view.transport.callsFor("files").some(reading(["a", "b", "c"]))).toBe(true));

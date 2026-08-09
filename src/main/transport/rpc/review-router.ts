@@ -1,6 +1,7 @@
 import { type } from "arktype";
 import { reviewModeSchema, type ReviewMode } from "@shared/review";
 import { GitProcess } from "@main/git/git-process";
+import { SearchContent } from "@main/git/search-content";
 import { ProjectWorktrees } from "@main/git/worktree/project-worktrees";
 import { base } from "@main/transport/rpc/rpc-base";
 import { Projects } from "@main/store/projects";
@@ -79,7 +80,11 @@ export const reviewRouter = {
 
 	searchContent: base
 		.input(worktreeInput.and({ query: "string" }))
-		.handler(async ({ input }) =>
-			await GitProcess.searchContent({ path: await ProjectWorktrees.resolve(input), query: input.query })
+		.handler(async ({ input, signal }) =>
+			await SearchContent.run({
+				path: await ProjectWorktrees.resolve(input),
+				query: input.query,
+				...(signal ? { signal } : {}),
+			})
 		),
 };

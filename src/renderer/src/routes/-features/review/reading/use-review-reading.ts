@@ -236,7 +236,7 @@ class ReviewQueryObserver {
 	readonly subscribe = (notify: () => void) => {
 		this.state = PENDING;
 		const stopListening = reviewStream.onChanged((event) => {
-			if (event.projectId === this.watched.projectId) {
+			if (event.projectId === this.watched.projectId && event.worktree === this.watched.worktree) {
 				this.refresh().catch((err) => console.error("Failed to refresh review changes", err));
 			}
 		});
@@ -291,15 +291,25 @@ class ReviewQueryObserver {
 	}
 
 	private async refresh() {
-		const input = { projectId: this.watched.projectId };
+		const projectInput = { projectId: this.watched.projectId };
+		const worktreeInput = { ...projectInput, worktree: this.watched.worktree };
+		const worktreeFilters = [
+			{ queryKey: orpc.review.snapshot.key({ type: "query", input: worktreeInput }) },
+			{ queryKey: orpc.review.files.key({ type: "query", input: worktreeInput }) },
+			{ queryKey: orpc.review.file.key({ type: "query", input: worktreeInput }) },
+			{ queryKey: orpc.review.fullFile.key({ type: "query", input: worktreeInput }) },
+			{ queryKey: orpc.review.browseFiles.key({ type: "query", input: worktreeInput }) },
+			{ queryKey: orpc.review.browseFile.key({ type: "query", input: worktreeInput }) },
+			{ queryKey: orpc.review.searchContent.key({ type: "query", input: worktreeInput }) },
+		];
 		const filters = [
-			{ queryKey: orpc.review.worktrees.key({ type: "query", input }) },
-			{ queryKey: orpc.review.snapshot.key({ type: "query", input }) },
-			{ queryKey: orpc.review.files.key({ type: "query", input }) },
-			{ queryKey: orpc.review.file.key({ type: "query", input }) },
-			{ queryKey: orpc.review.fullFile.key({ type: "query", input }) },
-			{ queryKey: orpc.review.browseFiles.key({ type: "query", input }) },
-			{ queryKey: orpc.review.browseFile.key({ type: "query", input }) },
+			{ queryKey: orpc.review.worktrees.key({ type: "query", input: projectInput }), exact: true },
+			...worktreeFilters.flatMap((filter) =>
+				this.queryClient
+					.getQueryCache()
+					.findAll(filter)
+					.map((query) => ({ queryKey: query.queryKey, exact: true })),
+			),
 		];
 		await Promise.all(filters.map((filter) => this.queryClient.cancelQueries(filter)));
 		await Promise.all(filters.map((filter) => this.queryClient.invalidateQueries(filter)));

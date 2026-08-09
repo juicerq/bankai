@@ -3,7 +3,11 @@ import type { Project } from "@shared/projects";
 import { EmptyState } from "@renderer/routes/-features/app/status/empty-state";
 import { TerminalPane } from "@renderer/routes/-features/terminal/terminal-pane";
 import { MIN_TERMINAL_WIDTH } from "@renderer/routes/-features/review/panel/review-layout";
-import { useWorkspaceResidency } from "@renderer/routes/-features/workspace/layout/workspace-context";
+import type { TerminalFileTarget } from "@renderer/routes/-features/terminal/terminal-file-links";
+import {
+	useWorkspaceAgents,
+	useWorkspaceResidency,
+} from "@renderer/routes/-features/workspace/layout/workspace-context";
 
 export function ProjectWorkspaceShells({
 	project,
@@ -14,6 +18,7 @@ export function ProjectWorkspaceShells({
 	focusRequest,
 	resizeDeferred,
 	serviceLogOpen,
+	onOpenFile,
 }: {
 	project: Project;
 	shells: ContinuityShell[];
@@ -23,8 +28,10 @@ export function ProjectWorkspaceShells({
 	focusRequest: number;
 	resizeDeferred: boolean;
 	serviceLogOpen: boolean;
+	onOpenFile: (worktree: string, target: TerminalFileTarget) => void;
 }) {
 	const residency = useWorkspaceResidency();
+	const agents = useWorkspaceAgents();
 
 	return (
 		<div
@@ -40,23 +47,29 @@ export function ProjectWorkspaceShells({
 					onAction={() => onRequestShell(false)}
 				/>
 			)}
-			{shells.filter((shell) => !residency.asleep.has(shell.id)).map((shell) => (
-				<div
-					className={`col-start-1 row-start-1 min-h-0 min-w-0 overflow-hidden ${
-						shell.id === activeShellId && !serviceLogOpen ? "" : "invisible"
-					}`}
-					key={shell.id}
-				>
-					<TerminalPane
-						projectId={project.id}
-						shellId={shell.id}
-						active={active && shell.id === activeShellId && !serviceLogOpen}
-						focusRequest={focusRequest}
-						resizeDeferred={resizeDeferred}
-						resumeOnMount={residency.resumable.has(shell.id)}
-					/>
-				</div>
-			))}
+			{shells.filter((shell) => !residency.asleep.has(shell.id)).map((shell) => {
+				const worktree = agents.worktrees.get(shell.id) ?? project.path;
+
+				return (
+					<div
+						className={`col-start-1 row-start-1 min-h-0 min-w-0 overflow-hidden ${
+							shell.id === activeShellId && !serviceLogOpen ? "" : "invisible"
+						}`}
+						key={shell.id}
+					>
+						<TerminalPane
+							projectId={project.id}
+							shellId={shell.id}
+							worktree={worktree}
+							active={active && shell.id === activeShellId && !serviceLogOpen}
+							focusRequest={focusRequest}
+							resizeDeferred={resizeDeferred}
+							resumeOnMount={residency.resumable.has(shell.id)}
+							onOpenFile={(target) => onOpenFile(worktree, target)}
+						/>
+					</div>
+				);
+			})}
 		</div>
 	);
 }

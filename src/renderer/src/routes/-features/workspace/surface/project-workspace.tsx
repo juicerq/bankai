@@ -5,6 +5,8 @@ import { ProjectWorkspaceHeader } from "@renderer/routes/-features/workspace/sur
 import { ProjectWorkspaceShells } from "@renderer/routes/-features/workspace/surface/project-workspace-shells";
 import { ReviewPanel } from "@renderer/routes/-features/review/panel/review-panel";
 import { ReviewPanelFrame, type ReviewPanelMotion } from "@renderer/routes/-features/review/panel/review-panel-frame";
+import { createReviewPanelStore } from "@renderer/routes/-features/review/panel/review-panel-store";
+import type { TerminalFileTarget } from "@renderer/routes/-features/terminal/terminal-file-links";
 import { useProjectWorkspaceShortcuts } from "@renderer/routes/-features/workspace/surface/use-project-workspace-shortcuts";
 import { useReviewGeometry } from "@renderer/routes/-features/review/panel/use-review-geometry";
 import { useWorkspaceControl } from "@renderer/routes/-features/workspace/layout/workspace-context";
@@ -48,7 +50,8 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		onPersistLayout: control.onPersistLayout,
 	});
 	const [motion, setMotion] = useState<ReviewPanelMotion>();
-	const [pathPickerOpen, setPathPickerOpen] = useState(false);
+	const [quickOpen, setQuickOpen] = useState(false);
+	const [reviewPanel] = useState(createReviewPanelStore);
 	const startMotion = useCallback((kind: ReviewPanelMotion) => {
 		setMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : kind);
 	}, []);
@@ -68,21 +71,33 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		startMotion("expand");
 		control.onToggleReviewFocus();
 	}, [control.onToggleReviewFocus, startMotion]);
-	const handleOpenPathPicker = useCallback(() => {
+	const handleOpenQuickOpen = useCallback(() => {
 		if (!reviewOpen) {
 			startMotion("open");
 			control.onReviewOpenChange(true);
 		}
 
-		setPathPickerOpen(true);
+		setQuickOpen(true);
 	}, [control.onReviewOpenChange, reviewOpen, startMotion]);
+	const handleOpenTerminalFile = useCallback(
+		(worktree: string, target: TerminalFileTarget) => {
+			if (!reviewOpen) {
+				startMotion("open");
+				control.onReviewOpenChange(true);
+			}
+
+			reviewPanel.actions.pinWorktree(worktree);
+			reviewPanel.actions.focusFile(target.file, target.line);
+		},
+		[control.onReviewOpenChange, reviewOpen, reviewPanel, startMotion],
+	);
 
 	const registerWorkspaceShortcuts = useProjectWorkspaceShortcuts({
 		active,
 		onToggleReview: handleToggleReview,
 		onToggleReviewExpanded: handleToggleReviewExpanded,
 		onOpenCommands: control.onOpenCommands,
-		onOpenPathPicker: handleOpenPathPicker,
+		onOpenQuickOpen: handleOpenQuickOpen,
 	});
 
 	return (
@@ -113,6 +128,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					focusRequest={shellFocusRequest}
 					resizeDeferred={fullscreenAnimating || motion !== undefined || geometry.resizing || railResizing}
 					serviceLogOpen={serviceLogOpen}
+					onOpenFile={handleOpenTerminalFile}
 				/>
 				<ReviewPanelFrame
 					open={reviewOpen}
@@ -124,6 +140,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					onMotionEnd={() => setMotion(undefined)}
 				>
 					<ReviewPanel
+						panel={reviewPanel}
 						project={project}
 						shellId={activeShellId}
 						shells={shells}
@@ -131,7 +148,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 						treeDivider={geometry.treeDivider}
 							expanded={reviewExpanded}
 							onToggleExpanded={handleToggleReviewExpanded}
-							pathPicker={{ open: pathPickerOpen, onClose: () => setPathPickerOpen(false) }}
+							quickOpen={{ open: quickOpen, onClose: () => setQuickOpen(false) }}
 						/>
 				</ReviewPanelFrame>
 			</div>

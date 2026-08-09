@@ -85,15 +85,15 @@ export function ReviewTree({
 						key={view}
 						type="button"
 						data-slot={`tree-view-${view}`}
-						className={`flex h-full flex-1 items-center justify-center gap-1.5 whitespace-nowrap border-outline hover:bg-surface-hover hover:text-primary ${
-							index === 0 ? "border-r" : ""
+						className={`flex h-full min-w-0 flex-1 items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap border-outline hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary ${
+							index < TREE_VIEW_SEGMENTS.length - 1 ? "border-r" : ""
 						} ${treeView === view ? "bg-surface-active text-primary" : "text-secondary"}`}
 						aria-pressed={treeView === view}
 						title={title}
 						onClick={() => onSelectTreeView(view)}
 					>
-						<Icon className="size-3.5 shrink-0" aria-hidden="true" />
-						{label}
+						<Icon className="size-3.5" aria-hidden="true" />
+						<span className="truncate">{label}</span>
 					</button>
 				))}
 			</div>

@@ -37,7 +37,6 @@ export function createReviewPanelStore() {
 				if (treeView === current) {
 					return;
 				}
-
 				patch({
 					treeView,
 					focusedPath: hiddenFocusedPath,
@@ -97,3 +96,5 @@ export function createReviewPanelStore() {
 		};
 	});
 }
+
+export type ReviewPanelStore = ReturnType<typeof createReviewPanelStore>;

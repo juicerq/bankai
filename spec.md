@@ -1,5 +1,9 @@
 # O que vem depois do painel de Files
 
+## Status
+
+Iniciativa implementada. As fases e os requisitos abaixo preservam o diagnóstico e as decisões que orientaram a entrega; não representam trabalho pendente.
+
 ## Problema
 
 O painel de Files do Bankai é a view `treeView === "browse"` da Tree do painel de Review (segmento Diff | Files). Ele já lista os arquivos do worktree e já abre um leitor virtualizado, mas o usuário continua abrindo o VSCode para ler código. Os motivos são concretos: em algumas falhas o leitor trava sem mensagem, trocar o modo de diff colapsa a árvore inteira e fecha o arquivo, não há como fechar o arquivo pela árvore, arquivos acima de 3000 linhas são recusados, e não existe nenhuma forma de procurar um arquivo, uma pasta ou um trecho de conteúdo.
@@ -40,7 +44,7 @@ Em ordem de gravidade. São os quatro momentos em que o usuário volta ao VSCode
 Pesquisar arquivo e pesquisar pasta são uma feature só, não duas: ambas filtram o mesmo `string[]` de `browsePaths` já em memória no renderer.
 
 8. **Hook de picker compartilhado.** `shell-picker.tsx:18-24,82-95,99,141-142` e `project-picker.tsx:41-47,147,200-201` implementam a mesma mecânica de teclado (índice destacado, setas, Enter, Escape, `scrollIntoView`) em cópias independentes; hoje o único pedaço compartilhado é `picker-hint.tsx`. Antes de existir um terceiro picker, essa mecânica vira um hook compartilhado consumido pelos dois pickers atuais, sem mudança de comportamento visível. Três cópias justificam a extração; duas não justificavam.
-9. **Picker de arquivos e pastas.** Um overlay picker filtra `browsePaths` e abre o resultado escolhido no leitor. A decisão é overlay, não filtro dentro da árvore: os dois pickers do app já têm teclado, foco e semântica de listbox prontos, enquanto a Tree não tem navegação por teclado nenhuma nem semântica de árvore (`review-tree-rows.tsx` usa `<button>` cru, sem `role="tree"`/`treeitem`). O overlay é o caminho mais barato e preserva a árvore intacta. **Armadilha:** o filtro casa contra o path completo, nunca contra `node.name` — `collapseChain` (`file-tree.ts:86`) funde cadeias de diretório único num nó cujo `name` vira `"a/b/c"`, então filtrar por `name` erra as pastas colapsadas.
+9. **Quick Open de arquivos e pastas.** O atalho Ctrl+X, P abre um picker temporário que filtra `browsePaths` e abre o resultado escolhido no leitor. A decisão é overlay, não filtro dentro da árvore: os dois pickers do app já têm teclado, foco e semântica de listbox prontos, enquanto a Tree não tem navegação por teclado nenhuma nem semântica de árvore (`review-tree-rows.tsx` usa `<button>` cru, sem `role="tree"`/`treeitem`). O overlay preserva a árvore intacta. **Armadilha:** o filtro casa contra o path completo, nunca contra `node.name` — `collapseChain` (`file-tree.ts:86`) funde cadeias de diretório único num nó cujo `name` vira `"a/b/c"`, então filtrar por `name` erra as pastas colapsadas.
 
 ### Fase 3 — abrir na linha N
 
@@ -53,7 +57,7 @@ Este é o salto de capacidade maior da lista, e o usuário não pediu por ele �
 11. **Busca de conteúdo por `git grep`.** A busca usa `git grep --untracked -n` rodando no UtilityProcess de git (`git-process.ts:23-33`), não ripgrep — ripgrep exigiria empacotar um binário por plataforma.
 12. **Teto global de resultados imposto pelo worker.** O `-m` do `git grep` é máximo por arquivo; não existe teto global. Medição real neste repo (464 arquivos): `git grep -n --untracked -e "e"` produz 2.625.295 bytes, contra o `maxBuffer` de 10MB de `git-run.ts:6-7`. O teto global é responsabilidade do worker, não do git.
 13. **Timeout próprio, maior que o de `GitRun`.** `git-run.ts:6-7` usa `timeout` de 5000ms. Uma busca num monorepo é morta no meio com esse limite, então a busca de conteúdo carrega o próprio timeout.
-14. **Resultados como terceiro segmento da Tree.** O segmento passa a ser Diff | Files | Search; os resultados aparecem agrupados por arquivo e o clique abre o arquivo na linha (requisito 10).
+14. **Resultados dentro do Quick Open.** Para qualquer termo digitado, o Quick Open oferece uma ação explícita de busca dentro dos arquivos. Escolhê-la transforma o mesmo diálogo em resultados agrupados por arquivo; escolher uma ocorrência fecha o diálogo e abre o arquivo na linha, sem trocar a Tree de Diff para Files ou alterar sua expansão (requisito 10).
 15. **Limite conhecido e aceito.** `git grep` não alcança os arquivos ignorados-soltos que a view Files lista — 6 neste repo, entre eles `routeTree.gen.ts`. Nenhuma combinação de flags reproduz o conjunto de `browse-files.ts:8`, e `--no-exclude-standard` varreria `node_modules`. Casar os dois conjuntos exigiria pathspec explícito com todos os paths, ao custo de ARG_MAX.
 
 ### Fase 5 — o que o VSCode não faz

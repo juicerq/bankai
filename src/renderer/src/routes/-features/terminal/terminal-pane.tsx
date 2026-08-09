@@ -1,5 +1,7 @@
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
+import { orpc } from "@renderer/lib/api";
 import {
 	initialResumeState,
 	nextResumeState,
@@ -8,22 +10,33 @@ import {
 	resumeNoticeVariant,
 } from "@renderer/routes/-features/sessions/lifecycle/resume-state";
 import { useTerminalSession } from "@renderer/routes/-features/terminal/use-terminal-session";
+import type { TerminalFileTarget } from "@renderer/routes/-features/terminal/terminal-file-links";
 
 export function TerminalPane({
 	projectId,
 	shellId,
+	worktree,
 	active,
 	focusRequest,
 	resizeDeferred,
 	resumeOnMount,
+	onOpenFile,
 }: {
 	projectId: string;
 	shellId: string;
+	worktree: string;
 	active: boolean;
 	focusRequest: number;
 	resizeDeferred: boolean;
 	resumeOnMount: boolean;
+	onOpenFile: (target: TerminalFileTarget) => void;
 }) {
+	const { data: browsePaths } = useQuery(
+		orpc.review.browseFiles.queryOptions({
+			input: { projectId, worktree },
+			enabled: active,
+		}),
+	);
 	const [resumeState, setResumeState] = useState<ResumeState>(() => initialResumeState(resumeOnMount));
 	const [painted, setPainted] = useState(false);
 	const handleResumeOutcome = useCallback((outcome: ResumeOutcome) => {
@@ -37,6 +50,7 @@ export function TerminalPane({
 			focusRequest,
 			resizeDeferred,
 			resumeOnMount,
+			fileLinks: { paths: new Set(browsePaths ?? []), worktree, onOpen: onOpenFile },
 			onResumeOutcome: handleResumeOutcome,
 			onFirstOutput: handleFirstOutput,
 		});

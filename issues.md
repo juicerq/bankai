@@ -1,5 +1,9 @@
 # Issues
 
+## Status geral
+
+Concluído. Todas as issues e seus critérios de aceite foram entregues.
+
 ## leitura-independente-do-snapshot
 
 ### Resultado
@@ -8,9 +12,9 @@ Abrir um arquivo na view Files deixa de depender do sucesso da query `snapshot`,
 
 ### Critérios de aceite
 
-- [ ] Com a query `snapshot` em erro, clicar num arquivo da árvore de Files carrega e exibe o conteúdo.
-- [ ] Uma falha de `browseFile` substitui o overlay "Reading file…" por uma mensagem de erro legível.
-- [ ] O overlay de carregamento nunca permanece visível depois que a leitura termina em erro.
+- [x] Com a query `snapshot` em erro, clicar num arquivo da árvore de Files carrega e exibe o conteúdo.
+- [x] Uma falha de `browseFile` substitui o overlay "Reading file…" por uma mensagem de erro legível.
+- [x] O overlay de carregamento nunca permanece visível depois que a leitura termina em erro.
 
 ### Bloqueado por
 
@@ -32,9 +36,9 @@ Trocar o modo de diff preserva a expansão da árvore de Files e o arquivo abert
 
 ### Critérios de aceite
 
-- [ ] Com pastas expandidas no modo browse, trocar o modo de diff mantém exatamente as mesmas pastas expandidas.
-- [ ] Com um arquivo aberto no leitor, trocar o modo de diff mantém o arquivo aberto.
-- [ ] Trocar de worktree continua descartando o estado de expansão e o arquivo focado.
+- [x] Com pastas expandidas no modo browse, trocar o modo de diff mantém exatamente as mesmas pastas expandidas.
+- [x] Com um arquivo aberto no leitor, trocar o modo de diff mantém o arquivo aberto.
+- [x] Trocar de worktree continua descartando o estado de expansão e o arquivo focado.
 
 ### Bloqueado por
 
@@ -56,8 +60,8 @@ Escape fecha o leitor de arquivo a partir de qualquer foco dentro dele.
 
 ### Critérios de aceite
 
-- [ ] Clicar numa linha do texto e pressionar Escape fecha o leitor.
-- [ ] Escape continua fechando o leitor logo após abri-lo, sem clique prévio.
+- [x] Clicar numa linha do texto e pressionar Escape fecha o leitor.
+- [x] Escape continua fechando o leitor logo após abri-lo, sem clique prévio.
 
 ### Bloqueado por
 
@@ -79,8 +83,8 @@ Clicar na árvore no arquivo que já está aberto o fecha, no modo browse e no m
 
 ### Critérios de aceite
 
-- [ ] Clicar no arquivo focado na árvore fecha o leitor em vez de ser no-op.
-- [ ] O controle de foco aparece nas linhas da árvore no modo browse.
+- [x] Clicar no arquivo focado na árvore fecha o leitor em vez de ser no-op.
+- [x] O controle de foco aparece nas linhas da árvore no modo browse.
 
 ### Bloqueado por
 
@@ -102,8 +106,8 @@ A largura do conteúdo do leitor é calculada uma vez por conteúdo, e não a ca
 
 ### Critérios de aceite
 
-- [ ] `diffContentWidth` é chamada uma única vez para um mesmo conteúdo, mesmo com o virtualizer re-renderizando.
-- [ ] A largura renderizada permanece idêntica à atual para o mesmo conteúdo.
+- [x] `diffContentWidth` é chamada uma única vez para um mesmo conteúdo, mesmo com o virtualizer re-renderizando.
+- [x] A largura renderizada permanece idêntica à atual para o mesmo conteúdo.
 
 ### Bloqueado por
 
@@ -125,9 +129,9 @@ Requisito 5.
 
 ### Critérios de aceite
 
-- [ ] Um arquivo grande listado na árvore é recusado sem que seu conteúdo seja lido inteiro.
-- [ ] A recusa por tamanho continua chegando ao renderer como um status distinguível de erro de leitura.
-- [ ] Arquivos dentro do limite continuam abrindo com o mesmo conteúdo de hoje.
+- [x] Um arquivo grande listado na árvore é recusado sem que seu conteúdo seja lido inteiro.
+- [x] A recusa por tamanho continua chegando ao renderer como um status distinguível de erro de leitura.
+- [x] Arquivos dentro do limite continuam abrindo com o mesmo conteúdo de hoje.
 
 ### Bloqueado por
 
@@ -149,9 +153,9 @@ Um arquivo de qualquer contagem de linhas abre no leitor pelo caminho de browse.
 
 ### Critérios de aceite
 
-- [ ] Um arquivo acima de 3000 linhas abre no modo browse e rola sem perda perceptível de frames.
-- [ ] O caminho de diff mantém `FULL_FILE_MAX_LINES` inalterado.
-- [ ] Nenhum arquivo dentro do limite de bytes retorna status `too-large` por contagem de linhas.
+- [x] Um arquivo acima de 3000 linhas abre no modo browse e rola sem perda perceptível de frames.
+- [x] O caminho de diff mantém `FULL_FILE_MAX_LINES` inalterado.
+- [x] Nenhum arquivo dentro do limite de bytes retorna status `too-large` por contagem de linhas.
 
 ### Bloqueado por
 
@@ -173,8 +177,8 @@ A mecânica de teclado dos pickers (índice destacado, setas, Enter, Escape, `sc
 
 ### Critérios de aceite
 
-- [ ] `shell-picker` e `project-picker` não contêm mais gerenciamento próprio de índice destacado nem handlers de setas/Enter/Escape.
-- [ ] Os testes existentes de teclado dos dois pickers passam sem alteração de expectativa.
+- [x] `shell-picker` e `project-picker` não contêm mais gerenciamento próprio de índice destacado nem handlers de setas/Enter/Escape.
+- [x] Os testes existentes de teclado dos dois pickers passam sem alteração de expectativa.
 
 ### Bloqueado por
 
@@ -182,24 +186,25 @@ Nenhum.
 
 ### Contexto
 
-Prefactor da issue `picker-de-arquivos-e-pastas`. As cópias estão em `shell-picker.tsx:18-24,82-95,99,141-142` e `project-picker.tsx:41-47,147,200-201`. Hoje o único pedaço compartilhado é `picker-hint.tsx`.
+Prefactor da issue `quick-open-de-arquivos-e-pastas`. As cópias estão em `shell-picker.tsx:18-24,82-95,99,141-142` e `project-picker.tsx:41-47,147,200-201`. Hoje o único pedaço compartilhado é `picker-hint.tsx`.
 
 ### Cobre
 
 Requisito 8.
 
-## picker-de-arquivos-e-pastas
+## quick-open-de-arquivos-e-pastas
 
 ### Resultado
 
-Um overlay picker filtra os paths do worktree por nome e abre no leitor o arquivo escolhido; escolher uma pasta revela essa pasta na árvore.
+Ctrl+X, P abre o Quick Open, que filtra os paths do worktree por nome e abre no leitor o arquivo escolhido; escolher uma pasta mantém o diálogo aberto e restringe os resultados ao conteúdo dela.
 
 ### Critérios de aceite
 
-- [ ] O picker abre por atalho de teclado no painel de Review e filtra sobre `browsePaths`.
-- [ ] O filtro casa contra o path completo, e encontra uma pasta cujo nó foi fundido por `collapseChain` (nome composto do tipo `"a/b/c"`).
-- [ ] Setas, Enter e Escape funcionam pelo hook compartilhado, sem código de teclado próprio.
-- [ ] Escolher um arquivo o abre no leitor; a árvore não muda de estrutura por causa do filtro.
+- [x] O Quick Open abre por atalho de teclado no painel de Review e filtra sobre `browsePaths`.
+- [x] O filtro casa contra o path completo, e encontra uma pasta cujo nó foi fundido por `collapseChain` (nome composto do tipo `"a/b/c"`).
+- [x] Setas, Enter e Escape funcionam pelo hook compartilhado, sem código de teclado próprio.
+- [x] Escolher um arquivo o abre no leitor; a árvore não muda de estrutura por causa do filtro.
+- [x] Escolher uma pasta mantém o Quick Open aberto e restringe os resultados aos arquivos e pastas dentro dela.
 
 ### Bloqueado por
 
@@ -207,7 +212,7 @@ Um overlay picker filtra os paths do worktree por nome e abre no leitor o arquiv
 
 ### Contexto
 
-Decisão fechada: overlay, não filtro dentro da árvore — a Tree não tem navegação por teclado nem semântica de árvore (`review-tree-rows.tsx` usa `<button>` cru). Pesquisar arquivo e pesquisar pasta são a mesma feature: ambas filtram o mesmo `string[]`. A armadilha do `collapseChain` está em `file-tree.ts:86`. Carregar as skills `frontend`, `react-components` e `frontend-design`.
+Decisão fechada: overlay, não filtro dentro da árvore — a Tree não tem navegação por teclado nem semântica de árvore (`review-tree-rows.tsx` usa `<button>` cru). Pesquisar arquivo e pesquisar pasta são a mesma feature: ambas filtram o mesmo `string[]`. Escolher uma pasta mantém o picker aberto e estreita os resultados dentro dela; não revela a pasta na Tree. A armadilha do `collapseChain` está em `file-tree.ts:86`. Carregar as skills `frontend`, `react-components` e `frontend-design`.
 
 ### Cobre
 
@@ -221,9 +226,9 @@ O leitor aceita uma linha alvo e abre com o scroll nela, inclusive ao reabrir o 
 
 ### Critérios de aceite
 
-- [ ] Abrir um arquivo com linha alvo posiciona o scroll nessa linha.
-- [ ] Reabrir o mesmo arquivo numa linha diferente re-scrolla para a nova linha.
-- [ ] Abrir sem linha alvo mantém o comportamento atual de pular para a primeira linha alterada.
+- [x] Abrir um arquivo com linha alvo posiciona o scroll nessa linha.
+- [x] Reabrir o mesmo arquivo numa linha diferente re-scrolla para a nova linha.
+- [x] Abrir sem linha alvo mantém o comportamento atual de pular para a primeira linha alterada.
 
 ### Bloqueado por
 
@@ -237,18 +242,20 @@ Nenhum.
 
 Requisito 10.
 
-## busca-de-conteudo
+## busca-de-conteudo-no-quick-open
 
 ### Resultado
 
-Um terceiro segmento da Tree (Diff | Files | Search) busca texto no conteúdo do worktree via `git grep` e abre o resultado no arquivo e na linha.
+O Quick Open oferece uma ação explícita para buscar texto no conteúdo do worktree via `git grep`; os resultados aparecem no mesmo diálogo e abrem o arquivo na linha, sem mudar o modo da Tree.
 
 ### Critérios de aceite
 
-- [ ] A busca roda `git grep --untracked -n` no UtilityProcess de git, com escopo por worktree.
-- [ ] O worker impõe um teto global de resultados e a resposta indica quando foi truncada.
-- [ ] Uma busca que passa de 5000ms não é abortada pelo timeout padrão de `GitRun`.
-- [ ] Os resultados aparecem agrupados por arquivo e o clique abre o arquivo na linha do resultado.
+- [x] A busca roda `git grep --untracked -n` no UtilityProcess de git, com escopo por worktree.
+- [x] O worker impõe um teto global de resultados e a resposta indica quando foi truncada.
+- [x] Uma busca que passa de 5000ms não é abortada pelo timeout padrão de `GitRun`.
+- [x] Para qualquer termo digitado, o Quick Open oferece a ação de buscar dentro dos arquivos.
+- [x] Os resultados aparecem agrupados por arquivo no mesmo diálogo e a escolha abre o arquivo na linha do resultado.
+- [x] Abrir um resultado não troca a Tree entre Diff e Files nem muda sua expansão.
 
 ### Bloqueado por
 
@@ -270,9 +277,9 @@ Um `caminho:linha` impresso no terminal é clicável e abre o arquivo naquela li
 
 ### Critérios de aceite
 
-- [ ] Um link provider registrado no xterm reconhece `caminho:linha` na saída do terminal.
-- [ ] Clicar no link abre o arquivo no leitor, posicionado na linha.
-- [ ] Um caminho que não existe no worktree não vira link.
+- [x] Um link provider registrado no xterm reconhece `caminho:linha` na saída do terminal.
+- [x] Clicar no link abre o arquivo no leitor, posicionado na linha.
+- [x] Um caminho que não existe no worktree não vira link.
 
 ### Bloqueado por
 
@@ -294,9 +301,9 @@ Abrir um arquivo de imagem mostra a imagem em vez de "Binary content cannot be s
 
 ### Critérios de aceite
 
-- [ ] Formatos de imagem comuns renderizam no leitor.
-- [ ] Binários que não são imagem continuam mostrando a mensagem atual.
-- [ ] A guarda por bytes continua valendo para o caminho de imagem.
+- [x] Formatos de imagem comuns renderizam no leitor.
+- [x] Binários que não são imagem continuam mostrando a mensagem atual.
+- [x] A guarda por bytes continua valendo para o caminho de imagem.
 
 ### Bloqueado por
 
@@ -318,8 +325,8 @@ O leitor destaca sintaxe para as extensões que hoje caem em texto puro.
 
 ### Critérios de aceite
 
-- [ ] `.toml`, `.lua`, `.vue`, `.svelte`, `.kt`, `.swift`, `.php`, `.graphql`, `.proto`, `.ini` e `.env` recebem destaque.
-- [ ] As 33 extensões já cobertas continuam com o mesmo destaque.
+- [x] `.toml`, `.lua`, `.vue`, `.svelte`, `.kt`, `.swift`, `.php`, `.graphql`, `.proto`, `.ini` e `.env` recebem destaque.
+- [x] As 33 extensões já cobertas continuam com o mesmo destaque.
 
 ### Bloqueado por
 
@@ -341,8 +348,8 @@ A árvore de Files renderiza apenas as linhas visíveis, e continua utilizável 
 
 ### Critérios de aceite
 
-- [ ] Expandir todas as pastas num repositório grande mantém a árvore responsiva.
-- [ ] Expansão, foco e seleção continuam funcionando como hoje.
+- [x] Expandir todas as pastas num repositório grande mantém a árvore responsiva.
+- [x] Expansão, foco e seleção continuam funcionando como hoje.
 
 ### Bloqueado por
 

@@ -133,7 +133,7 @@ The single letter that names how a changed file differs: modified, added, delete
 _Avoid_: State, type, kind
 
 **Tree**:
-The navigator that arranges files as a folder hierarchy. It offers two readings of the same worktree — the Changes view and the Files view — and the control in its header picks which one is showing. Each reading remembers the Focused file it was left on, so switching back returns to that file rather than to nothing.
+The navigator for a Worktree, with two readings selected from its header: Changes and Files. Both arrange paths as a folder hierarchy and remember their own Focused file.
 _Avoid_: Explorer, file browser, sidebar
 
 **Changes view**:
@@ -143,6 +143,10 @@ _Avoid_: Diff view, changes tab, diff tree
 **Files view**:
 The Tree reading that holds every file of the current Worktree, changed or not, so reading one costs no trip to an outside editor. Its set comes from git rather than from the disk: tracked files, untracked files git does not ignore, and ignored files sitting loose among them, while a directory that is ignored whole stays out — a directory git does not track at all lists nothing. It only ever reads. The code calls this reading `browse`, so there is no `files` to grep for.
 _Avoid_: Browse view, browser, explorer, project tree, disk listing
+
+**Quick Open**:
+The temporary picker opened with Ctrl+X, P. It first matches files and folders in the current Worktree. For any typed term it also offers one explicit action to search inside files; that action changes the same picker into occurrences grouped by file. Choosing a file or occurrence closes the picker and focuses the file, at the matching line when there is one. It never changes the Tree reading or its expansion.
+_Avoid_: Search view, path picker, search mode, grep panel
 
 **Prewarm**:
 Preparing a mounted project's review in the background before its first activation, so the first visit paints from already-known state.
@@ -201,7 +205,7 @@ Where the user is inside the Review, held as the changed line at the top of the 
 _Avoid_: Scroll position, offset, scroll top
 
 **Focused file**:
-The one changed file occupying the Review's content area in full, with unchanged lines as context and changed lines still marked. The underlying Review remains present and current.
+The one file from the Project occupying the Review's content area in full. It may open at a target line, while the underlying Review remains present and current.
 _Avoid_: Full-file view, preview, expand, open file, source view, modal
 
 **Update button**:

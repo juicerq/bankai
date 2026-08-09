@@ -3,13 +3,16 @@ import { afterEach, expect, test } from "bun:test";
 import type { FileChange, ReviewSnapshot, Worktree } from "@shared/review";
 import type { Project } from "@shared/projects";
 import { ReviewPanel } from "@renderer/routes/-features/review/panel/review-panel";
+import { createReviewPanelStore } from "@renderer/routes/-features/review/panel/review-panel-store";
+import { LEADING_CONTEXT } from "@renderer/routes/-features/review/reading/review-focused-file";
+import { REVIEW_ROW_HEIGHT } from "@renderer/routes/-features/review/reading/review-rows";
 import { REVIEW_SCOPES } from "@renderer/routes/-features/review/header/review-scope";
 import type { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
 import { WorkspaceProvider } from "@renderer/routes/-features/workspace/layout/workspace-context";
-import { get, query, slot } from "./dom";
+import { get, query, querySlot, slot } from "./dom";
 import type { ReviewProcedure } from "./orpc-transport";
 import { installReviewEnvironment } from "./review-harness";
-import { cleanup, fireEvent, render, waitFor } from "./testing-library";
+import { act, cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 afterEach(cleanup);
 
@@ -67,8 +70,9 @@ function snapshotOf(paths: string[]): ReviewSnapshot {
 	};
 }
 
-function renderPanel() {
+function renderPanel({ quickOpen = false }: { quickOpen?: boolean } = {}) {
 	const environment = installReviewEnvironment();
+	const panel = createReviewPanelStore();
 	const view = render(
 		<WorkspaceProvider
 			control={{
@@ -89,13 +93,14 @@ function renderPanel() {
 			topBand={{ revealed: false, onFocus: () => {}, onBlur: () => {} }}
 		>
 			<ReviewPanel
+				panel={panel}
 				project={project}
 				shells={[]}
 				treeOpen
 				treeDivider={divider}
 				expanded={false}
 				onToggleExpanded={() => {}}
-				pathPicker={{ open: false, onClose: () => {} }}
+				quickOpen={{ open: quickOpen, onClose: () => {} }}
 			/>
 		</WorkspaceProvider>,
 		{ wrapper: environment.wrapper },
@@ -137,16 +142,23 @@ function pickMenuItem(component: string, label: string) {
 }
 
 async function answer(panel: Panel, procedure: ReviewProcedure, value: unknown, match?: (input: unknown) => boolean) {
-	await waitFor(() => expect(panel.transport.pendingCount(procedure)).toBeGreaterThan(0));
+	await waitFor(() => {
+		if (panel.transport.pendingCount(procedure) === 0) {
+			throw new Error(`No pending ${procedure} request; received ${JSON.stringify(panel.transport.calls)}`);
+		}
+	});
 
 	while (panel.transport.pendingCount(procedure) > 0) {
 		panel.transport.resolve(procedure, value, match);
 	}
 }
 
-async function openTree(panel: Panel) {
+async function openTree(panel: Panel, browsePaths?: string[]) {
 	panel.ipc.resolveWatch();
 	await answer(panel, "worktrees", WORKTREES);
+	if (browsePaths) {
+		await answer(panel, "browseFiles", browsePaths);
+	}
 	await answer(panel, "snapshot", snapshotOf(CHANGED_PATHS));
 	await waitFor(() => expect(hasTreeRow("src/app/one.ts")).toBe(true));
 
@@ -199,4 +211,120 @@ test("picking another worktree drops the tree state and the focused file", async
 
 	await waitFor(() => expect(hasTreeRow("src/app/one.ts")).toBe(true));
 	expect(query("review-focused-file")).toBeNull();
+});
+
+test("quick open filters every worktree path and opens a file without changing the tree reading", async () => {
+	const panel = renderPanel({ quickOpen: true });
+	const browsePaths = [...CHANGED_PATHS, "src/main/agents/harness/claude/claude-harness.ts"];
+	await openTree(panel, browsePaths);
+
+	const quickOpen = get("review-quick-open");
+	const input = slot<HTMLInputElement>(quickOpen, "filter-input");
+	fireEvent.input(input, { target: { value: "claude-harness" } });
+	fireEvent.keyDown(input, { key: "Enter" });
+
+	expect(get("review-focused-file").dataset.path).toBe("src/main/agents/harness/claude/claude-harness.ts");
+	expect(get("review-tree").dataset.treeView).toBe("changes");
+});
+
+test("quick open searches the current worktree and opens a result at its exact line without moving the tree", async () => {
+	const panel = renderPanel({ quickOpen: true });
+	await openTree(panel, CHANGED_PATHS);
+
+	const quickOpen = get("review-quick-open");
+	const input = slot<HTMLInputElement>(quickOpen, "filter-input");
+	fireEvent.input(input, { target: { value: "needle" } });
+	expect(input.value).toBe("needle");
+	fireEvent.keyDown(input, { key: "Enter" });
+	expect(quickOpen.dataset.mode).toBe("content");
+	await waitFor(() => expect(panel.transport.callsFor("searchContent")).toHaveLength(1));
+
+	await answer(panel, "searchContent", {
+		matches: [
+			{ file: "src/result.ts", line: 20, text: "first needle" },
+			{ file: "src/result.ts", line: 80, text: "second needle" },
+		],
+		truncated: false,
+	});
+
+	expect(panel.transport.callsFor("searchContent")).toEqual([
+		{ projectId: "p1", worktree: "/p1", query: "needle" },
+	]);
+	await waitFor(() => expect(get("review-quick-open-file", { path: "src/result.ts" }).dataset.matches).toBe("2"));
+	expect(get("review-tree").dataset.treeView).toBe("changes");
+
+	await act(async () => fireEvent.keyDown(slot(quickOpen, "content-results"), { key: "Enter" }));
+	await waitFor(() => expect(panel.transport.callsFor("browseFile")).toHaveLength(1));
+	await act(async () => {
+		await answer(panel, "browseFile", {
+			status: "ready",
+			lines: Array.from({ length: 100 }, (_, index) => ({
+				kind: "context",
+				number: index + 1,
+				oldNumber: index + 1,
+				hunk: 0,
+				content: `line ${index + 1}`,
+			})),
+		});
+	});
+
+	await waitFor(() => expect(get("review-focused-file").dataset.path).toBe("src/result.ts"));
+	await waitFor(() =>
+		expect(slot(get("review-focused-file"), "scroll").scrollTop).toBe(
+			(19 - LEADING_CONTEXT) * REVIEW_ROW_HEIGHT.line,
+		),
+	);
+	expect(get("review-tree").dataset.treeView).toBe("changes");
+});
+
+test("quick open repeats empty, error, and truncated searches through the original action", async () => {
+	const panel = renderPanel({ quickOpen: true });
+	await openTree(panel, CHANGED_PATHS);
+
+	const quickOpen = get("review-quick-open");
+	const input = slot<HTMLInputElement>(quickOpen, "filter-input");
+	fireEvent.input(input, { target: { value: "needle" } });
+	fireEvent.click(get("review-quick-open-content-action"));
+	expect(quickOpen.dataset.mode).toBe("content");
+
+	await waitFor(() => expect(quickOpen.dataset.status).toBe("searching"));
+	panel.transport.resolve("searchContent", { matches: [], truncated: false });
+	await waitFor(() => expect(quickOpen.dataset.status).toBe("empty"));
+	expect(querySlot(quickOpen, "retry")).toBeNull();
+
+	fireEvent.keyDown(quickOpen, { key: "Escape" });
+	fireEvent.click(get("review-quick-open-content-action"));
+	await waitFor(() => expect(quickOpen.dataset.status).toBe("searching"));
+	panel.transport.reject("searchContent", new Error("search unavailable"));
+	await waitFor(() => expect(quickOpen.dataset.status).toBe("error"));
+	expect(querySlot(quickOpen, "retry")).toBeNull();
+
+	fireEvent.keyDown(quickOpen, { key: "Escape" });
+	fireEvent.click(get("review-quick-open-content-action"));
+	await waitFor(() => expect(quickOpen.dataset.status).toBe("searching"));
+	panel.transport.resolve("searchContent", {
+		matches: [],
+		truncated: true,
+	});
+
+	await waitFor(() => expect(quickOpen.dataset.status).toBe("truncated"));
+	expect(slot(quickOpen, "truncated")).toBeTruthy();
+	expect(panel.transport.callsFor("searchContent")).toHaveLength(3);
+});
+
+test("escape returns from content results to path search before closing quick open", async () => {
+	const panel = renderPanel({ quickOpen: true });
+	await openTree(panel, CHANGED_PATHS);
+
+	const quickOpen = get("review-quick-open");
+	const input = slot<HTMLInputElement>(quickOpen, "filter-input");
+	fireEvent.input(input, { target: { value: "needle" } });
+	fireEvent.click(get("review-quick-open-content-action"));
+	expect(quickOpen.dataset.mode).toBe("content");
+	await answer(panel, "searchContent", { matches: [], truncated: false });
+	await waitFor(() => expect(quickOpen.dataset.status).toBe("empty"));
+
+	fireEvent.keyDown(quickOpen, { key: "Escape" });
+	expect(quickOpen.dataset.mode).toBe("paths");
+	expect(slot<HTMLInputElement>(quickOpen, "filter-input").value).toBe("needle");
 });

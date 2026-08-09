@@ -174,6 +174,14 @@ test("the tree divider redistributes a fixed Review width", () => {
 	expect(split.dataset.totalWidth).toBe("1010");
 });
 
+test("the tree keeps search out of its reading modes", () => {
+	render(<ReviewTreeFilesHarness />);
+
+	expect(slot(get("review-tree"), "tree-view-changes")).toBeTruthy();
+	expect(slot(get("review-tree"), "tree-view-browse")).toBeTruthy();
+	expect(get("review-tree").querySelector('[data-slot="tree-view-search"]')).toBeNull();
+});
+
 test("collapsing a directory closes the diffs of the files under it", () => {
 	render(<ReviewTreeFilesHarness />);
 

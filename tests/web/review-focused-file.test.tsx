@@ -1,7 +1,7 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import type { FileChange, FullFile } from "@shared/review";
 import * as reviewRows from "@renderer/routes/-features/review/reading/review-rows";
-import { get, slot } from "./dom";
+import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
 const measureWidth = reviewRows.diffContentWidth;
@@ -111,6 +111,30 @@ test("content that arrives keeps the failure off screen", () => {
 
 	expect(body.dataset.contentStatus).toBe("ready");
 	expect(body.textContent).not.toContain("read broke");
+});
+
+test("shows an image returned for the focused file", () => {
+	const image: FullFile = {
+		status: "image",
+		mime: "image/png",
+		data: "iVBORw0KGgo=",
+	};
+
+	render(<ReviewFocusedFile path="assets/preview.png" content={image} onClose={() => {}} />);
+
+	const body = slot(get("review-focused-file"), "body");
+	const preview = get("review-focused-file-image");
+
+	expect(body.dataset.contentStatus).toBe("image");
+	expect(preview.dataset.mime).toBe("image/png");
+	expect(slot(preview, "image").getAttribute("src")).toBe("data:image/png;base64,iVBORw0KGgo=");
+});
+
+test("keeps binary content as a notice instead of an image", () => {
+	render(<ReviewFocusedFile path="assets/archive.bin" content={{ status: "binary" }} onClose={() => {}} />);
+
+	expect(slot(get("review-focused-file"), "body").dataset.contentStatus).toBe("binary");
+	expect(query("review-focused-file-image")).toBeNull();
 });
 
 test("closes on Escape after a click in the file text takes focus off the close button", () => {

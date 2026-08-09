@@ -36,3 +36,14 @@ export function slot<Element extends HTMLElement = HTMLElement>(parent: HTMLElem
 
 	return match;
 }
+
+export function querySlot<Element extends HTMLElement = HTMLElement>(parent: HTMLElement, name: string) {
+	const matches = [...parent.querySelectorAll<Element>(`[data-slot="${name}"]`)];
+	const [match] = matches;
+
+	if (matches.length > 1) {
+		throw new Error(`Expected at most one ${name} slot, found ${matches.length}`);
+	}
+
+	return match ?? null;
+}

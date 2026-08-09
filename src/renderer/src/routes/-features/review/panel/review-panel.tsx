@@ -1,17 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "@tanstack/react-store";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import type { ContinuityShell } from "@shared/continuity";
 import type { Project } from "@shared/projects";
 import { orpc } from "@renderer/lib/api";
 import { ReviewDiff, type ReviewDiffHandle } from "@renderer/routes/-features/review/reading/review-diff";
 import { ReviewFocusedFile } from "@renderer/routes/-features/review/reading/review-focused-file";
 import { ReviewHeader } from "@renderer/routes/-features/review/header/review-header";
-import { ReviewPathPicker } from "@renderer/routes/-features/review/header/review-path-picker";
+import { ReviewQuickOpen } from "@renderer/routes/-features/review/header/review-quick-open/review-quick-open";
 import { ReviewTree } from "@renderer/routes/-features/review/tree/review-tree";
 import type { ReviewWorktreeSelection } from "@renderer/routes/-features/review/header/review-worktree-menu";
 import { MIN_DIFF_WIDTH, REVIEW_DIFF_WIDTH_VALUE } from "@renderer/routes/-features/review/panel/review-layout";
-import { createReviewPanelStore } from "@renderer/routes/-features/review/panel/review-panel-store";
+import type { ReviewPanelStore } from "@renderer/routes/-features/review/panel/review-panel-store";
 import { resolveReviewWorktree } from "@renderer/routes/-features/review/header/review-worktree";
 import { sharedWorktreeShells } from "@renderer/routes/-features/review/header/shared-worktree";
 import type { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
@@ -20,6 +20,7 @@ import { worktreeActivity } from "@renderer/routes/-features/review/header/workt
 import { useWorkspaceAgents, useWorkspaceControl } from "@renderer/routes/-features/workspace/layout/workspace-context";
 
 export function ReviewPanel({
+	panel,
 	project,
 	shellId,
 	shells,
@@ -27,8 +28,9 @@ export function ReviewPanel({
 	treeDivider,
 	expanded,
 	onToggleExpanded,
-	pathPicker,
+	quickOpen,
 }: {
+	panel: ReviewPanelStore;
 	project: Project;
 	shellId?: string;
 	shells: ContinuityShell[];
@@ -36,36 +38,40 @@ export function ReviewPanel({
 	treeDivider: ReturnType<typeof useDivider>;
 	expanded: boolean;
 	onToggleExpanded: () => void;
-	pathPicker: { open: boolean; onClose: () => void };
+	quickOpen: { open: boolean; onClose: () => void };
 }) {
 	const { onTreeOpenChange } = useWorkspaceControl();
 	const agents = useWorkspaceAgents();
 	const shellWorktree = shellId === undefined ? undefined : agents.worktrees.get(shellId);
-	const [panel] = useState(createReviewPanelStore);
 	const mode = useSelector(panel, (state) => state.mode);
 	const treeView = useSelector(panel, (state) => state.treeView);
 	const closedFiles = useSelector(panel, (state) => state.closedFiles);
 	const focusedPath = useSelector(panel, (state) => state.focusedPath);
+	const focusedLine = useSelector(panel, (state) => state.focusedLine);
 	const pinnedWorktree = useSelector(panel, (state) => state.pinnedWorktree);
 	const diff = useRef<ReviewDiffHandle>(null);
 	const isFileOpen = useCallback((path: string) => !closedFiles.has(path), [closedFiles]);
 
 	const queryClient = useQueryClient();
-	const worktreesQuery = useQuery(orpc.review.worktrees.queryOptions({ input: { projectId: project.id } }));
-	const removeWorktree = useMutation(
+	const { data: worktreeData } = useQuery(orpc.review.worktrees.queryOptions({ input: { projectId: project.id } }));
+	const {
+		error: removeWorktreeError,
+		variables: removeWorktreeVariables,
+		mutate: removeWorktree,
+	} = useMutation(
 		orpc.review.removeWorktree.mutationOptions({
 			onSuccess: async () => {
 				await queryClient.invalidateQueries({ queryKey: orpc.review.worktrees.key() });
 			},
 		}),
 	);
-	const worktrees = worktreesQuery.data ?? [];
+	const worktrees = worktreeData ?? [];
 	const worktree = resolveReviewWorktree({ pinned: pinnedWorktree, shellWorktree, worktrees }) ?? project.path;
 
 	const { data: browsePaths } = useQuery(
 		orpc.review.browseFiles.queryOptions({
 			input: { projectId: project.id, worktree },
-			enabled: pathPicker.open || (treeOpen && treeView === "browse"),
+			enabled: quickOpen.open || (treeOpen && treeView === "browse"),
 		}),
 	);
 
@@ -130,17 +136,23 @@ export function ReviewPanel({
 		shellPath: shellWorktree,
 		activity: worktreeActivity({ shellWorktrees: agents.worktrees, shellActivity: agents.shells }),
 		removeFailure:
-			removeWorktree.error && removeWorktree.variables
-				? { path: removeWorktree.variables.worktree, message: removeWorktree.error.message }
+			removeWorktreeError && removeWorktreeVariables
+				? { path: removeWorktreeVariables.worktree, message: removeWorktreeError.message }
 				: undefined,
 		onSelect: panel.actions.pinWorktree,
-		onRemove: (path) => removeWorktree.mutate({ projectId: project.id, worktree: path }),
+		onRemove: (path) => removeWorktree({ projectId: project.id, worktree: path }),
 	};
 
 	return (
 		<aside className="flex bg-surface-raised" aria-label="Review">
-			{pathPicker.open && (
-				<ReviewPathPicker paths={browsePaths ?? []} onOpenFile={panel.actions.focusFile} onClose={pathPicker.onClose} />
+			{quickOpen.open && (
+				<ReviewQuickOpen
+					projectId={project.id}
+					worktree={worktree}
+					paths={browsePaths ?? []}
+					onOpenFile={panel.actions.focusFile}
+					onClose={quickOpen.onClose}
+				/>
 			)}
 			{treeOpen && (
 				<ReviewTree
@@ -187,10 +199,11 @@ export function ReviewPanel({
 					/>
 					{focusedPath && (
 						<ReviewFocusedFile
-							key={focusedPath}
+							key={`${focusedPath}:${focusedLine ?? ""}`}
 							content={fullFile}
 							error={fullFileError}
 							path={focusedPath}
+							line={focusedLine}
 							change={focusedFile}
 							onClose={closeFocus}
 						/>

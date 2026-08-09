@@ -1,11 +1,15 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
-import { type IDisposable, Terminal } from "@xterm/xterm";
+import { type IBufferCellPosition, type IDisposable, Terminal } from "@xterm/xterm";
 import { useCallback, useRef } from "react";
 import { client } from "@renderer/lib/api";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { terminalStream } from "@renderer/lib/stream/terminal";
 import type { ResumeOutcome } from "@renderer/routes/-features/sessions/lifecycle/resume-state";
+import {
+	TerminalFileLinks,
+	type TerminalFileTarget,
+} from "@renderer/routes/-features/terminal/terminal-file-links";
 import { registerTerminalStyle, TERMINAL_OPTIONS } from "@renderer/routes/-features/terminal/terminal-style";
 import type { TerminalAttached, TerminalCommandErrorEvent } from "@shared/terminal";
 import { throttle } from "@shared/throttle";
@@ -22,6 +26,54 @@ interface ActiveWebgl {
 	contextLoss: IDisposable;
 }
 
+interface TerminalLogicalLine {
+	text: string;
+	positions: IBufferCellPosition[];
+}
+
+function terminalLogicalLineAt(terminal: Terminal, row: number): TerminalLogicalLine | undefined {
+	const buffer = terminal.buffer.active;
+	let firstRow = row - 1;
+	if (!buffer.getLine(firstRow)) {
+		return;
+	}
+
+	while (firstRow > 0 && buffer.getLine(firstRow)?.isWrapped) {
+		firstRow -= 1;
+	}
+
+	let lastRow = row - 1;
+	while (buffer.getLine(lastRow + 1)?.isWrapped) {
+		lastRow += 1;
+	}
+
+	let text = "";
+	const positions: IBufferCellPosition[] = [];
+	for (let lineIndex = firstRow; lineIndex <= lastRow; lineIndex += 1) {
+		const line = buffer.getLine(lineIndex);
+		if (!line) {
+			return;
+		}
+
+		for (let column = 0; column < Math.min(line.length, terminal.cols); column += 1) {
+			const cell = line.getCell(column);
+			if (!cell || cell.getWidth() === 0) {
+				continue;
+			}
+
+			const chars = cell.getChars() || " ";
+			text += chars;
+			for (let offset = 0; offset < chars.length; offset += 1) {
+				positions.push({ x: column + 1, y: lineIndex + 1 });
+			}
+		}
+	}
+
+	const trimmedLength = text.trimEnd().length;
+
+	return { text: text.slice(0, trimmedLength), positions: positions.slice(0, trimmedLength) };
+}
+
 export function useTerminalSession(options: {
 	projectId: string;
 	shellId: string;
@@ -29,6 +81,7 @@ export function useTerminalSession(options: {
 	resizeDeferred: boolean;
 	resumeOnMount?: boolean;
 	attachOnly?: boolean;
+	fileLinks?: TerminalFileLinkContext;
 	onResumeOutcome?: (outcome: ResumeOutcome) => void;
 	onFirstOutput?: () => void;
 }) {
@@ -43,6 +96,8 @@ export function useTerminalSession(options: {
 	onResumeOutcomeRef.current = options.onResumeOutcome;
 	const onFirstOutputRef = useRef(options.onFirstOutput);
 	onFirstOutputRef.current = options.onFirstOutput;
+	const fileLinksRef = useRef(options.fileLinks);
+	fileLinksRef.current = options.fileLinks;
 	const registerContainer = useCallback((container: HTMLDivElement | null) => {
 		if (!container) {
 			return;
@@ -56,6 +111,7 @@ export function useTerminalSession(options: {
 				resume: resumeOnMountRef.current,
 				attachOnly: attachOnly === true,
 				resizeDeferred: resizeDeferredRef.current,
+				fileLinks: () => fileLinksRef.current,
 				onResumeOutcome: (outcome) => onResumeOutcomeRef.current?.(outcome),
 				onFirstOutput: () => onFirstOutputRef.current?.(),
 			});
@@ -93,6 +149,12 @@ export function useTerminalSession(options: {
 	return { registerContainer, registerActivation, registerFocusRequest, registerResizeDeferral, retryResume };
 }
 
+export interface TerminalFileLinkContext {
+	paths: ReadonlySet<string>;
+	worktree?: string;
+	onOpen: (target: TerminalFileTarget) => void;
+}
+
 interface RendererTerminalOptions {
 	projectId: string;
 	shellId: string;
@@ -101,6 +163,7 @@ interface RendererTerminalOptions {
 	resizeDeferred: boolean;
 	onResumeOutcome: (outcome: ResumeOutcome) => void;
 	onFirstOutput: () => void;
+	fileLinks: () => TerminalFileLinkContext | undefined;
 }
 
 export class RendererTerminalSession {
@@ -114,6 +177,7 @@ export class RendererTerminalSession {
 	private readonly removeCommandErrorListener;
 	private readonly stopStyle;
 	private readonly stopResync;
+	private readonly fileLinkProvider;
 	private sessionId: string | undefined;
 	private lastCols: number | undefined;
 	private lastRows: number | undefined;
@@ -163,6 +227,7 @@ export class RendererTerminalSession {
 				terminalStream.write(this.sessionId, data);
 			}
 		});
+		this.fileLinkProvider = this.registerFileLinks();
 		this.stopResync = streamResync.register("terminal", () => this.reattach());
 		this.resizeProcess = throttle(() => this.syncProcessDimensions(), TERMINAL_RESIZE_THROTTLE_MS);
 		this.resizeObserver = new ResizeObserver(() => this.handleContainerResize());
@@ -251,6 +316,7 @@ export class RendererTerminalSession {
 		this.removeCommandErrorListener();
 		this.stopStyle();
 		this.stopResync();
+		this.fileLinkProvider.dispose();
 		if (this.sessionId) {
 			terminalStream.detach(this.sessionId);
 		}
@@ -315,6 +381,42 @@ export class RendererTerminalSession {
 		}
 
 		return await terminalStream.open(projectId, shellId, this.terminal.cols, this.terminal.rows);
+	}
+
+	private registerFileLinks() {
+		const fileLinks = this.options.fileLinks;
+
+		return this.terminal.registerLinkProvider({
+			provideLinks: (row, callback) => {
+				const context = fileLinks();
+				const logicalLine = terminalLogicalLineAt(this.terminal, row);
+
+				if (!context || !logicalLine?.text) {
+					callback([]);
+					return;
+				}
+
+				const links = TerminalFileLinks.find({
+					text: logicalLine.text,
+					paths: context.paths,
+					worktree: context.worktree,
+				});
+
+				callback(links.flatMap(({ start, end, ...target }) => {
+					const startPosition = logicalLine.positions[start];
+					const endPosition = logicalLine.positions[end - 1];
+					if (!startPosition || !endPosition) {
+						return [];
+					}
+
+					return [{
+						range: { start: startPosition, end: endPosition },
+						text: logicalLine.text.slice(start, end),
+						activate: () => context.onOpen(target),
+					}];
+				}));
+			},
+		});
 	}
 
 	private handleClipboardChord(event: KeyboardEvent) {

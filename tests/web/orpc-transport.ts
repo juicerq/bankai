@@ -11,7 +11,15 @@ import { SERVER_RPC_PREFIX } from "@shared/server";
 import { DEFAULT_THEME, type ThemePreference } from "@shared/theme";
 import type { ServiceState, ServiceStatus } from "@shared/services";
 
-export type ReviewProcedure = "worktrees" | "snapshot" | "files" | "file" | "fullFile" | "browseFiles" | "browseFile";
+export type ReviewProcedure =
+	| "worktrees"
+	| "snapshot"
+	| "files"
+	| "file"
+	| "fullFile"
+	| "browseFiles"
+	| "browseFile"
+	| "searchContent";
 
 interface PendingRequest {
 	procedure: ReviewProcedure;
@@ -360,6 +368,7 @@ const router = {
 		fullFile: os.handler(({ input }) => requireTransport().request("fullFile", input)),
 		browseFiles: os.handler(({ input }) => requireTransport().request("browseFiles", input)),
 		browseFile: os.handler(({ input }) => requireTransport().request("browseFile", input)),
+		searchContent: os.handler(({ input }) => requireTransport().request("searchContent", input)),
 	},
 	projects: {
 		browse: os.input(type({ path: "string" })).handler(({ input }) => requireBrowse()(input.path)),

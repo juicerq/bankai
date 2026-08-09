@@ -74,6 +74,9 @@ function ReviewFocusedFileBody({
 	content?: FullFile;
 	error?: string;
 }) {
+	if (content?.status === "image") {
+		return <ReviewFocusedFileImage path={path} content={content} />;
+	}
 	if (content?.status === "ready") {
 		return <ReviewFocusedFileReader path={path} line={line} content={content} />;
 	}
@@ -85,6 +88,29 @@ function ReviewFocusedFileBody({
 	}
 
 	return <ReviewNotice>Reading file…</ReviewNotice>;
+}
+
+function ReviewFocusedFileImage({
+	path,
+	content,
+}: {
+	path: string;
+	content: Extract<FullFile, { status: "image" }>;
+}) {
+	return (
+		<div
+			data-component="review-focused-file-image"
+			data-mime={content.mime}
+			className="flex size-full items-center justify-center overflow-hidden bg-surface-sunken p-3"
+		>
+			<img
+				data-slot="image"
+				src={`data:${content.mime};base64,${content.data}`}
+				alt={`Preview of ${path}`}
+				className="block max-h-full max-w-full object-contain"
+			/>
+		</div>
+	);
 }
 
 function ReviewFocusedFileReader({

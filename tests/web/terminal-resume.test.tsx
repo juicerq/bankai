@@ -1,7 +1,11 @@
 import "./register-dom";
 import { streamTransport } from "./stream-transport";
 import { afterEach, beforeEach, expect, mock, test } from "bun:test";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ILinkProvider } from "@xterm/xterm";
+import type { ReactNode } from "react";
 import { get, query, slot } from "./dom";
+import { ReviewTransport, setReviewTransport } from "./orpc-transport";
 import { act, cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 class MockAddon {
@@ -16,6 +20,10 @@ class MockAddon {
 class MockTerminal {
 	cols = 80;
 	rows = 24;
+	readonly buffer = { active: { getLine: () => {} } };
+	registerLinkProvider(_provider: ILinkProvider) {
+		return { dispose() {} };
+	}
 	loadAddon() {}
 	attachCustomKeyEventHandler() {}
 	open() {}
@@ -91,17 +99,32 @@ globalThis.cancelIdleCallback = (id: number) => {
 
 const { TerminalPane } = await import("@renderer/routes/-features/terminal/terminal-pane");
 
-function renderPane(resumeOnMount: boolean) {
-	return render(
+async function renderPane(resumeOnMount: boolean) {
+	const transport = new ReviewTransport();
+	setReviewTransport(transport);
+	const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+	const wrapper = ({ children }: { children: ReactNode }) => (
+		<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+	);
+
+	const view = render(
 		<TerminalPane
 			projectId="p1"
 			shellId="s1"
+			worktree="/project"
 			active
 			focusRequest={0}
 			resizeDeferred={false}
 			resumeOnMount={resumeOnMount}
+			onOpenFile={() => {}}
 		/>,
+		{ wrapper },
 	);
+
+	await waitFor(() => expect(transport.pendingCount("browseFiles")).toBe(1));
+	transport.resolve("browseFiles", []);
+
+	return view;
 }
 
 beforeEach(() => {
@@ -118,7 +141,7 @@ afterEach(() => {
 
 test("a resumable shell attempts resume and shows no notice on success", async () => {
 	resumeOutcomes = ["resolve"];
-	renderPane(true);
+	await renderPane(true);
 
 	await waitFor(() => {
 		expect(resumeCalls).toBe(1);
@@ -130,7 +153,7 @@ test("a resumable shell attempts resume and shows no notice on success", async (
 
 test("a failed resume falls back to a new shell and offers a single retry that can recover", async () => {
 	resumeOutcomes = ["reject", "resolve"];
-	renderPane(true);
+	await renderPane(true);
 
 	await waitFor(() => {
 		expect(get("resume-notice").dataset.variant).toBe("failed-retryable");
@@ -148,7 +171,7 @@ test("a failed resume falls back to a new shell and offers a single retry that c
 });
 
 test("a shell with no session ref never attempts resume", async () => {
-	renderPane(false);
+	await renderPane(false);
 
 	await waitFor(() => {
 		expect(openCalls).toBe(1);
@@ -160,7 +183,7 @@ test("a shell with no session ref never attempts resume", async () => {
 
 test("a resuming shell is marked until the agent paints its first line", async () => {
 	resumeOutcomes = ["resolve"];
-	renderPane(true);
+	await renderPane(true);
 
 	await waitFor(() => {
 		expect(resumeCalls).toBe(1);
@@ -176,7 +199,7 @@ test("a resuming shell is marked until the agent paints its first line", async (
 });
 
 test("a shell opening fresh is never marked as resuming", async () => {
-	renderPane(false);
+	await renderPane(false);
 
 	await waitFor(() => {
 		expect(openCalls).toBe(1);
@@ -186,7 +209,7 @@ test("a shell opening fresh is never marked as resuming", async () => {
 });
 
 test("unmounting the pane detaches without killing the shell it opened", async () => {
-	const { unmount } = renderPane(false);
+	const { unmount } = await renderPane(false);
 
 	await waitFor(() => {
 		expect(openCalls).toBe(1);

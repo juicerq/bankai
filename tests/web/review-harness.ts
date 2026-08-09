@@ -88,7 +88,7 @@ export function installReviewEnvironment() {
 	setReviewTransport(transport);
 
 	const queryClient = new QueryClient({
-		defaultOptions: { queries: { retry: false, gcTime: 0 } },
+		defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: Infinity } },
 	});
 	const wrapper = ({ children }: { children: ReactNode }) =>
 		createElement(QueryClientProvider, { client: queryClient }, children);

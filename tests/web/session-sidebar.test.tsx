@@ -46,6 +46,7 @@ function renderSidebar(
 		onUnpin?: (projectId: string, shellId: string) => void;
 		onRename?: (projectId: string, shellId: string, title: string) => void;
 		onRequestShell?: (plain: boolean) => void;
+		onAddProject?: () => void;
 		onToggleProject?: (projectId: string) => void;
 		onExcludeProject?: (projectId: string, listedIds: readonly string[]) => void;
 		canCreateShell?: boolean;
@@ -76,6 +77,7 @@ function renderSidebar(
 				onSelect={handlers.onSelect ?? (() => {})}
 				onCreate={handlers.onCreate ?? (() => {})}
 				onRequestShell={handlers.onRequestShell ?? (() => {})}
+				onAddProject={handlers.onAddProject ?? (() => {})}
 				onToggleProject={handlers.onToggleProject ?? (() => {})}
 				onExcludeProject={handlers.onExcludeProject ?? (() => {})}
 				onClose={handlers.onClose ?? (() => {})}
@@ -381,6 +383,15 @@ test("the header plus asks for a shell instead of naming a project itself", () =
 
 	expect(requests).toBe(1);
 	expect(created).toEqual([]);
+});
+
+test("the header folder asks to add a project", () => {
+	let requests = 0;
+	renderSidebar({ open: [row("s1")] }, { onAddProject: () => (requests += 1) });
+
+	fireEvent.click(slot(document.body, "add-project"));
+
+	expect(requests).toBe(1);
 });
 
 test("the header plus asks for a shell with no harness while Alt is held", () => {

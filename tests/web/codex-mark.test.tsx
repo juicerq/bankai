@@ -49,6 +49,7 @@ function renderCards(selectedShellId?: string) {
 			onSelect={() => {}}
 			onCreate={() => {}}
 			onRequestShell={() => {}}
+			onAddProject={() => {}}
 			onToggleProject={() => {}}
 			onExcludeProject={() => {}}
 			onClose={() => {}}

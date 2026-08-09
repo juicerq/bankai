@@ -1,8 +1,10 @@
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
 import { useCallback, useState } from "react";
+import type { Project } from "@shared/projects";
 import type { HarnessProfile, HarnessSettings } from "@shared/settings";
 import { PickerHint } from "@renderer/routes/-features/shared/pickers/picker-hint";
 import { Setting } from "@renderer/routes/-features/settings/settings-controls";
+import { SettingsProjects } from "@renderer/routes/-features/settings/settings-projects";
 import { MobileAccessSetting } from "@renderer/routes/-features/settings/settings-mobile-access";
 import { ThemeSetting } from "@renderer/routes/-features/settings/settings-theme";
 import { useHarnessSettings } from "@renderer/routes/-features/settings/use-harness-settings";
@@ -13,13 +15,25 @@ interface LaunchableHarness {
 	available: boolean;
 }
 
-export function SettingsModal({ onClose }: { onClose: () => void }) {
+export function SettingsModal({
+	projects,
+	shellCounts,
+	onOpenDirectory,
+	onRemoveProject,
+	onClose,
+}: {
+	projects: Project[];
+	shellCounts: ReadonlyMap<string, number>;
+	onOpenDirectory: (projectId: string) => void;
+	onRemoveProject: (projectId: string) => void;
+	onClose: () => void;
+}) {
 	const { harness, profile, harnesses, save, saveProfile, saveError } = useHarnessSettings();
 	const takeFocus = useCallback((element: HTMLDivElement | null) => element?.focus(), []);
 
 	return (
 		<div
-			className="picker-backdrop fixed inset-0 z-50 flex justify-center bg-surface-sunken/70 pt-[14vh]"
+			className="picker-backdrop fixed inset-0 z-50 flex items-center justify-center bg-surface-sunken/70 py-12"
 			onPointerDown={onClose}
 		>
 			<div
@@ -29,7 +43,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 				aria-label="Settings"
 				tabIndex={-1}
 				ref={takeFocus}
-				className="picker-enter flex h-fit w-[480px] max-w-[90vw] flex-col border border-outline-strong bg-surface-raised shadow-2xl outline-none"
+				className="picker-enter flex h-fit max-h-full w-[480px] max-w-[90vw] flex-col border border-outline-strong bg-surface-raised shadow-2xl outline-none"
 				onPointerDown={(event) => event.stopPropagation()}
 				onKeyDown={(event) => {
 					if (event.key === "Escape") {
@@ -37,22 +51,30 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 					}
 				}}
 			>
-				<div className="flex items-center gap-2 border-outline border-b px-3 py-2.5">
+				<div className="flex shrink-0 items-center gap-2 border-outline border-b px-3 py-2.5">
 					<Cog6ToothIcon className="size-3.5 shrink-0 text-tertiary" aria-hidden="true" />
 					<span className="flex-1 text-label text-secondary">SETTINGS</span>
 				</div>
-				{harness && harnesses ? (
-					<SettingsBody
-						harness={harness}
-						profile={profile}
-						harnesses={harnesses}
-						onSave={save}
-						onSaveProfile={saveProfile}
+				<div className="min-h-0 overflow-y-auto divide-y divide-outline">
+					{harness && harnesses ? (
+						<SettingsBody
+							harness={harness}
+							profile={profile}
+							harnesses={harnesses}
+							onSave={save}
+							onSaveProfile={saveProfile}
+						/>
+					) : (
+						<p className="px-3 py-6 text-data text-secondary">Reading settings…</p>
+					)}
+					<SettingsProjects
+						projects={projects}
+						shellCounts={shellCounts}
+						onOpenDirectory={onOpenDirectory}
+						onRemove={onRemoveProject}
 					/>
-				) : (
-					<p className="px-3 py-6 text-data text-secondary">Reading settings…</p>
-				)}
-				<div className="flex items-center gap-3 border-outline border-t px-3 py-2">
+				</div>
+				<div className="flex shrink-0 items-center gap-3 border-outline border-t px-3 py-2">
 					<PickerHint keys={["Esc"]} label="Close" />
 					{saveError && (
 						<span data-slot="save-error" className="min-w-0 flex-1 truncate text-right text-data text-removed">
@@ -79,7 +101,7 @@ function SettingsBody({
 	onSaveProfile: (patch: Partial<HarnessProfile>) => void;
 }) {
 	return (
-		<div className="divide-y divide-outline">
+		<>
 			<Setting
 				title="Start a harness in every new shell"
 				description="Quit it with Ctrl+C twice and the plain shell is right there. Alt+click New shell to skip it up front."
@@ -108,7 +130,7 @@ function SettingsBody({
 			</Setting>
 			<MobileAccessSetting />
 			<ThemeSetting />
-		</div>
+		</>
 	);
 }
 

@@ -50,7 +50,7 @@ export function ServicesFooter({
 	const running = services.filter((service) => states.get(service.id)?.status === "running").length;
 
 	return (
-		<section data-component="services-footer" className="flex min-h-0 w-full flex-col border-outline border-b bg-surface-raised">
+		<section data-component="services-footer" className="flex min-h-0 w-full flex-col bg-surface-raised">
 			<div className="flex h-7 shrink-0 items-center pr-3">
 				<button
 					type="button"

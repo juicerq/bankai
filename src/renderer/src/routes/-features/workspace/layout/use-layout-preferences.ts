@@ -18,7 +18,6 @@ export interface LayoutPreferences {
 	reviewOpen: boolean;
 	reviewExpanded: boolean;
 	treeOpen: boolean;
-	projectsOpen: boolean;
 }
 
 export function clampLayout(stored: LayoutSettings | null): LayoutPreferences {
@@ -30,7 +29,6 @@ export function clampLayout(stored: LayoutSettings | null): LayoutPreferences {
 		reviewOpen: stored?.reviewOpen ?? true,
 		reviewExpanded: stored?.reviewExpanded ?? false,
 		treeOpen: stored?.treeOpen ?? true,
-		projectsOpen: stored?.projectsOpen ?? false,
 	};
 }
 

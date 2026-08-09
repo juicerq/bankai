@@ -326,10 +326,15 @@ something a contributor can reach for by accident.
 
 ## Components
 
-**Rail item.** A project. Square glyph, name, path. Separated from its neighbor
-by a top rule, not a gap. The active project carries a 2px amber marker on its
-left edge and lifts to `surface-active` — the marker says mounted, the tone says
-selected.
+**Session header actions.** Add project and new shell sit together at the right
+edge of the Sessions course. Both use 16px outline glyphs; the open folder stays
+available before any project exists, while the plain plus disables until a shell
+has somewhere to start.
+
+**Project settings row.** A stored project. Name, full path, and one visible
+actions control share a single ruled row. The path truncates before the action,
+and the temporary menu owns open, copy, and remove without returning a permanent
+project list to the rail.
 
 **Shell tab.** Fills the top course, divided from its neighbor by a vertical
 rule. Tabs are part of the chassis, not chips resting on it. The active tab lifts

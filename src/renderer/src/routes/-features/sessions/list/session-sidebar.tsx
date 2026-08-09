@@ -6,6 +6,7 @@ import {
 	CheckIcon,
 	ChevronDownIcon,
 	ChevronRightIcon,
+	FolderOpenIcon,
 	PlusIcon,
 	TrashIcon,
 	XMarkIcon,
@@ -47,6 +48,7 @@ export function SessionSidebar({
 	onSelect,
 	onCreate,
 	onRequestShell,
+	onAddProject,
 	onToggleProject,
 	onExcludeProject,
 	onClose,
@@ -65,6 +67,7 @@ export function SessionSidebar({
 	onSelect: (projectId: string, shellId: string) => void;
 	onCreate: (projectId: string) => void;
 	onRequestShell: (plain: boolean) => void;
+	onAddProject: () => void;
 	onToggleProject: (projectId: string) => void;
 	onExcludeProject: (projectId: string, listedIds: readonly string[]) => void;
 	onClose: (projectId: string, shellId: string) => void;
@@ -112,17 +115,29 @@ export function SessionSidebar({
 				<span className="flex items-center gap-2">
 					SESSIONS <span className="text-outline-strong">{list.open.length}</span>
 				</span>
-				<button
-					type="button"
-					data-slot="new-session"
-					className="text-secondary hover:text-primary disabled:text-outline-strong"
-					disabled={!canCreateShell}
-					onClick={(event) => onRequestShell(event.altKey)}
-					aria-label="New shell"
-					title="New shell (Ctrl+X T) — hold Alt for a shell with no harness"
-				>
-					<PlusIcon className="size-4" aria-hidden="true" />
-				</button>
+				<span className="flex items-center gap-2">
+					<button
+						type="button"
+						data-slot="add-project"
+						className="text-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+						onClick={onAddProject}
+						aria-label="Add project"
+						title="Add project"
+					>
+						<FolderOpenIcon className="size-4" aria-hidden="true" />
+					</button>
+					<button
+						type="button"
+						data-slot="new-session"
+						className="text-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:text-outline-strong"
+						disabled={!canCreateShell}
+						onClick={(event) => onRequestShell(event.altKey)}
+						aria-label="New shell"
+						title="New shell (Ctrl+X T) — hold Alt for a shell with no harness"
+					>
+						<PlusIcon className="size-4" aria-hidden="true" />
+					</button>
+				</span>
 			</div>
 			<ProjectNarrowing
 				projects={projects}

@@ -1,4 +1,3 @@
-import { stat } from "node:fs/promises";
 import { type } from "arktype";
 import { dialog, shell } from "electron";
 import { Directories } from "@main/infra/directories";
@@ -11,13 +10,9 @@ import { Projects } from "@main/store/projects";
 export const projectsRouter = {
 	list: base.handler(() => Projects.list()),
 	browse: base.input(type({ path: "string" })).handler(({ input }) => Directories.browse(input.path)),
+	inspect: base.input(type({ path: "string" })).handler(({ input }) => Directories.inspectProject(input.path)),
 	add: base.input(type({ path: "string" })).handler(async ({ input }) => {
-		const path = Directories.expandUser(input.path);
-		const directory = await stat(path).catch(() => null);
-		if (!directory?.isDirectory()) {
-			throw new Error(`Not a directory: ${path}`);
-		}
-
+		const path = await Directories.ensureProject(input.path);
 		return await Projects.add(path);
 	}),
 	openDirectory: base.input(type({ projectId: "string" })).handler(async ({ input }) => {

@@ -1,5 +1,7 @@
+import { FolderIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import type { Project } from "@shared/projects";
+import { PickerFooter, PickerFrame, PickerHeader } from "@renderer/routes/-features/shared/pickers/picker-frame";
 import { PickerHint } from "@renderer/routes/-features/shared/pickers/picker-hint";
 import { usePickerNavigation } from "@renderer/routes/-features/shared/pickers/use-picker-navigation";
 
@@ -42,57 +44,51 @@ export function ShellPicker({
 	});
 
 	return (
-		<div
-			className="picker-backdrop fixed inset-0 z-50 flex justify-center bg-surface-sunken/70 pt-[14vh]"
-			onPointerDown={onClose}
+		<PickerFrame
+			data-component="shell-picker"
+			data-highlighted={picker.highlightedKey}
+			onClose={onClose}
 		>
-			<div
-				data-component="shell-picker"
-				data-highlighted={picker.highlightedKey}
-				className="picker-enter flex h-fit w-[560px] max-w-[90vw] flex-col border border-outline-strong bg-surface-raised shadow-2xl"
-				onPointerDown={(event) => event.stopPropagation()}
-			>
-				<div className="flex items-center gap-2 border-outline border-b px-3 py-2.5">
-					<span className="text-body text-tertiary" aria-hidden="true">
-						›
-					</span>
-					<input
-						data-slot="filter-input"
-						autoFocus
-						spellCheck={false}
-						autoComplete="off"
-						aria-label="Project for the new shell"
-						placeholder="Filter projects"
-						className="min-w-0 flex-1 bg-transparent text-body text-primary outline-none placeholder:text-secondary"
-						value={filter}
-						onInput={(event) => {
-							setFilter(event.currentTarget.value);
-							picker.clear();
-						}}
-						onKeyDown={picker.onKeyDown}
+			<PickerHeader>
+				<span className="text-body text-tertiary" aria-hidden="true">
+					›
+				</span>
+				<input
+					data-slot="filter-input"
+					autoFocus
+					spellCheck={false}
+					autoComplete="off"
+					aria-label="Project for the new shell"
+					placeholder="Filter projects"
+					className="min-w-0 flex-1 bg-transparent text-body text-primary outline-none placeholder:text-secondary"
+					value={filter}
+					onInput={(event) => {
+						setFilter(event.currentTarget.value);
+						picker.clear();
+					}}
+					onKeyDown={picker.onKeyDown}
+				/>
+			</PickerHeader>
+			<span className="px-3 pt-2.5 pb-1 text-label text-secondary">NEW SHELL IN</span>
+			<div className="min-h-0 flex-1 overflow-y-auto pb-1" role="listbox" aria-label="Projects">
+				{items.map((project, index) => (
+					<ShellPickerItem
+						key={project.id}
+						project={project}
+						index={index}
+						shells={shellCounts.get(project.id) ?? 0}
+						{...picker.itemProps(project)}
+						onSelect={() => create(project.id)}
 					/>
-				</div>
-				<span className="px-3 pt-2.5 pb-1 text-label text-secondary">NEW SHELL IN</span>
-				<div className="h-64 overflow-y-auto pb-1" role="listbox" aria-label="Projects">
-					{items.map((project, index) => (
-						<ShellPickerItem
-							key={project.id}
-							project={project}
-							index={index}
-							shells={shellCounts.get(project.id) ?? 0}
-							{...picker.itemProps(project)}
-							onSelect={() => create(project.id)}
-						/>
-					))}
-					{items.length === 0 && <p className="px-3 py-2 text-data text-secondary">No matching projects.</p>}
-				</div>
-				<div className="flex items-center gap-3 border-outline border-t px-3 py-2">
-					<PickerHint keys={["↑", "↓"]} label="Navigate" />
-					<PickerHint keys={["Enter"]} label="New shell" />
-					<PickerHint keys={["Esc"]} label="Close" />
-				</div>
+				))}
+				{items.length === 0 && <p className="px-3 py-2 text-data text-secondary">No matching projects.</p>}
 			</div>
-		</div>
+			<PickerFooter>
+				<PickerHint keys={["↑", "↓"]} label="Navigate" />
+				<PickerHint keys={["Enter"]} label="New shell" />
+				<PickerHint keys={["Esc"]} label="Close" />
+			</PickerFooter>
+		</PickerFrame>
 	);
 }
 
@@ -130,6 +126,7 @@ function ShellPickerItem({
 			onClick={onSelect}
 		>
 			{highlighted && <span className="absolute inset-y-0 left-0 w-0.5 bg-tertiary" aria-hidden="true" />}
+			<FolderIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
 			<span className="min-w-0 flex-1 truncate text-body text-primary">{project.name}</span>
 			{shells > 0 && (
 				<span data-slot="shell-count" className="shrink-0 text-data text-outline-strong">

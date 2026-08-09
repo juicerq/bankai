@@ -8,6 +8,7 @@ import {
 } from "./orpc-transport";
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { Project } from "@shared/projects";
 import { SettingsModal } from "@renderer/routes/-features/settings/settings-modal";
 import { TailscaleAccess } from "@main/infra/tailscale/tailscale-access";
 import { pairingUrl } from "@shared/server";
@@ -23,13 +24,22 @@ const onClose = jest.fn();
 let transport: HarnessTransport;
 let mobile: MobileTransport;
 let theme: ThemeTransport;
+const projects: Project[] = [
+	{ id: "bankai", name: "bankai", path: "/projects/bankai", createdAt: 1 },
+];
 
 function renderModal() {
 	const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
 
 	return render(
 		<QueryClientProvider client={queryClient}>
-			<SettingsModal onClose={onClose} />
+			<SettingsModal
+				projects={projects}
+				shellCounts={new Map()}
+				onOpenDirectory={() => {}}
+				onRemoveProject={() => {}}
+				onClose={onClose}
+			/>
 		</QueryClientProvider>,
 	);
 }
@@ -83,6 +93,12 @@ test("shows the stored autostart switch and the selected harness", async () => {
 	expect(slot(modal, "autostart").getAttribute("aria-checked")).toBe("true");
 	expect(get("settings-harness", { id: "claude" }).getAttribute("aria-checked")).toBe("true");
 	expect(get("settings-harness", { id: "codex" }).getAttribute("aria-checked")).toBe("false");
+});
+
+test("keeps project management in settings", async () => {
+	await loadedModal();
+
+	expect(get("settings-project", { projectId: "bankai" })).toBeDefined();
 });
 
 test("choosing another harness persists the id and keeps autostart on", async () => {
@@ -362,5 +378,4 @@ test("hands each harness its own extra arguments field", async () => {
 		expect(slot<HTMLInputElement>(get("settings-modal"), "harness-args").value).toBe("");
 	});
 });
-
 

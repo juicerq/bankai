@@ -1,7 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { useRef, useState } from "react";
-import type { Project } from "@shared/projects";
-import { ProjectFooter } from "@renderer/routes/-features/projects/project-footer";
 import { ProjectRailFrame } from "@renderer/routes/-features/workspace/layout/project-rail-frame";
 import {
 	DEFAULT_RAIL_WIDTH,
@@ -15,10 +13,6 @@ import { useDivider } from "@renderer/routes/-features/shared/interaction/use-di
 import { useFullscreenProjectRail } from "@renderer/routes/-features/workspace/layout/use-fullscreen-project-rail";
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
-
-const projects: Project[] = [
-	{ id: "bankai", name: "bankai", path: "/projects/bankai", createdAt: 1 },
-];
 
 afterEach(cleanup);
 
@@ -65,19 +59,7 @@ function RailResizeHarness() {
 			<button type="button" data-component="fullscreen-toggle" onClick={() => projectRail.toggleFullscreen()} />
 			<span data-component="rail-width" data-value={railWidth} />
 			<ProjectRailFrame projectRail={projectRail} divider={railDivider} frameRef={railFrameRef} railWidth={railWidth}>
-				<ProjectFooter
-					projects={projects}
-					loading={false}
-					open
-					shellCounts={new Map()}
-					onToggle={() => {}}
-					chosenProjectIds={new Set()}
-					onToggleProject={() => {}}
-					onAdd={() => {}}
-					onOpenDirectory={() => {}}
-					onRemove={() => {}}
-					onOverlayChange={projectRail.setMenuOpen}
-				/>
+				<div data-component="rail-content" />
 			</ProjectRailFrame>
 		</main>
 	);

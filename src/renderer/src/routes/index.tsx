@@ -11,7 +11,6 @@ import { CommandsFooter } from "@renderer/routes/-features/commands/commands-foo
 import { ContinuityFailedNotice } from "@renderer/routes/-features/app/status/continuity-failed-notice";
 import { EmptyState } from "@renderer/routes/-features/app/status/empty-state";
 import { ProjectPicker } from "@renderer/routes/-features/projects/project-picker";
-import { ProjectFooter } from "@renderer/routes/-features/projects/project-footer";
 import { ProjectRailFrame } from "@renderer/routes/-features/workspace/layout/project-rail-frame";
 import { ProjectWorkspace } from "@renderer/routes/-features/workspace/surface/project-workspace";
 import { ServiceLogPane } from "@renderer/routes/-features/services/service-log-pane";
@@ -84,11 +83,6 @@ function Bankai() {
 		persist: layout.persist,
 		onClose: requestShellFocus,
 	});
-	const [projectsOpen, setProjectsOpen] = useState(layout.initial.projectsOpen);
-	const toggleProjects = useCallback(() => {
-		setProjectsOpen(!projectsOpen);
-		layout.persist({ projectsOpen: !projectsOpen });
-	}, [layout.persist, projectsOpen]);
 	const [treeOpen, setTreeOpen] = useState(layout.initial.treeOpen);
 	const handleTreeOpenChange = useCallback(
 		(open: boolean) => {
@@ -390,6 +384,7 @@ function Bankai() {
 					onSelect={selectSession}
 					onCreate={createShell}
 					onRequestShell={requestNewShell}
+					onAddProject={openPicker}
 					onToggleProject={chosen.toggle}
 					onExcludeProject={chosen.chooseAllExcept}
 					onClose={sessions.closeShell}
@@ -420,19 +415,6 @@ function Bankai() {
 								onRestart={services.restart}
 								onRemove={commands.remove}
 								onOpenLog={serviceLog.toggle}
-							/>
-							<ProjectFooter
-								projects={availableProjects}
-								loading={projects.isPending}
-								open={projectsOpen}
-								shellCounts={shellCounts}
-								chosenProjectIds={chosen.projectIds}
-								onToggle={toggleProjects}
-								onToggleProject={chosen.toggle}
-								onAdd={openPicker}
-								onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
-								onRemove={(projectId) => removeProject.mutate({ projectId })}
-								onOverlayChange={projectRail.setMenuOpen}
 							/>
 						</>
 					}
@@ -511,7 +493,15 @@ function Bankai() {
 					onClose={closeShellPicker}
 				/>
 			)}
-			{settingsOpen && <SettingsModal onClose={closeSettings} />}
+			{settingsOpen && (
+				<SettingsModal
+					projects={availableProjects}
+					shellCounts={shellCounts}
+					onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
+					onRemoveProject={(projectId) => removeProject.mutate({ projectId })}
+					onClose={closeSettings}
+				/>
+			)}
 			{commandsOpen && (
 				<CommandsModal projects={availableProjects} onRun={runCommand} onClose={closeCommands} />
 			)}

@@ -2,6 +2,7 @@ import { ArrowUturnUpIcon, FolderIcon } from "@heroicons/react/24/outline";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { orpc } from "@renderer/lib/api";
+import { PickerFooter, PickerFrame, PickerHeader } from "@renderer/routes/-features/shared/pickers/picker-frame";
 import { PickerHint, PickerKeys } from "@renderer/routes/-features/shared/pickers/picker-hint";
 import {
 	appendBrowseSegment,
@@ -13,6 +14,18 @@ import {
 import { usePickerNavigation } from "@renderer/routes/-features/shared/pickers/use-picker-navigation";
 
 const HOME_PATH = "~";
+
+function submitHintLabel(highlighted: boolean, pathState?: string) {
+	if (highlighted) {
+		return "Open";
+	}
+
+	if (pathState === "creatable") {
+		return "Create & add";
+	}
+
+	return "Add";
+}
 
 export function ProjectPicker({
 	adding,
@@ -38,6 +51,12 @@ export function ProjectPicker({
 		}),
 	);
 	const path = typedPath ?? (data ? `${data.path}${browseSeparator(data.path)}` : "");
+	const inspected = useQuery(
+		orpc.projects.inspect.queryOptions({
+			input: { path: path.trim() },
+			enabled: path.trim().length > 0,
+		}),
+	);
 	const filter = browseLeafSegment(path);
 	const parentPath = browseParentPath(path);
 	const items = [
@@ -48,6 +67,18 @@ export function ProjectPicker({
 			.map((name) => ({ name, nextPath: appendBrowseSegment(path, name) })),
 	];
 	const failure = submittedPath === path.trim() ? addError : undefined;
+	const pathState = inspected.data?.state;
+	const notDirectoryNotice = inspected.data?.state === "not-directory"
+		? `Not a directory: ${inspected.data.path}`
+		: undefined;
+	const missingParentNotice = inspected.data?.state === "missing-parent"
+		? `Parent directory does not exist: ${inspected.data.parent}`
+		: undefined;
+	const notice = failure
+		?? notDirectoryNotice
+		?? missingParentNotice
+		?? (inspected.isError ? "This path cannot be checked." : undefined)
+		?? (isError && pathState !== "creatable" ? "This directory cannot be read." : undefined);
 
 	const submit = () => {
 		setSubmittedPath(path.trim());
@@ -78,90 +109,89 @@ export function ProjectPicker({
 	};
 
 	return (
-		<div
-			className="picker-backdrop fixed inset-0 z-50 flex justify-center bg-surface-sunken/70 pt-[14vh]"
-			onPointerDown={onClose}
+		<PickerFrame
+			data-component="project-picker"
+			data-path={path}
+			data-path-state={pathState}
+			data-highlighted={picker.highlightedKey}
+			onClose={onClose}
 		>
-			<div
-				data-component="project-picker"
-				data-path={path}
-				data-highlighted={picker.highlightedKey}
-				className="picker-enter flex h-fit w-[560px] max-w-[90vw] flex-col border border-outline-strong bg-surface-raised shadow-2xl"
-				onPointerDown={(event) => event.stopPropagation()}
-			>
-				<div className="flex items-center gap-2 border-outline border-b px-3 py-2.5">
-					<span className="text-body text-tertiary" aria-hidden="true">
-						›
-					</span>
-					<input
-						data-slot="path-input"
-						autoFocus
-						spellCheck={false}
-						autoComplete="off"
-						aria-label="Project directory"
-						placeholder="~/projects/"
-						className="min-w-0 flex-1 bg-transparent text-body text-primary outline-none placeholder:text-secondary"
-						value={path}
-						onInput={(event) => {
-							setTypedPath(event.currentTarget.value);
-							picker.clear();
-						}}
-						onKeyDown={picker.onKeyDown}
+			<PickerHeader>
+				<span className="text-body text-tertiary" aria-hidden="true">
+					›
+				</span>
+				<input
+					data-slot="path-input"
+					autoFocus
+					spellCheck={false}
+					autoComplete="off"
+					aria-label="Project directory"
+					placeholder="~/projects/"
+					className="min-w-0 flex-1 bg-transparent text-body text-primary outline-none placeholder:text-secondary"
+					value={path}
+					onInput={(event) => {
+						setTypedPath(event.currentTarget.value);
+						picker.clear();
+					}}
+					onKeyDown={picker.onKeyDown}
+				/>
+				<button
+					type="button"
+					data-slot="add"
+					data-intent={pathState === "creatable" ? "create" : "add"}
+					disabled={adding}
+					className="flex shrink-0 items-center gap-1.5 px-2 py-1 text-label text-secondary enabled:hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+					onClick={submit}
+				>
+					{pathState === "creatable" ? "CREATE & ADD" : "ADD"}
+					<PickerKeys keys={["Ctrl", "Enter"]} />
+				</button>
+			</PickerHeader>
+			{notice && (
+				<p
+					data-component="project-picker-notice"
+					data-message={failure}
+					className="border-outline border-b px-3 py-2 text-data text-removed"
+				>
+					{notice}
+				</p>
+			)}
+			<span className="px-3 pt-2.5 pb-1 text-label text-secondary">DIRECTORIES</span>
+			<div className="min-h-0 flex-1 overflow-y-auto pb-1" role="listbox" aria-label="Directories">
+				{items.map((item, index) => (
+					<PickerItem
+						key={item.name}
+						name={item.name}
+						index={index}
+						{...picker.itemProps(item)}
+						onSelect={() => browseTo(item.nextPath)}
 					/>
-					<button
-						type="button"
-						data-slot="add"
-						disabled={adding}
-						className="flex shrink-0 items-center gap-1.5 border border-outline px-2 py-1 text-label text-secondary hover:border-outline-strong hover:text-primary disabled:opacity-50"
-						onClick={submit}
-					>
-						ADD
-						<PickerKeys keys={["Ctrl", "Enter"]} />
-					</button>
-				</div>
-				{(failure || isError) && (
-					<p
-						data-component="project-picker-notice"
-						data-message={failure}
-						className="border-outline border-b px-3 py-2 text-data text-removed"
-					>
-						{failure ?? "This directory cannot be read."}
+				))}
+				{items.length === 0 && (
+					<p className="px-3 py-2 text-data text-secondary">
+						{queryPath.length === 0 ? "Type a directory path." : "No matching directories."}
 					</p>
 				)}
-				<span className="px-3 pt-2.5 pb-1 text-label text-secondary">DIRECTORIES</span>
-				<div className="h-64 overflow-y-auto pb-1" role="listbox" aria-label="Directories">
-					{items.map((item, index) => (
-						<PickerItem
-							key={item.name}
-							name={item.name}
-							index={index}
-							{...picker.itemProps(item)}
-							onSelect={() => browseTo(item.nextPath)}
-						/>
-					))}
-					{items.length === 0 && (
-						<p className="px-3 py-2 text-data text-secondary">
-							{queryPath.length === 0 ? "Type a directory path." : "No matching directories."}
-						</p>
-					)}
-				</div>
-				<div className="flex items-center justify-between gap-3 border-outline border-t px-3 py-2">
-					<div className="flex items-center gap-3">
-						<PickerHint keys={["↑", "↓"]} label="Navigate" />
-						<PickerHint keys={["Enter"]} label={picker.highlighted ? "Open" : "Add"} />
-						<PickerHint keys={["Esc"]} label="Close" />
-					</div>
-					<button
-						type="button"
-						data-slot="system-picker"
-						className="shrink-0 text-label text-secondary hover:text-primary"
-						onClick={onOpenSystemPicker}
-					>
-						SYSTEM PICKER
-					</button>
-				</div>
 			</div>
-		</div>
+			<PickerFooter>
+				<div className="flex items-center gap-3">
+					<PickerHint keys={["↑", "↓"]} label="Navigate" />
+					<PickerHint
+						keys={["Enter"]}
+						label={submitHintLabel(!!picker.highlighted, pathState)}
+					/>
+					<PickerHint keys={["Esc"]} label="Close" />
+				</div>
+				<button
+					type="button"
+					data-slot="system-picker"
+					className="ml-auto shrink-0 text-label text-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+					onClick={onOpenSystemPicker}
+				>
+					SYSTEM PICKER
+				</button>
+			</PickerFooter>
+		</PickerFrame>
 	);
 }
 

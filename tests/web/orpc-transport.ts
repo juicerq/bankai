@@ -102,11 +102,20 @@ function requireTransport() {
 }
 
 type BrowseDirectories = (path: string) => { path: string; directories: string[] };
+type ProjectPathInspection =
+	| { path: string; state: "directory" | "not-directory" }
+	| { path: string; parent: string; state: "creatable" | "missing-parent" };
+type InspectProjectPath = (path: string) => ProjectPathInspection;
 
 let currentBrowse: BrowseDirectories | undefined;
+let currentProjectInspection: InspectProjectPath | undefined;
 
 export function setBrowseDirectories(browse: BrowseDirectories) {
 	currentBrowse = browse;
+}
+
+export function setInspectProjectPath(inspect: InspectProjectPath) {
+	currentProjectInspection = inspect;
 }
 
 function requireBrowse() {
@@ -115,6 +124,14 @@ function requireBrowse() {
 	}
 
 	return currentBrowse;
+}
+
+function requireProjectInspection() {
+	if (!currentProjectInspection) {
+		throw new Error("No project path inspection is installed");
+	}
+
+	return currentProjectInspection;
 }
 
 export interface HarnessTransport {
@@ -387,6 +404,7 @@ const router = {
 	},
 	projects: {
 		browse: os.input(type({ path: "string" })).handler(({ input }) => requireBrowse()(input.path)),
+		inspect: os.input(type({ path: "string" })).handler(({ input }) => requireProjectInspection()(input.path)),
 	},
 	push: {
 		getPublicKey: os.handler(() => requirePush().publicKey),

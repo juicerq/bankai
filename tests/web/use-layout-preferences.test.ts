@@ -19,7 +19,6 @@ describe("clampLayout", () => {
 			reviewOpen: true,
 			reviewExpanded: false,
 			treeOpen: true,
-			projectsOpen: false,
 		});
 	});
 
@@ -55,7 +54,6 @@ describe("clampLayout", () => {
 			reviewOpen: false,
 			reviewExpanded: true,
 			treeOpen: false,
-			projectsOpen: true,
 		});
 	});
 });

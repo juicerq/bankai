@@ -1,4 +1,4 @@
-import { setBrowseDirectories } from "./orpc-transport";
+import { setBrowseDirectories, setInspectProjectPath } from "./orpc-transport";
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ProjectPicker } from "@renderer/routes/-features/projects/project-picker";
@@ -62,6 +62,20 @@ beforeEach(() => {
 		}
 
 		return { path: resolved, directories: entries };
+	});
+	setInspectProjectPath((path) => {
+		const normalized = path.replace(/(?<=.)\/$/, "");
+		if (directories[normalized]) {
+			return { path: normalized, state: "directory" };
+		}
+
+		const separator = normalized.lastIndexOf("/");
+		const parent = normalized.slice(0, separator) || "/";
+		if (directories[parent]) {
+			return { path: normalized, parent, state: "creatable" };
+		}
+
+		return { path: normalized, parent, state: "missing-parent" };
 	});
 });
 
@@ -176,6 +190,18 @@ describe("Project picker", () => {
 		expect(onAdd).toHaveBeenCalledWith("/home/jui/projects/bankai");
 	});
 
+	test("offers to create a missing directory whose parent exists", async () => {
+		renderPicker();
+		await openedAt("/home/jui/");
+
+		typePath("/home/jui/projects/new-bankai");
+
+		await waitFor(() => {
+			expect(get("project-picker").dataset.pathState).toBe("creatable");
+		});
+		expect(slot(get("project-picker"), "add").dataset.intent).toBe("create");
+	});
+
 	test("opens a clicked directory", async () => {
 		renderPicker();
 		await openedAt("/home/jui/");
@@ -216,16 +242,16 @@ describe("Project picker", () => {
 		expect(query("project-picker-notice")).toBeNull();
 	});
 
-	test("reports a directory it cannot read", async () => {
+	test("refuses creation when the parent directory does not exist", async () => {
 		renderPicker();
 		await openedAt("/home/jui/");
 
-		typePath("/nowhere/");
+		typePath("/missing-parent/nowhere");
 
 		await waitFor(() => {
-			expect(query("project-picker-notice")).not.toBeNull();
+			expect(get("project-picker").dataset.pathState).toBe("missing-parent");
 		});
-		expect(get("project-picker-notice").dataset.message).toBeUndefined();
+		expect(query("project-picker-notice")).not.toBeNull();
 	});
 
 	test("hands over to the system picker", async () => {

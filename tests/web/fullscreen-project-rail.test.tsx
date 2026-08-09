@@ -1,7 +1,5 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { useRef, useState } from "react";
-import type { Project } from "@shared/projects";
-import { ProjectFooter } from "@renderer/routes/-features/projects/project-footer";
 import { ProjectRailFrame } from "@renderer/routes/-features/workspace/layout/project-rail-frame";
 import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-features/workspace/layout/layout-motion";
 import {
@@ -19,11 +17,6 @@ import {
 import { get, query, slot } from "./dom";
 import { act, cleanup, fireEvent, render } from "./testing-library";
 
-const projects: Project[] = [
-	{ id: "bankai", name: "bankai", path: "/projects/bankai", createdAt: 1 },
-	{ id: "dogama", name: "dogama", path: "/projects/dogama", createdAt: 2 },
-];
-
 afterEach(() => {
 	cleanup();
 	jest.useRealTimers();
@@ -34,8 +27,8 @@ function finishWithdrawDelay() {
 }
 
 function ProjectRailHarness() {
-	const [toggled, setToggled] = useState("");
 	const [focusRequests, setFocusRequests] = useState(0);
+	const [menuOpen, setMenuOpen] = useState(false);
 	const projectRail = useFullscreenProjectRail(() => setFocusRequests((current) => current + 1));
 	const [railWidth, setRailWidth] = useState(DEFAULT_RAIL_WIDTH);
 	const railFrameRef = useRef<HTMLDivElement>(null);
@@ -77,8 +70,15 @@ function ProjectRailHarness() {
 		<main>
 			<button type="button" data-component="fullscreen-toggle" onClick={() => projectRail.toggleFullscreen()} />
 			<button type="button" data-component="picker-release" onClick={() => projectRail.setPickerActive(false)} />
+			<button
+				type="button"
+				data-component="menu-release"
+				onClick={() => {
+					setMenuOpen(false);
+					projectRail.setMenuOpen(false);
+				}}
+			/>
 			<span data-component="shell-focus-requests" data-count={focusRequests} />
-			<span data-component="toggled-project" data-project-id={toggled} />
 			<span data-component="rail-width" data-value={railWidth} />
 			<ProjectRailFrame
 				projectRail={projectRail}
@@ -86,19 +86,19 @@ function ProjectRailHarness() {
 				frameRef={railFrameRef}
 				railWidth={railWidth}
 			>
-				<ProjectFooter
-					projects={projects}
-					loading={false}
-					open
-					shellCounts={new Map()}
-					onToggle={() => {}}
-					chosenProjectIds={new Set()}
-					onToggleProject={setToggled}
-					onAdd={() => projectRail.setPickerActive(true)}
-					onOpenDirectory={() => {}}
-					onRemove={() => {}}
-					onOverlayChange={projectRail.setMenuOpen}
-				/>
+				<div data-component="rail-controls">
+					<button type="button" data-slot="rail-control" />
+					<button type="button" data-slot="add-project" onClick={() => projectRail.setPickerActive(true)} />
+					<button
+						type="button"
+						data-slot="open-menu"
+						onClick={() => {
+							setMenuOpen(true);
+							projectRail.setMenuOpen(true, () => setMenuOpen(false));
+						}}
+					/>
+					{menuOpen && <div data-component="rail-menu" />}
+				</div>
 			</ProjectRailFrame>
 		</main>
 	);
@@ -127,7 +127,7 @@ describe("fullscreen Project rail", () => {
 		expect(workspaceLayout.dataset.fullscreen).toBe("false");
 		expect(workspaceLayout.dataset.motionDuration).toBe(String(LAYOUT_MOTION_DURATION_MS));
 		expect(frame.inert).toBe(false);
-		expect(get("project-footer")).toBeDefined();
+		expect(get("rail-controls")).toBeDefined();
 	});
 
 	test("requires a fresh edge entry when fullscreen starts under the pointer", () => {
@@ -194,28 +194,24 @@ describe("fullscreen Project rail", () => {
 		revealFromEdge();
 
 		const frame = get("project-rail-frame");
-		const projectToggle = slot(get("project-footer"), "toggle-projects");
-		fireEvent.pointerDown(projectToggle);
-		fireEvent.focus(projectToggle);
-		fireEvent.click(projectToggle);
+		const control = slot(get("rail-controls"), "rail-control");
+		fireEvent.pointerDown(control);
+		fireEvent.focus(control);
+		fireEvent.click(control);
 		fireEvent.pointerLeave(frame);
 		finishWithdrawDelay();
 
 		expect(frame.dataset.revealed).toBe("false");
 	});
 
-	test("toggling a project badge and focus keep the rail available until interaction leaves it", () => {
+	test("keyboard focus keeps the rail available until interaction leaves it", () => {
 		jest.useFakeTimers();
 		render(<ProjectRailHarness />);
 		enterFullscreen();
 		revealFromEdge();
 
 		const frame = get("project-rail-frame");
-		fireEvent.click(get("project-row", { projectId: "dogama" }));
-		expect(frame.dataset.revealed).toBe("true");
-		expect(get("toggled-project").dataset.projectId).toBe("dogama");
-
-		const addProject = slot(get("project-footer"), "add-project");
+		const addProject = slot(get("rail-controls"), "add-project");
 		fireEvent.focus(addProject);
 		fireEvent.pointerLeave(frame);
 		finishWithdrawDelay();
@@ -232,26 +228,26 @@ describe("fullscreen Project rail", () => {
 		revealFromEdge();
 
 		const frame = get("project-rail-frame");
-		fireEvent.contextMenu(get("project-row", { projectId: "bankai" }), { clientX: 40, clientY: 40 });
+		fireEvent.click(slot(get("rail-controls"), "open-menu"));
 		fireEvent.pointerLeave(frame);
 		finishWithdrawDelay();
 		expect(frame.dataset.revealed).toBe("true");
-		expect(get("project-row-menu")).toBeDefined();
+		expect(get("rail-menu")).toBeDefined();
 
-		fireEvent.keyDown(window, { key: "Escape" });
-		expect(query("project-row-menu")).toBeNull();
+		fireEvent.click(get("menu-release"));
+		expect(query("rail-menu")).toBeNull();
 		expect(frame.dataset.revealed).toBe("false");
 	});
 
 	test("entering fullscreen closes an open rail menu and requests Shell focus", () => {
 		render(<ProjectRailHarness />);
 
-		fireEvent.contextMenu(get("project-row", { projectId: "bankai" }), { clientX: 40, clientY: 40 });
-		expect(get("project-row-menu")).toBeDefined();
+		fireEvent.click(slot(get("rail-controls"), "open-menu"));
+		expect(get("rail-menu")).toBeDefined();
 
 		enterFullscreen();
 
-		expect(query("project-row-menu")).toBeNull();
+		expect(query("rail-menu")).toBeNull();
 		expect(get("shell-focus-requests").dataset.count).toBe("1");
 		expect(get("project-rail-frame").dataset.revealed).toBe("false");
 	});
@@ -262,7 +258,7 @@ describe("fullscreen Project rail", () => {
 		revealFromEdge();
 
 		const frame = get("project-rail-frame");
-		fireEvent.click(slot(get("project-footer"), "add-project"));
+		fireEvent.click(slot(get("rail-controls"), "add-project"));
 		fireEvent.blur(window);
 		expect(frame.dataset.revealed).toBe("true");
 
@@ -289,7 +285,7 @@ describe("fullscreen Project rail", () => {
 	test("entering fullscreen from a rail control requests Shell focus", () => {
 		render(<ProjectRailHarness />);
 
-		act(() => slot(get("project-footer"), "add-project").focus());
+		act(() => slot(get("rail-controls"), "add-project").focus());
 		fireEvent.pointerMove(window, { clientX: 20 });
 		fireEvent.click(get("fullscreen-toggle"));
 

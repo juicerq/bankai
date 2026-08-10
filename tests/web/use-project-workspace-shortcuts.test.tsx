@@ -14,10 +14,12 @@ function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 	const [reviewExpanded, setReviewExpanded] = useState(false);
 	const [commandsOpen, setCommandsOpen] = useState(false);
 	const [quickOpen, setQuickOpen] = useState(false);
+	const [pageOpen, setPageOpen] = useState(false);
 	const registerShortcuts = useProjectWorkspaceShortcuts({
 		active,
 		onToggleReview: () => setReviewOpen((open) => !open),
 		onToggleReviewExpanded: () => setReviewExpanded((expanded) => !expanded),
+		onTogglePage: () => setPageOpen((open) => !open),
 		onOpenCommands: () => setCommandsOpen(true),
 		onOpenQuickOpen: () => setQuickOpen(true),
 	});
@@ -30,6 +32,7 @@ function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 			data-review-expanded={reviewExpanded}
 			data-commands-open={commandsOpen}
 			data-quick-open={quickOpen}
+			data-page-open={pageOpen}
 		/>
 	);
 }
@@ -57,6 +60,29 @@ test("the leader followed by e expands the review panel", () => {
 
 	expect(expandPassedThrough).toBe(false);
 	expect(get("workspace-shortcut-state").dataset.reviewExpanded).toBe("true");
+});
+
+test("the leader followed by g toggles the session page", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	const pagePassedThrough = fireEvent.keyDown(window, { key: "g", code: "KeyG" });
+
+	expect(pagePassedThrough).toBe(false);
+	expect(get("workspace-shortcut-state").dataset.pageOpen).toBe("true");
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	fireEvent.keyDown(window, { key: "g", code: "KeyG" });
+	expect(get("workspace-shortcut-state").dataset.pageOpen).toBe("false");
+});
+
+test("g on its own reaches the Shell instead of toggling the session page", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	const typedPassedThrough = fireEvent.keyDown(window, { key: "g", code: "KeyG" });
+
+	expect(typedPassedThrough).toBe(true);
+	expect(get("workspace-shortcut-state").dataset.pageOpen).toBe("false");
 });
 
 test("the leader followed by c opens the commands palette", () => {
@@ -178,10 +204,12 @@ test("semantic shortcuts from a focused Page keep workspace controls working", (
 		relay?.({ action: "toggle-expanded" });
 		relay?.({ action: "open-commands" });
 		relay?.({ action: "open-quick-open" });
+		relay?.({ action: "toggle-page" });
 	});
 
 	expect(get("workspace-shortcut-state").dataset.reviewOpen).toBe("false");
 	expect(get("workspace-shortcut-state").dataset.reviewExpanded).toBe("true");
 	expect(get("workspace-shortcut-state").dataset.commandsOpen).toBe("true");
 	expect(get("workspace-shortcut-state").dataset.quickOpen).toBe("true");
+	expect(get("workspace-shortcut-state").dataset.pageOpen).toBe("true");
 });

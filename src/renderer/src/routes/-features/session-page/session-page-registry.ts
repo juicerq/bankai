@@ -1,7 +1,7 @@
 import type { SessionPageState } from "@shared/session-page";
 
 interface SessionPageEntry {
-	url: string;
+	url?: string;
 	navigation: number;
 	state?: SessionPageState;
 }
@@ -39,6 +39,25 @@ function create() {
 		get: (shellId: string) => entries.get(shellId),
 		has: (shellId: string) => entries.has(shellId),
 		displayUrl: (shellId: string) => displayUrl(entries.get(shellId)),
+		blank(shellId: string) {
+			if (entries.has(shellId)) {
+				return;
+			}
+
+			entries = new Map(entries).set(shellId, { navigation: 0 });
+			publish();
+		},
+		close(shellId: string) {
+			const current = entries.get(shellId);
+
+			if (!current || current.url) {
+				return;
+			}
+
+			entries = new Map(entries);
+			entries.delete(shellId);
+			publish();
+		},
 		open(shellId: string, url: string) {
 			const current = entries.get(shellId);
 			entries = new Map(entries).set(shellId, {

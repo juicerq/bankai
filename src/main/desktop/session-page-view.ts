@@ -338,6 +338,7 @@ class SessionPageController {
 			const actions: Partial<Record<string, Exclude<SessionPageShortcut["action"], "jump-row" | "new-shell">>> = {
 				KeyR: "toggle-review",
 				KeyE: "toggle-expanded",
+				KeyG: "toggle-page",
 				KeyC: "open-commands",
 				Comma: "open-settings",
 				KeyP: "open-quick-open",

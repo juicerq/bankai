@@ -53,7 +53,7 @@ export function SessionPagePanel({
 	const restoreFocus = useRef(onRestoreTerminalFocus);
 	restoreFocus.current = onRestoreTerminalFocus;
 	const registerNativeSlot = useCallback((element: HTMLDivElement | null) => {
-		if (!element || !entryRef.current) {
+		if (!element || !entryRef.current?.url) {
 			return;
 		}
 
@@ -68,7 +68,7 @@ export function SessionPagePanel({
 			const bounds = element.getBoundingClientRect();
 			const target = entryRef.current;
 
-			if (!target || !shouldPresentRef.current || bounds.width <= 0 || bounds.height <= 0) {
+			if (!target?.url || !shouldPresentRef.current || bounds.width <= 0 || bounds.height <= 0) {
 				bridge.present(null).catch(() => {});
 				return;
 			}
@@ -156,13 +156,19 @@ export function SessionPagePanel({
 		return null;
 	}
 
+	const blank = !entry.url;
+
 	return (
 		<section data-component="session-page-panel" className="flex size-full min-w-0 flex-col bg-surface-raised">
 			<span key={`present-${entry.navigation}-${shouldPresent}`} ref={registerPresentation} hidden />
 			<span key={`cover-${covered}`} ref={registerCover} hidden />
 			<div className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised">
 				<span className="mx-3 size-1.5 shrink-0 rounded-full bg-tertiary" aria-hidden="true" />
-				<SessionPageAddress url={registry.displayUrl(shellId)} onNavigate={(url) => registry.open(shellId, url)} />
+				<SessionPageAddress
+					url={registry.displayUrl(shellId)}
+					autoFocus={blank}
+					onNavigate={(url) => registry.open(shellId, url)}
+				/>
 				{state?.loading && <span className="pending-pulse mr-2 size-1.5 bg-secondary" aria-label="Page loading" />}
 				<SessionPageAction label="Go back" disabled={!state?.canGoBack} onClick={() => window.bankaiSessionPage?.goBack()}>
 					<ArrowLeftIcon className="size-4" />
@@ -170,10 +176,10 @@ export function SessionPagePanel({
 				<SessionPageAction label="Go forward" disabled={!state?.canGoForward} onClick={() => window.bankaiSessionPage?.goForward()}>
 					<ArrowRightIcon className="size-4" />
 				</SessionPageAction>
-				<SessionPageAction label="Reload page" onClick={() => window.bankaiSessionPage?.reload()}>
+				<SessionPageAction label="Reload page" disabled={blank} onClick={() => window.bankaiSessionPage?.reload()}>
 					<ArrowPathIcon className="size-4" />
 				</SessionPageAction>
-				<SessionPageAction label="Open page externally" onClick={() => window.bankaiSessionPage?.openExternal()}>
+				<SessionPageAction label="Open page externally" disabled={blank} onClick={() => window.bankaiSessionPage?.openExternal()}>
 					<ArrowTopRightOnSquareIcon className="size-4" />
 				</SessionPageAction>
 				<SessionPageAction label={expanded ? "Dock page" : "Expand page"} pressed={expanded} onClick={onToggleExpanded}>
@@ -184,7 +190,13 @@ export function SessionPagePanel({
 				</SessionPageAction>
 			</div>
 			<div className="relative min-h-0 flex-1 bg-surface-sunken">
-				<div data-slot="native" ref={registerNativeSlot} className="absolute inset-0" />
+				{blank
+					? (
+						<p data-slot="blank" className="absolute inset-0 flex items-center justify-center px-6 text-center text-support text-tertiary">
+							Type an address above to open a page here
+						</p>
+					)
+					: <div data-slot="native" ref={registerNativeSlot} className="absolute inset-0" />}
 				{frozen && <img data-slot="frozen" src={frozen} alt="" className="absolute inset-0 size-full" />}
 				{state?.failure && (
 					<div

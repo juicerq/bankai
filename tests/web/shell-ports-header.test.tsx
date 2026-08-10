@@ -56,7 +56,6 @@ function renderHeader(opened: { shellId: string; url: string }[]) {
 				fullscreen={false}
 				animating={false}
 				reviewOpen={false}
-				pageAvailable={false}
 				pageOpen={false}
 				shellId="s1"
 				onToggleReview={() => {}}

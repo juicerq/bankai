@@ -13,7 +13,15 @@ function resolve(draft: string) {
 	return SessionPageUrl.parse(`https://${typed}`);
 }
 
-export function SessionPageAddress({ url, onNavigate }: { url: string; onNavigate: (url: string) => void }) {
+export function SessionPageAddress({
+	url,
+	autoFocus,
+	onNavigate,
+}: {
+	url: string;
+	autoFocus?: boolean;
+	onNavigate: (url: string) => void;
+}) {
 	const [draft, setDraft] = useState<string | null>(null);
 	const [invalid, setInvalid] = useState(false);
 	const discard = () => {
@@ -41,11 +49,13 @@ export function SessionPageAddress({ url, onNavigate }: { url: string; onNavigat
 			data-component="session-page-address"
 			data-invalid={invalid}
 			value={draft ?? url}
+			autoFocus={autoFocus}
+			placeholder="Type an address"
 			spellCheck={false}
 			autoComplete="off"
 			aria-label="Page address"
 			aria-invalid={invalid}
-			className={`h-full min-w-0 flex-1 border-0 bg-transparent pr-3 text-data outline-none selection:bg-surface-active ${
+			className={`h-full min-w-0 flex-1 border-0 bg-transparent pr-3 text-data outline-none selection:bg-surface-active placeholder:text-tertiary ${
 				invalid
 					? "text-removed ring-1 ring-removed ring-inset"
 					: "text-secondary focus:bg-surface-hover focus:text-primary"

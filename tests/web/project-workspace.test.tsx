@@ -9,7 +9,10 @@ import { LEADING_CONTEXT } from "@renderer/routes/-features/review/reading/revie
 import { REVIEW_ROW_HEIGHT } from "@renderer/routes/-features/review/reading/review-rows";
 import { ProjectRailReveal } from "@renderer/routes/-features/workspace/layout/project-rail-reveal";
 import { WorkspaceProvider } from "@renderer/routes/-features/workspace/layout/workspace-context";
-import { SessionPageRegistry } from "@renderer/routes/-features/session-page/session-page-registry";
+import {
+	SessionPageRegistry,
+	type SessionPageRegistryValue,
+} from "@renderer/routes/-features/session-page/session-page-registry";
 import type { WorkspaceBayMode } from "@renderer/routes/-features/review/panel/use-review-panel-state";
 import { get, slot } from "./dom";
 import { installReviewEnvironment } from "./review-harness";
@@ -141,15 +144,18 @@ function WorkspaceHarness({
 	shellWorktree,
 	initialBayMode = "closed",
 	fullscreen = false,
+	registry,
 	onWorkspaceRender = () => {},
 }: {
 	shellWorktree: string;
 	initialBayMode?: WorkspaceBayMode;
 	fullscreen?: boolean;
+	registry?: SessionPageRegistryValue;
 	onWorkspaceRender?: () => void;
 }) {
 	const [bayMode, setBayMode] = useState<WorkspaceBayMode>(initialBayMode);
-	const [sessionPages] = useState(SessionPageRegistry.create);
+	const [ownRegistry] = useState(SessionPageRegistry.create);
+	const sessionPages = registry ?? ownRegistry;
 
 	return (
 		<WorkspaceProvider
@@ -160,7 +166,13 @@ function WorkspaceHarness({
 				onOpenSettings: () => {},
 				onOpenCommands: () => {},
 				onPersistLayout: () => {},
-				onBayModeChange: setBayMode,
+				onBayModeChange: (mode) => {
+					if (mode !== "page") {
+						sessionPages.close("s1");
+					}
+
+					setBayMode(mode);
+				},
 				onReviewExpandedChange: () => {},
 				onToggleReviewFocus: () => {},
 				onTreeOpenChange: () => {},
@@ -472,6 +484,189 @@ test("Page leaves no empty frame or pressed control when the selected Shell has 
 
 	expect(get("review-panel-frame").dataset.open).toBe("false");
 	const pageButton = document.querySelector<HTMLButtonElement>('[aria-label="Toggle session page"]');
-	expect(pageButton?.disabled).toBe(true);
+	expect(pageButton?.disabled).toBe(false);
 	expect(pageButton?.getAttribute("aria-pressed")).toBe("false");
+});
+
+test("the header opens Page blank on a Shell with no page and closing it leaves nothing behind", async () => {
+	const presentations: unknown[] = [];
+	const released: string[] = [];
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		install: () => {},
+	};
+	window.bankaiSessionPage = {
+		present: async (value) => {
+			presentations.push(value);
+		},
+		release: async (shellId) => {
+			released.push(shellId);
+		},
+		goBack: async () => {},
+		goForward: async () => {},
+		reload: async () => {},
+		openExternal: async () => {},
+		snapshot: async () => null,
+		onState: () => () => {},
+		onShortcut: () => () => {},
+	};
+	const measure = spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 52, 640, 480));
+	const environment = installReviewEnvironment();
+	render(<WorkspaceHarness shellWorktree="/p1-feature" />, { wrapper: environment.wrapper });
+
+	const pageButton = document.querySelector<HTMLButtonElement>('[aria-label="Toggle session page"]');
+	if (!pageButton) {
+		throw new Error("page toggle unavailable");
+	}
+
+	fireEvent.click(pageButton);
+
+	await waitFor(() => expect(get("review-panel-frame").dataset.open).toBe("true"));
+	const address = get<HTMLInputElement>("session-page-address");
+	expect(address.value).toBe("");
+	expect(document.activeElement).toBe(address);
+	expect(slot(get("session-page-panel"), "blank")).not.toBeNull();
+	expect(document.querySelector('[data-slot="native"]')).toBeNull();
+	expect(presentations).toEqual([]);
+
+	fireEvent.input(address, { target: { value: "example.test/docs" } });
+	fireEvent.keyDown(address, { key: "Enter" });
+
+	await waitFor(() => expect(presentations.at(-1)).toMatchObject({
+		url: "https://example.test/docs",
+		navigation: 1,
+	}));
+	expect(document.querySelector('[data-slot="blank"]')).toBeNull();
+	expect(released).toEqual([]);
+	measure.mockRestore();
+});
+
+test("leaving Page by another route discards the blank instead of stranding it", async () => {
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		install: () => {},
+	};
+	window.bankaiSessionPage = {
+		present: async () => {},
+		release: async () => {},
+		goBack: async () => {},
+		goForward: async () => {},
+		reload: async () => {},
+		openExternal: async () => {},
+		snapshot: async () => null,
+		onState: () => () => {},
+		onShortcut: () => () => {},
+	};
+	const registry = SessionPageRegistry.create();
+	registry.blank("s1");
+	const environment = installReviewEnvironment();
+	render(
+		<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="page" registry={registry} />,
+		{ wrapper: environment.wrapper },
+	);
+
+	expect(slot(get("session-page-panel"), "blank")).not.toBeNull();
+
+	const reviewToggle = document.querySelector<HTMLButtonElement>('[aria-label="Toggle review panel"]');
+	if (!reviewToggle) {
+		throw new Error("review toggle unavailable");
+	}
+
+	fireEvent.click(reviewToggle);
+
+	await waitFor(() => expect(document.querySelector('[data-component="session-page-panel"]')).toBeNull());
+	expect(registry.has("s1")).toBe(false);
+});
+
+test("leaving Page by another route keeps a page that reached a URL", async () => {
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		install: () => {},
+	};
+	window.bankaiSessionPage = {
+		present: async () => {},
+		release: async () => {},
+		goBack: async () => {},
+		goForward: async () => {},
+		reload: async () => {},
+		openExternal: async () => {},
+		snapshot: async () => null,
+		onState: () => () => {},
+		onShortcut: () => () => {},
+	};
+	const registry = SessionPageRegistry.create();
+	registry.open("s1", "https://example.com/kept");
+	const environment = installReviewEnvironment();
+	render(
+		<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="page" registry={registry} />,
+		{ wrapper: environment.wrapper },
+	);
+
+	const reviewToggle = document.querySelector<HTMLButtonElement>('[aria-label="Toggle review panel"]');
+	if (!reviewToggle) {
+		throw new Error("review toggle unavailable");
+	}
+
+	fireEvent.click(reviewToggle);
+
+	await waitFor(() => expect(document.querySelector('[data-component="session-page-panel"]')).toBeNull());
+	expect(registry.has("s1")).toBe(true);
+
+	const pageButton = document.querySelector<HTMLButtonElement>('[aria-label="Toggle session page"]');
+	if (!pageButton) {
+		throw new Error("page toggle unavailable");
+	}
+
+	fireEvent.click(pageButton);
+
+	await waitFor(() => expect(get<HTMLInputElement>("session-page-address").value).toBe("https://example.com/kept"));
+	expect(document.querySelector('[data-slot="blank"]')).toBeNull();
+});
+
+test("closing a blank Page forgets it so the Shell goes back to having none", async () => {
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		install: () => {},
+	};
+	window.bankaiSessionPage = {
+		present: async () => {},
+		release: async () => {},
+		goBack: async () => {},
+		goForward: async () => {},
+		reload: async () => {},
+		openExternal: async () => {},
+		snapshot: async () => null,
+		onState: () => () => {},
+		onShortcut: () => () => {},
+	};
+	const registry = SessionPageRegistry.create();
+	const environment = installReviewEnvironment();
+	render(
+		<WorkspaceHarness shellWorktree="/p1-feature" registry={registry} />,
+		{ wrapper: environment.wrapper },
+	);
+
+	const pageButton = document.querySelector<HTMLButtonElement>('[aria-label="Toggle session page"]');
+	if (!pageButton) {
+		throw new Error("page toggle unavailable");
+	}
+
+	fireEvent.click(pageButton);
+	await waitFor(() => expect(get("review-panel-frame").dataset.open).toBe("true"));
+	expect(registry.has("s1")).toBe(true);
+
+	fireEvent.click(pageButton);
+
+	await waitFor(() => expect(get("review-panel-frame").dataset.open).toBe("false"));
+	expect(document.querySelector('[data-component="session-page-panel"]')).toBeNull();
+	expect(pageButton.getAttribute("aria-pressed")).toBe("false");
+	expect(registry.has("s1")).toBe(false);
 });

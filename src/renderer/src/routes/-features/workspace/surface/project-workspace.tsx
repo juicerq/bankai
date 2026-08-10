@@ -60,8 +60,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	const [quickOpen, setQuickOpen] = useState(false);
 	const [reviewPanel] = useState(createReviewPanelStore);
 	const reviewOpen = bayMode === "review";
-	const pageAvailable = !!activeShellId && sessionPages.has(activeShellId);
-	const pageOpen = active && bayMode === "page" && pageAvailable;
+	const pageOpen = active && bayMode === "page" && !!activeShellId && sessionPages.has(activeShellId);
 	const startMotion = useCallback((kind: ReviewPanelMotion) => {
 		setMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : kind);
 	}, []);
@@ -77,7 +76,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		control.onBayModeChange(reviewOpen ? "closed" : "review");
 	}, [control.onBayModeChange, control.onReviewExpandedChange, reviewExpanded, reviewOpen, startMotion]);
 	const handleTogglePage = useCallback(() => {
-		if (!pageAvailable) {
+		if (!activeShellId) {
 			return;
 		}
 
@@ -85,8 +84,13 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		if (pageOpen && reviewExpanded) {
 			control.onReviewExpandedChange(false);
 		}
+
+		if (!pageOpen) {
+			sessionPages.blank(activeShellId);
+		}
+
 		control.onBayModeChange(pageOpen ? "closed" : "page");
-	}, [control.onBayModeChange, control.onReviewExpandedChange, pageAvailable, pageOpen, reviewExpanded, startMotion]);
+	}, [activeShellId, control.onBayModeChange, control.onReviewExpandedChange, pageOpen, reviewExpanded, sessionPages, startMotion]);
 
 	const handleToggleReviewExpanded = useCallback(() => {
 		if (bayMode === "closed") {
@@ -126,6 +130,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		active,
 		onToggleReview: handleToggleReview,
 		onToggleReviewExpanded: handleToggleReviewExpanded,
+		onTogglePage: handleTogglePage,
 		onOpenCommands: control.onOpenCommands,
 		onOpenQuickOpen: handleOpenQuickOpen,
 	});
@@ -142,7 +147,6 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 				fullscreen={fullscreen}
 				animating={fullscreenAnimating}
 				reviewOpen={reviewOpen}
-				pageAvailable={pageAvailable}
 				pageOpen={pageOpen}
 				shellId={activeShellId}
 				onToggleReview={handleToggleReview}

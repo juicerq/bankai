@@ -6,12 +6,14 @@ export function useProjectWorkspaceShortcuts({
 	active,
 	onToggleReview,
 	onToggleReviewExpanded,
+	onTogglePage,
 	onOpenCommands,
 	onOpenQuickOpen,
 }: {
 	active: boolean;
 	onToggleReview: () => void;
 	onToggleReviewExpanded: () => void;
+	onTogglePage: () => void;
 	onOpenCommands: () => void;
 	onOpenQuickOpen: () => void;
 }) {
@@ -31,6 +33,10 @@ export function useProjectWorkspaceShortcuts({
 
 				if (event.code === "KeyE") {
 					return onToggleReviewExpanded;
+				}
+
+				if (event.code === "KeyG") {
+					return onTogglePage;
 				}
 
 				if (event.code === "KeyC") {
@@ -84,6 +90,9 @@ export function useProjectWorkspaceShortcuts({
 			if (shortcut.action === "toggle-expanded") {
 				onToggleReviewExpanded();
 			}
+			if (shortcut.action === "toggle-page") {
+				onTogglePage();
+			}
 			if (shortcut.action === "open-commands") {
 				onOpenCommands();
 			}
@@ -96,5 +105,5 @@ export function useProjectWorkspaceShortcuts({
 			window.removeEventListener("blur", handleWindowBlur);
 			unsubscribeShortcut?.();
 		};
-	}, [active, onOpenCommands, onOpenQuickOpen, onToggleReview, onToggleReviewExpanded]);
+	}, [active, onOpenCommands, onOpenQuickOpen, onTogglePage, onToggleReview, onToggleReviewExpanded]);
 }

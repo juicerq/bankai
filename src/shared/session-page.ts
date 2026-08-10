@@ -79,6 +79,7 @@ const state = type({
 const shortcut = type({ action: type.enumerated(
 	"toggle-review",
 	"toggle-expanded",
+	"toggle-page",
 	"open-commands",
 	"open-settings",
 	"open-quick-open",

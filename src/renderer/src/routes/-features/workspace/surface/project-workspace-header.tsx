@@ -22,7 +22,6 @@ export function ProjectWorkspaceHeader({
 	fullscreen,
 	animating,
 	reviewOpen,
-	pageAvailable,
 	pageOpen,
 	shellId,
 	onToggleReview,
@@ -34,7 +33,6 @@ export function ProjectWorkspaceHeader({
 	fullscreen: boolean;
 	animating: boolean;
 	reviewOpen: boolean;
-	pageAvailable: boolean;
 	pageOpen: boolean;
 	shellId: string | undefined;
 	onToggleReview: () => void;
@@ -82,8 +80,8 @@ export function ProjectWorkspaceHeader({
 					className="border-l"
 					pressed={pageOpen}
 					label="Toggle session page"
-					title="Toggle session page"
-					disabled={!pageAvailable}
+					title="Toggle session page (Ctrl+X G)"
+					disabled={!shellId}
 					onClick={onTogglePage}
 				>
 					<GlobeAltIcon className="size-4" />

@@ -93,13 +93,9 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	}, [activeShellId, control.onBayModeChange, control.onReviewExpandedChange, pageOpen, reviewExpanded, sessionPages, startMotion]);
 
 	const handleToggleReviewExpanded = useCallback(() => {
-		if (bayMode === "closed") {
-			return;
-		}
-
 		startMotion("expand");
 		control.onToggleReviewFocus();
-	}, [bayMode, control.onToggleReviewFocus, startMotion]);
+	}, [control.onToggleReviewFocus, startMotion]);
 	const handleOpenQuickOpen = useCallback(() => {
 		if (!reviewOpen) {
 			startMotion("open");

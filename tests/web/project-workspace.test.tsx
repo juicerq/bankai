@@ -13,7 +13,10 @@ import {
 	SessionPageRegistry,
 	type SessionPageRegistryValue,
 } from "@renderer/routes/-features/session-page/session-page-registry";
-import type { WorkspaceBayMode } from "@renderer/routes/-features/review/panel/use-review-panel-state";
+import {
+	useReviewPanelState,
+	type WorkspaceBayMode,
+} from "@renderer/routes/-features/review/panel/use-review-panel-state";
 import { get, slot } from "./dom";
 import { installReviewEnvironment } from "./review-harness";
 import { act, cleanup, fireEvent, render, waitFor } from "./testing-library";
@@ -153,9 +156,20 @@ function WorkspaceHarness({
 	registry?: SessionPageRegistryValue;
 	onWorkspaceRender?: () => void;
 }) {
-	const [bayMode, setBayMode] = useState<WorkspaceBayMode>(initialBayMode);
 	const [ownRegistry] = useState(SessionPageRegistry.create);
 	const sessionPages = registry ?? ownRegistry;
+	const reviewPanel = useReviewPanelState({
+		initialOpen: initialBayMode === "review",
+		initialExpanded: false,
+		persist: () => {},
+		onClose: () => {},
+	});
+	const [seeded, setSeeded] = useState(initialBayMode !== "page");
+
+	if (!seeded) {
+		setSeeded(true);
+		reviewPanel.changeMode("page");
+	}
 
 	return (
 		<WorkspaceProvider
@@ -171,10 +185,10 @@ function WorkspaceHarness({
 						sessionPages.close("s1");
 					}
 
-					setBayMode(mode);
+					reviewPanel.changeMode(mode);
 				},
-				onReviewExpandedChange: () => {},
-				onToggleReviewFocus: () => {},
+				onReviewExpandedChange: reviewPanel.changeExpanded,
+				onToggleReviewFocus: reviewPanel.toggleFocus,
 				onTreeOpenChange: () => {},
 				onRequestShell: () => {},
 				onRequestShellFocus: () => {},
@@ -199,8 +213,8 @@ function WorkspaceHarness({
 					fullscreen={fullscreen}
 					fullscreenAnimating={false}
 					railResizing={false}
-					bayMode={bayMode}
-					reviewExpanded={false}
+					bayMode={reviewPanel.mode}
+					reviewExpanded={reviewPanel.expanded}
 					treeOpen={false}
 					shells={shells}
 					selectedShellId="s1"
@@ -321,6 +335,32 @@ test("a file link from the active shell opens Review on that shell worktree, pat
 	expect(slot(get("review-focused-file"), "scroll").scrollTop).toBe(
 		(39 - LEADING_CONTEXT) * REVIEW_ROW_HEIGHT.line,
 	);
+});
+
+test("the expand shortcut opens Review expanded over the Shell from a closed bay", async () => {
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		install: () => {},
+	};
+	const environment = installReviewEnvironment();
+	render(<WorkspaceHarness shellWorktree="/p1-feature" />, { wrapper: environment.wrapper });
+
+	expect(get("review-panel-frame").dataset.open).toBe("false");
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	fireEvent.keyDown(window, { key: "e", code: "KeyE" });
+
+	await waitFor(() => expect(get("review-panel-frame").dataset.open).toBe("true"));
+	expect(get("review-panel-frame").dataset.expanded).toBe("true");
+	expect(get("review-panel-frame").dataset.covering).toBe("true");
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	fireEvent.keyDown(window, { key: "e", code: "KeyE" });
+
+	await waitFor(() => expect(get("review-panel-frame").dataset.open).toBe("false"));
+	expect(get("review-panel-frame").dataset.expanded).toBe("false");
 });
 
 test("a URL from the active Shell opens Page and Review takes over the shared bay", async () => {

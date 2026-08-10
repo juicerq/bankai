@@ -288,6 +288,52 @@ test("the address bar navigates the presented page", async () => {
 	expect(address.value).toBe("https://other.test/docs");
 });
 
+test("the header marks a local address and pulses the reload action while the page loads", () => {
+	const registry = SessionPageRegistry.create();
+	registry.open("shell-1", "http://localhost:5000/");
+	registry.update(pageState({ url: "http://localhost:5000/", loading: true }));
+
+	render(
+		<SessionPagePanel
+			registry={registry}
+			shellId="shell-1"
+			obscured={false}
+			coverable={false}
+			expanded={false}
+			onToggleExpanded={() => {}}
+			onRestoreTerminalFocus={() => {}}
+		/>,
+	);
+
+	const panel = get("session-page-panel");
+
+	expect(slot(panel, "origin").dataset.origin).toBe("local");
+	expect(panel.querySelector('[data-loading="true"]')).not.toBeNull();
+});
+
+test("the header marks a secure address and rests the reload action when idle", () => {
+	const registry = SessionPageRegistry.create();
+	registry.open("shell-1", "https://example.com/path");
+	registry.update(pageState());
+
+	render(
+		<SessionPagePanel
+			registry={registry}
+			shellId="shell-1"
+			obscured={false}
+			coverable={false}
+			expanded={false}
+			onToggleExpanded={() => {}}
+			onRestoreTerminalFocus={() => {}}
+		/>,
+	);
+
+	const panel = get("session-page-panel");
+
+	expect(slot(panel, "origin").dataset.origin).toBe("secure");
+	expect(panel.querySelector('[data-loading="true"]')).toBeNull();
+});
+
 test("failure replaces the guest with retry and external actions", async () => {
 	let reloads = 0;
 	let external = 0;

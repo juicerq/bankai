@@ -5,12 +5,14 @@ import {
 	ArrowTopRightOnSquareIcon,
 	ArrowsPointingInIcon,
 	ArrowsPointingOutIcon,
+	LockClosedIcon,
 	XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { type ReactNode, useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { streamStatus } from "@renderer/lib/stream/status";
 import { ProjectRailReveal } from "@renderer/routes/-features/workspace/layout/project-rail-reveal";
 import { SessionPageAddress } from "@renderer/routes/-features/session-page/session-page-address";
+import { SessionPageAddressText } from "@renderer/routes/-features/session-page/session-page-address-text";
 import type { SessionPageRegistryValue } from "@renderer/routes/-features/session-page/session-page-registry";
 
 const THAW_DELAY = 150;
@@ -157,27 +159,32 @@ export function SessionPagePanel({
 	}
 
 	const blank = !entry.url;
+	const address = registry.displayUrl(shellId);
+	const loading = !!state?.loading;
 
 	return (
 		<section data-component="session-page-panel" className="flex size-full min-w-0 flex-col bg-surface-raised">
 			<span key={`present-${entry.navigation}-${shouldPresent}`} ref={registerPresentation} hidden />
 			<span key={`cover-${covered}`} ref={registerCover} hidden />
 			<div className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised">
-				<span className="mx-3 size-1.5 shrink-0 rounded-full bg-tertiary" aria-hidden="true" />
+				<SessionPageOrigin url={address} />
 				<SessionPageAddress
-					url={registry.displayUrl(shellId)}
+					url={address}
 					autoFocus={blank}
 					onNavigate={(url) => registry.open(shellId, url)}
 				/>
-				{state?.loading && <span className="pending-pulse mr-2 size-1.5 bg-secondary" aria-label="Page loading" />}
 				<SessionPageAction label="Go back" disabled={!state?.canGoBack} onClick={() => window.bankaiSessionPage?.goBack()}>
 					<ArrowLeftIcon className="size-4" />
 				</SessionPageAction>
 				<SessionPageAction label="Go forward" disabled={!state?.canGoForward} onClick={() => window.bankaiSessionPage?.goForward()}>
 					<ArrowRightIcon className="size-4" />
 				</SessionPageAction>
-				<SessionPageAction label="Reload page" disabled={blank} onClick={() => window.bankaiSessionPage?.reload()}>
-					<ArrowPathIcon className="size-4" />
+				<SessionPageAction
+					label={loading ? "Page loading, click to reload" : "Reload page"}
+					disabled={blank}
+					onClick={() => window.bankaiSessionPage?.reload()}
+				>
+					<ArrowPathIcon data-loading={loading} className={`size-4 ${loading ? "pending-pulse" : ""}`} />
 				</SessionPageAction>
 				<SessionPageAction label="Open page externally" disabled={blank} onClick={() => window.bankaiSessionPage?.openExternal()}>
 					<ArrowTopRightOnSquareIcon className="size-4" />
@@ -227,6 +234,28 @@ export function SessionPagePanel({
 				)}
 			</div>
 		</section>
+	);
+}
+
+function SessionPageOrigin({ url }: { url: string }) {
+	const parts = SessionPageAddressText.describe(url);
+
+	if (!parts) {
+		return <span data-slot="origin" className="mx-3 size-1.5 shrink-0 rounded-full bg-tertiary" aria-hidden="true" />;
+	}
+
+	if (parts.local) {
+		return (
+			<span data-slot="origin" data-origin="local" className="mx-3 shrink-0 text-label text-tertiary" title="Local address">
+				LOCAL
+			</span>
+		);
+	}
+
+	return (
+		<span data-slot="origin" data-origin="secure" className="mx-3 flex shrink-0 items-center" title="Secure connection">
+			<LockClosedIcon className="size-3.5 text-tertiary" aria-hidden="true" />
+		</span>
 	);
 }
 

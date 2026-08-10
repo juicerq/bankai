@@ -1,7 +1,7 @@
 import "./register-dom";
 import { afterEach, expect, test } from "bun:test";
 import { SessionPageAddress } from "@renderer/routes/-features/session-page/session-page-address";
-import { get } from "./dom";
+import { get, querySlot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
 afterEach(cleanup);
@@ -32,6 +32,41 @@ test("a bare host is completed with https before navigating", () => {
 	fireEvent.keyDown(field(), { key: "Enter" });
 
 	expect(navigations).toEqual(["https://example.com/"]);
+});
+
+test("a host with a port navigates over http instead of being rejected", () => {
+	const navigations: string[] = [];
+	render(<SessionPageAddress url="" onNavigate={(url) => navigations.push(url)} />);
+
+	edit("localhost:5000");
+	fireEvent.keyDown(field(), { key: "Enter" });
+
+	expect(navigations).toEqual(["http://localhost:5000/"]);
+	expect(field().dataset.invalid).toBe("false");
+});
+
+test("text that is not an address navigates to a search", () => {
+	const navigations: string[] = [];
+	render(<SessionPageAddress url="" onNavigate={(url) => navigations.push(url)} />);
+
+	edit("bankai");
+	fireEvent.keyDown(field(), { key: "Enter" });
+
+	expect(navigations).toEqual(["https://www.google.com/search?q=bankai"]);
+});
+
+test("out of focus the address hides its scheme and dims its path", () => {
+	render(<SessionPageAddress url="https://example.com/path" onNavigate={() => {}} />);
+
+	const display = querySlot(document.body, "display");
+
+	expect(display?.textContent).toBe("example.com/path");
+	expect(display?.firstElementChild?.textContent).toBe("example.com");
+	expect(display?.lastElementChild?.className).toContain("text-tertiary");
+
+	fireEvent.focus(field());
+
+	expect(querySlot(document.body, "display")).toBeNull();
 });
 
 test("a rejected address keeps the draft, flags the field and does not navigate", () => {

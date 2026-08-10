@@ -117,6 +117,7 @@ export const SessionPageSchemas = {
 
 export const SessionPageUrl = {
 	parse: parseUrl,
+	isLoopback,
 };
 
 declare global {

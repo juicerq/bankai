@@ -19,6 +19,7 @@ export function ProjectWorkspaceShells({
 	resizeDeferred,
 	serviceLogOpen,
 	onOpenFile,
+	onOpenUrl,
 }: {
 	project: Project;
 	shells: ContinuityShell[];
@@ -29,6 +30,7 @@ export function ProjectWorkspaceShells({
 	resizeDeferred: boolean;
 	serviceLogOpen: boolean;
 	onOpenFile: (worktree: string, target: TerminalFileTarget) => void;
+	onOpenUrl: (shellId: string, url: string) => void;
 }) {
 	const residency = useWorkspaceResidency();
 	const agents = useWorkspaceAgents();
@@ -66,6 +68,7 @@ export function ProjectWorkspaceShells({
 							resizeDeferred={resizeDeferred}
 							resumeOnMount={residency.resumable.has(shell.id)}
 							onOpenFile={(target) => onOpenFile(worktree, target)}
+							onOpenUrl={(url) => onOpenUrl(shell.id, url)}
 						/>
 					</div>
 				);

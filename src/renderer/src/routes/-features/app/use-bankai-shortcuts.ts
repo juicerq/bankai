@@ -95,10 +95,31 @@ export function useBankaiShortcuts({
 		window.addEventListener("keydown", handleKeyDown, true);
 		window.addEventListener("keyup", handleKeyUp, true);
 		window.addEventListener("blur", handleWindowBlur);
+		const unsubscribeShortcut = window.bankaiSessionPage?.onShortcut((shortcut) => {
+			if (shortcut.action === "toggle-fullscreen") {
+				onToggleFullscreen();
+			}
+			if (shortcut.action === "new-shell") {
+				onNewShell(shortcut.plain);
+			}
+			if (shortcut.action === "archive-shell") {
+				onArchiveShell();
+			}
+			if (shortcut.action === "open-settings") {
+				onOpenSettings();
+			}
+			if (shortcut.action === "jump-waiting") {
+				onJumpToWaiting();
+			}
+			if (shortcut.action === "jump-row") {
+				onJumpToRow(shortcut.index);
+			}
+		});
 		return () => {
 			window.removeEventListener("keydown", handleKeyDown, true);
 			window.removeEventListener("keyup", handleKeyUp, true);
 			window.removeEventListener("blur", handleWindowBlur);
+			unsubscribeShortcut?.();
 		};
 	}, [onToggleFullscreen, onNewShell, onArchiveShell, onOpenSettings, onModifierHold, onJumpToRow, onJumpToWaiting]);
 }

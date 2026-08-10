@@ -13,11 +13,11 @@ test("focus restores a closed review panel to closed", () => {
 	}));
 
 	act(() => result.current.toggleFocus());
-	expect(result.current.open).toBe(true);
+	expect(result.current.mode).toBe("review");
 	expect(result.current.expanded).toBe(true);
 
 	act(() => result.current.toggleFocus());
-	expect(result.current.open).toBe(false);
+	expect(result.current.mode).toBe("closed");
 	expect(result.current.expanded).toBe(false);
 	expect(patches).toEqual([
 		{ reviewOpen: true, reviewExpanded: true },
@@ -36,7 +36,7 @@ test("focus restores an open review panel to its docked state", () => {
 	act(() => result.current.toggleFocus());
 	act(() => result.current.toggleFocus());
 
-	expect(result.current.open).toBe(true);
+	expect(result.current.mode).toBe("review");
 	expect(result.current.expanded).toBe(false);
 });
 
@@ -51,10 +51,10 @@ test("closing the review panel reports the close once", () => {
 		},
 	}));
 
-	act(() => result.current.changeOpen(false));
+	act(() => result.current.changeMode("closed"));
 	expect(closes).toBe(1);
 
-	act(() => result.current.changeOpen(true));
+	act(() => result.current.changeMode("review"));
 	expect(closes).toBe(1);
 });
 
@@ -89,6 +89,25 @@ test("docking an expanded review panel that stays open reports no close", () => 
 
 	act(() => result.current.toggleFocus());
 
-	expect(result.current.open).toBe(true);
+	expect(result.current.mode).toBe("review");
 	expect(closes).toBe(0);
+});
+
+test("the bay has one mode and Page transitions never create a parallel Review state", () => {
+	const patches: object[] = [];
+	const { result } = renderHook(() => useReviewPanelState({
+		initialOpen: true,
+		initialExpanded: false,
+		persist: (patch) => patches.push(patch),
+		onClose: () => {},
+	}));
+
+	act(() => result.current.changeMode("page"));
+	expect(result.current.mode).toBe("page");
+
+	act(() => result.current.changeMode("review"));
+	expect(result.current.mode).toBe("review");
+	expect(patches).toEqual([{ reviewOpen: false }, { reviewOpen: true }]);
+	expect("open" in result.current).toBe(false);
+	expect("changeOpen" in result.current).toBe(false);
 });

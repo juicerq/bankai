@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { ProjectRailReveal } from "@renderer/routes/-features/workspace/layout/project-rail-reveal";
 
 const PROJECT_RAIL_ACTIVATION_WIDTH = 8;
 export const PROJECT_RAIL_WITHDRAW_DELAY_MS = 100;
@@ -9,7 +10,6 @@ export function useFullscreenProjectRail(
 ) {
 	const onFullscreenChange = options?.onFullscreenChange;
 	const [fullscreen, setFullscreen] = useState(options?.initialFullscreen ?? false);
-	const [revealed, setRevealed] = useState(false);
 	const [animating, setAnimating] = useState(false);
 	const railRef = useRef<HTMLDivElement | null>(null);
 	const withdrawTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -34,7 +34,7 @@ export function useFullscreenProjectRail(
 
 	const withdraw = useCallback(() => {
 		if (canWithdraw()) {
-			setRevealed(false);
+			ProjectRailReveal.set(false);
 		}
 	}, [canWithdraw]);
 
@@ -57,20 +57,20 @@ export function useFullscreenProjectRail(
 
 	const reveal = useCallback(() => {
 		cancelWithdraw();
-		setRevealed(true);
+		ProjectRailReveal.set(true);
 	}, [cancelWithdraw]);
 
 	const toggleFullscreen = useCallback((options?: { animate?: boolean }) => {
 		setAnimating(options?.animate !== false && !window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 		if (fullscreen) {
-			setRevealed(false);
+			ProjectRailReveal.set(false);
 			setFullscreen(false);
 			onFullscreenChange?.(false);
 			return;
 		}
 
 		edgeArmed.current = false;
-		setRevealed(false);
+		ProjectRailReveal.set(false);
 		if (
 			focusInside.current
 			|| menuOpen.current
@@ -184,7 +184,7 @@ export function useFullscreenProjectRail(
 			pointerInside.current = false;
 			focusInside.current = false;
 			pointerFocused.current = false;
-			setRevealed(false);
+			ProjectRailReveal.set(false);
 		}
 	}, [cancelWithdraw]);
 	const registerRail = useCallback((rail: HTMLDivElement | null) => {
@@ -208,7 +208,6 @@ export function useFullscreenProjectRail(
 
 	return {
 		fullscreen,
-		revealed,
 		animating,
 		toggleFullscreen,
 		finishMotion,

@@ -1,6 +1,7 @@
-import { type ReactNode, type RefObject, type TransitionEvent, useCallback } from "react";
+import { type ReactNode, type RefObject, type TransitionEvent, useCallback, useSyncExternalStore } from "react";
 import { Divider } from "@renderer/routes/-features/shared/interaction/divider";
 import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-features/workspace/layout/layout-motion";
+import { ProjectRailReveal } from "@renderer/routes/-features/workspace/layout/project-rail-reveal";
 import { RAIL_WIDTH_PROPERTY, RAIL_WIDTH_VALUE } from "@renderer/routes/-features/workspace/layout/rail-layout";
 import type { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
 import type { useFullscreenProjectRail } from "@renderer/routes/-features/workspace/layout/use-fullscreen-project-rail";
@@ -23,6 +24,7 @@ export function ProjectRailFrame({
 			projectRail.finishMotion();
 		}
 	};
+	const revealed = useSyncExternalStore(ProjectRailReveal.subscribe, ProjectRailReveal.get);
 	const collapsing = !projectRail.fullscreen && divider.intent === "focus";
 	const registerFrame = useCallback(
 		(node: HTMLDivElement | null) => {
@@ -58,15 +60,15 @@ export function ProjectRailFrame({
 				ref={projectRail.registerRail}
 				data-component="project-rail-frame"
 				data-fullscreen={projectRail.fullscreen}
-				data-revealed={projectRail.fullscreen ? projectRail.revealed : true}
+				data-revealed={projectRail.fullscreen ? revealed : true}
 				data-collapsing={collapsing}
 				data-motion-duration={LAYOUT_MOTION_DURATION_MS}
-				inert={projectRail.fullscreen && !projectRail.revealed}
+				inert={projectRail.fullscreen && !revealed}
 				style={{ width: RAIL_WIDTH_VALUE, transitionDuration: `${LAYOUT_MOTION_DURATION_MS}ms` }}
 				className={
 					projectRail.fullscreen
 						? `absolute inset-y-0 left-0 z-40 flex shrink-0 transition-[transform,opacity] ease-out motion-reduce:transition-none ${
-							projectRail.revealed
+							revealed
 								? "translate-x-0 opacity-100 shadow-[4px_0_16px_var(--color-shadow)]"
 								: "pointer-events-none -translate-x-full opacity-0"
 						}`

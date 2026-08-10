@@ -2,6 +2,7 @@ import { createContext, type FocusEvent, type ReactNode, use } from "react";
 import type { LayoutSettings } from "@shared/settings";
 import type { AgentActivities } from "@renderer/routes/-features/sessions/list/use-agent-activity";
 import type { ShellResidency } from "@renderer/routes/-features/sessions/lifecycle/use-shell-residency";
+import type { WorkspaceBayMode } from "@renderer/routes/-features/review/panel/use-review-panel-state";
 
 interface WorkspaceControl {
 	initialDiffWidth: number;
@@ -10,11 +11,12 @@ interface WorkspaceControl {
 	onOpenSettings: () => void;
 	onOpenCommands: () => void;
 	onPersistLayout: (patch: LayoutSettings) => void;
-	onReviewOpenChange: (open: boolean) => void;
+	onBayModeChange: (mode: WorkspaceBayMode) => void;
 	onReviewExpandedChange: (expanded: boolean) => void;
 	onToggleReviewFocus: () => void;
 	onTreeOpenChange: (open: boolean) => void;
 	onRequestShell: (plain: boolean) => void;
+	onRequestShellFocus: () => void;
 }
 
 interface WorkspaceTopBand {

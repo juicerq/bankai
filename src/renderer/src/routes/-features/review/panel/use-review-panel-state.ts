@@ -1,6 +1,8 @@
 import { useCallback, useRef, useState } from "react";
 import type { LayoutSettings } from "@shared/settings";
 
+export type WorkspaceBayMode = "closed" | "review" | "page";
+
 export function useReviewPanelState({
 	initialOpen,
 	initialExpanded,
@@ -12,48 +14,50 @@ export function useReviewPanelState({
 	persist: (patch: LayoutSettings) => void;
 	onClose: () => void;
 }) {
-	const [open, setOpen] = useState(initialOpen);
+	const [mode, setMode] = useState<WorkspaceBayMode>(initialOpen ? "review" : "closed");
 	const [expanded, setExpanded] = useState(initialExpanded);
-	const restoreOpen = useRef<boolean | null>(null);
-	const changeOpen = useCallback((nextOpen: boolean) => {
-		restoreOpen.current = null;
-		setOpen(nextOpen);
-		persist({ reviewOpen: nextOpen });
+	const restoreMode = useRef<WorkspaceBayMode | null>(null);
+	const changeMode = useCallback((nextMode: WorkspaceBayMode) => {
+		restoreMode.current = null;
+		setMode(nextMode);
+		persist({ reviewOpen: nextMode === "review" });
 
-		if (!nextOpen) {
+		if (nextMode === "closed") {
 			onClose();
 		}
 	}, [onClose, persist]);
 	const changeExpanded = useCallback((nextExpanded: boolean) => {
-		restoreOpen.current = null;
+		restoreMode.current = null;
 		setExpanded(nextExpanded);
 		persist({ reviewExpanded: nextExpanded });
 	}, [persist]);
 	const toggleFocus = useCallback(() => {
 		if (expanded) {
-			const nextOpen = restoreOpen.current ?? open;
-			restoreOpen.current = null;
-			setOpen(nextOpen);
+			const nextMode = restoreMode.current ?? mode;
+			restoreMode.current = null;
+			setMode(nextMode);
 			setExpanded(false);
-			persist({ reviewOpen: nextOpen, reviewExpanded: false });
+			persist({ reviewOpen: nextMode === "review", reviewExpanded: false });
 
-			if (!nextOpen) {
+			if (nextMode === "closed") {
 				onClose();
 			}
 
 			return;
 		}
 
-		restoreOpen.current = open;
-		setOpen(true);
+		restoreMode.current = mode;
+		if (mode === "closed") {
+			setMode("review");
+		}
 		setExpanded(true);
-		persist({ reviewOpen: true, reviewExpanded: true });
-	}, [expanded, onClose, open, persist]);
+		persist({ reviewOpen: mode !== "page", reviewExpanded: true });
+	}, [expanded, mode, onClose, persist]);
 
 	return {
-		open,
+		mode,
 		expanded,
-		changeOpen,
+		changeMode,
 		changeExpanded,
 		toggleFocus,
 	};

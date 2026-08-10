@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { useRef, useState } from "react";
 import { ProjectRailFrame } from "@renderer/routes/-features/workspace/layout/project-rail-frame";
+import { ProjectRailReveal } from "@renderer/routes/-features/workspace/layout/project-rail-reveal";
 import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-features/workspace/layout/layout-motion";
 import {
 	DEFAULT_RAIL_WIDTH,
@@ -19,6 +20,7 @@ import { act, cleanup, fireEvent, render } from "./testing-library";
 
 afterEach(() => {
 	cleanup();
+	ProjectRailReveal.set(false);
 	jest.useRealTimers();
 });
 
@@ -128,6 +130,22 @@ describe("fullscreen Project rail", () => {
 		expect(workspaceLayout.dataset.motionDuration).toBe(String(LAYOUT_MOTION_DURATION_MS));
 		expect(frame.inert).toBe(false);
 		expect(get("rail-controls")).toBeDefined();
+	});
+
+	test("reads the reveal from the shared store instead of a parent render", () => {
+		render(<ProjectRailHarness />);
+		enterFullscreen();
+
+		const frame = get("project-rail-frame");
+		expect(frame.dataset.revealed).toBe("false");
+
+		act(() => ProjectRailReveal.set(true));
+		expect(frame.dataset.revealed).toBe("true");
+		expect(frame.inert).toBe(false);
+
+		act(() => ProjectRailReveal.set(false));
+		expect(frame.dataset.revealed).toBe("false");
+		expect(frame.inert).toBe(true);
 	});
 
 	test("requires a fresh edge entry when fullscreen starts under the pointer", () => {

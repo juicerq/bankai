@@ -10,6 +10,9 @@ import type { TerminalFileTarget } from "@renderer/routes/-features/terminal/ter
 import { useProjectWorkspaceShortcuts } from "@renderer/routes/-features/workspace/surface/use-project-workspace-shortcuts";
 import { useReviewGeometry } from "@renderer/routes/-features/review/panel/use-review-geometry";
 import { useWorkspaceControl } from "@renderer/routes/-features/workspace/layout/workspace-context";
+import { SessionPagePanel } from "@renderer/routes/-features/session-page/session-page-panel";
+import type { SessionPageRegistryValue } from "@renderer/routes/-features/session-page/session-page-registry";
+import type { WorkspaceBayMode } from "@renderer/routes/-features/review/panel/use-review-panel-state";
 
 export const ProjectWorkspace = memo(function ProjectWorkspace({
 	project,
@@ -18,12 +21,14 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	fullscreen,
 	fullscreenAnimating,
 	railResizing,
-	reviewOpen,
+	bayMode,
 	reviewExpanded,
 	treeOpen,
 	shells,
 	selectedShellId,
 	serviceLogOpen,
+	sessionPages,
+	pageObscured,
 }: {
 	project: Project;
 	active: boolean;
@@ -31,12 +36,14 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	fullscreen: boolean;
 	fullscreenAnimating: boolean;
 	railResizing: boolean;
-	reviewOpen: boolean;
+	bayMode: WorkspaceBayMode;
 	reviewExpanded: boolean;
 	treeOpen: boolean;
 	shells: ContinuityShell[];
 	selectedShellId: string | undefined;
 	serviceLogOpen: boolean;
+	sessionPages: SessionPageRegistryValue;
+	pageObscured: boolean;
 }) {
 	const control = useWorkspaceControl();
 	// A workspace that does not own the selection still has to name a shell for
@@ -52,6 +59,9 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	const [motion, setMotion] = useState<ReviewPanelMotion>();
 	const [quickOpen, setQuickOpen] = useState(false);
 	const [reviewPanel] = useState(createReviewPanelStore);
+	const reviewOpen = bayMode === "review";
+	const pageAvailable = !!activeShellId && sessionPages.has(activeShellId);
+	const pageOpen = active && bayMode === "page" && pageAvailable;
 	const startMotion = useCallback((kind: ReviewPanelMotion) => {
 		setMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : kind);
 	}, []);
@@ -64,33 +74,53 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 			control.onReviewExpandedChange(false);
 		}
 
-		control.onReviewOpenChange(!reviewOpen);
-	}, [control.onReviewExpandedChange, control.onReviewOpenChange, reviewExpanded, reviewOpen, startMotion]);
+		control.onBayModeChange(reviewOpen ? "closed" : "review");
+	}, [control.onBayModeChange, control.onReviewExpandedChange, reviewExpanded, reviewOpen, startMotion]);
+	const handleTogglePage = useCallback(() => {
+		if (!pageAvailable) {
+			return;
+		}
+
+		startMotion("open");
+		if (pageOpen && reviewExpanded) {
+			control.onReviewExpandedChange(false);
+		}
+		control.onBayModeChange(pageOpen ? "closed" : "page");
+	}, [control.onBayModeChange, control.onReviewExpandedChange, pageAvailable, pageOpen, reviewExpanded, startMotion]);
 
 	const handleToggleReviewExpanded = useCallback(() => {
+		if (bayMode === "closed") {
+			return;
+		}
+
 		startMotion("expand");
 		control.onToggleReviewFocus();
-	}, [control.onToggleReviewFocus, startMotion]);
+	}, [bayMode, control.onToggleReviewFocus, startMotion]);
 	const handleOpenQuickOpen = useCallback(() => {
 		if (!reviewOpen) {
 			startMotion("open");
-			control.onReviewOpenChange(true);
+			control.onBayModeChange("review");
 		}
 
 		setQuickOpen(true);
-	}, [control.onReviewOpenChange, reviewOpen, startMotion]);
+	}, [control.onBayModeChange, reviewOpen, startMotion]);
 	const handleOpenTerminalFile = useCallback(
 		(worktree: string, target: TerminalFileTarget) => {
 			if (!reviewOpen) {
 				startMotion("open");
-				control.onReviewOpenChange(true);
+				control.onBayModeChange("review");
 			}
 
 			reviewPanel.actions.pinWorktree(worktree);
 			reviewPanel.actions.focusFile(target.file, target.line);
 		},
-		[control.onReviewOpenChange, reviewOpen, reviewPanel, startMotion],
+		[control.onBayModeChange, reviewOpen, reviewPanel, startMotion],
 	);
+	const handleOpenTerminalUrl = useCallback((shellId: string, url: string) => {
+		sessionPages.open(shellId, url);
+		startMotion("open");
+		control.onBayModeChange("page");
+	}, [control.onBayModeChange, sessionPages, startMotion]);
 
 	const registerWorkspaceShortcuts = useProjectWorkspaceShortcuts({
 		active,
@@ -112,7 +142,10 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 				fullscreen={fullscreen}
 				animating={fullscreenAnimating}
 				reviewOpen={reviewOpen}
+				pageAvailable={pageAvailable}
+				pageOpen={pageOpen}
 				onToggleReview={handleToggleReview}
+				onTogglePage={handleTogglePage}
 			/>
 
 			<div
@@ -129,9 +162,10 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					resizeDeferred={fullscreenAnimating || motion !== undefined || geometry.resizing || railResizing}
 					serviceLogOpen={serviceLogOpen}
 					onOpenFile={handleOpenTerminalFile}
+					onOpenUrl={handleOpenTerminalUrl}
 				/>
 				<ReviewPanelFrame
-					open={reviewOpen}
+					open={reviewOpen || pageOpen}
 					expanded={reviewExpanded}
 					motion={motion}
 					width={geometry.dockedWidth}
@@ -139,17 +173,31 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					divider={geometry.diffDivider}
 					onMotionEnd={() => setMotion(undefined)}
 				>
-					<ReviewPanel
-						panel={reviewPanel}
-						project={project}
-						shellId={activeShellId}
-						shells={shells}
-						treeOpen={treeOpen}
-						treeDivider={geometry.treeDivider}
+					<div className={pageOpen ? "hidden" : "contents"}>
+						<ReviewPanel
+							panel={reviewPanel}
+							project={project}
+							shellId={activeShellId}
+							shells={shells}
+							treeOpen={treeOpen}
+							treeDivider={geometry.treeDivider}
 							expanded={reviewExpanded}
 							onToggleExpanded={handleToggleReviewExpanded}
 							quickOpen={{ open: quickOpen, onClose: () => setQuickOpen(false) }}
 						/>
+					</div>
+					{pageOpen && activeShellId && (
+						<SessionPagePanel
+							registry={sessionPages}
+							shellId={activeShellId}
+							obscured={pageObscured}
+							coverable={fullscreen}
+							expanded={reviewExpanded}
+							onToggleExpanded={handleToggleReviewExpanded}
+							onClose={handleTogglePage}
+							onRestoreTerminalFocus={control.onRequestShellFocus}
+						/>
+					)}
 				</ReviewPanelFrame>
 			</div>
 		</section>

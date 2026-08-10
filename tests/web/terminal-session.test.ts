@@ -159,7 +159,10 @@ const { RendererTerminalSession, useTerminalSession } = await import(
 	"@renderer/routes/-features/terminal/use-terminal-session"
 );
 
-async function startSession(fileLinks: () => TerminalFileLinkContext | undefined = () => {}) {
+async function startSession(options?: {
+	fileLinks?: () => TerminalFileLinkContext | undefined;
+	urlLinks?: () => ((url: string) => void) | undefined;
+}) {
 	const container = document.createElement("div");
 	document.body.appendChild(container);
 	const session = new RendererTerminalSession(container, {
@@ -170,7 +173,8 @@ async function startSession(fileLinks: () => TerminalFileLinkContext | undefined
 		resizeDeferred: false,
 		onResumeOutcome: () => {},
 		onFirstOutput: () => {},
-		fileLinks,
+		fileLinks: options?.fileLinks ?? (() => {}),
+		urlLinks: options?.urlLinks ?? (() => {}),
 	});
 
 	for (let tick = 0; tick < 4; tick++) {
@@ -373,7 +377,7 @@ test("a path printed in the shell opens the current file target and unregisters 
 			firstOpened = target;
 		},
 	});
-	const session = await startSession(() => context);
+	const session = await startSession({ fileLinks: () => context });
 	lastTerminal().lines = ["  at src/a.ts:12"];
 	context = fileLinkContext({
 		paths: new Set(["src/a.ts"]),
@@ -400,10 +404,12 @@ test("a path printed in the shell opens the current file target and unregisters 
 
 test("a path wrapped across terminal rows remains one link from either row", async () => {
 	const opened: TerminalFileTarget[] = [];
-	const session = await startSession(() => fileLinkContext({
-		paths: new Set(["src/my file.ts"]),
-		onOpen: (target) => opened.push(target),
-	}));
+	const session = await startSession({
+		fileLinks: () => fileLinkContext({
+			paths: new Set(["src/my file.ts"]),
+			onOpen: (target) => opened.push(target),
+		}),
+	});
 	const terminal = lastTerminal();
 	terminal.cols = 12;
 	terminal.lines = ["prefix src/m", "y file.ts:12"];
@@ -474,7 +480,9 @@ test("a shell gains file links when its current worktree paths arrive after the 
 });
 
 test("a path missing from the current worktree stays plain text", async () => {
-	const session = await startSession(() => fileLinkContext({ paths: new Set(["src/a.ts"]), onOpen: () => {} }));
+	const session = await startSession({
+		fileLinks: () => fileLinkContext({ paths: new Set(["src/a.ts"]), onOpen: () => {} }),
+	});
 	lastTerminal().lines = ["  at src/ghost.ts:12"];
 
 	expect(provideLinks(1)).toEqual([]);
@@ -489,6 +497,86 @@ test("a shell without file-link context registers a provider with no links", asy
 	expect(provideLinks(1)).toEqual([]);
 
 	session.dispose();
+});
+
+test("a page URL works without file paths and remains one link across wrapped rows", async () => {
+	const opened: string[] = [];
+	const session = await startSession({ urlLinks: () => (url) => opened.push(url) });
+	const terminal = lastTerminal();
+	terminal.cols = 24;
+	terminal.lines = ["Open https://example.com", ":8443/a?x=1#b)."];
+	terminal.wrappedLines.add(1);
+
+	for (const row of [1, 2]) {
+		const links = provideLinks(row) ?? [];
+		const link = links.at(0);
+
+		expect(links).toHaveLength(1);
+		expect(link?.range).toEqual({ start: { x: 6, y: 1 }, end: { x: 13, y: 2 } });
+		expect(link?.text).toBe("https://example.com:8443/a?x=1#b");
+	}
+
+	const link = provideLinks(2)?.at(0);
+	link?.activate(new MouseEvent("click"), link.text);
+
+	expect(opened).toEqual(["https://example.com:8443/a?x=1#b"]);
+
+	session.dispose();
+});
+
+test("file and page targets on one line are offered in text order", async () => {
+	const session = await startSession({
+		fileLinks: () => fileLinkContext({ paths: new Set(["src/a.ts"]), onOpen: () => {} }),
+		urlLinks: () => () => {},
+	});
+	lastTerminal().lines = ["src/a.ts:12 then https://example.com/docs"];
+
+	const links = provideLinks(1) ?? [];
+
+	expect(links.map(({ text }) => text)).toEqual(["src/a.ts:12", "https://example.com/docs"]);
+
+	session.dispose();
+});
+
+test("a page URL activates the latest callback after the shell is already mounted", async () => {
+	let firstOpened: string | undefined;
+	let currentOpened: string | undefined;
+	const initialProps: { onOpenUrl?: (url: string) => void } = {};
+	const view = renderHook(
+		({ onOpenUrl }: { onOpenUrl?: (url: string) => void }) =>
+			useTerminalSession({
+				projectId: "project-1",
+				shellId: "shell-1",
+				resizeDeferred: false,
+				...(onOpenUrl ? { onOpenUrl } : {}),
+			}),
+		{ initialProps },
+	);
+	const container = document.createElement("div");
+	const unregister = view.result.current.registerContainer(container);
+
+	await waitFor(() => expect(terminals).toHaveLength(1));
+
+	view.rerender({
+		onOpenUrl: (target) => {
+			firstOpened = target;
+		},
+	});
+	lastTerminal().lines = ["https://example.com/docs"];
+	const link = provideLinks(1)?.at(0);
+	view.rerender({
+		onOpenUrl: (target) => {
+			currentOpened = target;
+		},
+	});
+
+	link?.activate(new MouseEvent("click"), link.text);
+
+	expect(firstOpened).toBeUndefined();
+	expect(currentOpened).toBe("https://example.com/docs");
+
+	act(() => unregister?.());
+	view.unmount();
 });
 
 test("retrying a failed resume closes the shell it replaces", async () => {

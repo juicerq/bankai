@@ -46,6 +46,7 @@ import {
 	useWorkspaceActivation,
 } from "@renderer/routes/-features/workspace/surface/use-workspace-activation";
 import { WorkspaceProvider } from "@renderer/routes/-features/workspace/layout/workspace-context";
+import { SessionPageRegistry } from "@renderer/routes/-features/session-page/session-page-registry";
 
 const NO_SHELLS: ContinuityShell[] = [];
 
@@ -83,6 +84,7 @@ function Bankai() {
 		persist: layout.persist,
 		onClose: requestShellFocus,
 	});
+	const [sessionPages] = useState(SessionPageRegistry.create);
 	const [treeOpen, setTreeOpen] = useState(layout.initial.treeOpen);
 	const handleTreeOpenChange = useCallback(
 		(open: boolean) => {
@@ -159,28 +161,35 @@ function Bankai() {
 		() => commands.commands.filter((command) => command.kind === "task"),
 		[commands.commands],
 	);
-	const closeReview = useCallback(() => {
-		if (reviewPanel.open) {
-			reviewPanel.changeOpen(false);
+	const closeBay = useCallback(() => {
+		if (reviewPanel.mode !== "closed") {
+			reviewPanel.changeMode("closed");
 		}
-	}, [reviewPanel.changeOpen, reviewPanel.open]);
-	const serviceLog = useServiceLog({ services: serviceCommands, onOpen: closeReview });
+	}, [reviewPanel.changeMode, reviewPanel.mode]);
+	const serviceLog = useServiceLog({ services: serviceCommands, onOpen: closeBay });
 	const serviceLogStatus = services.statusOf(serviceLog.opened?.id ?? "");
 	const serviceLogOutput = useServiceOutput({ commandId: serviceLog.opened?.id, status: serviceLogStatus });
 	const selectSession = useCallback(
 		(projectId: string, shellId: string) => {
+			if (reviewPanel.mode === "page" && !sessionPages.has(shellId)) {
+				reviewPanel.changeMode("closed");
+			}
 			sessions.selectShell(projectId, shellId);
 			activateProject(projectId);
 			serviceLog.close();
 		},
-		[activateProject, serviceLog.close, sessions.selectShell],
+		[activateProject, reviewPanel.changeMode, reviewPanel.mode, serviceLog.close, sessionPages, sessions.selectShell],
 	);
 	const createShell = useCallback(
 		(projectId: string, plain?: boolean) => {
+			if (reviewPanel.mode === "page") {
+				reviewPanel.changeMode("closed");
+			}
+
 			sessions.openShell(projectId, plain);
 			activateProject(projectId);
 		},
-		[activateProject, sessions.openShell],
+		[activateProject, reviewPanel.changeMode, reviewPanel.mode, sessions.openShell],
 	);
 	const rows = useSessionRows({ continuity: sessions.continuity, projects: availableProjects, activity });
 	const chosen = useChosenProjects();
@@ -231,9 +240,25 @@ function Bankai() {
 	);
 	const archiveShellHere = useCallback(() => {
 		if (selectedProjectId && selectedShellId) {
+			if (reviewPanel.mode === "page") {
+				reviewPanel.changeMode("closed");
+			}
 			sessions.archiveShell(selectedProjectId, selectedShellId);
 		}
-	}, [selectedProjectId, sessions.archiveShell, selectedShellId]);
+	}, [reviewPanel.changeMode, reviewPanel.mode, selectedProjectId, sessions.archiveShell, selectedShellId]);
+	const closeShell = useCallback((projectId: string, shellId: string) => {
+		if (reviewPanel.mode === "page" && shellId === selectedShellId) {
+			reviewPanel.changeMode("closed");
+		}
+		sessionPages.release([shellId]).catch(() => {});
+		sessions.closeShell(projectId, shellId);
+	}, [reviewPanel.changeMode, reviewPanel.mode, selectedShellId, sessionPages, sessions.closeShell]);
+	const archiveShell = useCallback((projectId: string, shellId: string) => {
+		if (reviewPanel.mode === "page" && shellId === selectedShellId) {
+			reviewPanel.changeMode("closed");
+		}
+		sessions.archiveShell(projectId, shellId);
+	}, [reviewPanel.changeMode, reviewPanel.mode, selectedShellId, sessions.archiveShell]);
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const openSettings = useCallback(() => setSettingsOpen(true), []);
 	const closeSettings = useCallback(() => setSettingsOpen(false), []);
@@ -248,25 +273,25 @@ function Bankai() {
 				return;
 			}
 
+			if (reviewPanel.mode === "page") {
+				reviewPanel.changeMode("closed");
+			}
+
 			activateProject(projectId);
 			sessions.openCommandShell(projectId, command);
 		},
-		[activateProject, services.toggle, sessions.openCommandShell],
+		[activateProject, reviewPanel.changeMode, reviewPanel.mode, services.toggle, sessions.openCommandShell],
 	);
 	const [servicesOpen, setServicesOpen] = useState(true);
 	const toggleServices = useCallback(() => setServicesOpen((open) => !open), []);
 	const [taskCommandsOpen, setTaskCommandsOpen] = useState(true);
 	const toggleTaskCommands = useCallback(() => setTaskCommandsOpen((open) => !open), []);
-	const changeReviewOpen = useCallback(
-		(open: boolean) => {
-			reviewPanel.changeOpen(open);
-
-			if (open) {
-				serviceLog.close();
-			}
-		},
-		[reviewPanel.changeOpen, serviceLog.close],
-	);
+	const changeBayMode = useCallback((mode: "closed" | "review" | "page") => {
+		reviewPanel.changeMode(mode);
+		if (mode !== "closed") {
+			serviceLog.close();
+		}
+	}, [reviewPanel.changeMode, serviceLog.close]);
 	const toggleReviewFocus = useCallback(() => {
 		reviewPanel.toggleFocus();
 		serviceLog.close();
@@ -279,11 +304,12 @@ function Bankai() {
 			onOpenSettings: openSettings,
 			onOpenCommands: openCommands,
 			onPersistLayout: layout.persist,
-			onReviewOpenChange: changeReviewOpen,
+			onBayModeChange: changeBayMode,
 			onReviewExpandedChange: reviewPanel.changeExpanded,
 			onToggleReviewFocus: toggleReviewFocus,
 			onTreeOpenChange: handleTreeOpenChange,
 			onRequestShell: requestNewShell,
+			onRequestShellFocus: requestShellFocus,
 		}),
 		[
 			layout.initial.diffWidth,
@@ -293,10 +319,11 @@ function Bankai() {
 			openSettings,
 			openCommands,
 			reviewPanel.changeExpanded,
-			changeReviewOpen,
+			changeBayMode,
 			toggleReviewFocus,
 			handleTreeOpenChange,
 			requestNewShell,
+			requestShellFocus,
 		],
 	);
 	const holdModifier = useCallback(
@@ -356,6 +383,12 @@ function Bankai() {
 	const removeProject = useMutation(
 		orpc.projects.remove.mutationOptions({
 			onSuccess: async (_, input) => {
+				if (reviewPanel.mode === "page" && selectedProjectId === input.projectId) {
+					reviewPanel.changeMode("closed");
+				}
+
+				const workspace = workspaces.find((entry) => entry.projectId === input.projectId);
+				await sessionPages.release(workspace?.shells.map((shell) => shell.id) ?? []);
 				dropWorkspace(input.projectId);
 				chosen.forget(input.projectId);
 				await reactQueryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
@@ -387,8 +420,8 @@ function Bankai() {
 					onAddProject={openPicker}
 					onToggleProject={chosen.toggle}
 					onExcludeProject={chosen.chooseAllExcept}
-					onClose={sessions.closeShell}
-					onArchive={sessions.archiveShell}
+					onClose={closeShell}
+					onArchive={archiveShell}
 					onUnarchive={sessions.unarchiveShell}
 					onPin={sessions.pinShell}
 					onUnpin={sessions.unpinShell}
@@ -452,12 +485,14 @@ function Bankai() {
 								fullscreen={projectRail.fullscreen}
 								fullscreenAnimating={projectRail.animating}
 								railResizing={railDivider.resizing}
-								reviewOpen={reviewPanel.open}
+								bayMode={reviewPanel.mode}
 								reviewExpanded={reviewPanel.expanded}
 								treeOpen={treeOpen}
 								shells={workspace?.shells ?? NO_SHELLS}
 								selectedShellId={selectedShellId}
 								serviceLogOpen={!!serviceLog.opened}
+								sessionPages={sessionPages}
+								pageObscured={settingsOpen || commandsOpen || pickerOpen || shellPickerOpen || !!serviceLog.opened}
 							/>
 						);
 					})}

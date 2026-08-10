@@ -24,6 +24,7 @@ export function TerminalPane({
 	resizeDeferred,
 	resumeOnMount,
 	onOpenFile,
+	onOpenUrl,
 }: {
 	projectId: string;
 	shellId: string;
@@ -33,6 +34,7 @@ export function TerminalPane({
 	resizeDeferred: boolean;
 	resumeOnMount: boolean;
 	onOpenFile: (target: TerminalFileTarget) => void;
+	onOpenUrl?: (url: string) => void;
 }) {
 	const { data: browsePaths } = useQuery(
 		orpc.review.browseFiles.queryOptions({
@@ -61,6 +63,7 @@ export function TerminalPane({
 			resizeDeferred,
 			resumeOnMount,
 			...(fileLinkDetector ? { fileLinks: { detector: fileLinkDetector, onOpen: onOpenFile } } : {}),
+			...(onOpenUrl ? { onOpenUrl } : {}),
 			onResumeOutcome: handleResumeOutcome,
 			onFirstOutput: handleFirstOutput,
 		});

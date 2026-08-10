@@ -10,6 +10,7 @@ import type {
 	TerminalFileLinkDetector,
 	TerminalFileTarget,
 } from "@renderer/routes/-features/terminal/terminal-file-links";
+import { TerminalLinks } from "@renderer/routes/-features/terminal/terminal-links";
 import { registerTerminalStyle, TERMINAL_OPTIONS } from "@renderer/routes/-features/terminal/terminal-style";
 import type { TerminalAttached, TerminalCommandErrorEvent } from "@shared/terminal";
 import { throttle } from "@shared/throttle";
@@ -82,6 +83,7 @@ export function useTerminalSession(options: {
 	resumeOnMount?: boolean;
 	attachOnly?: boolean;
 	fileLinks?: TerminalFileLinkContext;
+	onOpenUrl?: (url: string) => void;
 	onResumeOutcome?: (outcome: ResumeOutcome) => void;
 	onFirstOutput?: () => void;
 }) {
@@ -98,6 +100,8 @@ export function useTerminalSession(options: {
 	onFirstOutputRef.current = options.onFirstOutput;
 	const fileLinksRef = useRef(options.fileLinks);
 	fileLinksRef.current = options.fileLinks;
+	const onOpenUrlRef = useRef(options.onOpenUrl);
+	onOpenUrlRef.current = options.onOpenUrl;
 	const registerContainer = useCallback((container: HTMLDivElement | null) => {
 		if (!container) {
 			return;
@@ -112,6 +116,7 @@ export function useTerminalSession(options: {
 				attachOnly: attachOnly === true,
 				resizeDeferred: resizeDeferredRef.current,
 				fileLinks: () => fileLinksRef.current,
+				urlLinks: () => onOpenUrlRef.current,
 				onResumeOutcome: (outcome) => onResumeOutcomeRef.current?.(outcome),
 				onFirstOutput: () => onFirstOutputRef.current?.(),
 			});
@@ -163,6 +168,7 @@ interface RendererTerminalOptions {
 	onResumeOutcome: (outcome: ResumeOutcome) => void;
 	onFirstOutput: () => void;
 	fileLinks: () => TerminalFileLinkContext | undefined;
+	urlLinks: () => ((url: string) => void) | undefined;
 }
 
 export class RendererTerminalSession {
@@ -176,7 +182,7 @@ export class RendererTerminalSession {
 	private readonly removeCommandErrorListener;
 	private readonly stopStyle;
 	private readonly stopResync;
-	private readonly fileLinkProvider;
+	private readonly linkProvider;
 	private sessionId: string | undefined;
 	private lastCols: number | undefined;
 	private lastRows: number | undefined;
@@ -226,7 +232,7 @@ export class RendererTerminalSession {
 				terminalStream.write(this.sessionId, data);
 			}
 		});
-		this.fileLinkProvider = this.registerFileLinks();
+		this.linkProvider = this.registerLinks();
 		this.stopResync = streamResync.register("terminal", () => this.reattach());
 		this.resizeProcess = throttle(() => this.syncProcessDimensions(), TERMINAL_RESIZE_THROTTLE_MS);
 		this.resizeObserver = new ResizeObserver(() => this.handleContainerResize());
@@ -315,7 +321,7 @@ export class RendererTerminalSession {
 		this.removeCommandErrorListener();
 		this.stopStyle();
 		this.stopResync();
-		this.fileLinkProvider.dispose();
+		this.linkProvider.dispose();
 		if (this.sessionId) {
 			terminalStream.detach(this.sessionId);
 		}
@@ -382,22 +388,24 @@ export class RendererTerminalSession {
 		return await terminalStream.open(projectId, shellId, this.terminal.cols, this.terminal.rows);
 	}
 
-	private registerFileLinks() {
-		const fileLinks = this.options.fileLinks;
-
+	private registerLinks() {
 		return this.terminal.registerLinkProvider({
 			provideLinks: (row, callback) => {
-				const context = fileLinks();
 				const logicalLine = terminalLogicalLineAt(this.terminal, row);
 
-				if (!context || !logicalLine?.text) {
+				if (!logicalLine?.text) {
 					callback([]);
 					return;
 				}
 
-				const links = context.detector.find(logicalLine.text);
+				const fileLinks = this.options.fileLinks();
+				const links = TerminalLinks.find({
+					text: logicalLine.text,
+					...(fileLinks ? { fileDetector: fileLinks.detector } : {}),
+					includeUrls: !!this.options.urlLinks(),
+				});
 
-				callback(links.flatMap(({ start, end, ...target }) => {
+				callback(links.flatMap(({ start, end, target }) => {
 					const startPosition = logicalLine.positions[start];
 					const endPosition = logicalLine.positions[end - 1];
 					if (!startPosition || !endPosition) {
@@ -407,7 +415,15 @@ export class RendererTerminalSession {
 					return [{
 						range: { start: startPosition, end: endPosition },
 						text: logicalLine.text.slice(start, end),
-						activate: () => context.onOpen(target),
+						activate: () => {
+							if (target.kind === "file") {
+								fileLinks?.onOpen(target.target);
+
+								return;
+							}
+
+							this.options.urlLinks()?.(target.url);
+						},
 					}];
 				}));
 			},

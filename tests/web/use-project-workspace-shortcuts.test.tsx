@@ -2,9 +2,12 @@ import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
 import { useProjectWorkspaceShortcuts } from "@renderer/routes/-features/workspace/surface/use-project-workspace-shortcuts";
 import { get } from "./dom";
-import { cleanup, fireEvent, render } from "./testing-library";
+import { act, cleanup, fireEvent, render } from "./testing-library";
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	delete window.bankaiSessionPage;
+});
 
 function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 	const [reviewOpen, setReviewOpen] = useState(true);
@@ -150,4 +153,35 @@ test("inactive workspaces leave review shortcuts alone", () => {
 	expect(leaderPassedThrough).toBe(true);
 	expect(reviewPassedThrough).toBe(true);
 	expect(get("workspace-shortcut-state").dataset.reviewOpen).toBe("true");
+});
+
+test("semantic shortcuts from a focused Page keep workspace controls working", () => {
+	let relay: Parameters<NonNullable<typeof window.bankaiSessionPage>["onShortcut"]>[0] | undefined;
+	window.bankaiSessionPage = {
+		present: async () => {},
+		release: async () => {},
+		goBack: async () => {},
+		goForward: async () => {},
+		reload: async () => {},
+		openExternal: async () => {},
+		snapshot: async () => null,
+		onState: () => () => {},
+		onShortcut: (listener) => {
+			relay = listener;
+			return () => {};
+		},
+	};
+	render(<WorkspaceShortcutHarness />);
+
+	act(() => {
+		relay?.({ action: "toggle-review" });
+		relay?.({ action: "toggle-expanded" });
+		relay?.({ action: "open-commands" });
+		relay?.({ action: "open-quick-open" });
+	});
+
+	expect(get("workspace-shortcut-state").dataset.reviewOpen).toBe("false");
+	expect(get("workspace-shortcut-state").dataset.reviewExpanded).toBe("true");
+	expect(get("workspace-shortcut-state").dataset.commandsOpen).toBe("true");
+	expect(get("workspace-shortcut-state").dataset.quickOpen).toBe("true");
 });

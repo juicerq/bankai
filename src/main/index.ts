@@ -15,6 +15,7 @@ import { MobileAccess } from "@main/infra/tailscale/mobile-access";
 import { UpdateIpc } from "@main/desktop/update-ipc";
 import { DesktopAttention } from "@main/desktop/desktop-attention";
 import { DesktopWindow } from "@main/desktop/desktop-window";
+import { SessionPageView } from "@main/desktop/session-page-view";
 import { AUTH_IPC } from "@shared/server";
 import type { WindowBounds } from "@shared/settings";
 import { DEFAULT_THEME, resolveTheme, THEME_ARGUMENTS, THEME_BACKGROUND } from "@shared/theme";
@@ -93,6 +94,7 @@ async function createWindow() {
 	});
 
 	mainWindow = win;
+	SessionPageView.attach(win);
 	DesktopAttention.setup(win);
 	DesktopWindow.publishMaximized(win);
 	Startup.mark("window-created");
@@ -145,6 +147,7 @@ async function start() {
 		});
 		Services.autostart().catch((err) => Logger.error("services:autostart-failed", { err: String(err) }));
 		DesktopWindow.setup();
+		SessionPageView.setup();
 		UpdateIpc.setup();
 		Startup.mark("ipc-ready");
 		await createWindow();

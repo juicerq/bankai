@@ -73,9 +73,28 @@ export function useProjectWorkspaceShortcuts({
 
 		window.addEventListener("keydown", handleKeyDown, true);
 		window.addEventListener("blur", handleWindowBlur);
+		const unsubscribeShortcut = window.bankaiSessionPage?.onShortcut((shortcut) => {
+			if (!active) {
+				return;
+			}
+
+			if (shortcut.action === "toggle-review") {
+				onToggleReview();
+			}
+			if (shortcut.action === "toggle-expanded") {
+				onToggleReviewExpanded();
+			}
+			if (shortcut.action === "open-commands") {
+				onOpenCommands();
+			}
+			if (shortcut.action === "open-quick-open") {
+				onOpenQuickOpen();
+			}
+		});
 		return () => {
 			window.removeEventListener("keydown", handleKeyDown, true);
 			window.removeEventListener("blur", handleWindowBlur);
+			unsubscribeShortcut?.();
 		};
 	}, [active, onOpenCommands, onOpenQuickOpen, onToggleReview, onToggleReviewExpanded]);
 }

@@ -82,11 +82,12 @@ function renderPanel({ quickOpen = false }: { quickOpen?: boolean } = {}) {
 				onOpenSettings: () => {},
 				onOpenCommands: () => {},
 				onPersistLayout: () => {},
-				onReviewOpenChange: () => {},
+				onBayModeChange: () => {},
 				onReviewExpandedChange: () => {},
 				onToggleReviewFocus: () => {},
 				onTreeOpenChange: () => {},
 				onRequestShell: () => {},
+				onRequestShellFocus: () => {},
 			}}
 			agents={{ shells: new Map(), worktrees: new Map(), statusSince: new Map(), harnesses: new Map() }}
 			residency={{ asleep: new Set(), resumable: new Set(), wake: () => {}, sleep: () => {} }}

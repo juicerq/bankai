@@ -3,6 +3,12 @@ import { AUTH_IPC, type BankaiAuthApi } from "@shared/server";
 import { THEME_LIGHT_CLASS, themeFromArguments } from "@shared/theme";
 import { UPDATE_IPC, type BankaiUpdateApi, type UpdateDownloadedEvent } from "@shared/update";
 import type { BankaiWindowApi } from "@shared/window";
+import { SESSION_PAGE_IPC } from "@shared/session-page-ipc";
+import type {
+	BankaiSessionPageApi,
+	SessionPageShortcut,
+	SessionPageState,
+} from "@shared/session-page";
 
 function paintStartupTheme() {
 	if (themeFromArguments(process.argv) === "dark") {
@@ -50,6 +56,34 @@ const updateApi: BankaiUpdateApi = {
 };
 
 contextBridge.exposeInMainWorld("bankaiUpdate", updateApi);
+
+const sessionPageApi: BankaiSessionPageApi = {
+	present: (presentation) => ipcRenderer.invoke(SESSION_PAGE_IPC.present, presentation),
+	release: (shellId) => ipcRenderer.invoke(SESSION_PAGE_IPC.release, { shellId }),
+	goBack: () => ipcRenderer.invoke(SESSION_PAGE_IPC.goBack),
+	goForward: () => ipcRenderer.invoke(SESSION_PAGE_IPC.goForward),
+	reload: () => ipcRenderer.invoke(SESSION_PAGE_IPC.reload),
+	openExternal: () => ipcRenderer.invoke(SESSION_PAGE_IPC.openExternal),
+	snapshot: () => ipcRenderer.invoke(SESSION_PAGE_IPC.snapshot),
+	onState: (listener) => {
+		const handler = (_event: Electron.IpcRendererEvent, payload: SessionPageState) => {
+			listener(payload);
+		};
+		ipcRenderer.on(SESSION_PAGE_IPC.state, handler);
+
+		return () => ipcRenderer.removeListener(SESSION_PAGE_IPC.state, handler);
+	},
+	onShortcut: (listener) => {
+		const handler = (_event: Electron.IpcRendererEvent, payload: SessionPageShortcut) => {
+			listener(payload);
+		};
+		ipcRenderer.on(SESSION_PAGE_IPC.shortcut, handler);
+
+		return () => ipcRenderer.removeListener(SESSION_PAGE_IPC.shortcut, handler);
+	},
+};
+
+contextBridge.exposeInMainWorld("bankaiSessionPage", sessionPageApi);
 
 let maximized = false;
 const maximizedListeners = new Set<() => void>();

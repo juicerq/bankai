@@ -2,9 +2,12 @@ import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
 import { useBankaiShortcuts } from "@renderer/routes/-features/app/use-bankai-shortcuts";
 import { get } from "./dom";
-import { cleanup, fireEvent, render } from "./testing-library";
+import { act, cleanup, fireEvent, render } from "./testing-library";
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	delete window.bankaiSessionPage;
+});
 
 function ShortcutHarness() {
 	const [fullscreenToggles, setFullscreenToggles] = useState(0);
@@ -15,7 +18,7 @@ function ShortcutHarness() {
 	const [settingsOpens, setSettingsOpens] = useState(0);
 	const registerShortcuts = useBankaiShortcuts({
 		onToggleFullscreen: () => setFullscreenToggles((current) => current + 1),
-		onNewShell: () => setShells((current) => [...current, `shell-${current.length + 1}`]),
+		onNewShell: (plain) => setShells((current) => [...current, `${plain ? "plain" : "shell"}-${current.length + 1}`]),
 		onArchiveShell: () => {
 			setShells((current) => current.slice(0, -1));
 			setArchivedShells((current) => [...current, "shell-1"]);
@@ -161,4 +164,39 @@ test("the project digit shortcut is gone", () => {
 
 	expect(digitPassedThrough).toBe(true);
 	expect(get("shortcut-state").dataset.jumped).toBe("");
+});
+
+test("semantic shortcuts from a focused Page keep global Bankai controls working", () => {
+	let relay: Parameters<NonNullable<typeof window.bankaiSessionPage>["onShortcut"]>[0] | undefined;
+	window.bankaiSessionPage = {
+		present: async () => {},
+		release: async () => {},
+		goBack: async () => {},
+		goForward: async () => {},
+		reload: async () => {},
+		openExternal: async () => {},
+		snapshot: async () => null,
+		onState: () => () => {},
+		onShortcut: (listener) => {
+			relay = listener;
+			return () => {};
+		},
+	};
+	render(<ShortcutHarness />);
+
+	act(() => {
+		relay?.({ action: "toggle-fullscreen" });
+		relay?.({ action: "archive-shell" });
+		relay?.({ action: "new-shell", plain: false });
+		relay?.({ action: "new-shell", plain: true });
+		relay?.({ action: "open-settings" });
+		relay?.({ action: "jump-row", index: 4 });
+		relay?.({ action: "jump-waiting" });
+	});
+
+	expect(get("shortcut-state").dataset.fullscreenToggles).toBe("1");
+	expect(get("shortcut-state").dataset.archivedShells).toBe("shell-1");
+	expect(get("shortcut-state").dataset.shells).toBe("shell-1,plain-2");
+	expect(get("shortcut-state").dataset.settingsOpens).toBe("1");
+	expect(get("shortcut-state").dataset.jumped).toBe("waiting");
 });

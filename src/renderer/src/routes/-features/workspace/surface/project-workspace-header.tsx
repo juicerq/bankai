@@ -3,6 +3,7 @@ import {
 	ArrowsPointingOutIcon,
 	Cog6ToothIcon,
 	CommandLineIcon,
+	GlobeAltIcon,
 	ViewColumnsIcon,
 } from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
@@ -18,14 +19,20 @@ export function ProjectWorkspaceHeader({
 	fullscreen,
 	animating,
 	reviewOpen,
+	pageAvailable,
+	pageOpen,
 	onToggleReview,
+	onTogglePage,
 }: {
 	project: Project;
 	active: boolean;
 	fullscreen: boolean;
 	animating: boolean;
 	reviewOpen: boolean;
+	pageAvailable: boolean;
+	pageOpen: boolean;
 	onToggleReview: () => void;
+	onTogglePage: () => void;
 }) {
 	const { onToggleFullscreen, onOpenSettings, onOpenCommands } = useWorkspaceControl();
 	const topBand = useWorkspaceTopBand();
@@ -57,6 +64,16 @@ export function ProjectWorkspaceHeader({
 			>
 				<span className="min-w-0 flex-1 truncate px-3 text-body text-secondary">{project.name}</span>
 				{active && <UpdateButton />}
+				<ProjectWorkspaceHeaderAction
+					className="border-l"
+					pressed={pageOpen}
+					label="Toggle session page"
+					title="Toggle session page"
+					disabled={!pageAvailable}
+					onClick={onTogglePage}
+				>
+					<GlobeAltIcon className="size-4" />
+				</ProjectWorkspaceHeaderAction>
 				<ProjectWorkspaceHeaderAction
 					className="border-l"
 					pressed={fullscreen}
@@ -104,6 +121,7 @@ function ProjectWorkspaceHeaderAction({
 	label,
 	title,
 	onClick,
+	disabled,
 	children,
 }: {
 	className: string;
@@ -112,18 +130,20 @@ function ProjectWorkspaceHeaderAction({
 	label: string;
 	title: string;
 	onClick: () => void;
+	disabled?: boolean;
 	children: ReactNode;
 }) {
 	return (
 		<button
 			type="button"
-			className={`flex h-full w-header shrink-0 items-center justify-center border-outline hover:bg-surface-hover hover:text-primary ${WINDOW_NO_DRAG_CLASS} ${className} ${
-				pressed ? "bg-surface-active text-primary" : "text-secondary"
+			className={`flex h-full w-header shrink-0 items-center justify-center border-outline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default disabled:bg-transparent disabled:text-outline-strong ${WINDOW_NO_DRAG_CLASS} ${className} ${
+				pressed ? "bg-surface-active text-primary" : "text-secondary enabled:hover:bg-surface-hover enabled:hover:text-primary"
 			}`}
 			aria-pressed={expanded === undefined ? pressed : undefined}
 			aria-expanded={expanded}
 			aria-label={label}
 			title={title}
+			disabled={disabled}
 			onClick={onClick}
 		>
 			{children}

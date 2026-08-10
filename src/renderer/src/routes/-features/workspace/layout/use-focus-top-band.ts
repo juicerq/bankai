@@ -62,14 +62,23 @@ export function useFocusTopBand(options?: { initialFullscreen?: boolean }) {
 			}
 
 			const handlePointerMove = (event: PointerEvent) => trackPointer(event.clientY);
+			const handlePointerExit = () => {
+				lastY.current = Number.POSITIVE_INFINITY;
+
+				if (fullscreen.current && !focusInside.current) {
+					setRevealed(false);
+				}
+			};
 			const handleWindowBlur = () => {
 				focusInside.current = false;
 				setRevealed(false);
 			};
 			window.addEventListener("pointermove", handlePointerMove, true);
+			document.documentElement.addEventListener("pointerleave", handlePointerExit);
 			window.addEventListener("blur", handleWindowBlur);
 			return () => {
 				window.removeEventListener("pointermove", handlePointerMove, true);
+				document.documentElement.removeEventListener("pointerleave", handlePointerExit);
 				window.removeEventListener("blur", handleWindowBlur);
 			};
 		},

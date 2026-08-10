@@ -32,22 +32,65 @@ interface TerminalLogicalLine {
 	positions: IBufferCellPosition[];
 }
 
-function terminalLogicalLineAt(terminal: Terminal, row: number): TerminalLogicalLine | undefined {
+interface TerminalLogicalRows {
+	firstRow: number;
+	lastRow: number;
+}
+
+function logicalRowsAt(terminal: Terminal, row: number): TerminalLogicalRows | undefined {
 	const buffer = terminal.buffer.active;
-	let firstRow = row - 1;
-	if (!buffer.getLine(firstRow)) {
+	if (row < 0 || !buffer.getLine(row)) {
 		return;
 	}
 
+	let firstRow = row;
 	while (firstRow > 0 && buffer.getLine(firstRow)?.isWrapped) {
 		firstRow -= 1;
 	}
 
-	let lastRow = row - 1;
+	let lastRow = row;
 	while (buffer.getLine(lastRow + 1)?.isWrapped) {
 		lastRow += 1;
 	}
 
+	return { firstRow, lastRow };
+}
+
+function terminalLinkContextAt(terminal: Terminal, row: number): TerminalLogicalLine | undefined {
+	const current = logicalRowsAt(terminal, row - 1);
+	if (!current) {
+		return;
+	}
+
+	const neighbours = [
+		logicalRowsAt(terminal, current.firstRow - 1),
+		current,
+		logicalRowsAt(terminal, current.lastRow + 1),
+	].filter((rows) => !!rows);
+	let text = "";
+	const positions: IBufferCellPosition[] = [];
+
+	for (const [index, rows] of neighbours.entries()) {
+		if (index > 0) {
+			text += "\n";
+			positions.push(positions.at(-1) ?? { x: 1, y: 1 });
+		}
+
+		const line = terminalLogicalLine(terminal, rows);
+		if (!line) {
+			return;
+		}
+
+		text += line.text;
+		positions.push(...line.positions);
+	}
+
+	return { text, positions };
+}
+
+function terminalLogicalLine(terminal: Terminal, rows: TerminalLogicalRows): TerminalLogicalLine | undefined {
+	const buffer = terminal.buffer.active;
+	const { firstRow, lastRow } = rows;
 	let text = "";
 	const positions: IBufferCellPosition[] = [];
 	for (let lineIndex = firstRow; lineIndex <= lastRow; lineIndex += 1) {
@@ -391,7 +434,7 @@ export class RendererTerminalSession {
 	private registerLinks() {
 		return this.terminal.registerLinkProvider({
 			provideLinks: (row, callback) => {
-				const logicalLine = terminalLogicalLineAt(this.terminal, row);
+				const logicalLine = terminalLinkContextAt(this.terminal, row);
 
 				if (!logicalLine?.text) {
 					callback([]);
@@ -408,7 +451,7 @@ export class RendererTerminalSession {
 				callback(links.flatMap(({ start, end, target }) => {
 					const startPosition = logicalLine.positions[start];
 					const endPosition = logicalLine.positions[end - 1];
-					if (!startPosition || !endPosition) {
+					if (!startPosition || !endPosition || startPosition.y > row || endPosition.y < row) {
 						return [];
 					}
 

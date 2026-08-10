@@ -432,6 +432,48 @@ test("a path wrapped across terminal rows remains one link from either row", asy
 	session.dispose();
 });
 
+test("a path a TUI broke with a real newline remains one link from either row", async () => {
+	const opened: TerminalFileTarget[] = [];
+	const session = await startSession({
+		fileLinks: () => fileLinkContext({
+			paths: new Set(["src/my file.ts"]),
+			onOpen: (target) => opened.push(target),
+		}),
+	});
+	const terminal = lastTerminal();
+	terminal.cols = 12;
+	terminal.lines = ["prefix src/m", "y file.ts:12"];
+
+	for (const row of [1, 2]) {
+		const links = provideLinks(row) ?? [];
+		const link = links.at(0);
+
+		expect(links).toHaveLength(1);
+		expect(link?.range).toEqual({ start: { x: 8, y: 1 }, end: { x: 12, y: 2 } });
+		expect(link?.text).toBe("src/m\ny file.ts:12");
+	}
+
+	const link = provideLinks(2)?.at(0);
+	link?.activate(new MouseEvent("click"), link.text);
+
+	expect(opened).toEqual([{ file: "src/my file.ts", line: 12 }]);
+
+	session.dispose();
+});
+
+test("a link on a neighbouring row is not offered for the queried row", async () => {
+	const session = await startSession({
+		fileLinks: () => fileLinkContext({ paths: new Set(["src/a.ts"]), onOpen: () => {} }),
+	});
+	const terminal = lastTerminal();
+	terminal.cols = 12;
+	terminal.lines = ["src/a.ts:12", "plain text"];
+
+	expect(provideLinks(2)).toEqual([]);
+
+	session.dispose();
+});
+
 test("a shell gains file links when its current worktree paths arrive after the session starts", async () => {
 	let firstOpened: TerminalFileTarget | undefined;
 	let currentOpened: TerminalFileTarget | undefined;

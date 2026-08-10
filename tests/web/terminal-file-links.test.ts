@@ -52,6 +52,19 @@ test("a colon in an existing file name is not mistaken for a line", () => {
 	expect(linksOf("src/we:ird.ts:12")).toEqual([{ file: "src/we:ird.ts", line: 12, start: 0, end: 16 }]);
 });
 
+test("a path split by a wrapped row rejoins across the newline and its indentation", () => {
+	expect(linksOf("read src/a\n  .ts:65 now")).toEqual([{ file: "src/a.ts", line: 65, start: 5, end: 19 }]);
+	expect(linksOf("read src/a\n.ts now")).toEqual([{ file: "src/a.ts", start: 5, end: 14 }]);
+});
+
+test("two words split by a plain space stay plain text", () => {
+	expect(linksOf("read src/a .ts now")).toEqual([]);
+});
+
+test("a wrapped rejoin the worktree does not have stays plain text", () => {
+	expect(linksOf("read src/gho\n  st.ts:12 now")).toEqual([]);
+});
+
 test("impossible words stop at the longest external path before querying the catalog", () => {
 	class CountingPaths extends Set<string> {
 		queries = 0;

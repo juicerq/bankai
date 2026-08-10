@@ -16,6 +16,8 @@ interface TerminalFileLinkOptions {
 const LINE_SUFFIX = /:(\d+)(?::\d+)?$/;
 const LEADING_WRAPPERS = /^[([{'"`]+/;
 const TRAILING_WRAPPERS = /[)\]}'"`.,;!?]+$/;
+const WRAP_GAP = /^\n[ \t]*$/;
+const WRAP_GAPS = /\n[ \t]*/g;
 
 function prepare(options: TerminalFileLinkOptions) {
 	let longestPath = 0;
@@ -74,25 +76,36 @@ function longestPathAt(
 	}
 
 	let found: { link: TerminalFileLink; words: number } | undefined;
+	let wrapped = false;
 	for (let cursor = index; cursor < words.length; cursor += 1) {
 		const last = words[cursor];
+		const previous = words[cursor - 1];
 
 		if (!last) {
 			break;
 		}
 
+		if (previous && cursor > index) {
+			wrapped ||= WRAP_GAP.test(text.slice(previous.end, last.start));
+		}
+
 		const span = unwrap(text.slice(first.start, last.end));
-		if (pathLength(span.text) > maxExternalLength) {
+		const candidates = wrapped ? [span.text, span.text.replaceAll(WRAP_GAPS, "")] : [span.text];
+
+		if (Math.min(...candidates.map(pathLength)) > maxExternalLength) {
 			break;
 		}
 
-		const target = resolveTarget(span.text, options);
+		for (const candidate of candidates) {
+			const target = resolveTarget(candidate, options);
 
-		if (target) {
-			found = {
-				link: { ...target, start: first.start + span.start, end: first.start + span.end },
-				words: cursor - index + 1,
-			};
+			if (target) {
+				found = {
+					link: { ...target, start: first.start + span.start, end: first.start + span.end },
+					words: cursor - index + 1,
+				};
+				break;
+			}
 		}
 	}
 

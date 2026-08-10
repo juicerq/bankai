@@ -10,5 +10,5 @@
 		"tests/**/*.test.ts"
 	],
 	"ignoreDependencies": ["oxlint", "oxlint-tsgolint"],
-	"ignoreBinaries": ["codex", "tailscale"]
+	"ignoreBinaries": ["codex", "lsof", "tailscale"]
 }

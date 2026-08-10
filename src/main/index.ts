@@ -9,6 +9,7 @@ import { Services } from "@main/services";
 import { Startup } from "@main/startup";
 import { StorePaths } from "@main/store/store-paths";
 import { ShellAgents } from "@main/terminal/shell-agents";
+import { ShellPorts } from "@main/terminal/shell-ports";
 import { shellProcesses } from "@main/terminal/shell-processes";
 import { type WindowStartupSettings, WindowSettings } from "@main/settings/window-settings";
 import { MobileAccess } from "@main/infra/tailscale/mobile-access";
@@ -17,6 +18,7 @@ import { DesktopAttention } from "@main/desktop/desktop-attention";
 import { DesktopWindow } from "@main/desktop/desktop-window";
 import { SessionPageView } from "@main/desktop/session-page-view";
 import { AUTH_IPC } from "@shared/server";
+import { SHELL_PORTS_IPC } from "@shared/shell-ports-ipc";
 import type { WindowBounds } from "@shared/settings";
 import { DEFAULT_THEME, resolveTheme, THEME_ARGUMENTS, THEME_BACKGROUND } from "@shared/theme";
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, screen } from "electron";
@@ -95,6 +97,7 @@ async function createWindow() {
 
 	mainWindow = win;
 	SessionPageView.attach(win);
+	win.once("close", ShellPorts.watch((detected) => win.webContents.send(SHELL_PORTS_IPC.detected, detected)));
 	DesktopAttention.setup(win);
 	DesktopWindow.publishMaximized(win);
 	Startup.mark("window-created");

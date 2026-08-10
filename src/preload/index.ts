@@ -4,6 +4,8 @@ import { THEME_LIGHT_CLASS, themeFromArguments } from "@shared/theme";
 import { UPDATE_IPC, type BankaiUpdateApi, type UpdateDownloadedEvent } from "@shared/update";
 import type { BankaiWindowApi } from "@shared/window";
 import { SESSION_PAGE_IPC } from "@shared/session-page-ipc";
+import { SHELL_PORTS_IPC } from "@shared/shell-ports-ipc";
+import type { BankaiShellPortsApi, ShellPortsDetected } from "@shared/shell-ports";
 import type {
 	BankaiSessionPageApi,
 	SessionPageShortcut,
@@ -84,6 +86,19 @@ const sessionPageApi: BankaiSessionPageApi = {
 };
 
 contextBridge.exposeInMainWorld("bankaiSessionPage", sessionPageApi);
+
+const shellPortsApi: BankaiShellPortsApi = {
+	onDetected: (listener) => {
+		const handler = (_event: Electron.IpcRendererEvent, payload: ShellPortsDetected) => {
+			listener(payload);
+		};
+		ipcRenderer.on(SHELL_PORTS_IPC.detected, handler);
+
+		return () => ipcRenderer.removeListener(SHELL_PORTS_IPC.detected, handler);
+	},
+};
+
+contextBridge.exposeInMainWorld("bankaiShellPorts", shellPortsApi);
 
 let maximized = false;
 const maximizedListeners = new Set<() => void>();

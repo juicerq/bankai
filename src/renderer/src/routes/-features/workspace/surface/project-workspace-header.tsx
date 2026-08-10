@@ -11,7 +11,10 @@ import type { Project } from "@shared/projects";
 import { UpdateButton } from "@renderer/routes/-features/app/update/update-button";
 import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-features/workspace/layout/layout-motion";
 import { WINDOW_DRAG_CLASS, WINDOW_NO_DRAG_CLASS } from "@renderer/routes/-features/app/chrome/window-drag";
+import { useShellPorts } from "@renderer/routes/-features/terminal/use-shell-ports";
 import { useWorkspaceControl, useWorkspaceTopBand } from "@renderer/routes/-features/workspace/layout/workspace-context";
+
+const HEADER_PORT_LIMIT = 3;
 
 export function ProjectWorkspaceHeader({
 	project,
@@ -21,8 +24,10 @@ export function ProjectWorkspaceHeader({
 	reviewOpen,
 	pageAvailable,
 	pageOpen,
+	shellId,
 	onToggleReview,
 	onTogglePage,
+	onOpenUrl,
 }: {
 	project: Project;
 	active: boolean;
@@ -31,11 +36,14 @@ export function ProjectWorkspaceHeader({
 	reviewOpen: boolean;
 	pageAvailable: boolean;
 	pageOpen: boolean;
+	shellId: string | undefined;
 	onToggleReview: () => void;
 	onTogglePage: () => void;
+	onOpenUrl: (shellId: string, url: string) => void;
 }) {
 	const { onToggleFullscreen, onOpenSettings, onOpenCommands } = useWorkspaceControl();
 	const topBand = useWorkspaceTopBand();
+	const ports = useShellPorts(shellId);
 
 	return (
 		<div
@@ -64,6 +72,12 @@ export function ProjectWorkspaceHeader({
 			>
 				<span className="min-w-0 flex-1 truncate px-3 text-body text-secondary">{project.name}</span>
 				{active && <UpdateButton />}
+				{shellId
+					&& ports
+						.slice(0, HEADER_PORT_LIMIT)
+						.map((port) => (
+							<ProjectWorkspaceHeaderPort key={port} port={port} onOpen={() => onOpenUrl(shellId, `http://localhost:${port}/`)} />
+						))}
 				<ProjectWorkspaceHeaderAction
 					className="border-l"
 					pressed={pageOpen}
@@ -111,6 +125,21 @@ export function ProjectWorkspaceHeader({
 				</ProjectWorkspaceHeaderAction>
 			</header>
 		</div>
+	);
+}
+
+function ProjectWorkspaceHeaderPort({ port, onOpen }: { port: number; onOpen: () => void }) {
+	return (
+		<button
+			type="button"
+			data-component="workspace-header-port"
+			className={`flex h-full shrink-0 items-center border-outline border-l px-2.5 text-secondary text-support tabular-nums hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring ${WINDOW_NO_DRAG_CLASS}`}
+			aria-label={`Open localhost:${port}`}
+			title={`Open localhost:${port}`}
+			onClick={onOpen}
+		>
+			{port}
+		</button>
 	);
 }
 

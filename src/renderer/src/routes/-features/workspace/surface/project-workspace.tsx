@@ -144,8 +144,10 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 				reviewOpen={reviewOpen}
 				pageAvailable={pageAvailable}
 				pageOpen={pageOpen}
+				shellId={activeShellId}
 				onToggleReview={handleToggleReview}
 				onTogglePage={handleTogglePage}
+				onOpenUrl={handleOpenTerminalUrl}
 			/>
 
 			<div

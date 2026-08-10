@@ -104,7 +104,7 @@ test("the native slot presents measured bounds once per animation frame and hide
 	expect(visibleCalls).toBe(1);
 
 	act(() => stateListener?.(pageState()));
-	expect(slot(get("session-page-panel"), "address").textContent).toBe("https://example.com/path");
+	expect(get<HTMLInputElement>("session-page-address").value).toBe("https://example.com/path");
 	expect(presentations.filter((value) => value !== null)).toHaveLength(visibleCalls);
 	expect(focusRestores).toBe(0);
 	const hiddenCalls = presentations.filter((value) => value === null).length;
@@ -240,6 +240,52 @@ test("a page that cannot be captured stays presented instead of going black", as
 	expect(document.querySelector('[data-slot="frozen"]')).toBeNull();
 	expect(presentations.at(-1)).toBe(presented);
 	expect(presented).toMatchObject({ bounds: { x: 0, y: 52, width: 640, height: 480 } });
+});
+
+test("the address bar navigates the presented page", async () => {
+	const presentations: Parameters<BankaiSessionPageApi["present"]>[0][] = [];
+	window.bankaiSessionPage = {
+		present: async (value) => {
+			presentations.push(value);
+		},
+		release: async () => {},
+		goBack: async () => {},
+		goForward: async () => {},
+		reload: async () => {},
+		openExternal: async () => {},
+		snapshot: async () => null,
+		onState: () => () => {},
+		onShortcut: () => () => {},
+	};
+	const registry = SessionPageRegistry.create();
+	registry.open("shell-1", "https://example.com/path");
+	render(
+		<SessionPagePanel
+			registry={registry}
+			shellId="shell-1"
+			obscured={false}
+			coverable={false}
+			expanded={false}
+			onToggleExpanded={() => {}}
+			onRestoreTerminalFocus={() => {}}
+		/>,
+	);
+	const nativeSlot = slot(get("session-page-panel"), "native");
+	Object.defineProperty(nativeSlot, "getBoundingClientRect", {
+		configurable: true,
+		value: () => ({ x: 0, y: 52, width: 640, height: 480, top: 52, right: 640, bottom: 532, left: 0 }),
+	});
+	const address = get<HTMLInputElement>("session-page-address");
+
+	fireEvent.focus(address);
+	fireEvent.input(address, { target: { value: "other.test/docs" } });
+	fireEvent.keyDown(address, { key: "Enter" });
+
+	await waitFor(() => expect(presentations.at(-1)).toMatchObject({
+		url: "https://other.test/docs",
+		navigation: 2,
+	}));
+	expect(address.value).toBe("https://other.test/docs");
 });
 
 test("failure replaces the guest with retry and external actions", async () => {

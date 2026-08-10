@@ -342,7 +342,7 @@ test("a URL from the active Shell opens Page and Review takes over the shared ba
 
 	act(() => pageLink.activate(new MouseEvent("click"), pageLink.text));
 
-	await waitFor(() => expect(slot(get("session-page-panel"), "address").textContent).toBe("https://example.com/first"));
+	await waitFor(() => expect(get<HTMLInputElement>("session-page-address").value).toBe("https://example.com/first"));
 	expect(document.querySelector<HTMLButtonElement>('[aria-label="Toggle session page"]')?.disabled).toBe(false);
 	expect(document.querySelector<HTMLButtonElement>('[aria-label="Toggle session page"]')?.getAttribute("aria-pressed")).toBe("true");
 

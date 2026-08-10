@@ -1,5 +1,5 @@
-export function get(component: string, filters?: Record<string, string>) {
-	const matches = [...document.querySelectorAll<HTMLElement>(`[data-component="${component}"]`)]
+export function get<Element extends HTMLElement = HTMLElement>(component: string, filters?: Record<string, string>) {
+	const matches = [...document.querySelectorAll<Element>(`[data-component="${component}"]`)]
 		.filter((element) => !filters || Object.entries(filters).every(([key, value]) => element.dataset[key] === value));
 	const [match] = matches;
 

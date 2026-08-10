@@ -10,6 +10,7 @@ import {
 import { type ReactNode, useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { streamStatus } from "@renderer/lib/stream/status";
 import { ProjectRailReveal } from "@renderer/routes/-features/workspace/layout/project-rail-reveal";
+import { SessionPageAddress } from "@renderer/routes/-features/session-page/session-page-address";
 import type { SessionPageRegistryValue } from "@renderer/routes/-features/session-page/session-page-registry";
 
 const THAW_DELAY = 150;
@@ -161,13 +162,7 @@ export function SessionPagePanel({
 			<span key={`cover-${covered}`} ref={registerCover} hidden />
 			<div className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised">
 				<span className="mx-3 size-1.5 shrink-0 rounded-full bg-tertiary" aria-hidden="true" />
-				<span
-					data-slot="address"
-					className="min-w-0 flex-1 truncate pr-3 text-data text-secondary"
-					aria-label="Page address"
-				>
-					{registry.displayUrl(shellId)}
-				</span>
+				<SessionPageAddress url={registry.displayUrl(shellId)} onNavigate={(url) => registry.open(shellId, url)} />
 				{state?.loading && <span className="pending-pulse mr-2 size-1.5 bg-secondary" aria-label="Page loading" />}
 				<SessionPageAction label="Go back" disabled={!state?.canGoBack} onClick={() => window.bankaiSessionPage?.goBack()}>
 					<ArrowLeftIcon className="size-4" />

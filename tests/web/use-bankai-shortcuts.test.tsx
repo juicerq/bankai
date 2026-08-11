@@ -13,7 +13,6 @@ function ShortcutHarness() {
 	const [fullscreenToggles, setFullscreenToggles] = useState(0);
 	const [shells, setShells] = useState<string[]>([]);
 	const [archivedShells, setArchivedShells] = useState<string[]>([]);
-	const [modifierHeld, setModifierHeld] = useState(false);
 	const [jumped, setJumped] = useState("");
 	const [settingsOpens, setSettingsOpens] = useState(0);
 	const registerShortcuts = useBankaiShortcuts({
@@ -24,7 +23,6 @@ function ShortcutHarness() {
 			setArchivedShells((current) => [...current, "shell-1"]);
 		},
 		onOpenSettings: () => setSettingsOpens((current) => current + 1),
-		onModifierHold: setModifierHeld,
 		onJumpToRow: (index) => setJumped(`row-${index}`),
 		onJumpToWaiting: () => setJumped("waiting"),
 	});
@@ -36,7 +34,6 @@ function ShortcutHarness() {
 			data-fullscreen-toggles={fullscreenToggles}
 			data-shells={shells.join(",")}
 			data-archived-shells={archivedShells.join(",")}
-			data-modifier-held={modifierHeld}
 			data-jumped={jumped}
 			data-settings-opens={settingsOpens}
 		/>
@@ -116,45 +113,23 @@ test("t on its own reaches the Shell instead of opening one", () => {
 	expect(get("shortcut-state").dataset.shells).toBe("");
 });
 
-test("holding and releasing the modifier is reported both ways", () => {
-	render(<ShortcutHarness />);
-
-	fireEvent.keyDown(window, { key: "Alt", code: "AltLeft", altKey: true });
-	expect(get("shortcut-state").dataset.modifierHeld).toBe("true");
-
-	fireEvent.keyUp(window, { key: "Alt", code: "AltLeft" });
-	expect(get("shortcut-state").dataset.modifierHeld).toBe("false");
-});
-
-test("window blur releases a held modifier", () => {
-	render(<ShortcutHarness />);
-
-	fireEvent.keyDown(window, { key: "Alt", code: "AltLeft", altKey: true });
-	fireEvent.blur(window);
-
-	expect(get("shortcut-state").dataset.modifierHeld).toBe("false");
-});
-
-test("a modifier tapped with a digit jumps and leaves nothing held", () => {
+test("the modifier with a digit jumps to that row", () => {
 	render(<ShortcutHarness />);
 
 	fireEvent.keyDown(window, { key: "Alt", code: "AltLeft", altKey: true });
 	const jumpPassedThrough = fireEvent.keyDown(window, { key: "3", code: "Digit3", altKey: true });
-	fireEvent.keyUp(window, { key: "Alt", code: "AltLeft" });
 
 	expect(jumpPassedThrough).toBe(false);
 	expect(get("shortcut-state").dataset.jumped).toBe("row-2");
-	expect(get("shortcut-state").dataset.modifierHeld).toBe("false");
 });
 
-test("the waiting jump draws nothing and needs no modifier held", () => {
+test("the waiting jump draws nothing", () => {
 	render(<ShortcutHarness />);
 
 	const jumpPassedThrough = fireEvent.keyDown(window, { key: "Tab", code: "Tab", ctrlKey: true });
 
 	expect(jumpPassedThrough).toBe(false);
 	expect(get("shortcut-state").dataset.jumped).toBe("waiting");
-	expect(get("shortcut-state").dataset.modifierHeld).toBe("false");
 });
 
 test("the project digit shortcut is gone", () => {

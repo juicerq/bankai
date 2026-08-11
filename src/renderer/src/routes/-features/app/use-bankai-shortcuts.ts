@@ -7,7 +7,6 @@ export function useBankaiShortcuts({
 	onNewShell,
 	onArchiveShell,
 	onOpenSettings,
-	onModifierHold,
 	onJumpToRow,
 	onJumpToWaiting,
 }: {
@@ -15,7 +14,6 @@ export function useBankaiShortcuts({
 	onNewShell: (plain: boolean) => void;
 	onArchiveShell: () => void;
 	onOpenSettings: () => void;
-	onModifierHold: (held: boolean) => void;
 	onJumpToRow: (index: number) => void;
 	onJumpToWaiting: () => void;
 }) {
@@ -64,11 +62,6 @@ export function useBankaiShortcuts({
 		};
 
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === "Alt") {
-				onModifierHold(true);
-				return;
-			}
-
 			if (MODIFIER_KEYS.has(event.key) || event.target instanceof HTMLInputElement) {
 				return;
 			}
@@ -82,18 +75,11 @@ export function useBankaiShortcuts({
 			event.stopPropagation();
 			action();
 		};
-		const handleKeyUp = (event: KeyboardEvent) => {
-			if (event.key === "Alt") {
-				onModifierHold(false);
-			}
-		};
 		const handleWindowBlur = () => {
 			leaderArmed = false;
-			onModifierHold(false);
 		};
 
 		window.addEventListener("keydown", handleKeyDown, true);
-		window.addEventListener("keyup", handleKeyUp, true);
 		window.addEventListener("blur", handleWindowBlur);
 		const unsubscribeShortcut = window.bankaiSessionPage?.onShortcut((shortcut) => {
 			if (shortcut.action === "toggle-fullscreen") {
@@ -117,9 +103,8 @@ export function useBankaiShortcuts({
 		});
 		return () => {
 			window.removeEventListener("keydown", handleKeyDown, true);
-			window.removeEventListener("keyup", handleKeyUp, true);
 			window.removeEventListener("blur", handleWindowBlur);
 			unsubscribeShortcut?.();
 		};
-	}, [onToggleFullscreen, onNewShell, onArchiveShell, onOpenSettings, onModifierHold, onJumpToRow, onJumpToWaiting]);
+	}, [onToggleFullscreen, onNewShell, onArchiveShell, onOpenSettings, onJumpToRow, onJumpToWaiting]);
 }

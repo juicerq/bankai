@@ -21,15 +21,13 @@ export function useFullscreenProjectRail(
 	const dismissMenu = useRef<(() => void) | null>(null);
 	const dragging = useRef(false);
 	const pickerActive = useRef(false);
-	const modifierHeld = useRef(false);
 
 	const canWithdraw = useCallback(() => {
 		return !pointerInside.current
 			&& !focusInside.current
 			&& !menuOpen.current
 			&& !dragging.current
-			&& !pickerActive.current
-			&& !modifierHeld.current;
+			&& !pickerActive.current;
 	}, []);
 
 	const withdraw = useCallback(() => {
@@ -168,16 +166,6 @@ export function useFullscreenProjectRail(
 		withdraw();
 	}, [reveal, withdraw]);
 
-	const setModifierHeld = useCallback((held: boolean) => {
-		modifierHeld.current = held;
-		if (held) {
-			reveal();
-			return;
-		}
-
-		withdraw();
-	}, [reveal, withdraw]);
-
 	const handleWindowBlur = useCallback(() => {
 		if (!pickerActive.current) {
 			cancelWithdraw();
@@ -221,6 +209,5 @@ export function useFullscreenProjectRail(
 		setMenuOpen,
 		setDragging,
 		setPickerActive,
-		setModifierHeld,
 	};
 }

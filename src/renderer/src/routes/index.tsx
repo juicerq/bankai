@@ -339,10 +339,6 @@ function Bankai() {
 			requestShellFocus,
 		],
 	);
-	const holdModifier = useCallback(
-		(held: boolean) => projectRail.setModifierHeld(held),
-		[projectRail.setModifierHeld],
-	);
 	const jumpToRow = useCallback(
 		(index: number) => {
 			const row = list.numbered[index];
@@ -362,7 +358,6 @@ function Bankai() {
 		onNewShell: requestNewShell,
 		onArchiveShell: archiveShellHere,
 		onOpenSettings: openSettings,
-		onModifierHold: holdModifier,
 		onJumpToRow: jumpToRow,
 		onJumpToWaiting: jumpToWaiting,
 	});

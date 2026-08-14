@@ -371,6 +371,7 @@ test("a URL from the active Shell opens Page and Review takes over the shared ba
 		goForward: async () => {},
 		reload: async () => {},
 		openExternal: async () => {},
+		clearData: async () => {},
 		snapshot: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
@@ -426,6 +427,7 @@ test("the revealed project rail freezes the Page into a snapshot it can cover", 
 		goForward: async () => {},
 		reload: async () => {},
 		openExternal: async () => {},
+		clearData: async () => {},
 		snapshot: async () => "data:image/jpeg;base64,frozen",
 		onState: () => () => {},
 		onShortcut: () => () => {},
@@ -548,6 +550,7 @@ test("the header opens Page blank on a Shell with no page and closing it leaves 
 		goForward: async () => {},
 		reload: async () => {},
 		openExternal: async () => {},
+		clearData: async () => {},
 		snapshot: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
@@ -597,6 +600,7 @@ test("leaving Page by another route discards the blank instead of stranding it",
 		goForward: async () => {},
 		reload: async () => {},
 		openExternal: async () => {},
+		clearData: async () => {},
 		snapshot: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
@@ -636,6 +640,7 @@ test("leaving Page by another route keeps a page that reached a URL", async () =
 		goForward: async () => {},
 		reload: async () => {},
 		openExternal: async () => {},
+		clearData: async () => {},
 		snapshot: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
@@ -669,6 +674,43 @@ test("leaving Page by another route keeps a page that reached a URL", async () =
 	expect(document.querySelector('[data-slot="blank"]')).toBeNull();
 });
 
+test("closing Page releases the loaded browser while Review can hide without releasing it", async () => {
+	const released: string[] = [];
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		install: () => {},
+	};
+	window.bankaiSessionPage = {
+		present: async () => {},
+		release: async (shellId) => {
+			released.push(shellId);
+		},
+		goBack: async () => {},
+		goForward: async () => {},
+		reload: async () => {},
+		openExternal: async () => {},
+		clearData: async () => {},
+		snapshot: async () => null,
+		onState: () => () => {},
+		onShortcut: () => () => {},
+	};
+	const registry = SessionPageRegistry.create();
+	registry.open("s1", "https://example.com/close-me");
+	const environment = installReviewEnvironment();
+	render(
+		<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="page" registry={registry} />,
+		{ wrapper: environment.wrapper },
+	);
+
+	fireEvent.click(slot<HTMLButtonElement>(get("session-page-panel"), "close"));
+
+	await waitFor(() => expect(released).toEqual(["s1"]));
+	expect(registry.has("s1")).toBe(false);
+	expect(get("review-panel-frame").dataset.open).toBe("false");
+});
+
 test("closing a blank Page forgets it so the Shell goes back to having none", async () => {
 	window.bankaiUpdate = {
 		getPending: async () => null,
@@ -683,6 +725,7 @@ test("closing a blank Page forgets it so the Shell goes back to having none", as
 		goForward: async () => {},
 		reload: async () => {},
 		openExternal: async () => {},
+		clearData: async () => {},
 		snapshot: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},

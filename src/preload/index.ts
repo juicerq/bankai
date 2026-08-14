@@ -66,6 +66,7 @@ const sessionPageApi: BankaiSessionPageApi = {
 	goForward: () => ipcRenderer.invoke(SESSION_PAGE_IPC.goForward),
 	reload: () => ipcRenderer.invoke(SESSION_PAGE_IPC.reload),
 	openExternal: () => ipcRenderer.invoke(SESSION_PAGE_IPC.openExternal),
+	clearData: () => ipcRenderer.invoke(SESSION_PAGE_IPC.clearData),
 	snapshot: () => ipcRenderer.invoke(SESSION_PAGE_IPC.snapshot),
 	onState: (listener) => {
 		const handler = (_event: Electron.IpcRendererEvent, payload: SessionPageState) => {

@@ -4,6 +4,7 @@ import type { Project } from "@shared/projects";
 import type { HarnessProfile, HarnessSettings } from "@shared/settings";
 import { PickerHint } from "@renderer/routes/-features/shared/pickers/picker-hint";
 import { Setting } from "@renderer/routes/-features/settings/settings-controls";
+import { BrowserDataSetting } from "@renderer/routes/-features/settings/settings-browser-data";
 import { SettingsProjects } from "@renderer/routes/-features/settings/settings-projects";
 import { MobileAccessSetting } from "@renderer/routes/-features/settings/settings-mobile-access";
 import { ThemeSetting } from "@renderer/routes/-features/settings/settings-theme";
@@ -130,6 +131,7 @@ function SettingsBody({
 			</Setting>
 			<MobileAccessSetting />
 			<ThemeSetting />
+			<BrowserDataSetting />
 		</>
 	);
 }

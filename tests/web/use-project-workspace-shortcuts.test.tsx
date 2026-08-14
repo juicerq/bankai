@@ -190,6 +190,7 @@ test("semantic shortcuts from a focused Page keep workspace controls working", (
 		goForward: async () => {},
 		reload: async () => {},
 		openExternal: async () => {},
+		clearData: async () => {},
 		snapshot: async () => null,
 		onState: () => () => {},
 		onShortcut: (listener) => {

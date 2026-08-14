@@ -101,6 +101,7 @@ export interface BankaiSessionPageApi {
 	goForward: () => Promise<void>;
 	reload: () => Promise<void>;
 	openExternal: () => Promise<void>;
+	clearData: () => Promise<void>;
 	snapshot: () => Promise<string | null>;
 	onState: (listener: (state: SessionPageState) => void) => () => void;
 	onShortcut: (listener: (shortcut: SessionPageShortcut) => void) => () => void;

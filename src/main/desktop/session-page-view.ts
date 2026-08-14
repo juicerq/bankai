@@ -1,3 +1,5 @@
+import { join } from "node:path";
+import { StorePaths } from "@main/store/store-paths";
 import { SESSION_PAGE_IPC } from "@shared/session-page-ipc";
 import {
 	SessionPageSchemas,
@@ -25,7 +27,6 @@ interface SessionPageSnapshot {
 
 const controllers = new WeakMap<BrowserWindow, SessionPageController>();
 const modifierCode = /^(?:Alt|Control|Meta|Shift)(?:Left|Right)$/;
-let partitionSequence = 0;
 
 function roundedIntersection({ bounds, container, zoom }: { bounds: Rectangle; container: Rectangle; zoom: number }): Rectangle {
 	const requested = {
@@ -66,7 +67,8 @@ function controllerFor(event: IpcMainInvokeEvent) {
 }
 
 class SessionPageController {
-	readonly view: WebContentsView;
+	readonly pageSession: Electron.Session;
+	view: WebContentsView | undefined;
 	readonly histories = new Map<string, SessionPageSnapshot>();
 	currentShellId: string | undefined;
 	loadedNavigation: number | undefined;
@@ -79,18 +81,21 @@ class SessionPageController {
 	transition = Promise.resolve();
 
 	constructor(private readonly win: BrowserWindow) {
-		partitionSequence += 1;
-		const pageSession = session.fromPartition(`bankai-session-page-${partitionSequence}`, {
+		this.pageSession = session.fromPath(join(StorePaths.dataDir(), "browser-profile"), {
 			cache: false,
 		});
-		pageSession.setPermissionCheckHandler(() => false);
-		pageSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
-		pageSession.setDisplayMediaRequestHandler((_request, callback) => callback({}));
-		pageSession.on("will-download", (event) => event.preventDefault());
+		this.pageSession.setPermissionCheckHandler(() => false);
+		this.pageSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
+		this.pageSession.setDisplayMediaRequestHandler((_request, callback) => callback({}));
+		this.pageSession.on("will-download", (event) => event.preventDefault());
+		this.view = this.createView();
+		this.win.once("close", () => this.close());
+	}
 
-		this.view = new WebContentsView({
+	private createView() {
+		const view = new WebContentsView({
 			webPreferences: {
-				session: pageSession,
+				session: this.pageSession,
 				sandbox: true,
 				contextIsolation: true,
 				nodeIntegration: false,
@@ -101,10 +106,10 @@ class SessionPageController {
 				webSecurity: true,
 			},
 		});
-		this.view.setVisible(false);
-		this.win.contentView.addChildView(this.view);
+		view.setVisible(false);
+		this.win.contentView.addChildView(view);
 
-		const contents = this.view.webContents;
+		const contents = view.webContents;
 		contents.setWindowOpenHandler((details) => {
 			const target = SessionPageUrl.parse(details.url);
 
@@ -133,7 +138,7 @@ class SessionPageController {
 		contents.on("did-stop-loading", () => this.publishState());
 		contents.on("did-finish-load", () => {
 			this.failure = null;
-			this.view.setVisible(this.requestedVisible);
+			view.setVisible(this.requestedVisible);
 			this.publishState();
 		});
 		contents.on("did-fail-load", (_event, _code, description, _url, isMainFrame) => {
@@ -151,7 +156,16 @@ class SessionPageController {
 		contents.on("did-navigate", () => this.publishState());
 		contents.on("did-navigate-in-page", () => this.publishState());
 		contents.on("page-title-updated", () => this.publishState());
-		this.win.once("close", () => this.close());
+
+		return view;
+	}
+
+	private ensureView() {
+		if (!this.view) {
+			this.view = this.createView();
+		}
+
+		return this.view;
 	}
 
 	async present(presentation: SessionPagePresentation | null) {
@@ -175,22 +189,23 @@ class SessionPageController {
 	}
 
 	private async applyPresentation(presentation: SessionPagePresentation, generation: number) {
+		const view = this.ensureView();
 		const bounds = roundedIntersection({
 			bounds: presentation.bounds,
 			container: this.win.contentView.getBounds(),
 			zoom: this.win.webContents.getZoomFactor(),
 		});
 		this.requestedUrl = presentation.url;
-		this.view.setBounds(bounds);
+		view.setBounds(bounds);
 		const hasVisibleBounds = bounds.width > 0 && bounds.height > 0;
 		this.requestedVisible = hasVisibleBounds;
 
 		if (presentation.shellId === this.currentShellId) {
-			this.view.setVisible(hasVisibleBounds && !this.failure);
+			view.setVisible(hasVisibleBounds && !this.failure);
 
 			if (this.loadedNavigation !== presentation.navigation) {
 				this.loadedNavigation = presentation.navigation;
-				await this.view.webContents.loadURL(presentation.url);
+				await view.webContents.loadURL(presentation.url);
 			}
 
 			if (generation === this.generation) {
@@ -199,7 +214,7 @@ class SessionPageController {
 			return;
 		}
 
-		this.view.setVisible(false);
+		view.setVisible(false);
 		this.win.webContents.focus();
 		this.saveCurrentHistory();
 		this.currentShellId = presentation.shellId;
@@ -208,9 +223,9 @@ class SessionPageController {
 
 		try {
 			if (snapshot) {
-				await this.view.webContents.navigationHistory.restore(snapshot);
+				await view.webContents.navigationHistory.restore(snapshot);
 			} else {
-				await this.view.webContents.loadURL(presentation.url);
+				await view.webContents.loadURL(presentation.url);
 			}
 		} catch (err) {
 			if (generation !== this.generation) {
@@ -222,7 +237,7 @@ class SessionPageController {
 
 		if (generation === this.generation) {
 			this.failure = null;
-			this.view.setVisible(hasVisibleBounds);
+			view.setVisible(hasVisibleBounds);
 			this.publishState();
 		}
 	}
@@ -239,13 +254,13 @@ class SessionPageController {
 		this.requestedUrl = undefined;
 		this.generation += 1;
 		this.requestedVisible = false;
-		this.view.setVisible(false);
+		this.closeView();
 		this.win.webContents.focus();
 		this.publishState();
 	}
 
 	goBack() {
-		if (!this.currentShellId || !this.view.webContents.navigationHistory.canGoBack()) {
+		if (!this.currentShellId || !this.view?.webContents.navigationHistory.canGoBack()) {
 			return;
 		}
 
@@ -254,7 +269,7 @@ class SessionPageController {
 	}
 
 	goForward() {
-		if (!this.currentShellId || !this.view.webContents.navigationHistory.canGoForward()) {
+		if (!this.currentShellId || !this.view?.webContents.navigationHistory.canGoForward()) {
 			return;
 		}
 
@@ -263,7 +278,7 @@ class SessionPageController {
 	}
 
 	reload() {
-		if (!this.currentShellId) {
+		if (!this.currentShellId || !this.view) {
 			return;
 		}
 
@@ -274,7 +289,7 @@ class SessionPageController {
 	}
 
 	async openExternal() {
-		if (!this.currentShellId) {
+		if (!this.currentShellId || !this.view) {
 			return;
 		}
 
@@ -285,8 +300,16 @@ class SessionPageController {
 		}
 	}
 
+	async clearData() {
+		await this.pageSession.clearData();
+
+		if (this.currentShellId) {
+			this.reload();
+		}
+	}
+
 	async snapshot() {
-		if (!this.currentShellId || !this.requestedVisible || this.failure) {
+		if (!this.currentShellId || !this.requestedVisible || this.failure || !this.view) {
 			return null;
 		}
 
@@ -301,13 +324,13 @@ class SessionPageController {
 
 	private hide() {
 		this.requestedVisible = false;
-		this.view.setVisible(false);
+		this.view?.setVisible(false);
 		this.win.webContents.focus();
 		this.publishState();
 	}
 
 	private fail(description: string) {
-		if (!this.currentShellId) {
+		if (!this.currentShellId || !this.view) {
 			return;
 		}
 
@@ -379,7 +402,7 @@ class SessionPageController {
 	}
 
 	private saveCurrentHistory() {
-		if (!this.currentShellId) {
+		if (!this.currentShellId || !this.view) {
 			return;
 		}
 
@@ -415,7 +438,7 @@ class SessionPageController {
 			failure: null,
 		};
 
-		if (this.currentShellId) {
+		if (this.currentShellId && this.view) {
 			state = {
 				shellId: this.currentShellId,
 				url: SessionPageUrl.parse(this.view.webContents.getURL()) ?? null,
@@ -441,9 +464,18 @@ class SessionPageController {
 		this.loadedNavigation = undefined;
 		this.requestedUrl = undefined;
 		this.histories.clear();
+		this.closeView();
+		controllers.delete(this.win);
+	}
+
+	private closeView() {
+		if (!this.view) {
+			return;
+		}
+
 		this.win.contentView.removeChildView(this.view);
 		this.view.webContents.close({ waitForBeforeUnload: false });
-		controllers.delete(this.win);
+		this.view = undefined;
 	}
 }
 
@@ -473,6 +505,10 @@ function setup() {
 	ipcMain.handle(SESSION_PAGE_IPC.openExternal, async (event, payload) => {
 		SessionPageSchemas.none.assert(payload);
 		await controllerFor(event).openExternal();
+	});
+	ipcMain.handle(SESSION_PAGE_IPC.clearData, async (event, payload) => {
+		SessionPageSchemas.none.assert(payload);
+		await controllerFor(event).clearData();
 	});
 	ipcMain.handle(SESSION_PAGE_IPC.snapshot, async (event, payload) => {
 		SessionPageSchemas.none.assert(payload);

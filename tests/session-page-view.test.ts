@@ -1,7 +1,9 @@
 import { EventEmitter } from "node:events";
+import { join } from "node:path";
 import { beforeEach, expect, mock, test } from "bun:test";
 import { SESSION_PAGE_IPC } from "@shared/session-page-ipc";
 import type { BankaiSessionPageApi } from "@shared/session-page";
+import { assertDefined } from "./utils/assertions";
 
 interface Entry {
 	title: string;
@@ -17,7 +19,7 @@ interface Bounds {
 }
 
 const ipcHandlers = new Map<string, (event: { sender: object }, payload?: unknown) => unknown>();
-const partitions: string[] = [];
+const sessionPaths: string[] = [];
 const sessions: FakeSession[] = [];
 const views: FakeWebContentsView[] = [];
 const windows: FakeWindow[] = [];
@@ -36,6 +38,7 @@ class FakeIpcRenderer extends EventEmitter {
 const ipcRenderer = new FakeIpcRenderer();
 
 class FakeSession extends EventEmitter {
+	clearDataCalls = 0;
 	permissionRequest: ((contents: object, permission: string, callback: (allowed: boolean) => void) => void) | undefined;
 	permissionCheck: ((contents: object, permission: string, origin: string) => boolean) | undefined;
 	displayMedia: ((request: object, callback: (streams: object) => void) => void) | undefined;
@@ -50,6 +53,10 @@ class FakeSession extends EventEmitter {
 
 	setDisplayMediaRequestHandler(handler: typeof this.displayMedia) {
 		this.displayMedia = handler;
+	}
+
+	async clearData() {
+		this.clearDataCalls += 1;
 	}
 }
 
@@ -247,8 +254,8 @@ void mock.module("electron", () => ({
 		},
 	},
 	session: {
-		fromPartition: (partition: string) => {
-			partitions.push(partition);
+		fromPath: (path: string) => {
+			sessionPaths.push(path);
 			const created = new FakeSession();
 			sessions.push(created);
 			return created;
@@ -281,7 +288,7 @@ async function invoke(win: InstanceType<typeof BrowserWindow>, channel: string, 
 }
 
 beforeEach(() => {
-	partitions.length = 0;
+	sessionPaths.length = 0;
 	sessions.length = 0;
 	views.length = 0;
 	windows.length = 0;
@@ -309,6 +316,7 @@ test("preload forwards the session page contract from renderer to main", async (
 	await api?.goForward();
 	await api?.reload();
 	await api?.openExternal();
+	await api?.clearData();
 
 	expect(invoked).toEqual([
 		{ channel: SESSION_PAGE_IPC.present, payload: presentation },
@@ -317,6 +325,7 @@ test("preload forwards the session page contract from renderer to main", async (
 		{ channel: SESSION_PAGE_IPC.goForward, payload: undefined },
 		{ channel: SESSION_PAGE_IPC.reload, payload: undefined },
 		{ channel: SESSION_PAGE_IPC.openExternal, payload: undefined },
+		{ channel: SESSION_PAGE_IPC.clearData, payload: undefined },
 	]);
 
 	let received: unknown;
@@ -353,15 +362,15 @@ test("preload forwards the session page contract from renderer to main", async (
 	unsubscribeShortcut?.();
 });
 
-test("session page creates one isolated deny-by-default view and closes it with its window", () => {
+test("session page creates one persistent isolated deny-by-default view and closes it with its window", () => {
 	const win = new BrowserWindow();
 
 	SessionPageView.attach(win);
 	SessionPageView.attach(win);
 
 	expect(views).toHaveLength(1);
-	expect(partitions).toHaveLength(1);
-	expect(partitions[0]?.startsWith("persist:")).toBe(false);
+	assertDefined(process.env.DATA_DIR);
+	expect(sessionPaths).toEqual([join(process.env.DATA_DIR, "browser-profile")]);
 	expect(views[0]?.options.webPreferences).toMatchObject({
 		sandbox: true,
 		contextIsolation: true,
@@ -394,6 +403,22 @@ test("session page creates one isolated deny-by-default view and closes it with 
 
 	expect(win.contentView.children).toHaveLength(0);
 	expect(views[0]?.webContents.closed).toBe(true);
+});
+
+test("clearing browser data removes the persistent session and reloads the visible page", async () => {
+	const win = new BrowserWindow();
+	SessionPageView.attach(win);
+
+	await invoke(win, SESSION_PAGE_IPC.present, {
+		shellId: "shell-1",
+		url: "https://github.com",
+		navigation: 1,
+		bounds: { x: 0, y: 0, width: 900, height: 600 },
+	});
+	await invoke(win, SESSION_PAGE_IPC.clearData);
+
+	expect(sessions[0]?.clearDataCalls).toBe(1);
+	expect(views[0]?.webContents.reloadCount).toBe(1);
 });
 
 test("session page limits IPC to its window and intersects rounded bounds", async () => {
@@ -678,6 +703,8 @@ test("session page keeps independent history for each shell and release forgets 
 	});
 
 	await invoke(win, SESSION_PAGE_IPC.release, { shellId: "shell-1" });
+	expect(page?.closed).toBe(true);
+
 	await invoke(win, SESSION_PAGE_IPC.present, {
 		shellId: "shell-1",
 		url: "https://fresh.example",
@@ -685,7 +712,8 @@ test("session page keeps independent history for each shell and release forgets 
 		bounds: { x: 0, y: 0, width: 900, height: 600 },
 	});
 
-	expect(page?.loadURLCalls.at(-1)).toBe("https://fresh.example/");
+	expect(views).toHaveLength(2);
+	expect(views[1]?.webContents.loadURLCalls).toEqual(["https://fresh.example/"]);
 });
 
 test("session page navigation and external opening act only on the current validated address", async () => {

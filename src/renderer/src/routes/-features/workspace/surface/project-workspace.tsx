@@ -91,6 +91,19 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 
 		control.onBayModeChange(pageOpen ? "closed" : "page");
 	}, [activeShellId, control.onBayModeChange, control.onReviewExpandedChange, pageOpen, reviewExpanded, sessionPages, startMotion]);
+	const handleClosePage = useCallback(async () => {
+		if (!activeShellId) {
+			return;
+		}
+
+		startMotion("open");
+		if (reviewExpanded) {
+			control.onReviewExpandedChange(false);
+		}
+
+		control.onBayModeChange("closed");
+		await sessionPages.release([activeShellId]);
+	}, [activeShellId, control.onBayModeChange, control.onReviewExpandedChange, reviewExpanded, sessionPages, startMotion]);
 
 	const handleToggleReviewExpanded = useCallback(() => {
 		startMotion("expand");
@@ -196,7 +209,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 							coverable={fullscreen}
 							expanded={reviewExpanded}
 							onToggleExpanded={handleToggleReviewExpanded}
-							onClose={handleTogglePage}
+							onClose={handleClosePage}
 							onRestoreTerminalFocus={control.onRequestShellFocus}
 						/>
 					)}

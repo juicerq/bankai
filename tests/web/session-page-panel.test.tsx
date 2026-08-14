@@ -58,6 +58,7 @@ test("the native slot presents measured bounds once per animation frame and hide
 		goForward: async () => {},
 		reload: async () => {},
 		openExternal: async () => {},
+		clearData: async () => {},
 		snapshot: async () => null,
 		onState: (listener) => {
 			stateListener = listener;
@@ -144,6 +145,7 @@ test("covering freezes the page into a snapshot and uncovering restores it witho
 		goForward: async () => {},
 		reload: async () => {},
 		openExternal: async () => {},
+		clearData: async () => {},
 		snapshot: async () => "data:image/jpeg;base64,frozen",
 		onState: () => () => {},
 		onShortcut: () => () => {},
@@ -207,6 +209,7 @@ test("a page that cannot be captured stays presented instead of going black", as
 		goForward: async () => {},
 		reload: async () => {},
 		openExternal: async () => {},
+		clearData: async () => {},
 		snapshot: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
@@ -253,6 +256,7 @@ test("the address bar navigates the presented page", async () => {
 		goForward: async () => {},
 		reload: async () => {},
 		openExternal: async () => {},
+		clearData: async () => {},
 		snapshot: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
@@ -348,6 +352,7 @@ test("failure replaces the guest with retry and external actions", async () => {
 		openExternal: async () => {
 			external += 1;
 		},
+		clearData: async () => {},
 		snapshot: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},

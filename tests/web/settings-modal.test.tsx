@@ -9,6 +9,7 @@ import {
 import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Project } from "@shared/projects";
+import type { BankaiSessionPageApi } from "@shared/session-page";
 import { SettingsModal } from "@renderer/routes/-features/settings/settings-modal";
 import { TailscaleAccess } from "@main/infra/tailscale/tailscale-access";
 import { pairingUrl } from "@shared/server";
@@ -24,6 +25,7 @@ const onClose = jest.fn();
 let transport: HarnessTransport;
 let mobile: MobileTransport;
 let theme: ThemeTransport;
+let browserDataClears = 0;
 const projects: Project[] = [
 	{ id: "bankai", name: "bankai", path: "/projects/bankai", createdAt: 1 },
 ];
@@ -55,6 +57,21 @@ async function loadedModal() {
 
 beforeEach(() => {
 	onClose.mockClear();
+	browserDataClears = 0;
+	window.bankaiSessionPage = {
+		present: async () => {},
+		release: async () => {},
+		goBack: async () => {},
+		goForward: async () => {},
+		reload: async () => {},
+		openExternal: async () => {},
+		clearData: async () => {
+			browserDataClears += 1;
+		},
+		snapshot: async () => null,
+		onState: () => () => {},
+		onShortcut: () => () => {},
+	} satisfies BankaiSessionPageApi;
 	transport = {
 		harnesses: [
 			{ id: "claude", label: "Claude Code", conversation: true, available: true },
@@ -83,8 +100,25 @@ beforeEach(() => {
 
 afterEach(() => {
 	cleanup();
+	delete window.bankaiSessionPage;
 	document.body.replaceChildren();
 	document.documentElement.classList.remove(THEME_LIGHT_CLASS);
+});
+
+test("clears the Bankai browser profile only after confirmation", async () => {
+	const modal = await loadedModal();
+
+	fireEvent.click(slot(modal, "clear-browser-data"));
+
+	const confirmation = get("clear-browser-data-confirm");
+	expect(slot(confirmation, "confirm-message").textContent).toContain("sign out");
+	expect(browserDataClears).toBe(0);
+
+	fireEvent.click(slot(confirmation, "confirm-accept"));
+
+	await waitFor(() => {
+		expect(browserDataClears).toBe(1);
+	});
 });
 
 test("shows the stored autostart switch and the selected harness", async () => {
@@ -378,4 +412,3 @@ test("hands each harness its own extra arguments field", async () => {
 		expect(slot<HTMLInputElement>(get("settings-modal"), "harness-args").value).toBe("");
 	});
 });
-

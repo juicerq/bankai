@@ -5,6 +5,7 @@ export const SESSION_PAGE_IPC = {
 	goForward: "session-page:go-forward",
 	reload: "session-page:reload",
 	openExternal: "session-page:open-external",
+	clearData: "session-page:clear-data",
 	snapshot: "session-page:snapshot",
 	state: "session-page:state",
 	shortcut: "session-page:shortcut",

@@ -12,6 +12,7 @@ import type {
 } from "@renderer/routes/-features/terminal/terminal-file-links";
 import { TerminalLinks } from "@renderer/routes/-features/terminal/terminal-links";
 import { registerTerminalStyle, TERMINAL_OPTIONS } from "@renderer/routes/-features/terminal/terminal-style";
+import { SessionPageUrl } from "@shared/session-page";
 import type { TerminalAttached, TerminalCommandErrorEvent } from "@shared/terminal";
 import { throttle } from "@shared/throttle";
 
@@ -247,6 +248,15 @@ export class RendererTerminalSession {
 			...TERMINAL_OPTIONS,
 			cursorBlink: !options.attachOnly,
 			disableStdin: options.attachOnly,
+			linkHandler: {
+				activate: (_event, url) => {
+					const target = SessionPageUrl.parse(url);
+
+					if (target) {
+						this.options.urlLinks()?.(target);
+					}
+				},
+			},
 		});
 		this.stopStyle = registerTerminalStyle(this.terminal);
 

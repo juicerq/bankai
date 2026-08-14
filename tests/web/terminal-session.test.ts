@@ -1,7 +1,7 @@
 import "./register-dom";
 import { streamTransport } from "./stream-transport";
 import { afterEach, expect, mock, test } from "bun:test";
-import type { ILink, ILinkProvider } from "@xterm/xterm";
+import type { ILink, ILinkProvider, ITerminalOptions } from "@xterm/xterm";
 import { streamResync } from "@renderer/lib/stream/resync";
 import {
 	TerminalFileLinks,
@@ -83,7 +83,7 @@ class MockTerminal {
 	};
 	private keyEventHandler: ((event: KeyboardEvent) => boolean) | undefined;
 
-	constructor() {
+	constructor(readonly options: ITerminalOptions) {
 		terminals.push(this);
 	}
 
@@ -562,6 +562,20 @@ test("a page URL works without file paths and remains one link across wrapped ro
 	link?.activate(new MouseEvent("click"), link.text);
 
 	expect(opened).toEqual(["https://example.com:8443/a?x=1#b"]);
+
+	session.dispose();
+});
+
+test("a named page link opens in Page and rejects an unsupported target", async () => {
+	const opened: string[] = [];
+	const session = await startSession({ urlLinks: () => (url) => opened.push(url) });
+	const range = { start: { x: 1, y: 1 }, end: { x: 11, y: 1 } };
+	const handler = lastTerminal().options.linkHandler;
+
+	handler?.activate(new MouseEvent("click"), "https://example.com/release", range);
+	handler?.activate(new MouseEvent("click"), "file:///etc/passwd", range);
+
+	expect(opened).toEqual(["https://example.com/release"]);
 
 	session.dispose();
 });

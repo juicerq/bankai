@@ -3,8 +3,13 @@ import { reviewLanguage } from "@renderer/routes/-features/review/reading/review
 import type { HighlightedLines } from "@renderer/routes/-features/review/reading/review-syntax";
 import type { ReviewSyntaxRequest, ReviewSyntaxResponse } from "@renderer/routes/-features/review/reading/review-syntax.worker";
 
-const cache = new WeakMap<DiffLine[], Promise<HighlightedLines | null>>();
-const pending = new Map<number, { lines: DiffLine[]; resolve: (highlights: HighlightedLines | null) => void }>();
+interface PendingHighlight { key: string; request: Promise<HighlightedLines | null>; resolve: (highlights: HighlightedLines | null) => void }
+
+export const HIGHLIGHT_CACHE_LIMIT = 256;
+
+const keys = new WeakMap<DiffLine[], string>();
+const cache = new Map<string, Promise<HighlightedLines | null>>();
+const pending = new Map<number, PendingHighlight>();
 let nextId = 0;
 let worker: Worker | undefined;
 
@@ -14,19 +19,43 @@ export function reviewHighlights(path: string, lines: DiffLine[]): Promise<Highl
 		return;
 	}
 
-	const cached = cache.get(lines);
+	const key = keys.get(lines) ?? highlightKey(path, lines);
+	keys.set(lines, key);
+
+	const cached = cache.get(key);
 	if (cached) {
+		remember(key, cached);
+
 		return cached;
 	}
 
-	const request = new Promise<HighlightedLines | null>((resolve) => {
-		const id = nextId++;
-		pending.set(id, { lines, resolve });
-		syntaxWorker().postMessage({ id, lines, language } satisfies ReviewSyntaxRequest, { transfer: [] });
-	});
-	cache.set(lines, request);
+	const { promise, resolve } = Promise.withResolvers<HighlightedLines | null>();
+	const id = nextId++;
+	syntaxWorker().postMessage({ id, lines, language } satisfies ReviewSyntaxRequest, { transfer: [] });
+	pending.set(id, { key, request: promise, resolve });
+	remember(key, promise);
 
-	return request;
+	return promise;
+}
+
+function highlightKey(path: string, lines: DiffLine[]): string {
+	const signature = lines.map((line) => `${line.kind} ${line.hunk} ${line.content}`).join("\n");
+
+	return `${path.length} ${path} ${signature}`;
+}
+
+function remember(key: string, request: Promise<HighlightedLines | null>) {
+	cache.delete(key);
+	cache.set(key, request);
+
+	if (cache.size <= HIGHLIGHT_CACHE_LIMIT) {
+		return;
+	}
+
+	const oldest = cache.keys().next().value;
+	if (oldest !== undefined) {
+		cache.delete(oldest);
+	}
 }
 
 function syntaxWorker(): Worker {
@@ -45,9 +74,13 @@ function syntaxWorker(): Worker {
 }
 
 function resetWorker() {
-	for (const request of pending.values()) {
-		request.resolve(null);
-		setTimeout(() => cache.delete(request.lines), 0);
+	for (const entry of pending.values()) {
+		entry.resolve(null);
+		setTimeout(() => {
+			if (cache.get(entry.key) === entry.request) {
+				cache.delete(entry.key);
+			}
+		}, 0);
 	}
 	pending.clear();
 	worker?.terminate();

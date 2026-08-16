@@ -1,7 +1,12 @@
 import { afterEach, expect, test } from "bun:test";
-import type { FileChange, ReviewContent, ReviewMode, ReviewSnapshot } from "@shared/review";
+import type { DiffLine, FileChange, ReviewContent, ReviewMode, ReviewSnapshot } from "@shared/review";
 import { ReviewDiff } from "@renderer/routes/-features/review/reading/review-diff";
-import { diffContentWidth, DIFF_TAB_SIZE, REVIEW_ROW_HEIGHT } from "@renderer/routes/-features/review/reading/review-rows";
+import {
+	diffContentWidth,
+	reviewRows,
+	DIFF_TAB_SIZE,
+	REVIEW_ROW_HEIGHT,
+} from "@renderer/routes/-features/review/reading/review-rows";
 import { REVIEW_SCOPES } from "@renderer/routes/-features/review/header/review-scope";
 import type { ReviewReading } from "@renderer/routes/-features/review/reading/use-review-reading";
 import { get } from "./dom";
@@ -119,6 +124,71 @@ test("a replacement reading with nothing read yet paints at the top", () => {
 	view.replace(generationOf(2, ["new", "a", "b"]));
 
 	expect(view.surface().scrollTop).toBe(0);
+});
+
+function gapsOf(lines: DiffLine[]) {
+	const rows = reviewRows({
+		files: [fileOf("a")],
+		closedFiles: new Set(),
+		contentByPath: new Map([["a", { status: "ready", lines }]]),
+	});
+
+	return rows.flatMap((row) => (row.kind === "gap" ? [row.skipped] : []));
+}
+
+test("a jump to the next hunk counts the lines it steps over", () => {
+	const gaps = gapsOf([
+		{ kind: "context", number: 1, oldNumber: 1, hunk: 1, content: "one" },
+		{ kind: "add", number: 2, hunk: 1, content: "two" },
+		{ kind: "context", number: 12, oldNumber: 11, hunk: 2, content: "twelve" },
+	]);
+
+	expect(gaps).toEqual([9]);
+});
+
+test("a hunk opening on a removed line counts against the old numbers", () => {
+	const gaps = gapsOf([
+		{ kind: "remove", oldNumber: 4, hunk: 1, content: "gone" },
+		{ kind: "remove", oldNumber: 10, hunk: 2, content: "also gone" },
+	]);
+
+	expect(gaps).toEqual([5]);
+});
+
+test("hunks that meet end to end step over nothing", () => {
+	const gaps = gapsOf([
+		{ kind: "context", number: 4, oldNumber: 4, hunk: 1, content: "four" },
+		{ kind: "context", number: 5, oldNumber: 5, hunk: 2, content: "five" },
+	]);
+
+	expect(gaps).toEqual([]);
+});
+
+test("a file read as one hunk never breaks", () => {
+	const gaps = gapsOf(
+		Array.from({ length: LINES_PER_FILE }, (_, index) => ({
+			kind: "add" as const,
+			number: index + 1,
+			hunk: 1,
+			content: `line ${index + 1}`,
+		})),
+	);
+
+	expect(gaps).toEqual([]);
+});
+
+test("a browsed file numbered outside any hunk never breaks", () => {
+	const gaps = gapsOf(
+		Array.from({ length: 3 }, (_, index) => ({
+			kind: "context" as const,
+			number: index + 1,
+			oldNumber: index + 1,
+			hunk: 0,
+			content: `line ${index + 1}`,
+		})),
+	);
+
+	expect(gaps).toEqual([]);
 });
 
 function noticeOf(state: ReviewSnapshot["state"], mode: ReviewMode) {

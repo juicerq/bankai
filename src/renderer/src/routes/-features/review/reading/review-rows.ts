@@ -1,7 +1,7 @@
 import type { DiffLine, FileChange, ReviewContent } from "@shared/review";
 import { reviewContentNotice } from "@renderer/routes/-features/review/reading/review-notice";
 
-export const REVIEW_ROW_HEIGHT = { file: 32, line: 20, notice: 40 } as const;
+export const REVIEW_ROW_HEIGHT = { file: 32, line: 20, notice: 40, gap: 20 } as const;
 export const DIFF_GUTTER_WIDTH = 40;
 export const DIFF_TAB_SIZE = 4;
 
@@ -10,9 +10,12 @@ const DIFF_MARKER_COLUMNS = 2;
 export type ReviewRow =
 	| { kind: "file"; key: string; file: FileChange; open: boolean; first: boolean }
 	| { kind: "line"; key: string; path: string; line: DiffLine; lines: DiffLine[]; lineIndex: number }
-	| { kind: "notice"; key: string; path: string; message: string };
+	| { kind: "notice"; key: string; path: string; message: string }
+	| { kind: "gap"; key: string; path: string; skipped: number };
 
 export type ReviewFileRow = Extract<ReviewRow, { kind: "file" }>;
+
+type LastLine = Partial<Pick<DiffLine, "hunk" | "number" | "oldNumber">>;
 
 export interface ReadingPosition {
 	rowKey: string;
@@ -51,7 +54,15 @@ export function reviewRows({
 			continue;
 		}
 
+		const last: LastLine = {};
+
 		for (const [lineIndex, line] of content.lines.entries()) {
+			const skipped = skippedLines(line, last);
+
+			if (skipped > 0) {
+				rows.push({ kind: "gap", key: `gap:${file.path}:${line.hunk}`, path: file.path, skipped });
+			}
+
 			rows.push({
 				kind: "line",
 				key: lineKey(file.path, line),
@@ -60,6 +71,10 @@ export function reviewRows({
 				lines: content.lines,
 				lineIndex,
 			});
+
+			last.hunk = line.hunk;
+			last.number = line.number ?? last.number;
+			last.oldNumber = line.oldNumber ?? last.oldNumber;
 		}
 	}
 
@@ -84,6 +99,20 @@ function lineColumns(content: string): number {
 	}
 
 	return columns;
+}
+
+function skippedLines(line: DiffLine, last: LastLine): number {
+	if (last.hunk === undefined || last.hunk === line.hunk) {
+		return 0;
+	}
+	if (line.number !== undefined && last.number !== undefined) {
+		return line.number - last.number - 1;
+	}
+	if (line.oldNumber !== undefined && last.oldNumber !== undefined) {
+		return line.oldNumber - last.oldNumber - 1;
+	}
+
+	return 0;
 }
 
 function lineKey(path: string, line: DiffLine): string {
@@ -137,11 +166,11 @@ function readingIndex(
 export function anchorPath(rows: ReviewRow[], startIndex: number): string | undefined {
 	const row = rows[startIndex];
 
-	if (row?.kind === "line") {
-		return row.path;
-	}
 	if (row?.kind === "file") {
 		return row.file.path;
+	}
+	if (row) {
+		return row.path;
 	}
 
 	return activeFile(rows, startIndex)?.file.path;

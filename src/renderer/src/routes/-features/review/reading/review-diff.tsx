@@ -2,6 +2,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject, type UIEvent } from "react";
 import type { FileChange, ReviewContent, ReviewMode } from "@shared/review";
 import { ReviewFileHeader } from "@renderer/routes/-features/review/reading/review-file-header";
+import { ReviewDiffGap } from "@renderer/routes/-features/review/reading/review-gap";
 import { ReviewDiffLine, ReviewNotice } from "@renderer/routes/-features/review/reading/review-line";
 import {
 	activeFile,
@@ -234,6 +235,9 @@ function ReviewVirtualRow({
 	}
 	if (row.kind === "notice") {
 		return <ReviewNotice>{row.message}</ReviewNotice>;
+	}
+	if (row.kind === "gap") {
+		return <ReviewDiffGap skipped={row.skipped} />;
 	}
 
 	return <ReviewDiffLine path={row.path} line={row.line} lines={row.lines} lineIndex={row.lineIndex} />;

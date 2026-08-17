@@ -4,6 +4,7 @@ import { useCallback, useRef } from "react";
 import type { ContinuityShell } from "@shared/continuity";
 import type { Project } from "@shared/projects";
 import { orpc } from "@renderer/lib/api";
+import { ReviewBrowseEmpty } from "@renderer/routes/-features/review/reading/review-browse-empty";
 import { ReviewDiff, type ReviewDiffHandle } from "@renderer/routes/-features/review/reading/review-diff";
 import { ReviewFocusedFile } from "@renderer/routes/-features/review/reading/review-focused-file";
 import { ReviewHeader } from "@renderer/routes/-features/review/header/review-header";
@@ -98,6 +99,7 @@ export function ReviewPanel({
 		requestAnimationFrame(() => diff.current?.restoreReadingPosition());
 	}, [panel]);
 
+	const browsing = treeView === "browse";
 	const currentSnapshot = generation?.snapshot;
 	const files = currentSnapshot?.files ?? [];
 	const focusedFile = focusedPath ? files.find((file) => file.path === focusedPath) : undefined;
@@ -192,11 +194,12 @@ export function ReviewPanel({
 						mode={mode}
 						generation={generation}
 						error={error}
-						covered={!!focusedPath}
+						covered={browsing || !!focusedPath}
 						closedFiles={closedFiles}
 						onToggleOpen={panel.actions.toggleFile}
 						onFocusFile={panel.actions.focusFile}
 					/>
+					{browsing && !focusedPath && <ReviewBrowseEmpty />}
 					{focusedPath && (
 						<ReviewFocusedFile
 							key={`${focusedPath}:${focusedLine ?? ""}`}

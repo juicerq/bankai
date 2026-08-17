@@ -193,6 +193,20 @@ test("switching the scope keeps the browsed directories expanded", async () => {
 	expect(hasTreeRow("src/app/one.ts")).toBe(true);
 });
 
+test("the browse view covers the diff until a file is open", async () => {
+	const panel = renderPanel();
+	await openTree(panel);
+
+	fireEvent.click(slot(get("review-tree"), "tree-view-browse"));
+	await answer(panel, "browseFiles", CHANGED_PATHS);
+	await waitFor(() => expect(query("review-browse-empty")).not.toBeNull());
+
+	fireEvent.click(slot(treeRow("README.md"), "open"));
+
+	expect(query("review-browse-empty")).toBeNull();
+	expect(get("review-focused-file").dataset.path).toBe("README.md");
+});
+
 test("switching the scope keeps the focused file open", async () => {
 	const panel = renderPanel();
 	await openTree(panel);

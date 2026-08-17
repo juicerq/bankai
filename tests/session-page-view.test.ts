@@ -802,6 +802,8 @@ test("guest keyboard handling relays only Bankai shortcut actions", async () => 
 	press({ code: "KeyX", control: true });
 	press({ code: "KeyE" });
 	press({ code: "KeyX", control: true });
+	press({ code: "KeyL" });
+	press({ code: "KeyX", control: true });
 	press({ code: "KeyC" });
 	press({ code: "KeyX", control: true });
 	press({ code: "KeyF" });
@@ -822,6 +824,7 @@ test("guest keyboard handling relays only Bankai shortcut actions", async () => 
 	expect(windows[0]?.webContents.sent.filter((event) => event.channel === SESSION_PAGE_IPC.shortcut).map((event) => event.payload)).toEqual([
 		{ action: "toggle-review" },
 		{ action: "toggle-expanded" },
+		{ action: "toggle-todos" },
 		{ action: "open-commands" },
 		{ action: "toggle-fullscreen" },
 		{ action: "archive-shell" },
@@ -832,7 +835,7 @@ test("guest keyboard handling relays only Bankai shortcut actions", async () => 
 		{ action: "jump-row", index: 2 },
 		{ action: "jump-waiting" },
 	]);
-	expect(prevented).toHaveLength(20);
+	expect(prevented).toHaveLength(22);
 });
 
 test("the latest shell switch wins when an earlier history restore finishes late", async () => {

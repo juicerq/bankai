@@ -10,6 +10,7 @@ import { type HarnessSettings, harnessSchema, themeSchema } from "@shared/settin
 import { SERVER_RPC_PREFIX } from "@shared/server";
 import { DEFAULT_THEME, type ThemePreference } from "@shared/theme";
 import type { ServiceState, ServiceStatus } from "@shared/services";
+import { type Todo, todoDraftSchema } from "@shared/todos";
 
 export type ReviewProcedure =
 	| "worktrees"
@@ -257,6 +258,26 @@ function requireWritableCommands() {
 	return transport;
 }
 
+export interface TodosTransport {
+	todos: Todo[];
+	listFailure?: string;
+	saveFailure?: string;
+}
+
+let currentTodos: TodosTransport = { todos: [] };
+
+export function setTodosTransport(transport: TodosTransport) {
+	currentTodos = transport;
+}
+
+function requireWritableTodos() {
+	if (currentTodos.saveFailure) {
+		throw new Error(currentTodos.saveFailure);
+	}
+
+	return currentTodos;
+}
+
 export interface ServicesTransport {
 	states: ServiceState[];
 	calls: { procedure: "start" | "stop"; commandId: string }[];
@@ -329,6 +350,51 @@ const router = {
 		remove: os.input(type({ id: "string" })).handler(({ input }) => {
 			const transport = requireWritableCommands();
 			transport.commands = transport.commands.filter((command) => command.id !== input.id);
+		}),
+	},
+	todos: {
+		list: os.input(type({ projectId: "string" })).handler(({ input }) => {
+			if (currentTodos.listFailure) {
+				throw new Error(currentTodos.listFailure);
+			}
+
+			return currentTodos.todos
+				.filter((todo) => todo.projectId === input.projectId)
+				.sort((left, right) => left.createdAt - right.createdAt);
+		}),
+		add: os.input(todoDraftSchema.and({ projectId: "string" })).handler(({ input }) => {
+			const transport = requireWritableTodos();
+			const todo: Todo = {
+				id: `t${transport.todos.length + 1}`,
+				projectId: input.projectId,
+				text: input.text,
+				createdAt: transport.todos.length + 1,
+			};
+			transport.todos = [...transport.todos, todo];
+
+			return todo;
+		}),
+		setDone: os.input(type({ id: "string", done: "boolean" })).handler(({ input }) => {
+			const transport = requireWritableTodos();
+			transport.todos = transport.todos.map((todo) => {
+				if (todo.id !== input.id) {
+					return todo;
+				}
+
+				const next: Todo = { id: todo.id, projectId: todo.projectId, text: todo.text, createdAt: todo.createdAt };
+
+				if (input.done) {
+					next.doneAt = todo.createdAt + 1;
+				}
+
+				return next;
+			});
+
+			return transport.todos.find((todo) => todo.id === input.id);
+		}),
+		remove: os.input(type({ id: "string" })).handler(({ input }) => {
+			const transport = requireWritableTodos();
+			transport.todos = transport.todos.filter((todo) => todo.id !== input.id);
 		}),
 	},
 	services: {

@@ -4,6 +4,7 @@ import {
 	Cog6ToothIcon,
 	CommandLineIcon,
 	GlobeAltIcon,
+	ListBulletIcon,
 	ViewColumnsIcon,
 } from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
@@ -23,9 +24,11 @@ export function ProjectWorkspaceHeader({
 	animating,
 	reviewOpen,
 	pageOpen,
+	todosOpen,
 	shellId,
 	onToggleReview,
 	onTogglePage,
+	onToggleTodos,
 	onOpenUrl,
 }: {
 	project: Project;
@@ -34,9 +37,11 @@ export function ProjectWorkspaceHeader({
 	animating: boolean;
 	reviewOpen: boolean;
 	pageOpen: boolean;
+	todosOpen: boolean;
 	shellId: string | undefined;
 	onToggleReview: () => void;
 	onTogglePage: () => void;
+	onToggleTodos: () => void;
 	onOpenUrl: (shellId: string, url: string) => void;
 }) {
 	const { onToggleFullscreen, onOpenSettings, onOpenCommands } = useWorkspaceControl();
@@ -85,6 +90,15 @@ export function ProjectWorkspaceHeader({
 					onClick={onTogglePage}
 				>
 					<GlobeAltIcon className="size-4" />
+				</ProjectWorkspaceHeaderAction>
+				<ProjectWorkspaceHeaderAction
+					className="border-l"
+					pressed={todosOpen}
+					label="Toggle todo list"
+					title="Toggle todo list (Ctrl+X L)"
+					onClick={onToggleTodos}
+				>
+					<ListBulletIcon className="size-4" />
 				</ProjectWorkspaceHeaderAction>
 				<ProjectWorkspaceHeaderAction
 					className="border-l"

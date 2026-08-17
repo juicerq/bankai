@@ -80,12 +80,20 @@ _Avoid_: Tray, dock, panel, footer
 The read-only reading of what a Service printed. It belongs to the Service rather than to a Project, and it outlives the process that produced it until that Service starts again or Bankai closes.
 _Avoid_: Logs, console, terminal, Shell
 
+**Todo**:
+A line of work the user writes by hand, owned by a Project and kept across app launches. It starts open and turns done when the user marks it; marking it again reopens it. It exists to catch what the user notices while working, before it is gone — an Agent never fills it, and it carries no due date, priority, or owner. Task already names a Project command kind, so a Todo is never called one.
+_Avoid_: Task, item, note, card, reminder, ticket
+
+**Todo list**:
+The reading that holds the Active project's Todos, taking the panel whole in place of the Review. It opens with Ctrl+X L or the Workspace header button, and its capture field takes focus as soon as it opens.
+_Avoid_: Todos panel, task list, notes, backlog, board
+
 **Review**:
 The read-only reading of a project's current git changes.
 _Avoid_: Diff view, git panel, changes
 
 **Review panel**:
-The region that presents the review: its header — the Scope selector, the Worktree selector, the totals, and the file actions — above the diff.
+The region that presents one reading at a time: the Review, a session page, or the Todo list. Reading the Review, it carries its header — the Scope selector, the Worktree selector, the totals, and the file actions — above the diff.
 _Avoid_: Sidebar, drawer
 
 **Header menu**:

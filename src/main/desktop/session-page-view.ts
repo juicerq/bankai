@@ -362,6 +362,7 @@ class SessionPageController {
 				KeyR: "toggle-review",
 				KeyE: "toggle-expanded",
 				KeyG: "toggle-page",
+				KeyL: "toggle-todos",
 				KeyC: "open-commands",
 				Comma: "open-settings",
 				KeyP: "open-quick-open",

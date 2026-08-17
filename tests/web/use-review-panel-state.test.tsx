@@ -105,9 +105,29 @@ test("the bay has one mode and Page transitions never create a parallel Review s
 	act(() => result.current.changeMode("page"));
 	expect(result.current.mode).toBe("page");
 
+	act(() => result.current.changeMode("todos"));
+	expect(result.current.mode).toBe("todos");
+
 	act(() => result.current.changeMode("review"));
 	expect(result.current.mode).toBe("review");
-	expect(patches).toEqual([{ reviewOpen: false }, { reviewOpen: true }]);
+	expect(patches).toEqual([{ reviewOpen: false }, { reviewOpen: false }, { reviewOpen: true }]);
 	expect("open" in result.current).toBe(false);
 	expect("changeOpen" in result.current).toBe(false);
+});
+
+test("focus on the todo list keeps that mode and never persists the bay as open", () => {
+	const patches: object[] = [];
+	const { result } = renderHook(() => useReviewPanelState({
+		initialOpen: false,
+		initialExpanded: false,
+		persist: (patch) => patches.push(patch),
+		onClose: () => {},
+	}));
+
+	act(() => result.current.changeMode("todos"));
+	act(() => result.current.toggleFocus());
+
+	expect(result.current.mode).toBe("todos");
+	expect(result.current.expanded).toBe(true);
+	expect(patches).toEqual([{ reviewOpen: false }, { reviewOpen: false, reviewExpanded: true }]);
 });

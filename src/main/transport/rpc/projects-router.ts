@@ -6,6 +6,7 @@ import { Services } from "@main/services";
 import { ProjectCommands } from "@main/store/project-commands";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
+import { Todos } from "@main/store/todos";
 
 export const projectsRouter = {
 	list: base.handler(() => Projects.list()),
@@ -28,6 +29,7 @@ export const projectsRouter = {
 		await Projects.remove(input.projectId);
 		await ProjectCommands.purgeProject(input.projectId);
 		await Continuity.purgeProject(input.projectId);
+		await Todos.purgeProject(input.projectId);
 	}),
 	chooseDirectory: base.handler(async () => {
 		const result = await dialog.showOpenDialog({

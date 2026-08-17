@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import type { ContinuityShell } from "@shared/continuity";
 import type { Project } from "@shared/projects";
 import { ProjectWorkspaceHeader } from "@renderer/routes/-features/workspace/surface/project-workspace-header";
@@ -12,6 +12,7 @@ import { useReviewGeometry } from "@renderer/routes/-features/review/panel/use-r
 import { useWorkspaceControl } from "@renderer/routes/-features/workspace/layout/workspace-context";
 import { SessionPagePanel } from "@renderer/routes/-features/session-page/session-page-panel";
 import type { SessionPageRegistryValue } from "@renderer/routes/-features/session-page/session-page-registry";
+import { TodoPanel } from "@renderer/routes/-features/todos/todo-panel";
 import type { WorkspaceBayMode } from "@renderer/routes/-features/review/panel/use-review-panel-state";
 
 export const ProjectWorkspace = memo(function ProjectWorkspace({
@@ -61,6 +62,16 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	const [reviewPanel] = useState(createReviewPanelStore);
 	const reviewOpen = bayMode === "review";
 	const pageOpen = active && bayMode === "page" && !!activeShellId && sessionPages.has(activeShellId);
+	const todosOpen = active && bayMode === "todos";
+	const bayModeRef = useRef(bayMode);
+	bayModeRef.current = bayMode;
+	const restoreShellFocus = useCallback(() => {
+		if (bayModeRef.current === "todos") {
+			return;
+		}
+
+		control.onRequestShellFocus();
+	}, [control.onRequestShellFocus]);
 	const startMotion = useCallback((kind: ReviewPanelMotion) => {
 		setMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : kind);
 	}, []);
@@ -91,6 +102,14 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 
 		control.onBayModeChange(pageOpen ? "closed" : "page");
 	}, [activeShellId, control.onBayModeChange, control.onReviewExpandedChange, pageOpen, reviewExpanded, sessionPages, startMotion]);
+	const handleToggleTodos = useCallback(() => {
+		startMotion("open");
+		if (todosOpen && reviewExpanded) {
+			control.onReviewExpandedChange(false);
+		}
+
+		control.onBayModeChange(todosOpen ? "closed" : "todos");
+	}, [control.onBayModeChange, control.onReviewExpandedChange, reviewExpanded, startMotion, todosOpen]);
 	const handleClosePage = useCallback(async () => {
 		if (!activeShellId) {
 			return;
@@ -140,6 +159,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		onToggleReview: handleToggleReview,
 		onToggleReviewExpanded: handleToggleReviewExpanded,
 		onTogglePage: handleTogglePage,
+		onToggleTodos: handleToggleTodos,
 		onOpenCommands: control.onOpenCommands,
 		onOpenQuickOpen: handleOpenQuickOpen,
 	});
@@ -157,9 +177,11 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 				animating={fullscreenAnimating}
 				reviewOpen={reviewOpen}
 				pageOpen={pageOpen}
+				todosOpen={todosOpen}
 				shellId={activeShellId}
 				onToggleReview={handleToggleReview}
 				onTogglePage={handleTogglePage}
+				onToggleTodos={handleToggleTodos}
 				onOpenUrl={handleOpenTerminalUrl}
 			/>
 
@@ -180,7 +202,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					onOpenUrl={handleOpenTerminalUrl}
 				/>
 				<ReviewPanelFrame
-					open={reviewOpen || pageOpen}
+					open={reviewOpen || pageOpen || todosOpen}
 					expanded={reviewExpanded}
 					motion={motion}
 					width={geometry.dockedWidth}
@@ -188,7 +210,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					divider={geometry.diffDivider}
 					onMotionEnd={() => setMotion(undefined)}
 				>
-					<div className={pageOpen ? "hidden" : "contents"}>
+					<div className={pageOpen || todosOpen ? "hidden" : "contents"}>
 						<ReviewPanel
 							panel={reviewPanel}
 							project={project}
@@ -210,9 +232,10 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 							expanded={reviewExpanded}
 							onToggleExpanded={handleToggleReviewExpanded}
 							onClose={handleClosePage}
-							onRestoreTerminalFocus={control.onRequestShellFocus}
+							onRestoreTerminalFocus={restoreShellFocus}
 						/>
 					)}
+					{todosOpen && <TodoPanel project={project} onClose={handleToggleTodos} />}
 				</ReviewPanelFrame>
 			</div>
 		</section>

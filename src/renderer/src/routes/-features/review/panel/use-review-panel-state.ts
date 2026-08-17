@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { LayoutSettings } from "@shared/settings";
 
-export type WorkspaceBayMode = "closed" | "review" | "page";
+export type WorkspaceBayMode = "closed" | "review" | "page" | "todos";
 
 export function useReviewPanelState({
 	initialOpen,
@@ -46,12 +46,11 @@ export function useReviewPanelState({
 			return;
 		}
 
+		const nextMode = mode === "closed" ? "review" : mode;
 		restoreMode.current = mode;
-		if (mode === "closed") {
-			setMode("review");
-		}
+		setMode(nextMode);
 		setExpanded(true);
-		persist({ reviewOpen: mode !== "page", reviewExpanded: true });
+		persist({ reviewOpen: nextMode === "review", reviewExpanded: true });
 	}, [expanded, mode, onClose, persist]);
 
 	return {

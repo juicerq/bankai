@@ -15,11 +15,13 @@ function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 	const [commandsOpen, setCommandsOpen] = useState(false);
 	const [quickOpen, setQuickOpen] = useState(false);
 	const [pageOpen, setPageOpen] = useState(false);
+	const [todosOpen, setTodosOpen] = useState(false);
 	const registerShortcuts = useProjectWorkspaceShortcuts({
 		active,
 		onToggleReview: () => setReviewOpen((open) => !open),
 		onToggleReviewExpanded: () => setReviewExpanded((expanded) => !expanded),
 		onTogglePage: () => setPageOpen((open) => !open),
+		onToggleTodos: () => setTodosOpen((open) => !open),
 		onOpenCommands: () => setCommandsOpen(true),
 		onOpenQuickOpen: () => setQuickOpen(true),
 	});
@@ -33,6 +35,7 @@ function WorkspaceShortcutHarness({ active = true }: { active?: boolean }) {
 			data-commands-open={commandsOpen}
 			data-quick-open={quickOpen}
 			data-page-open={pageOpen}
+			data-todos-open={todosOpen}
 		/>
 	);
 }
@@ -74,6 +77,29 @@ test("the leader followed by g toggles the session page", () => {
 	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
 	fireEvent.keyDown(window, { key: "g", code: "KeyG" });
 	expect(get("workspace-shortcut-state").dataset.pageOpen).toBe("false");
+});
+
+test("the leader followed by l toggles the todo list", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	const todosPassedThrough = fireEvent.keyDown(window, { key: "l", code: "KeyL" });
+
+	expect(todosPassedThrough).toBe(false);
+	expect(get("workspace-shortcut-state").dataset.todosOpen).toBe("true");
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	fireEvent.keyDown(window, { key: "l", code: "KeyL" });
+	expect(get("workspace-shortcut-state").dataset.todosOpen).toBe("false");
+});
+
+test("l on its own reaches the Shell instead of toggling the todo list", () => {
+	render(<WorkspaceShortcutHarness />);
+
+	const typedPassedThrough = fireEvent.keyDown(window, { key: "l", code: "KeyL" });
+
+	expect(typedPassedThrough).toBe(true);
+	expect(get("workspace-shortcut-state").dataset.todosOpen).toBe("false");
 });
 
 test("g on its own reaches the Shell instead of toggling the session page", () => {
@@ -206,6 +232,7 @@ test("semantic shortcuts from a focused Page keep workspace controls working", (
 		relay?.({ action: "open-commands" });
 		relay?.({ action: "open-quick-open" });
 		relay?.({ action: "toggle-page" });
+		relay?.({ action: "toggle-todos" });
 	});
 
 	expect(get("workspace-shortcut-state").dataset.reviewOpen).toBe("false");
@@ -213,4 +240,5 @@ test("semantic shortcuts from a focused Page keep workspace controls working", (
 	expect(get("workspace-shortcut-state").dataset.commandsOpen).toBe("true");
 	expect(get("workspace-shortcut-state").dataset.quickOpen).toBe("true");
 	expect(get("workspace-shortcut-state").dataset.pageOpen).toBe("true");
+	expect(get("workspace-shortcut-state").dataset.todosOpen).toBe("true");
 });

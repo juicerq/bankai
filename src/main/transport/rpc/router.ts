@@ -8,6 +8,7 @@ import { pushRouter } from "@main/transport/rpc/push-router";
 import { reviewRouter } from "@main/transport/rpc/review-router";
 import { servicesRouter } from "@main/transport/rpc/services-router";
 import { settingsRouter } from "@main/transport/rpc/settings-router";
+import { todosRouter } from "@main/transport/rpc/todos-router";
 
 export const router = {
 	clipboard: clipboardRouter,
@@ -20,6 +21,7 @@ export const router = {
 	review: reviewRouter,
 	services: servicesRouter,
 	settings: settingsRouter,
+	todos: todosRouter,
 };
 
 export type Router = typeof router;

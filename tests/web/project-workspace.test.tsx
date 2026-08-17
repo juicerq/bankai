@@ -1,4 +1,5 @@
 import "./register-dom";
+import { setTodosTransport, type TodosTransport } from "./orpc-transport";
 import { streamTransport } from "./stream-transport";
 import { afterEach, expect, mock, spyOn, test } from "bun:test";
 import type { ILink, ILinkProvider } from "@xterm/xterm";
@@ -17,7 +18,7 @@ import {
 	useReviewPanelState,
 	type WorkspaceBayMode,
 } from "@renderer/routes/-features/review/panel/use-review-panel-state";
-import { get, slot } from "./dom";
+import { get, query, querySlot, slot } from "./dom";
 import { installReviewEnvironment } from "./review-harness";
 import { act, cleanup, fireEvent, render, waitFor } from "./testing-library";
 
@@ -147,13 +148,17 @@ function WorkspaceHarness({
 	shellWorktree,
 	initialBayMode = "closed",
 	fullscreen = false,
+	active = true,
 	registry,
+	onRequestShellFocus = () => {},
 	onWorkspaceRender = () => {},
 }: {
 	shellWorktree: string;
 	initialBayMode?: WorkspaceBayMode;
 	fullscreen?: boolean;
+	active?: boolean;
 	registry?: SessionPageRegistryValue;
+	onRequestShellFocus?: () => void;
 	onWorkspaceRender?: () => void;
 }) {
 	const [ownRegistry] = useState(SessionPageRegistry.create);
@@ -164,11 +169,11 @@ function WorkspaceHarness({
 		persist: () => {},
 		onClose: () => {},
 	});
-	const [seeded, setSeeded] = useState(initialBayMode !== "page");
+	const [seeded, setSeeded] = useState(initialBayMode === "closed" || initialBayMode === "review");
 
 	if (!seeded) {
 		setSeeded(true);
-		reviewPanel.changeMode("page");
+		reviewPanel.changeMode(initialBayMode);
 	}
 
 	return (
@@ -191,7 +196,7 @@ function WorkspaceHarness({
 				onToggleReviewFocus: reviewPanel.toggleFocus,
 				onTreeOpenChange: () => {},
 				onRequestShell: () => {},
-				onRequestShellFocus: () => {},
+				onRequestShellFocus,
 			}}
 			agents={{
 				shells: new Map(),
@@ -208,7 +213,7 @@ function WorkspaceHarness({
 			<Profiler id="workspace" onRender={onWorkspaceRender}>
 				<ProjectWorkspace
 					project={project}
-					active
+					active={active}
 					shellFocusRequest={0}
 					fullscreen={fullscreen}
 					fullscreenAnimating={false}
@@ -261,6 +266,7 @@ function resolveAll(environment: ReturnType<typeof installReviewEnvironment>, pr
 
 afterEach(() => {
 	cleanup();
+	setTodosTransport({ todos: [] });
 	ProjectRailReveal.set(false);
 	terminals.length = 0;
 	streamTransport.reset();
@@ -709,6 +715,210 @@ test("closing Page releases the loaded browser while Review can hide without rel
 	await waitFor(() => expect(released).toEqual(["s1"]));
 	expect(registry.has("s1")).toBe(false);
 	expect(get("review-panel-frame").dataset.open).toBe("false");
+});
+
+test("opening the Todo list takes the bay from whatever held it", async () => {
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		install: () => {},
+	};
+	setTodosTransport({ todos: [] });
+	const environment = installReviewEnvironment();
+	render(<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="review" />, { wrapper: environment.wrapper });
+
+	const todosToggle = document.querySelector<HTMLButtonElement>('[aria-label="Toggle todo list"]');
+	const reviewToggle = document.querySelector<HTMLButtonElement>('[aria-label="Toggle review panel"]');
+	if (!todosToggle || !reviewToggle) {
+		throw new Error("bay toggles unavailable");
+	}
+
+	expect(get("review-panel-frame").dataset.open).toBe("true");
+	expect(reviewToggle.getAttribute("aria-expanded")).toBe("true");
+	expect(query("todo-panel")).toBeNull();
+
+	fireEvent.click(todosToggle);
+
+	await waitFor(() => expect(query("todo-panel")).not.toBeNull());
+	expect(get("review-panel-frame").dataset.open).toBe("true");
+	expect(todosToggle.getAttribute("aria-pressed")).toBe("true");
+	expect(reviewToggle.getAttribute("aria-expanded")).toBe("false");
+	expect(document.querySelector('[data-component="session-page-panel"]')).toBeNull();
+
+	fireEvent.click(reviewToggle);
+
+	await waitFor(() => expect(query("todo-panel")).toBeNull());
+	expect(todosToggle.getAttribute("aria-pressed")).toBe("false");
+	expect(reviewToggle.getAttribute("aria-expanded")).toBe("true");
+
+	fireEvent.click(todosToggle);
+	await waitFor(() => expect(query("todo-panel")).not.toBeNull());
+
+	fireEvent.click(todosToggle);
+
+	await waitFor(() => expect(get("review-panel-frame").dataset.open).toBe("false"));
+	expect(query("todo-panel")).toBeNull();
+});
+
+test("the Todo list captures a written Todo and keeps it in the open list", async () => {
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		install: () => {},
+	};
+	const todos: TodosTransport = { todos: [] };
+	setTodosTransport(todos);
+	const environment = installReviewEnvironment();
+	render(<WorkspaceHarness shellWorktree="/p1-feature" />, { wrapper: environment.wrapper });
+
+	const todosToggle = document.querySelector<HTMLButtonElement>('[aria-label="Toggle todo list"]');
+	if (!todosToggle) {
+		throw new Error("todo toggle unavailable");
+	}
+
+	fireEvent.click(todosToggle);
+
+	await waitFor(() => expect(query("todo-panel")).not.toBeNull());
+	const capture = slot<HTMLInputElement>(get("todo-panel"), "capture");
+	expect(document.activeElement).toBe(capture);
+	await waitFor(() => expect(slot(get("todo-panel"), "blank")).not.toBeNull());
+
+	fireEvent.keyDown(capture, { key: "Enter" });
+	expect(todos.todos).toEqual([]);
+
+	fireEvent.input(capture, { target: { value: "  drop the stale worktree  " } });
+	fireEvent.keyDown(capture, { key: "Enter" });
+
+	await waitFor(() => expect(query("todo-row")).not.toBeNull());
+	expect(capture.value).toBe("");
+	expect(slot(get("todo-row"), "text").textContent).toBe("drop the stale worktree");
+	expect(get("todo-row").dataset.done).toBe("false");
+	expect(slot(get("todo-panel"), "open-count").textContent).toBe("1 open");
+
+	fireEvent.click(slot(get("todo-row"), "toggle"));
+
+	await waitFor(() => expect(get("todo-row").dataset.done).toBe("true"));
+	expect(slot(get("todo-panel"), "done-count").textContent).toBe("1");
+	expect(slot(get("todo-panel"), "open-count").textContent).toBe("0 open");
+
+	fireEvent.click(slot(get("todo-row"), "remove"));
+
+	await waitFor(() => expect(query("todo-row")).toBeNull());
+	expect(todos.todos).toEqual([]);
+});
+
+test("a Todo that fails to be written stays in the capture line and says why", async () => {
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		install: () => {},
+	};
+	setTodosTransport({ todos: [], saveFailure: "todos.json is read-only" });
+	const environment = installReviewEnvironment();
+	render(<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="todos" />, { wrapper: environment.wrapper });
+
+	await waitFor(() => expect(query("todo-panel")).not.toBeNull());
+	const capture = slot<HTMLInputElement>(get("todo-panel"), "capture");
+
+	fireEvent.input(capture, { target: { value: "the thing I must not lose" } });
+	fireEvent.keyDown(capture, { key: "Enter" });
+
+	await waitFor(() => expect(querySlot(get("todo-panel"), "notice")).not.toBeNull());
+	expect(slot(get("todo-panel"), "notice").dataset.message).toBeTruthy();
+	expect(capture.value).toBe("the thing I must not lose");
+	expect(query("todo-row")).toBeNull();
+});
+
+test("a Todo list that fails to be read never claims the project is empty", async () => {
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		install: () => {},
+	};
+	setTodosTransport({ todos: [], listFailure: "todos.json is corrupt" });
+	const environment = installReviewEnvironment();
+	render(<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="todos" />, { wrapper: environment.wrapper });
+
+	await waitFor(() => expect(querySlot(get("todo-panel"), "failure")).not.toBeNull());
+	expect(slot(get("todo-panel"), "failure").dataset.message).toBeTruthy();
+	expect(querySlot(get("todo-panel"), "blank")).toBeNull();
+	expect(slot<HTMLInputElement>(get("todo-panel"), "capture").disabled).toBe(true);
+});
+
+test("leaving a Page for the Todo list leaves the caret in the capture line", async () => {
+	const shellFocusRequests: number[] = [];
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		install: () => {},
+	};
+	window.bankaiSessionPage = {
+		present: async () => {},
+		release: async () => {},
+		goBack: async () => {},
+		goForward: async () => {},
+		reload: async () => {},
+		openExternal: async () => {},
+		clearData: async () => {},
+		snapshot: async () => null,
+		onState: () => () => {},
+		onShortcut: () => () => {},
+	};
+	setTodosTransport({ todos: [] });
+	const registry = SessionPageRegistry.create();
+	registry.open("s1", "https://example.com/leaving");
+	const environment = installReviewEnvironment();
+	render(
+		<WorkspaceHarness
+			shellWorktree="/p1-feature"
+			initialBayMode="page"
+			registry={registry}
+			onRequestShellFocus={() => shellFocusRequests.push(1)}
+		/>,
+		{ wrapper: environment.wrapper },
+	);
+
+	const todosToggle = document.querySelector<HTMLButtonElement>('[aria-label="Toggle todo list"]');
+	if (!todosToggle) {
+		throw new Error("todo toggle unavailable");
+	}
+
+	fireEvent.click(todosToggle);
+
+	await waitFor(() => expect(query("todo-panel")).not.toBeNull());
+	expect(shellFocusRequests).toEqual([]);
+	expect(document.activeElement).toBe(slot<HTMLInputElement>(get("todo-panel"), "capture"));
+});
+
+test("a Todo list whose project goes inactive stops reading and takes the caret back on return", async () => {
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		install: () => {},
+	};
+	setTodosTransport({ todos: [] });
+	const environment = installReviewEnvironment();
+	const view = render(
+		<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="todos" />,
+		{ wrapper: environment.wrapper },
+	);
+
+	await waitFor(() => expect(query("todo-panel")).not.toBeNull());
+
+	view.rerender(<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="todos" active={false} />);
+
+	expect(query("todo-panel")).toBeNull();
+
+	view.rerender(<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="todos" />);
+
+	await waitFor(() => expect(query("todo-panel")).not.toBeNull());
+	expect(document.activeElement).toBe(slot<HTMLInputElement>(get("todo-panel"), "capture"));
 });
 
 test("closing a blank Page forgets it so the Shell goes back to having none", async () => {

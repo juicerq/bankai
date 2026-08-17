@@ -57,9 +57,11 @@ function renderHeader(opened: { shellId: string; url: string }[]) {
 				animating={false}
 				reviewOpen={false}
 				pageOpen={false}
+				todosOpen={false}
 				shellId="s1"
 				onToggleReview={() => {}}
 				onTogglePage={() => {}}
+				onToggleTodos={() => {}}
 				onOpenUrl={(shellId, url) => opened.push({ shellId, url })}
 			/>
 		</WorkspaceProvider>,

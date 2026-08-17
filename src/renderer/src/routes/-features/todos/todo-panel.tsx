@@ -30,7 +30,7 @@ export function TodoPanel({ project, onClose }: { project: Project; onClose: () 
 				<button
 					type="button"
 					data-slot="close"
-					className="flex size-header shrink-0 items-center justify-center border-outline border-l text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+					className="flex h-full w-header shrink-0 items-center justify-center border-outline border-l text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
 					aria-label="Close todo list"
 					title="Close todo list"
 					onClick={onClose}

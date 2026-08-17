@@ -278,7 +278,7 @@ function SessionPageAction({
 		<button
 			type="button"
 			data-slot={slot}
-			className={`flex size-header shrink-0 items-center justify-center border-outline border-l focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default disabled:text-outline-strong ${
+			className={`flex h-full w-header shrink-0 items-center justify-center border-outline border-l focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default disabled:text-outline-strong ${
 				pressed ? "bg-surface-active text-primary" : "text-secondary enabled:hover:bg-surface-hover enabled:hover:text-primary"
 			}`}
 			aria-label={label}

@@ -69,7 +69,7 @@ function describe(url: string) {
 	return {
 		host: parsed.host,
 		path: `${path}${parsed.search}${parsed.hash}`,
-		local: SessionPageUrl.isLoopback(parsed.hostname),
+		local: SessionPageUrl.isFile(url) || SessionPageUrl.isLoopback(parsed.hostname),
 	};
 }
 

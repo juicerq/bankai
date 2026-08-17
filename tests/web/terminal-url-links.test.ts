@@ -23,12 +23,20 @@ test("approved HTTP loopback page URLs become links", () => {
 	]);
 });
 
-test("credentials, external HTTP, and unsupported protocols stay plain text", () => {
+test("a local file URL becomes a link", () => {
+	const text = "Open file:///home/jui/projects/bankai/page.html to check it.";
+
+	expect(TerminalUrlLinks.find(text).map(({ url }) => url)).toEqual([
+		"file:///home/jui/projects/bankai/page.html",
+	]);
+});
+
+test("credentials, external HTTP, remote files, and unsupported protocols stay plain text", () => {
 	const text = [
 		"https://user:secret@example.com/private",
 		"http://example.com/insecure",
 		"ftp://example.com/archive",
-		"file:///tmp/page.html",
+		"file://evil.example/share/page.html",
 		"javascript:alert(1)",
 	].join(" ");
 

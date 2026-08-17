@@ -573,9 +573,10 @@ test("a named page link opens in Page and rejects an unsupported target", async 
 	const handler = lastTerminal().options.linkHandler;
 
 	handler?.activate(new MouseEvent("click"), "https://example.com/release", range);
-	handler?.activate(new MouseEvent("click"), "file:///etc/passwd", range);
+	handler?.activate(new MouseEvent("click"), "file:///home/jui/page.html", range);
+	handler?.activate(new MouseEvent("click"), "file://evil.example/share/page.html", range);
 
-	expect(opened).toEqual(["https://example.com/release"]);
+	expect(opened).toEqual(["https://example.com/release", "file:///home/jui/page.html"]);
 
 	session.dispose();
 });

@@ -27,6 +27,10 @@ function parseUrl(input: unknown): string | undefined {
 		return undefined;
 	}
 
+	if (parsed.protocol === "file:" && !parsed.host) {
+		return parsed.href;
+	}
+
 	if (parsed.protocol === "https:") {
 		return parsed.href;
 	}
@@ -36,6 +40,20 @@ function parseUrl(input: unknown): string | undefined {
 	}
 
 	return undefined;
+}
+
+function isFile(value: string) {
+	return value.startsWith("file:");
+}
+
+function parseNavigation({ from, to }: { from: string; to: string }) {
+	const target = parseUrl(to);
+
+	if (target && isFile(target) && !isFile(from)) {
+		return;
+	}
+
+	return target;
 }
 
 function canonicalUrl(value: string) {
@@ -119,6 +137,8 @@ export const SessionPageSchemas = {
 
 export const SessionPageUrl = {
 	parse: parseUrl,
+	parseNavigation,
+	isFile,
 	isLoopback,
 };
 

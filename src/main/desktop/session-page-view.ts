@@ -111,7 +111,7 @@ class SessionPageController {
 
 		const contents = view.webContents;
 		contents.setWindowOpenHandler((details) => {
-			const target = SessionPageUrl.parse(details.url);
+			const target = SessionPageUrl.parseNavigation({ from: contents.getURL(), to: details.url });
 
 			if (target) {
 				contents.loadURL(target).catch(() => {});
@@ -120,17 +120,17 @@ class SessionPageController {
 			return { action: "deny" };
 		});
 		contents.on("will-frame-navigate", (event) => {
-			if (!SessionPageUrl.parse(event.url)) {
+			if (!SessionPageUrl.parseNavigation({ from: contents.getURL(), to: event.url })) {
 				event.preventDefault();
 			}
 		});
 		contents.on("will-navigate", (event) => {
-			if (!SessionPageUrl.parse(event.url)) {
+			if (!SessionPageUrl.parseNavigation({ from: contents.getURL(), to: event.url })) {
 				event.preventDefault();
 			}
 		});
 		contents.on("will-redirect", (event) => {
-			if (!SessionPageUrl.parse(event.url)) {
+			if (!SessionPageUrl.parseNavigation({ from: contents.getURL(), to: event.url })) {
 				event.preventDefault();
 			}
 		});

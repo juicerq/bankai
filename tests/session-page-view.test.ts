@@ -490,6 +490,22 @@ test("a page popup opens in the same view only when the address is allowed", asy
 	expect(page?.loadURLCalls).toEqual(["https://example.com/", "https://popup.example/path"]);
 });
 
+test("a file page opens another file address and a web page still cannot", async () => {
+	const win = new BrowserWindow();
+	SessionPageView.attach(win);
+	const page = views[0]?.webContents;
+
+	await invoke(win, SESSION_PAGE_IPC.present, {
+		shellId: "shell-1",
+		url: "file:///home/jui/page.html",
+		navigation: 1,
+		bounds: { x: 0, y: 0, width: 900, height: 600 },
+	});
+
+	expect(page?.windowOpenHandler?.({ url: "file:///home/jui/next.html" })).toEqual({ action: "deny" });
+	expect(page?.loadURLCalls).toEqual(["file:///home/jui/page.html", "file:///home/jui/next.html"]);
+});
+
 test("presenting a new address in the same shell navigates and adds it to history", async () => {
 	const win = new BrowserWindow();
 	SessionPageView.attach(win);

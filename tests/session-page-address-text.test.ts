@@ -47,5 +47,10 @@ test("describe splits a URL into host, path and locality", () => {
 		path: "",
 		local: true,
 	});
+	expect(SessionPageAddressText.describe("file:///home/jui/page.html")).toEqual({
+		host: "",
+		path: "/home/jui/page.html",
+		local: true,
+	});
 	expect(SessionPageAddressText.describe("")).toBeUndefined();
 });

@@ -6,7 +6,7 @@ interface TerminalUrlLink {
 	end: number;
 }
 
-const URL_CANDIDATE = /https?:\/\/\S+/gi;
+const URL_CANDIDATE = /(?:https?|file):\/\/\S+/gi;
 const TRAILING_PUNCTUATION = /[)\]}'"`>,.:;!?]+$/;
 
 function find(text: string): TerminalUrlLink[] {

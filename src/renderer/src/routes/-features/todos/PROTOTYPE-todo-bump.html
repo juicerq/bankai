@@ -1,0 +1,1260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>PROTOTYPE — todo bump</title>
+<style>
+	:root {
+		--color-primary: #e7e7e4;
+		--color-secondary: #858581;
+		--color-tertiary: #c9954a;
+		--color-surface-sunken: #040404;
+		--color-surface: #060606;
+		--color-surface-raised: #0a0a0a;
+		--color-surface-hover: #0d0d0d;
+		--color-surface-active: #171715;
+		--color-outline: #292929;
+		--color-outline-strong: #444444;
+		--color-shadow: rgb(0 0 0 / 0.32);
+		--color-added: #7ee787;
+		--color-removed: #ff7b72;
+
+		--font-mono: "Maple Mono NF", ui-monospace, monospace;
+		--space: 4px;
+		--header: 40px;
+		--banner: 24px;
+		--bar-zone: 56px;
+		--frame: 849px;
+	}
+
+	* {
+		box-sizing: border-box;
+		scrollbar-width: thin;
+		scrollbar-color: var(--color-outline) transparent;
+	}
+
+	html,
+	body {
+		width: 100%;
+		height: 100%;
+		height: 100dvh;
+		margin: 0;
+		overflow: hidden;
+	}
+
+	body {
+		background: var(--color-surface);
+		color: var(--color-primary);
+		font-family: var(--font-mono);
+		font-size: 12px;
+		line-height: 1.4;
+		font-weight: 500;
+		font-synthesis: none;
+	}
+
+	button {
+		font: inherit;
+		color: inherit;
+		background: none;
+		border: 0;
+		padding: 0;
+		cursor: pointer;
+	}
+
+	button:focus-visible,
+	input:focus-visible,
+	textarea:focus-visible {
+		outline: 1px solid var(--color-primary);
+		outline-offset: -2px;
+	}
+
+	*::-webkit-scrollbar {
+		width: 8px;
+		height: 8px;
+	}
+
+	*::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	*::-webkit-scrollbar-thumb {
+		background: var(--color-outline);
+		border: 2px solid transparent;
+		background-clip: padding-box;
+		border-radius: 9999px;
+	}
+
+	*::-webkit-scrollbar-thumb:hover {
+		background: var(--color-outline-strong);
+		background-clip: padding-box;
+	}
+
+	.label {
+		font-size: 10px;
+		line-height: 1.4;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	.data {
+		font-size: 10px;
+		line-height: 1.4;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.support {
+		font-size: 11px;
+		line-height: 1.55;
+	}
+
+	.banner {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		height: var(--banner);
+		padding: 0 12px;
+		background: var(--color-surface-sunken);
+		border-bottom: 1px solid var(--color-outline);
+		color: var(--color-secondary);
+	}
+
+	.banner b {
+		color: var(--color-tertiary);
+		font-weight: 700;
+	}
+
+	.stage {
+		display: flex;
+		align-items: flex-start;
+		height: calc(100dvh - var(--banner));
+	}
+
+	.readout {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-width: 0;
+		height: calc(100dvh - var(--banner) - var(--bar-zone));
+	}
+
+	.readout-head {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		height: var(--header);
+		padding: 0 12px;
+		border-bottom: 1px solid var(--color-outline);
+		color: var(--color-secondary);
+		flex-shrink: 0;
+	}
+
+	.readout-body {
+		flex: 1;
+		min-height: 0;
+		overflow: auto;
+		padding: 12px;
+	}
+
+	.readout pre {
+		margin: 0;
+		font-family: var(--font-mono);
+		font-size: 11px;
+		line-height: 1.55;
+		color: var(--color-secondary);
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+
+	.readout pre .k {
+		color: var(--color-primary);
+	}
+
+	.readout pre .v {
+		color: var(--color-tertiary);
+	}
+
+	.frame {
+		width: var(--frame);
+		flex-shrink: 0;
+		height: calc(100dvh - var(--banner) - var(--bar-zone));
+		border-left: 1px solid var(--color-outline);
+	}
+
+	.panel {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		height: 100%;
+		min-width: 0;
+		background: var(--color-surface-raised);
+	}
+
+	.panel-head {
+		display: flex;
+		align-items: center;
+		height: var(--header);
+		flex-shrink: 0;
+		border-bottom: 1px solid var(--color-outline);
+	}
+
+	.panel-head .label {
+		padding-left: 12px;
+		color: var(--color-secondary);
+		flex-shrink: 0;
+	}
+
+	.panel-head .project {
+		flex: 1;
+		min-width: 0;
+		padding-left: 8px;
+		color: var(--color-secondary);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.panel-head .count {
+		padding: 0 12px;
+		color: var(--color-secondary);
+		flex-shrink: 0;
+	}
+
+	.head-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--header);
+		height: 100%;
+		flex-shrink: 0;
+		border-left: 1px solid var(--color-outline);
+		color: var(--color-secondary);
+	}
+
+	.head-btn:hover {
+		background: var(--color-surface-hover);
+		color: var(--color-primary);
+	}
+
+	.capture {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		height: var(--header);
+		flex-shrink: 0;
+		padding: 0 12px;
+		border-bottom: 1px solid var(--color-outline);
+	}
+
+	.capture .chev {
+		width: 12px;
+		flex-shrink: 0;
+		text-align: center;
+		color: var(--color-tertiary);
+	}
+
+	.capture input {
+		flex: 1;
+		min-width: 0;
+		background: transparent;
+		border: 0;
+		outline: none;
+		font: inherit;
+		color: var(--color-primary);
+	}
+
+	.capture input::placeholder {
+		color: var(--color-outline-strong);
+	}
+
+	.body {
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		background: var(--color-surface-sunken);
+	}
+
+	.list {
+		display: flex;
+		flex-direction: column;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.row {
+		display: flex;
+		flex-direction: column;
+		padding: 6px 12px;
+	}
+
+	.row:hover {
+		background: var(--color-surface-hover);
+	}
+
+	.row[data-picker="true"]:hover {
+		background: transparent;
+	}
+
+	.row-main {
+		display: flex;
+		align-items: flex-start;
+		gap: 8px;
+	}
+
+	.check {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		margin: -2px 0;
+		flex-shrink: 0;
+	}
+
+	.box {
+		display: flex;
+		width: 12px;
+		height: 12px;
+		padding: 1px;
+		border: 1px solid var(--color-outline-strong);
+	}
+
+	.row:hover .box {
+		border-color: var(--color-secondary);
+	}
+
+	.row[data-done="true"] .box,
+	.row[data-done="true"]:hover .box {
+		border-color: var(--color-tertiary);
+	}
+
+	.box i {
+		display: block;
+		width: 100%;
+		height: 100%;
+		background: var(--color-tertiary);
+	}
+
+	.text {
+		flex: 1;
+		min-width: 0;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		color: var(--color-primary);
+		text-align: left;
+	}
+
+	.text[data-clickable="true"] {
+		cursor: text;
+	}
+
+	.row[data-done="true"] .text {
+		color: var(--color-secondary);
+		text-decoration: line-through;
+	}
+
+	.age {
+		flex-shrink: 0;
+		margin-top: 1px;
+		color: var(--color-secondary);
+	}
+
+	.mark {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 12px;
+		height: 20px;
+		margin: -2px 0;
+		flex-shrink: 0;
+		color: var(--color-tertiary);
+	}
+
+	.mark i {
+		display: block;
+		width: 4px;
+		height: 4px;
+		background: var(--color-tertiary);
+	}
+
+	.row-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		margin: -2px 0;
+		flex-shrink: 0;
+		color: var(--color-secondary);
+		opacity: 0;
+		transition: opacity 150ms ease-out;
+	}
+
+	.row:hover .row-btn,
+	.row-btn:focus-visible {
+		opacity: 1;
+	}
+
+	.row-btn:hover {
+		color: var(--color-primary);
+	}
+
+	.row-btn[data-act="launch"]:hover {
+		color: var(--color-tertiary);
+	}
+
+	.edit-input {
+		flex: 1;
+		min-width: 0;
+		background: var(--color-surface);
+		border: 1px solid var(--color-outline-strong);
+		outline: none;
+		font: inherit;
+		color: var(--color-primary);
+		padding: 0 4px;
+		margin: -1px 0;
+	}
+
+	.edit-input:focus {
+		border-color: var(--color-tertiary);
+	}
+
+	.shells {
+		display: flex;
+		align-items: stretch;
+		height: 28px;
+		margin: 6px 0 2px 28px;
+	}
+
+	.shells .hint {
+		display: flex;
+		align-items: center;
+		padding-right: 10px;
+		flex-shrink: 0;
+		color: var(--color-secondary);
+		letter-spacing: 0.08em;
+		white-space: nowrap;
+	}
+
+	.shells button {
+		display: flex;
+		align-items: center;
+		height: 100%;
+		padding: 0 10px;
+		flex-shrink: 0;
+		border-left: 1px solid var(--color-outline);
+		color: var(--color-secondary);
+	}
+
+	.shells button:last-child {
+		border-right: 1px solid var(--color-outline);
+	}
+
+	.shells button:hover {
+		background: var(--color-surface-hover);
+		color: var(--color-primary);
+	}
+
+	.shells button:focus-visible {
+		outline: none;
+		background: var(--color-surface-hover);
+		color: var(--color-primary);
+		box-shadow: inset 0 -2px 0 var(--color-tertiary);
+	}
+
+	.shells button[data-active="true"] {
+		background: var(--color-surface-active);
+		color: var(--color-tertiary);
+	}
+
+	.shells .cell {
+		display: flex;
+		align-items: baseline;
+		gap: 6px;
+	}
+
+	.shells .title {
+		color: var(--color-secondary);
+	}
+
+	.shells button:hover .title {
+		color: var(--color-primary);
+	}
+
+	.note {
+		margin: 6px 0 2px 28px;
+	}
+
+	.note textarea {
+		display: block;
+		width: 100%;
+		min-height: 38px;
+		resize: none;
+		overflow: hidden;
+		background: var(--color-surface);
+		border: 1px solid var(--color-outline);
+		outline: none;
+		padding: 4px 8px;
+		font-family: var(--font-mono);
+		font-size: 11px;
+		line-height: 1.55;
+		color: var(--color-primary);
+	}
+
+	.note textarea:focus {
+		border-color: var(--color-outline-strong);
+	}
+
+	.note textarea::placeholder {
+		color: var(--color-outline-strong);
+	}
+
+	.done-section {
+		border-top: 1px solid var(--color-outline);
+	}
+
+	.done-head {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 12px 12px 4px;
+	}
+
+	.done-head .label {
+		color: var(--color-secondary);
+	}
+
+	.done-head .data {
+		color: var(--color-secondary);
+	}
+
+	.done-toggle {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		color: var(--color-secondary);
+	}
+
+	.done-toggle:hover {
+		color: var(--color-primary);
+	}
+
+	.done-toggle svg {
+		transition: transform 150ms ease-out;
+	}
+
+	.done-toggle[data-collapsed="true"] svg {
+		transform: rotate(-90deg);
+	}
+
+	.sweep {
+		margin-left: auto;
+		padding: 2px 8px;
+		border: 1px solid var(--color-outline);
+		color: var(--color-secondary);
+	}
+
+	.sweep:hover {
+		background: var(--color-surface-active);
+		border-color: var(--color-removed);
+		color: var(--color-removed);
+	}
+
+	.blank {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		height: 100%;
+		margin: 0;
+		padding: 0 24px;
+		text-align: center;
+		color: var(--color-secondary);
+	}
+
+	.bar {
+		position: fixed;
+		left: 50%;
+		bottom: 12px;
+		transform: translateX(-50%);
+		display: flex;
+		align-items: center;
+		gap: 1px;
+		height: var(--header);
+		padding: 1px;
+		background: var(--color-surface-active);
+		border: 1px solid var(--color-outline-strong);
+		box-shadow: 0 1px 0 var(--color-shadow), 0 12px 32px var(--color-shadow);
+		z-index: 10;
+	}
+
+	.bar button {
+		display: flex;
+		align-items: baseline;
+		gap: 6px;
+		height: 100%;
+		padding: 0 12px;
+		background: var(--color-surface-raised);
+		color: var(--color-secondary);
+	}
+
+	.bar button:hover {
+		background: var(--color-surface-hover);
+		color: var(--color-primary);
+	}
+
+	.bar button[data-active="true"] {
+		background: var(--color-surface-sunken);
+		color: var(--color-primary);
+		box-shadow: inset 0 -2px 0 var(--color-tertiary);
+	}
+
+	.bar .key {
+		font-size: 10px;
+		line-height: 1.4;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		color: var(--color-tertiary);
+	}
+
+	@keyframes row-in {
+		from {
+			opacity: 0;
+			transform: translateY(-3px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.animate .row,
+	.animate .done-section {
+		animation: row-in 180ms ease-out both;
+		animation-delay: calc(var(--i) * 16ms);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.animate .row,
+		.animate .done-section {
+			animation-name: none;
+		}
+
+		.row-btn {
+			transition: none;
+		}
+	}
+</style>
+</head>
+<body>
+	<div class="banner support">
+		<b class="label">PROTOTYPE</b>
+		<span>Throwaway file. Not production code. State lives in memory — a reload wipes it.</span>
+	</div>
+	<div class="stage">
+		<section class="readout">
+			<div class="readout-head">
+				<span class="label">STATE</span>
+				<span class="data" id="stamp"></span>
+			</div>
+			<div class="readout-body"><pre id="state"></pre></div>
+		</section>
+		<div class="frame" id="frame"></div>
+	</div>
+	<nav class="bar" id="bar"></nav>
+<script>
+const VARIANTS = [
+	{ key: "a", name: "Baseline" },
+	{ key: "b", name: "Prompt launcher" },
+	{ key: "c", name: "Notes" },
+	{ key: "d", name: "Edit & sweep" },
+	{ key: "e", name: "Everything" },
+];
+
+const SHELLS = [
+	{ id: "sh1", label: "Shell 1", title: "claude" },
+	{ id: "sh2", label: "Shell 2", title: "codex" },
+	{ id: "sh3", label: "Ideias", title: undefined },
+];
+const MINUTE = 60000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+const NOW = Date.now();
+
+const SEED = [
+	{ id: "t1", text: "publicar a v0.2.65", age: DAY + 6 * HOUR, done: 22 * HOUR },
+	{ id: "t2", text: "checar se o PKGBUILD da AUR pega a tag nova", age: DAY + 2 * HOUR },
+	{ id: "t3", text: "mostrar a linha de gap entre hunks com a contagem", age: 7 * HOUR, done: 4 * HOUR },
+	{ id: "t4", text: "o bay de todos precisa lembrar o scroll por projeto", age: 5 * HOUR + 3 * MINUTE },
+	{ id: "t5", text: "cachear highlights de diff por path e conteúdo", age: 3 * HOUR + 40 * MINUTE, done: 40 * MINUTE },
+	{ id: "t6", text: "medir o custo do highlight de diff em arquivo de 4k linhas", age: 2 * HOUR + 11 * MINUTE },
+	{ id: "t7", text: "atualizar o mapa em ~/.agents/maps", age: 52 * MINUTE, note: "faltam os nós de src/main/ipc e o fluxo de bump do todo." },
+	{ id: "t8", text: "cobrir Ctrl+X G no processo main", age: 18 * MINUTE },
+	{ id: "t9", text: "revisar o gate de release do Windows", age: 4 * MINUTE, note: "o runner assina o exe antes do upload. conferir se o certificado ainda vale em setembro." },
+];
+
+const state = {
+	variant: "a",
+	todos: [],
+	draft: "",
+	lastAction: null,
+	ui: { picker: null, expanded: null, editing: null, doneCollapsed: false },
+	focus: null,
+	animate: true,
+};
+
+let seq = SEED.length;
+let clickTimer = null;
+
+const frame = document.getElementById("frame");
+const bar = document.getElementById("bar");
+const readout = document.getElementById("state");
+const stamp = document.getElementById("stamp");
+
+function seed() {
+	state.todos = SEED.map((entry) => ({
+		id: entry.id,
+		text: entry.text,
+		createdAt: NOW - entry.age,
+		doneAt: entry.done === undefined ? undefined : NOW - entry.done,
+		note: entry.note,
+		shell: undefined,
+	}));
+}
+
+function hasLauncher() {
+	return state.variant === "b" || state.variant === "e";
+}
+
+function hasNotes() {
+	return state.variant === "c" || state.variant === "e";
+}
+
+function hasEdit() {
+	return state.variant === "d" || state.variant === "e";
+}
+
+function esc(value) {
+	return String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]);
+}
+
+function elapsed(since) {
+	const span = Math.max(0, Date.now() - since);
+
+	if (span < MINUTE) {
+		return Math.floor(span / 1000) + "s";
+	}
+	if (span < HOUR) {
+		return Math.floor(span / MINUTE) + "m";
+	}
+	if (span < DAY) {
+		return Math.floor(span / HOUR) + "h" + Math.floor((span % HOUR) / MINUTE) + "m";
+	}
+
+	return Math.floor(span / DAY) + "d" + Math.floor((span % DAY) / HOUR) + "h";
+}
+
+function icon(name, size) {
+	const paths = {
+		close: '<path d="M4 4l8 8M12 4l-8 8" />',
+		arrow: '<path d="M3 8h10M9 4l4 4-4 4" />',
+		note: '<path d="M4 5h8M4 8h8M4 11h5" />',
+		chevron: '<path d="M4 6l4 4 4-4" />',
+	};
+
+	return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="square" aria-hidden="true">' + paths[name] + "</svg>";
+}
+
+function openTodos() {
+	return state.todos.filter((todo) => todo.doneAt === undefined);
+}
+
+function doneTodos() {
+	return state.todos.filter((todo) => todo.doneAt !== undefined);
+}
+
+function find(id) {
+	return state.todos.find((todo) => todo.id === id);
+}
+
+function shellMarkup(todo, shell, position) {
+	const active = todo.shell !== undefined && todo.shell.id === shell.id;
+	const role = position === 0 ? ' data-role="shell"' : "";
+	const title = shell.title ? '<span class="title data">' + esc(shell.title) + "</span>" : "";
+
+	return '<button data-act="pick" data-id="' + todo.id + '" data-shell="' + shell.id + '" data-active="' + active + '"' + role
+		+ ' title="Paste into ' + esc(shell.label) + '" aria-label="Paste into ' + esc(shell.label) + '">'
+		+ '<span class="cell"><span>' + esc(shell.label) + "</span>" + title + "</span>"
+		+ "</button>";
+}
+
+function rowMarkup(todo, index) {
+	const done = todo.doneAt !== undefined;
+	const editing = hasEdit() && state.ui.editing === todo.id;
+	const marks = [];
+
+	if (hasLauncher() && todo.shell) {
+		marks.push('<span class="mark" title="pasted into ' + esc(todo.shell.label) + '"><i></i></span>');
+	}
+	if (hasNotes() && todo.note) {
+		marks.push('<span class="mark" title="has a note">' + icon("note", 12) + "</span>");
+	}
+
+	const body = editing
+		? '<input class="edit-input" data-role="edit" data-id="' + todo.id + '" value="' + esc(todo.text) + '" spellcheck="false" autocomplete="off" />'
+		: '<span class="text" data-act="text" data-id="' + todo.id + '" data-clickable="' + (hasNotes() || hasEdit()) + '">' + esc(todo.text) + "</span>";
+
+	const launch = hasLauncher() && !done
+		? '<button class="row-btn" data-act="launch" data-id="' + todo.id + '" title="Paste into a shell" aria-label="Paste into a shell">' + icon("arrow", 14) + "</button>"
+		: "";
+
+	const open = hasLauncher() && state.ui.picker === todo.id;
+	const picker = open
+		? '<div class="shells"><span class="hint label">PASTES THE TEXT — YOU PRESS ENTER</span>'
+			+ SHELLS.map((shell, position) => shellMarkup(todo, shell, position)).join("")
+			+ "</div>"
+		: "";
+
+	const note = hasNotes() && state.ui.expanded === todo.id
+		? '<div class="note"><textarea data-role="note" data-id="' + todo.id + '" rows="2" spellcheck="false" placeholder="Notes, links, the command you keep forgetting">' + esc(todo.note ?? "") + "</textarea></div>"
+		: "";
+
+	return '<li class="row" data-id="' + todo.id + '" data-done="' + done + '" data-picker="' + open + '" style="--i:' + index + '">'
+		+ '<div class="row-main">'
+		+ '<button class="check" data-act="toggle" data-id="' + todo.id + '" role="checkbox" aria-checked="' + done + '" aria-label="' + esc(todo.text) + '"><span class="box">' + (done ? "<i></i>" : "") + "</span></button>"
+		+ body
+		+ marks.join("")
+		+ '<span class="age data" data-since="' + todo.createdAt + '">' + elapsed(todo.createdAt) + "</span>"
+		+ launch
+		+ '<button class="row-btn" data-act="remove" data-id="' + todo.id + '" title="Remove" aria-label="Remove ' + esc(todo.text) + '">' + icon("close", 14) + "</button>"
+		+ "</div>"
+		+ picker
+		+ note
+		+ "</li>";
+}
+
+function listMarkup(todos, offset) {
+	return '<ul class="list">' + todos.map((todo, index) => rowMarkup(todo, offset + index)).join("") + "</ul>";
+}
+
+function doneMarkup(todos, offset) {
+	if (todos.length === 0) {
+		return "";
+	}
+
+	const collapsed = hasEdit() && state.ui.doneCollapsed;
+	const head = hasEdit()
+		? '<div class="done-head">'
+			+ '<button class="done-toggle" data-act="fold" data-collapsed="' + collapsed + '">' + icon("chevron", 12) + '<span class="label">DONE</span><span class="data">' + todos.length + "</span></button>"
+			+ '<button class="sweep data" data-act="sweep">Clear done</button>'
+			+ "</div>"
+		: '<div class="done-head"><span class="label">DONE</span><span class="data">' + todos.length + "</span></div>";
+
+	return '<div class="done-section" style="--i:' + offset + '">' + head + (collapsed ? "" : listMarkup(todos, offset + 1)) + "</div>";
+}
+
+function bodyMarkup() {
+	const open = openTodos();
+	const done = doneTodos();
+
+	if (open.length === 0 && done.length === 0) {
+		return '<p class="blank support">Nothing captured for this project yet</p>';
+	}
+
+	return listMarkup(open, 0) + doneMarkup(done, open.length);
+}
+
+function render() {
+	const open = openTodos();
+
+	frame.innerHTML = '<section class="panel' + (state.animate ? " animate" : "") + '">'
+		+ '<div class="panel-head">'
+		+ '<span class="label">TODO</span>'
+		+ '<span class="project">bankai</span>'
+		+ '<span class="count data">' + open.length + " open</span>"
+		+ '<button class="head-btn" data-act="close" title="Close todo list" aria-label="Close todo list">' + icon("close", 16) + "</button>"
+		+ "</div>"
+		+ '<div class="capture"><span class="chev" aria-hidden="true">›</span>'
+		+ '<input data-role="capture" maxlength="2000" spellcheck="false" autocomplete="off" aria-label="Write a todo" placeholder="Write it down before it is gone" />'
+		+ "</div>"
+		+ '<div class="body">' + bodyMarkup() + "</div>"
+		+ "</section>";
+
+	const capture = frame.querySelector('[data-role="capture"]');
+	capture.value = state.draft;
+
+	frame.querySelectorAll('[data-role="note"]').forEach(autosize);
+	state.animate = false;
+	restoreFocus(capture);
+	syncState();
+}
+
+function restoreFocus(capture) {
+	const target = state.focus
+		? frame.querySelector('[data-role="' + state.focus.role + '"][data-id="' + state.focus.id + '"]')
+		: capture;
+
+	if (!target) {
+		capture.focus();
+		return;
+	}
+
+	target.focus();
+
+	if (target.setSelectionRange) {
+		target.setSelectionRange(target.value.length, target.value.length);
+	}
+}
+
+function autosize(node) {
+	node.style.height = "auto";
+	node.style.height = node.scrollHeight + "px";
+}
+
+function todoView(todo) {
+	const view = { id: todo.id, text: todo.text, doneAt: todo.doneAt ? new Date(todo.doneAt).toISOString() : null };
+
+	if (hasLauncher()) {
+		view.shell = todo.shell ? todo.shell.label : null;
+	}
+	if (hasNotes()) {
+		view.note = todo.note ?? null;
+	}
+
+	return view;
+}
+
+function uiView() {
+	const view = {};
+
+	if (hasLauncher()) {
+		view.picker = state.ui.picker;
+	}
+	if (hasNotes()) {
+		view.expanded = state.ui.expanded;
+	}
+	if (hasEdit()) {
+		view.editing = state.ui.editing;
+		view.doneCollapsed = state.ui.doneCollapsed;
+	}
+
+	return view;
+}
+
+function syncState() {
+	const current = VARIANTS.find((entry) => entry.key === state.variant);
+	const json = JSON.stringify({
+		variant: state.variant + " — " + current.name,
+		lastAction: state.lastAction,
+		draft: state.draft,
+		ui: uiView(),
+		open: openTodos().length,
+		done: doneTodos().length,
+		todos: state.todos.map(todoView),
+	}, null, 2);
+
+	readout.innerHTML = esc(json)
+		.replace(/^(\s*)&quot;(.+?)&quot;:/gm, '$1<span class="k">"$2"</span>:')
+		.replace(/: (&quot;.*?&quot;|\d+|true|false|null)/g, ': <span class="v">$1</span>');
+	stamp.textContent = new Date().toLocaleTimeString();
+}
+
+function act(action) {
+	state.lastAction = action;
+}
+
+function capture(text) {
+	const trimmed = text.trim();
+
+	if (!trimmed) {
+		act({ action: "capture-rejected", reason: "empty" });
+		syncState();
+		return;
+	}
+
+	seq += 1;
+	const todo = { id: "t" + seq, text: trimmed, createdAt: Date.now(), doneAt: undefined, note: undefined, shell: undefined };
+	state.todos.push(todo);
+	state.draft = "";
+	state.focus = null;
+	act({ action: "capture", todoId: todo.id, text: trimmed });
+	render();
+}
+
+function toggle(id) {
+	const todo = find(id);
+	todo.doneAt = todo.doneAt === undefined ? Date.now() : undefined;
+
+	if (todo.doneAt !== undefined) {
+		state.ui.picker = state.ui.picker === id ? null : state.ui.picker;
+		state.ui.editing = state.ui.editing === id ? null : state.ui.editing;
+	}
+
+	state.focus = null;
+	act({ action: "set-done", todoId: id, done: todo.doneAt !== undefined });
+	render();
+}
+
+function remove(id) {
+	state.todos = state.todos.filter((todo) => todo.id !== id);
+	state.ui.picker = state.ui.picker === id ? null : state.ui.picker;
+	state.ui.expanded = state.ui.expanded === id ? null : state.ui.expanded;
+	state.ui.editing = state.ui.editing === id ? null : state.ui.editing;
+	state.focus = null;
+	act({ action: "remove", todoId: id });
+	render();
+}
+
+function launch(id) {
+	if (state.ui.picker === id) {
+		closePicker();
+		return;
+	}
+
+	state.ui.picker = id;
+	state.focus = { role: "shell", id: id };
+	act({ action: "open-shell-picker", todoId: id });
+	render();
+}
+
+function closePicker() {
+	const id = state.ui.picker;
+	state.ui.picker = null;
+	state.focus = null;
+	act({ action: "close-shell-picker", todoId: id });
+	render();
+}
+
+function pick(id, shellId) {
+	const shell = SHELLS.find((entry) => entry.id === shellId);
+	find(id).shell = { id: shell.id, label: shell.label };
+	state.ui.picker = null;
+	state.focus = null;
+	act({ action: "paste", todoId: id, shellId: shell.id, shellLabel: shell.label });
+	render();
+}
+
+function expand(id) {
+	state.ui.expanded = state.ui.expanded === id ? null : id;
+	state.focus = state.ui.expanded ? { role: "note", id: id } : null;
+	act({ action: state.ui.expanded ? "open-note" : "close-note", todoId: id });
+	render();
+}
+
+function startEdit(id) {
+	state.ui.expanded = state.ui.expanded === id ? null : state.ui.expanded;
+	state.ui.editing = id;
+	state.focus = { role: "edit", id: id };
+	act({ action: "edit-start", todoId: id });
+	render();
+}
+
+function commitEdit(id, value) {
+	const trimmed = value.trim();
+	state.ui.editing = null;
+	state.focus = null;
+
+	if (!trimmed) {
+		state.todos = state.todos.filter((todo) => todo.id !== id);
+		act({ action: "edit-removed", todoId: id });
+		render();
+		return;
+	}
+
+	find(id).text = trimmed;
+	act({ action: "edit-commit", todoId: id, text: trimmed });
+	render();
+}
+
+function cancelEdit(id) {
+	state.ui.editing = null;
+	state.focus = null;
+	act({ action: "edit-cancel", todoId: id });
+	render();
+}
+
+function sweep() {
+	const swept = doneTodos().map((todo) => todo.id);
+	state.todos = openTodos();
+	state.focus = null;
+	act({ action: "clear-done", removed: swept.length, todoIds: swept });
+	render();
+}
+
+function fold() {
+	state.ui.doneCollapsed = !state.ui.doneCollapsed;
+	state.focus = null;
+	act({ action: state.ui.doneCollapsed ? "collapse-done" : "expand-done" });
+	render();
+}
+
+function textClicked(id) {
+	if (hasNotes() && hasEdit()) {
+		clearTimeout(clickTimer);
+		clickTimer = setTimeout(() => expand(id), 220);
+		return;
+	}
+
+	if (hasNotes()) {
+		expand(id);
+	}
+}
+
+const HANDLERS = {
+	toggle: (id) => toggle(id),
+	remove: (id) => remove(id),
+	launch: (id) => launch(id),
+	text: (id) => textClicked(id),
+	close: () => {
+		act({ action: "close-panel", note: "no-op in the prototype" });
+		syncState();
+	},
+	sweep: () => sweep(),
+	fold: () => fold(),
+};
+
+frame.addEventListener("click", (event) => {
+	const trigger = event.target.closest("[data-act]");
+
+	if (!trigger) {
+		return;
+	}
+
+	const action = trigger.dataset.act;
+
+	if (action === "pick") {
+		pick(trigger.dataset.id, trigger.dataset.shell);
+		return;
+	}
+
+	HANDLERS[action](trigger.dataset.id);
+});
+
+frame.addEventListener("dblclick", (event) => {
+	const trigger = event.target.closest('[data-act="text"]');
+
+	if (!trigger || !hasEdit()) {
+		return;
+	}
+
+	clearTimeout(clickTimer);
+	startEdit(trigger.dataset.id);
+});
+
+frame.addEventListener("input", (event) => {
+	const node = event.target;
+
+	if (node.dataset.role === "capture") {
+		state.draft = node.value;
+		syncState();
+		return;
+	}
+
+	if (node.dataset.role === "note") {
+		const todo = find(node.dataset.id);
+		todo.note = node.value ? node.value : undefined;
+		autosize(node);
+		act({ action: "write-note", todoId: todo.id, length: node.value.length });
+		syncState();
+	}
+});
+
+frame.addEventListener("keydown", (event) => {
+	const node = event.target;
+
+	if (node.dataset.role === "capture" && event.key === "Enter") {
+		capture(node.value);
+		return;
+	}
+
+	if (node.dataset.role === "edit") {
+		if (event.key === "Enter") {
+			event.preventDefault();
+			commitEdit(node.dataset.id, node.value);
+		}
+		if (event.key === "Escape") {
+			cancelEdit(node.dataset.id);
+		}
+		return;
+	}
+
+	if (node.dataset.role === "note" && event.key === "Escape") {
+		expand(node.dataset.id);
+	}
+});
+
+function renderBar() {
+	bar.innerHTML = VARIANTS.map((entry) => '<button data-variant="' + entry.key + '" data-active="' + (entry.key === state.variant) + '"><span class="key">' + entry.key.toUpperCase() + "</span><span>" + entry.name + "</span></button>").join("");
+}
+
+function select(key, push) {
+	state.variant = key;
+	state.ui = { picker: null, expanded: null, editing: null, doneCollapsed: false };
+	state.focus = null;
+	state.animate = true;
+	act({ action: "select-variant", variant: key });
+
+	if (push) {
+		history.pushState({ variant: key }, "", "?v=" + key);
+	}
+
+	renderBar();
+	render();
+}
+
+bar.addEventListener("click", (event) => {
+	const trigger = event.target.closest("[data-variant]");
+
+	if (trigger) {
+		select(trigger.dataset.variant, true);
+	}
+});
+
+window.addEventListener("popstate", () => {
+	select(fromUrl(), false);
+});
+
+window.addEventListener("keydown", (event) => {
+	const node = document.activeElement;
+	const role = node ? node.dataset.role : undefined;
+
+	if (event.key === "Escape" && state.ui.picker && role !== "edit" && role !== "note") {
+		closePicker();
+		return;
+	}
+
+	if (node && (node.tagName === "INPUT" || node.tagName === "TEXTAREA")) {
+		return;
+	}
+
+	const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+
+	if (!step) {
+		return;
+	}
+
+	const index = VARIANTS.findIndex((entry) => entry.key === state.variant);
+	select(VARIANTS[(index + step + VARIANTS.length) % VARIANTS.length].key, true);
+});
+
+function fromUrl() {
+	const key = new URLSearchParams(location.search).get("v");
+
+	return VARIANTS.some((entry) => entry.key === key) ? key : "a";
+}
+
+setInterval(() => {
+	frame.querySelectorAll("[data-since]").forEach((node) => {
+		node.textContent = elapsed(Number(node.dataset.since));
+	});
+	stamp.textContent = new Date().toLocaleTimeString();
+}, 1000);
+
+seed();
+state.variant = fromUrl();
+act({ action: "load", variant: state.variant });
+renderBar();
+render();
+</script>
+</body>
+</html>

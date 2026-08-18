@@ -7,6 +7,10 @@ function linksOf(text: string, worktree?: string) {
 	return TerminalFileLinks.prepare({ paths: PATHS, worktree }).find(text);
 }
 
+function linksIn(paths: string[], text: string) {
+	return TerminalFileLinks.prepare({ paths: new Set(paths) }).find(text);
+}
+
 test("a path with a line number becomes a link that carries the line", () => {
 	expect(linksOf("  at src/a.ts:12 in run")).toEqual([{ file: "src/a.ts", line: 12, start: 5, end: 16 }]);
 });
@@ -63,6 +67,44 @@ test("two words split by a plain space stay plain text", () => {
 
 test("a wrapped rejoin the worktree does not have stays plain text", () => {
 	expect(linksOf("read src/gho\n  st.ts:12 now")).toEqual([]);
+});
+
+test("a unique file name inside a sentence links to its full path", () => {
+	const text = "base (herdado do PR #1912, UserDetailsTriage.tsx) e o resto";
+
+	expect(linksIn(["apps/front/src/UserDetailsTriage.tsx"], text)).toEqual([
+		{
+			file: "apps/front/src/UserDetailsTriage.tsx",
+			start: text.indexOf("UserDetailsTriage.tsx"),
+			end: text.indexOf(")"),
+		},
+	]);
+});
+
+test("a file name with a line number carries the line to its full path", () => {
+	expect(linksIn(["apps/front/src/UserDetailsTriage.tsx"], "veja UserDetailsTriage.tsx:42 aqui")).toEqual([
+		{ file: "apps/front/src/UserDetailsTriage.tsx", line: 42, start: 5, end: 29 },
+	]);
+});
+
+test("a file name shared by two paths stays plain text", () => {
+	expect(linksIn(["apps/UserBox/index.ts", "apps/OtherBox/index.ts"], "veja index.ts aqui")).toEqual([]);
+});
+
+test("a longer suffix picks one of the paths that share a file name", () => {
+	expect(linksIn(["apps/UserBox/index.ts", "apps/OtherBox/index.ts"], "veja UserBox/index.ts aqui")).toEqual([
+		{ file: "apps/UserBox/index.ts", start: 5, end: 21 },
+	]);
+});
+
+test("a suffix that does not start at a folder boundary stays plain text", () => {
+	expect(linksIn(["apps/UserBox/index.ts"], "veja Box/index.ts aqui")).toEqual([]);
+});
+
+test("an exact path wins over the same text as a suffix of another path", () => {
+	expect(linksIn(["index.ts", "b/index.ts"], "veja index.ts aqui")).toEqual([
+		{ file: "index.ts", start: 5, end: 13 },
+	]);
 });
 
 test("impossible words stop at the longest external path before querying the catalog", () => {

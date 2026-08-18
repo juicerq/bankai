@@ -19,16 +19,30 @@ const TRAILING_WRAPPERS = /[)\]}'"`.,;!?]+$/;
 const WRAP_GAP = /^\n[ \t]*$/;
 const WRAP_GAPS = /\n[ \t]*/g;
 
+interface PathCatalog extends TerminalFileLinkOptions {
+	suffixes: ReadonlyMap<string, string | null>;
+}
+
 function prepare(options: TerminalFileLinkOptions) {
 	let longestPath = 0;
+	const suffixes = new Map<string, string | null>();
+
 	for (const path of options.paths) {
 		longestPath = Math.max(longestPath, path.length);
+
+		for (let slash = path.indexOf("/"); slash !== -1; slash = path.indexOf("/", slash + 1)) {
+			const suffix = path.slice(slash + 1);
+
+			suffixes.set(suffix, suffixes.has(suffix) ? null : path);
+		}
 	}
+
+	const catalog: PathCatalog = { ...options, suffixes };
 	const maxExternalLength = externalLength(longestPath, options.worktree);
 
 	return {
 		find(text: string) {
-			return find(text, options, maxExternalLength);
+			return find(text, catalog, maxExternalLength);
 		},
 	};
 }
@@ -39,7 +53,7 @@ function externalLength(pathLength: number, worktree?: string) {
 	return Math.max(pathLength, pathLength + 2, root ? root.length + 1 + pathLength : 0);
 }
 
-function find(text: string, options: TerminalFileLinkOptions, maxExternalLength: number): TerminalFileLink[] {
+function find(text: string, options: PathCatalog, maxExternalLength: number): TerminalFileLink[] {
 	const words = [...text.matchAll(/\S+/g)].map((match) => ({
 		start: match.index,
 		end: match.index + match[0].length,
@@ -64,7 +78,7 @@ function find(text: string, options: TerminalFileLinkOptions, maxExternalLength:
 
 function longestPathAt(
 	text: string,
-	options: TerminalFileLinkOptions,
+	options: PathCatalog,
 	maxExternalLength: number,
 	words: { start: number; end: number }[],
 	index: number,
@@ -125,10 +139,10 @@ function unwrap(text: string) {
 	return { text: body.slice(0, end), start, end: start + end };
 }
 
-function resolveTarget(text: string, options: TerminalFileLinkOptions): TerminalFileTarget | undefined {
-	const file = repoPath(text, options.worktree);
+function resolveTarget(text: string, options: PathCatalog): TerminalFileTarget | undefined {
+	const file = matchPath(text, options);
 
-	if (file && options.paths.has(file)) {
+	if (file) {
 		return { file };
 	}
 
@@ -138,14 +152,28 @@ function resolveTarget(text: string, options: TerminalFileLinkOptions): Terminal
 		return;
 	}
 
-	const stripped = repoPath(text.slice(0, suffix.index), options.worktree);
+	const stripped = matchPath(text.slice(0, suffix.index), options);
 	const line = Number(suffix[1]);
 
-	if (!stripped || !options.paths.has(stripped) || !Number.isSafeInteger(line) || line < 1) {
+	if (!stripped || !Number.isSafeInteger(line) || line < 1) {
 		return;
 	}
 
 	return { file: stripped, line };
+}
+
+function matchPath(text: string, options: PathCatalog) {
+	const path = repoPath(text, options.worktree);
+
+	if (!path) {
+		return;
+	}
+
+	if (options.paths.has(path)) {
+		return path;
+	}
+
+	return options.suffixes.get(path) ?? undefined;
 }
 
 function repoPath(text: string, worktree?: string) {

@@ -1,6 +1,6 @@
 import type { ContinuityValue } from "@shared/continuity";
 import type { AgentActivityState } from "@shared/activity";
-import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity";
+import { SESSION_AUTO_ARCHIVE_MS, shellTitle } from "@shared/continuity";
 
 export interface SessionRow {
 	shellId: string;
@@ -41,7 +41,7 @@ export function sessionRows(input: {
 				shellId: shell.id,
 				projectId: project.id,
 				projectName: project.name,
-				title: [shell.title, shell.branch].find((value) => !!value?.trim()) ?? shell.label,
+				title: shellTitle(shell),
 				branch: shell.branch,
 				harness: input.harnesses.get(shell.id) ?? shell.session?.harness,
 				createdAt: shell.createdAt,

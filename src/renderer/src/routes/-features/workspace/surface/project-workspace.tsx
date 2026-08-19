@@ -1,5 +1,5 @@
 import { memo, useCallback, useRef, useState } from "react";
-import type { ContinuityShell } from "@shared/continuity";
+import { type ContinuityShell, shellTitle } from "@shared/continuity";
 import type { Project } from "@shared/projects";
 import { ProjectWorkspaceHeader } from "@renderer/routes/-features/workspace/surface/project-workspace-header";
 import { ProjectWorkspaceShells } from "@renderer/routes/-features/workspace/surface/project-workspace-shells";
@@ -49,7 +49,8 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	const control = useWorkspaceControl();
 	// A workspace that does not own the selection still has to name a shell for
 	// the review to read, so it falls back to its first one.
-	const activeShellId = shells.some((shell) => shell.id === selectedShellId) ? selectedShellId : shells[0]?.id;
+	const activeShell = shells.find((shell) => shell.id === selectedShellId) ?? shells[0];
+	const activeShellId = activeShell?.id;
 	const geometry = useReviewGeometry({
 		initialDiffWidth: control.initialDiffWidth,
 		initialTreeWidth: control.initialTreeWidth,
@@ -171,7 +172,8 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 			aria-label={`${project.name} workspace`}
 		>
 			<ProjectWorkspaceHeader
-				project={project}
+				title={activeShell ? shellTitle(activeShell) : project.name}
+				projectName={project.name}
 				active={active}
 				fullscreen={fullscreen}
 				animating={fullscreenAnimating}

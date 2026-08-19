@@ -5,7 +5,6 @@ import { ProjectWorkspaceHeader } from "@renderer/routes/-features/workspace/sur
 import { WorkspaceProvider } from "@renderer/routes/-features/workspace/layout/workspace-context";
 import { act, cleanup, fireEvent, render } from "./testing-library";
 
-const project = { id: "p1", name: "p1", path: "/p1", createdAt: 0 };
 const detectors = new Set<(detected: ShellPortsDetected) => void>();
 
 window.bankaiShellPorts = {
@@ -51,7 +50,8 @@ function renderHeader(opened: { shellId: string; url: string }[]) {
 			topBand={{ revealed: false, onFocus: () => {}, onBlur: () => {} }}
 		>
 			<ProjectWorkspaceHeader
-				project={project}
+				title="s1"
+				projectName="p1"
 				active={false}
 				fullscreen={false}
 				animating={false}

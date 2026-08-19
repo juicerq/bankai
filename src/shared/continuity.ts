@@ -43,3 +43,7 @@ export interface BankaiContinuityApi {
 	subscribe: () => void;
 	onChanged: (listener: (event: ContinuityChangedEvent) => void) => () => void;
 }
+
+export function shellTitle(shell: Pick<ContinuityShell, "label" | "title" | "branch">): string {
+	return [shell.title, shell.branch].find((value) => !!value?.trim()) ?? shell.label;
+}

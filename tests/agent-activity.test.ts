@@ -8,7 +8,7 @@ import { Harnesses } from "@main/agents/harness/harnesses";
 import { ProcFs } from "@main/infra/proc-fs";
 import { type ParentOf } from "@main/agents/session/session-binder";
 import { SessionBinder } from "@main/agents/session/session-binder";
-import { SHELL_ID_ENV } from "@main/terminal/shell-agents";
+import { SHELL_ID_ENV, ShellAgents } from "@main/terminal/shell-agents";
 import { ShellCommandLine } from "@main/terminal/shell-command-line";
 import { environ, readerOf } from "./utils/proc-reader";
 import { aggregateActivity, type AgentActivityState } from "@shared/activity";
@@ -594,6 +594,10 @@ describe.if(process.platform === "linux")("binding against real processes", () =
 		});
 		try {
 			await orphan.stdout.getReader().read();
+			while ((await ShellAgents.shellOf(orphan.pid)) !== shellId) {
+				await Bun.sleep(5);
+			}
+
 			const bindings = await SessionBinder.bind({
 				shells: [{ sessionId: "pane", shellId, pid: 1 }],
 				agents: [orphan.pid],

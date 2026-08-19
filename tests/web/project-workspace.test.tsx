@@ -412,7 +412,7 @@ test("a URL from the active Shell opens Page and Review takes over the shared ba
 
 	fireEvent.click(reviewToggle);
 
-	await waitFor(() => expect(document.querySelector('[data-component="session-page-panel"]')).toBeNull());
+	await waitFor(() => expect(!!document.querySelector('[data-component="session-page-panel"]')).toBe(false));
 	expect(get("review-panel-frame").dataset.open).toBe("true");
 });
 
@@ -628,7 +628,7 @@ test("leaving Page by another route discards the blank instead of stranding it",
 
 	fireEvent.click(reviewToggle);
 
-	await waitFor(() => expect(document.querySelector('[data-component="session-page-panel"]')).toBeNull());
+	await waitFor(() => expect(!!document.querySelector('[data-component="session-page-panel"]')).toBe(false));
 	expect(registry.has("s1")).toBe(false);
 });
 
@@ -666,7 +666,7 @@ test("leaving Page by another route keeps a page that reached a URL", async () =
 
 	fireEvent.click(reviewToggle);
 
-	await waitFor(() => expect(document.querySelector('[data-component="session-page-panel"]')).toBeNull());
+	await waitFor(() => expect(!!document.querySelector('[data-component="session-page-panel"]')).toBe(false));
 	expect(registry.has("s1")).toBe(true);
 
 	const pageButton = document.querySelector<HTMLButtonElement>('[aria-label="Toggle session page"]');
@@ -748,7 +748,7 @@ test("opening the Todo list takes the bay from whatever held it", async () => {
 
 	fireEvent.click(reviewToggle);
 
-	await waitFor(() => expect(query("todo-panel")).toBeNull());
+	await waitFor(() => expect(!!query("todo-panel")).toBe(false));
 	expect(todosToggle.getAttribute("aria-pressed")).toBe("false");
 	expect(reviewToggle.getAttribute("aria-expanded")).toBe("true");
 
@@ -805,7 +805,7 @@ test("the Todo list captures a written Todo and keeps it in the open list", asyn
 
 	fireEvent.click(slot(get("todo-row"), "remove"));
 
-	await waitFor(() => expect(query("todo-row")).toBeNull());
+	await waitFor(() => expect(!!query("todo-row")).toBe(false));
 	expect(todos.todos).toEqual([]);
 });
 

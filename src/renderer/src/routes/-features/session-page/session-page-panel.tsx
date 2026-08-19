@@ -6,16 +6,32 @@ import {
 	ArrowsPointingInIcon,
 	ArrowsPointingOutIcon,
 	LockClosedIcon,
+	StarIcon,
 	XMarkIcon,
 } from "@heroicons/react/24/outline";
+import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { type ReactNode, useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { streamStatus } from "@renderer/lib/stream/status";
 import { ProjectRailReveal } from "@renderer/routes/-features/workspace/layout/project-rail-reveal";
 import { SessionPageAddress } from "@renderer/routes/-features/session-page/session-page-address";
 import { SessionPageAddressText } from "@renderer/routes/-features/session-page/session-page-address-text";
+import { SessionPageFavorites } from "@renderer/routes/-features/session-page/session-page-favorites";
 import type { SessionPageRegistryValue } from "@renderer/routes/-features/session-page/session-page-registry";
+import { useFavorites } from "@renderer/routes/-features/session-page/use-favorites";
+import { SessionPageUrl } from "@shared/session-page";
 
 const THAW_DELAY = 150;
+const TITLE_LIMIT = 60;
+
+function favoriteTitle(url: string, title: string | undefined) {
+	const named = title?.trim();
+
+	if (named) {
+		return named.slice(0, TITLE_LIMIT);
+	}
+
+	return (SessionPageAddressText.describe(url)?.host ?? url).slice(0, TITLE_LIMIT);
+}
 
 export function SessionPagePanel({
 	registry,
@@ -37,6 +53,7 @@ export function SessionPagePanel({
 	onRestoreTerminalFocus: () => void;
 }) {
 	useSyncExternalStore((listener) => registry.subscribe(listener), () => registry.getSnapshot());
+	const favorites = useFavorites();
 	const stream = useSyncExternalStore(streamStatus.subscribe, streamStatus.get);
 	const covered = useSyncExternalStore(ProjectRailReveal.subscribe, () => coverable && ProjectRailReveal.get());
 	const entry = registry.get(shellId);
@@ -161,9 +178,32 @@ export function SessionPagePanel({
 	const blank = !entry.url;
 	const address = registry.displayUrl(shellId);
 	const loading = !!state?.loading;
+	const current = SessionPageUrl.parse(state?.url ?? entry.url);
+	const saved = current ? favorites.favorites.find((favorite) => favorite.url === current) : undefined;
 
 	return (
-		<section data-component="session-page-panel" className="flex size-full min-w-0 flex-col bg-surface-raised">
+		<section
+			data-component="session-page-panel"
+			className="flex size-full min-w-0 flex-col bg-surface-raised"
+			onKeyDown={(event) => {
+				if (!blank || !event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) {
+					return;
+				}
+
+				if (!/^Digit[1-9]$/.test(event.code)) {
+					return;
+				}
+
+				const favorite = favorites.favorites[Number(event.code.slice(5)) - 1];
+
+				if (!favorite) {
+					return;
+				}
+
+				event.preventDefault();
+				registry.open(shellId, favorite.url);
+			}}
+		>
 			<span key={`present-${entry.navigation}-${shouldPresent}`} ref={registerPresentation} hidden />
 			<span key={`cover-${covered}`} ref={registerCover} hidden />
 			<div className="flex h-header shrink-0 items-center border-outline border-b bg-surface-raised">
@@ -186,6 +226,23 @@ export function SessionPagePanel({
 				>
 					<ArrowPathIcon data-loading={loading} className={`size-4 ${loading ? "pending-pulse" : ""}`} />
 				</SessionPageAction>
+				<SessionPageAction
+					label={saved ? "Remove page from favorites" : "Save page to favorites"}
+					slot="favorite"
+					disabled={blank}
+					onClick={() => {
+						if (saved) {
+							favorites.remove(saved.id);
+							return;
+						}
+
+						if (current) {
+							favorites.add({ title: favoriteTitle(current, state?.title), url: current });
+						}
+					}}
+				>
+					{saved ? <StarSolidIcon className="size-4 text-tertiary" /> : <StarIcon className="size-4" />}
+				</SessionPageAction>
 				<SessionPageAction label="Open page externally" disabled={blank} onClick={() => window.bankaiSessionPage?.openExternal()}>
 					<ArrowTopRightOnSquareIcon className="size-4" />
 				</SessionPageAction>
@@ -199,9 +256,9 @@ export function SessionPagePanel({
 			<div className="relative min-h-0 flex-1 bg-surface-sunken">
 				{blank
 					? (
-						<p data-slot="blank" className="absolute inset-0 flex items-center justify-center px-6 text-center text-support text-tertiary">
-							Type an address above to open a page here
-						</p>
+						<div data-slot="blank" className="absolute inset-0 flex items-center justify-center px-6">
+							<SessionPageFavorites store={favorites} onOpen={(url) => registry.open(shellId, url)} />
+						</div>
 					)
 					: <div data-slot="native" ref={registerNativeSlot} className="absolute inset-0" />}
 				{frozen && <img data-slot="frozen" src={frozen} alt="" className="absolute inset-0 size-full" />}

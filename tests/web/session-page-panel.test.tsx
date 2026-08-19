@@ -1,11 +1,24 @@
 import "./register-dom";
-import { afterEach, expect, test } from "bun:test";
+import { setFavoritesTransport } from "./orpc-transport";
+import { afterEach, beforeEach, expect, test } from "bun:test";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement, ReactNode } from "react";
 import type { BankaiSessionPageApi, SessionPageState } from "@shared/session-page";
 import { ProjectRailReveal } from "@renderer/routes/-features/workspace/layout/project-rail-reveal";
 import { SessionPagePanel } from "@renderer/routes/-features/session-page/session-page-panel";
 import { SessionPageRegistry } from "@renderer/routes/-features/session-page/session-page-registry";
 import { get, slot } from "./dom";
-import { act, cleanup, fireEvent, render, waitFor } from "./testing-library";
+import { act, cleanup, fireEvent, render as renderTree, waitFor } from "./testing-library";
+
+let queryClient = new QueryClient();
+
+function wrapper({ children }: { children: ReactNode }) {
+	return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+
+function render(element: ReactElement) {
+	return renderTree(element, { wrapper });
+}
 
 const observers: TestResizeObserver[] = [];
 
@@ -36,6 +49,11 @@ const pageState = (patch: Partial<SessionPageState> = {}): SessionPageState => (
 	loading: false,
 	failure: null,
 	...patch,
+});
+
+beforeEach(() => {
+	queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+	setFavoritesTransport({ favorites: [] });
 });
 
 afterEach(() => {

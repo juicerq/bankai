@@ -127,6 +127,7 @@ export interface BankaiSessionPageApi {
 }
 
 export const SessionPageSchemas = {
+	url: sessionPageUrl,
 	presentation,
 	present: presentation.or("null"),
 	shellId: type({ shellId }),

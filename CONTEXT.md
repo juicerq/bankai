@@ -96,6 +96,10 @@ _Avoid_: Diff view, git panel, changes
 The region that presents one reading at a time: the Review, a session page, or the Todo list. Reading the Review, it carries its header — the Scope selector, the Worktree selector, the totals, and the file actions — above the diff.
 _Avoid_: Sidebar, drawer
 
+**Favorite**:
+A site the user saved, listed on the session page's blank screen and opened with Ctrl plus its position number. Global to the app, not per Project.
+_Avoid_: Bookmark, link, shortcut, preset
+
 **Header menu**:
 The single shape every Review panel header control opens: a labelled trigger carrying an icon, and a list where each entry states what it is and, under it, what it reads against. Selection entries mark the current one; action entries just act.
 _Avoid_: Dropdown, popover, combobox, select

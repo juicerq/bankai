@@ -11,6 +11,7 @@ import { SERVER_RPC_PREFIX } from "@shared/server";
 import { DEFAULT_THEME, type ThemePreference } from "@shared/theme";
 import type { ServiceState, ServiceStatus } from "@shared/services";
 import { type Todo, todoDraftSchema } from "@shared/todos";
+import { type Favorite, favoriteDraftSchema } from "@shared/favorites";
 
 export type ReviewProcedure =
 	| "worktrees"
@@ -278,6 +279,26 @@ function requireWritableTodos() {
 	return currentTodos;
 }
 
+export interface FavoritesTransport {
+	favorites: Favorite[];
+	listFailure?: string;
+	saveFailure?: string;
+}
+
+let currentFavorites: FavoritesTransport = { favorites: [] };
+
+export function setFavoritesTransport(transport: FavoritesTransport) {
+	currentFavorites = transport;
+}
+
+function requireWritableFavorites() {
+	if (currentFavorites.saveFailure) {
+		throw new Error(currentFavorites.saveFailure);
+	}
+
+	return currentFavorites;
+}
+
 export interface ServicesTransport {
 	states: ServiceState[];
 	calls: { procedure: "start" | "stop"; commandId: string }[];
@@ -395,6 +416,41 @@ const router = {
 		remove: os.input(type({ id: "string" })).handler(({ input }) => {
 			const transport = requireWritableTodos();
 			transport.todos = transport.todos.filter((todo) => todo.id !== input.id);
+		}),
+	},
+	favorites: {
+		list: os.handler(() => {
+			if (currentFavorites.listFailure) {
+				throw new Error(currentFavorites.listFailure);
+			}
+
+			return currentFavorites.favorites;
+		}),
+		add: os.input(favoriteDraftSchema).handler(({ input }) => {
+			const transport = requireWritableFavorites();
+			const favorite: Favorite = { id: `f${transport.favorites.length + 1}`, title: input.title, url: input.url };
+			transport.favorites = [...transport.favorites, favorite];
+
+			return favorite;
+		}),
+		update: os.input(favoriteDraftSchema.pick("title").and({ id: "string" })).handler(({ input }) => {
+			const transport = requireWritableFavorites();
+			transport.favorites = transport.favorites.map((favorite) =>
+				favorite.id === input.id ? { ...favorite, title: input.title } : favorite
+			);
+
+			return transport.favorites.find((favorite) => favorite.id === input.id);
+		}),
+		remove: os.input(type({ id: "string" })).handler(({ input }) => {
+			const transport = requireWritableFavorites();
+			transport.favorites = transport.favorites.filter((favorite) => favorite.id !== input.id);
+		}),
+		reorder: os.input(type({ ids: "string[]" })).handler(({ input }) => {
+			const transport = requireWritableFavorites();
+			const ordered = input.ids.flatMap((id) => transport.favorites.filter((favorite) => favorite.id === id));
+			transport.favorites = [...ordered, ...transport.favorites.filter((favorite) => !input.ids.includes(favorite.id))];
+
+			return transport.favorites;
 		}),
 	},
 	services: {

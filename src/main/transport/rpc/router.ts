@@ -1,6 +1,7 @@
 import { clipboardRouter } from "@main/transport/rpc/clipboard-router";
 import { commandsRouter } from "@main/transport/rpc/commands-router";
 import { continuityRouter } from "@main/transport/rpc/continuity-router";
+import { favoritesRouter } from "@main/transport/rpc/favorites-router";
 import { loggerRouter } from "@main/transport/rpc/logger-router";
 import { mobileRouter } from "@main/transport/rpc/mobile-router";
 import { projectsRouter } from "@main/transport/rpc/projects-router";
@@ -14,6 +15,7 @@ export const router = {
 	clipboard: clipboardRouter,
 	commands: commandsRouter,
 	continuity: continuityRouter,
+	favorites: favoritesRouter,
 	logger: loggerRouter,
 	mobile: mobileRouter,
 	projects: projectsRouter,

@@ -1,5 +1,6 @@
 import { memo, useCallback, useRef, useState } from "react";
-import { type ContinuityShell, shellTitle } from "@shared/continuity";
+import type { ContinuityShell } from "@shared/continuity";
+import { shellTitle } from "@shared/continuity-values";
 import type { Project } from "@shared/projects";
 import { ProjectWorkspaceHeader } from "@renderer/routes/-features/workspace/surface/project-workspace-header";
 import { ProjectWorkspaceShells } from "@renderer/routes/-features/workspace/surface/project-workspace-shells";

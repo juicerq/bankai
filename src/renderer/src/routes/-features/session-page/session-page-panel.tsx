@@ -18,7 +18,7 @@ import { SessionPageAddressText } from "@renderer/routes/-features/session-page/
 import { SessionPageFavorites } from "@renderer/routes/-features/session-page/session-page-favorites";
 import type { SessionPageRegistryValue } from "@renderer/routes/-features/session-page/session-page-registry";
 import { useFavorites } from "@renderer/routes/-features/session-page/use-favorites";
-import { SessionPageUrl } from "@shared/session-page";
+import { SessionPageUrl } from "@shared/session-page-url";
 
 const THAW_DELAY = 150;
 const TITLE_LIMIT = 60;

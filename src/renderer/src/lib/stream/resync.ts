@@ -1,3 +1,4 @@
+import { orpc } from "@renderer/lib/api";
 import { queryClient } from "@renderer/lib/query-client";
 
 type ResyncStage = "watch" | "terminal";
@@ -21,7 +22,9 @@ class StreamResync {
 	async run(): Promise<void> {
 		await this.runStage("watch");
 
-		const refetched = queryClient.invalidateQueries();
+		const refetched = Promise.all(
+			unwatchedKeys().map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+		);
 
 		await this.runStage("terminal");
 		await refetched;
@@ -36,6 +39,18 @@ class StreamResync {
 			}
 		}));
 	}
+}
+
+function unwatchedKeys() {
+	return [
+		orpc.projects.key(),
+		orpc.settings.key(),
+		orpc.todos.key(),
+		orpc.favorites.key(),
+		orpc.commands.key(),
+		orpc.mobile.key(),
+		orpc.review.key(),
+	];
 }
 
 export const streamResync = new StreamResync();

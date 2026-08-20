@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createContext, type ReactNode, use, useMemo, useState } from "react";
+import { createContext, type ReactNode, use, useDeferredValue, useMemo, useState } from "react";
 import { orpc } from "@renderer/lib/api";
 import { usePickerNavigation } from "@renderer/routes/-features/shared/pickers/use-picker-navigation";
 import { pathEntries, searchPaths } from "@renderer/routes/-features/review/tree/path-search";
@@ -29,6 +29,7 @@ interface ReviewQuickOpenContextValue {
 	};
 	paths: {
 		filter: string;
+		searching: boolean;
 		matchCount: number;
 		choices: QuickOpenChoice[];
 		picker: ReturnType<typeof usePickerNavigation<QuickOpenChoice>>;
@@ -56,8 +57,10 @@ export function ReviewQuickOpenProvider({
 }) {
 	const [mode, setMode] = useState<"paths" | "content">("paths");
 	const [filter, setFilter] = useState("");
+	const deferredFilter = useDeferredValue(filter);
+	const searching = filter !== deferredFilter;
 	const entries = useMemo(() => pathEntries(options.paths), [options.paths]);
-	const matches = useMemo(() => searchPaths(entries, filter), [entries, filter]);
+	const matches = useMemo(() => searchPaths(entries, deferredFilter), [entries, deferredFilter]);
 	const visiblePaths: QuickOpenPath[] = matches.entries.map((entry) => ({
 		kind: "path",
 		key: `path:${entry.path}`,
@@ -127,9 +130,11 @@ export function ReviewQuickOpenProvider({
 		key: (choice) => choice.key,
 		fallback: (found) => found[1] ?? found[0],
 		onChoose: (highlighted) => {
-			if (highlighted) {
-				choose(highlighted);
+			if (searching || !highlighted) {
+				return;
 			}
+
+			choose(highlighted);
 		},
 		onClose: options.onClose,
 	});
@@ -144,6 +149,7 @@ export function ReviewQuickOpenProvider({
 				},
 				paths: {
 					filter,
+					searching,
 					matchCount: matches.total,
 					choices,
 					picker: choicePicker,

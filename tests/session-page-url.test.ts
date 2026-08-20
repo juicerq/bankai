@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { SessionPageUrl } from "@shared/session-page";
+import { SessionPageUrl } from "@shared/session-page-url";
 
 test("session page accepts secure web addresses and loopback development addresses", () => {
 	expect(SessionPageUrl.parse("https://example.com/docs?q=bankai#page")).toBe(

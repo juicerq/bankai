@@ -8,7 +8,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { type } from "arktype";
 import { waitFor } from "./testing-library";
 
-const snapshotInput = type({ projectId: "string", mode: "string" });
+const snapshotInput = type({ projectId: "string", worktree: "string", mode: "string" });
 
 let disposers: (() => void)[] = [];
 
@@ -67,14 +67,30 @@ test("launch prewarms a snapshot for every mounted project in the default mode",
 	}
 });
 
-test("a project mounted after launch gets prewarmed without refetching the others", async () => {
+test("prewarm reads the snapshot under the worktree the review panel opens by default", async () => {
+	const { transport, queryClient } = setup([project("a")]);
+
+	await waitFor(() => expect(transport.pendingCount("snapshot")).toBe(1));
+
+	expect(snapshotInput.assert(transport.callsFor("snapshot")[0]).worktree).toBe(project("a").path);
+	expect(
+		queryClient.getQueryCache().findAll({
+			queryKey: orpc.review.snapshot.key({
+				type: "query",
+				input: { projectId: "a", worktree: project("a").path },
+			}),
+		}),
+	).toHaveLength(1);
+});
+
+test("prewarm stops listening to the cache once the projects list resolves", async () => {
 	const { transport, queryClient } = setup([project("a")]);
 	await waitFor(() => expect(transport.pendingCount("snapshot")).toBe(1));
 
 	setListData(queryClient, [project("a"), project("b")]);
+	await waitFor(() => expect(transport.pendingCount("snapshot")).toBe(1));
 
-	await waitFor(() => expect(transport.pendingCount("snapshot")).toBe(2));
-	expect(prewarmedProjectIds(transport).sort()).toEqual(["a", "b"]);
+	expect(prewarmedProjectIds(transport)).toEqual(["a"]);
 });
 
 test("prewarm does not read any snapshot until the projects list resolves", async () => {

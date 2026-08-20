@@ -7,7 +7,7 @@ import { GitRun } from "@main/git/git-run";
 const BASELINE_READ_CONCURRENCY = 16;
 
 export type BaselineFile =
-	| { kind: "content"; content: Buffer }
+	| { kind: "content"; content: Buffer; size: number; mtimeMs: number }
 	| { kind: "oversized"; size: number; mtimeMs: number }
 	| { kind: "absent" };
 
@@ -79,7 +79,7 @@ async function captureFile(path: string): Promise<BaselineFile | undefined> {
 		return undefined;
 	}
 
-	return { kind: "content", content };
+	return { kind: "content", content, size: stats.size, mtimeMs: stats.mtimeMs };
 }
 
 export const TurnBaseline = {

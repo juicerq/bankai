@@ -26,9 +26,10 @@ export function ReviewTreeVirtualRows<T>({
 		initialOffset,
 		overscan: TREE_ROW_OVERSCAN,
 	});
-	const highlightedIndex = rows.findIndex(
-		(row) => row.node.kind === "file" && row.node.path === highlightedPath,
-	);
+	const highlightedIndex =
+		highlightedPath === undefined
+			? -1
+			: rows.findIndex((row) => row.node.kind === "file" && row.node.path === highlightedPath);
 	const revealHighlightedRow = useCallback((node: HTMLDivElement | null) => {
 		if (!node) {
 			return;

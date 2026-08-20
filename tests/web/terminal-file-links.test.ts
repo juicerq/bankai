@@ -1,14 +1,14 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { TerminalFileLinks } from "@renderer/routes/-features/terminal/terminal-file-links";
 
-const PATHS = new Set(["src/a.ts", "README.md", "src/my file.ts", "src/we:ird.ts"]);
+const PATHS = ["src/a.ts", "README.md", "src/my file.ts", "src/we:ird.ts"];
 
 function linksOf(text: string, worktree?: string) {
-	return TerminalFileLinks.prepare({ paths: PATHS, worktree }).find(text);
+	return TerminalFileLinks.prepare({ paths: [...PATHS], worktree }).find(text);
 }
 
 function linksIn(paths: string[], text: string) {
-	return TerminalFileLinks.prepare({ paths: new Set(paths) }).find(text);
+	return TerminalFileLinks.prepare({ paths }).find(text);
 }
 
 test("a path with a line number becomes a link that carries the line", () => {
@@ -108,20 +108,14 @@ test("an exact path wins over the same text as a suffix of another path", () => 
 });
 
 test("impossible words stop at the longest external path before querying the catalog", () => {
-	class CountingPaths extends Set<string> {
-		queries = 0;
-
-		override has(path: string) {
-			this.queries += 1;
-
-			return super.has(path);
-		}
-	}
-
-	const paths = new CountingPaths(["src/a.ts"]);
-	const detector = TerminalFileLinks.prepare({ paths });
+	const detector = TerminalFileLinks.prepare({ paths: ["src/a.ts"] });
 	const text = Array.from({ length: 1_200 }, () => "absent-x").join(" ");
+	const queries = spyOn(Set.prototype, "has");
 
-	expect(detector.find(text)).toEqual([]);
-	expect(paths.queries).toBe(1_200);
+	try {
+		expect(detector.find(text)).toEqual([]);
+		expect(queries.mock.calls.length).toBe(1_200);
+	} finally {
+		queries.mockRestore();
+	}
 });

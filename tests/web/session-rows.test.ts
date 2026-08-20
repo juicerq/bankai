@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ContinuityValue } from "@shared/continuity";
 import type { AgentActivityState } from "@shared/activity";
-import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity";
+import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity-values";
 import { partitionSessions, type SessionRow, sessionRows } from "@renderer/routes/-features/sessions/list/session-rows";
 
 const PROJECTS = [

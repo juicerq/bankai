@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { partitionSessions, type SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 import { searchSessions } from "@renderer/routes/-features/sessions/list/session-search";
 
@@ -17,20 +17,27 @@ export function useSessionList({
 	const [term, setTerm] = useState("");
 	const toggleArchived = useCallback(() => setArchivedOpen((open) => !open), []);
 
-	const sections = partitionSessions(rows, now);
-	const listed = (row: SessionRow) => includesProject(row.projectId);
-	const open = searchSessions(sections.open.filter(listed), term);
-	const archived = searchSessions(sections.archived.filter(listed), term);
+	const listing = useMemo(() => {
+		const sections = partitionSessions(rows, now);
+		const listed = (row: SessionRow) => includesProject(row.projectId);
+
+		return {
+			open: searchSessions(sections.open.filter(listed), term),
+			archived: searchSessions(sections.archived.filter(listed), term),
+			openProjectIds: new Set(sections.open.map((row) => row.projectId)),
+			waiting: sections.open.find((row) => row.activity === "needs-attention"),
+		};
+	}, [includesProject, now, rows, term]);
 	const searching = term.trim().length > 0;
 	const shelfOpen = archivedOpen || searching;
-	const numbered = [...open, ...(shelfOpen ? archived : [])].slice(0, NUMBERED_SESSION_LIMIT);
+	const numbered = useMemo(
+		() => [...listing.open, ...(shelfOpen ? listing.archived : [])].slice(0, NUMBERED_SESSION_LIMIT),
+		[listing.archived, listing.open, shelfOpen],
+	);
 
 	return {
-		open,
-		archived,
+		...listing,
 		numbered,
-		openProjectIds: new Set(sections.open.map((row) => row.projectId)),
-		waiting: sections.open.find((row) => row.activity === "needs-attention"),
 		archivedOpen: shelfOpen,
 		toggleArchived,
 		term,

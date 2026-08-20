@@ -6,7 +6,7 @@ import {
 	PlusIcon,
 	TrashIcon,
 } from "@heroicons/react/24/outline";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useState } from "react";
 import type { Project } from "@shared/projects";
 import type { ProjectMarks } from "@renderer/routes/-features/projects/use-project-narrowing";
 import { BankaiWordmark } from "@renderer/routes/-features/app/chrome/bankai-wordmark";
@@ -63,27 +63,30 @@ export function SessionSidebar({
 	const [menu, setMenu] = useState<SessionMenu>();
 	const [renamingShellId, setRenamingShellId] = useState<string>();
 
-	const togglePin = (row: SessionRow) => {
+	const togglePin = useCallback((row: SessionRow) => {
 		if (row.pinnedAt === undefined) {
 			onPin(row.projectId, row.shellId);
 			return;
 		}
 
 		onUnpin(row.projectId, row.shellId);
-	};
+	}, [onPin, onUnpin]);
 
-	const gestures: SessionGestures = {
-		selectedShellId,
-		renamingShellId,
-		onSelect,
-		onClose,
-		onArchive,
-		onUnarchive,
-		onTogglePin: togglePin,
-		onRename,
-		onRenameDone: () => setRenamingShellId(undefined),
-		onOpenMenu: (target, event) => setMenu({ ...target, x: event.clientX, y: event.clientY }),
-	};
+	const gestures: SessionGestures = useMemo(
+		() => ({
+			selectedShellId,
+			renamingShellId,
+			onSelect,
+			onClose,
+			onArchive,
+			onUnarchive,
+			onTogglePin: togglePin,
+			onRename,
+			onRenameDone: () => setRenamingShellId(undefined),
+			onOpenMenu: (target, event) => setMenu({ ...target, x: event.clientX, y: event.clientY }),
+		}),
+		[onArchive, onClose, onRename, onSelect, onUnarchive, renamingShellId, selectedShellId, togglePin],
+	);
 
 	const empty = list.open.length === 0 && list.archived.length === 0;
 

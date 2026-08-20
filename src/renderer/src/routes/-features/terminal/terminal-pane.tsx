@@ -53,7 +53,7 @@ export function TerminalPane({
 			return;
 		}
 
-		return TerminalFileLinks.prepare({ paths: new Set(browsePaths), worktree });
+		return TerminalFileLinks.prepare({ paths: browsePaths, worktree });
 	}, [browsePaths, worktree]);
 	const { registerContainer, registerActivation, registerFocusRequest, registerResizeDeferral, retryResume } =
 		useTerminalSession({

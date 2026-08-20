@@ -98,10 +98,6 @@ function exactReviewKeys(projectId: string, worktree: string): { name: string; k
 			name: "browseFile",
 			key: orpc.review.browseFile.key({ type: "query", input: { projectId, worktree, path: "a" } }),
 		},
-		{
-			name: "searchContent",
-			key: orpc.review.searchContent.key({ type: "query", input: { projectId, worktree, query: "term" } }),
-		},
 	];
 }
 
@@ -291,6 +287,30 @@ test("a worktree change cancels and invalidates only its exact cached review rea
 		expect(view.queryClient.getQueryData<string>(entry.key)).toBe(`unchanged-${entry.name}`);
 	}
 	expect(unchangedAborts.size).toBe(0);
+
+	await view.queryClient.cancelQueries();
+});
+
+test("a worktree change leaves a running content search alone", async () => {
+	const view = renderReviewReading(base({ worktree: "/p1-a" }));
+	await reachReady(view);
+
+	const search = {
+		name: "searchContent",
+		key: orpc.review.searchContent.key({
+			type: "query",
+			input: { projectId: "p1", worktree: "/p1-a", query: "term" },
+		}),
+	};
+	const aborted = startCachedReads(view, [search], "changed");
+
+	await waitFor(() => expect(view.queryClient.getQueryState(search.key)?.fetchStatus).toBe("fetching"));
+
+	view.ipc.emitChange("p1", "/p1-a");
+	await wait(20);
+
+	expect(aborted.size).toBe(0);
+	expect(view.queryClient.getQueryState(search.key)?.isInvalidated).toBe(false);
 
 	await view.queryClient.cancelQueries();
 });

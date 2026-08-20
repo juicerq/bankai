@@ -160,14 +160,27 @@ function collapseChain<T>(node: FileTreeDirectory<T>): FileTreeDirectory<T> {
 	return { ...node, children: arrange(node.children) };
 }
 
+let parsedQueryCache: { query: string; parsed: FileTreeQuery } | undefined;
+
 function parseQuery(query: string): FileTreeQuery {
+	if (parsedQueryCache?.query === query) {
+		return parsedQueryCache.parsed;
+	}
+
 	const normalized = query.trim().toLowerCase();
 	const values = normalized.split("/").filter((part) => part.length > 0);
+	const parsed: FileTreeQuery = {
+		parts: values.map((value) => {
+			const ascii = isAscii(value);
 
-	return {
-		parts: values.map((value) => ({ value, ascii: isAscii(value), characters: graphemes(value) })),
+			return { value, ascii, characters: graphemes(value, ascii) };
+		}),
 		directoryOnly: normalized.endsWith("/"),
 	};
+
+	parsedQueryCache = { query, parsed };
+
+	return parsed;
 }
 
 function appendFileTreeRows<T>(
@@ -348,6 +361,10 @@ function isAscii(value: string) {
 	return true;
 }
 
-function graphemes(value: string) {
+function graphemes(value: string, ascii = isAscii(value)) {
+	if (ascii) {
+		return value.split("");
+	}
+
 	return Array.from(graphemeSegmenter.segment(value), ({ segment }) => segment);
 }

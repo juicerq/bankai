@@ -36,6 +36,7 @@ import { useLayoutPreferences } from "@renderer/routes/-features/workspace/layou
 import { useReviewPanelState, type WorkspaceBayMode } from "@renderer/routes/-features/review/panel/use-review-panel-state";
 import { useProjectNarrowing } from "@renderer/routes/-features/projects/use-project-narrowing";
 import { useSessionList } from "@renderer/routes/-features/sessions/list/use-session-list";
+import { SECOND_MS, useClock } from "@renderer/routes/-features/shared/time/use-clock";
 import { useShellFocus } from "@renderer/routes/-features/sessions/lifecycle/use-shell-focus";
 import { useProjectCommands } from "@renderer/routes/-features/commands/use-project-commands";
 import { useServiceLog } from "@renderer/routes/-features/services/use-service-log";
@@ -214,7 +215,7 @@ function Bankai() {
 	);
 	const rows = useSessionRows({ continuity: sessions.continuity, projects: availableProjects, activity });
 	const narrowing = useProjectNarrowing();
-	const list = useSessionList({ rows, now: Date.now(), includesProject: narrowing.includesProject });
+	const list = useSessionList({ rows, now: useClock(60 * SECOND_MS), includesProject: narrowing.includesProject });
 	const [pickerOpen, setPickerOpen] = useState(false);
 	const openPicker = useCallback(() => {
 		setPickerOpen(true);

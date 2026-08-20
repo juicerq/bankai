@@ -7,6 +7,8 @@ import { reviewStream } from "@renderer/lib/stream/review";
 
 const PENDING = { status: "pending" } as const;
 
+const sameResults = <T,>(results: T) => results;
+
 type ReviewWatchState =
 	| typeof PENDING
 	| { status: "ready" }
@@ -91,6 +93,7 @@ export function useReviewReading({
 				enabled: prepare,
 			}),
 		),
+		combine: sameResults,
 	});
 
 	const initialContent = initialContentQuery.data;
@@ -195,13 +198,14 @@ function useLayoutGeneration(
 	files: FileChange[],
 	isFileOpen: (path: string) => boolean,
 ) {
-	const ref = useRef<{ key: string; generation: number; initialPaths: string[] }>(null);
-	const key = `${scope.projectId}\u0000${scope.worktree}\u0000${scope.mode}\u0000${scope.shellId ?? ""}\u0000${files.map((file) => file.path).join("\n")}`;
+	const ref = useRef<{ key: string; paths: string[]; generation: number; initialPaths: string[] }>(null);
+	const key = `${scope.projectId}\u0000${scope.worktree}\u0000${scope.mode}\u0000${scope.shellId ?? ""}`;
 	const previous = ref.current;
 
-	if (!previous || previous.key !== key) {
+	if (!previous || previous.key !== key || !samePaths(previous.paths, files)) {
 		const next = {
 			key,
+			paths: files.map((file) => file.path),
 			generation: (previous?.generation ?? 0) + 1,
 			initialPaths: files.filter((file) => isFileOpen(file.path)).map((file) => file.path),
 		};
@@ -210,6 +214,20 @@ function useLayoutGeneration(
 	}
 
 	return previous;
+}
+
+function samePaths(paths: string[], files: FileChange[]) {
+	if (paths.length !== files.length) {
+		return false;
+	}
+
+	for (const [index, file] of files.entries()) {
+		if (paths[index] !== file.path) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 function useReviewWatch(projectId: string, worktree: string) {
@@ -302,7 +320,6 @@ class ReviewQueryObserver {
 			{ queryKey: orpc.review.fullFile.key({ type: "query", input: worktreeInput }) },
 			{ queryKey: orpc.review.browseFiles.key({ type: "query", input: worktreeInput }) },
 			{ queryKey: orpc.review.browseFile.key({ type: "query", input: worktreeInput }) },
-			{ queryKey: orpc.review.searchContent.key({ type: "query", input: worktreeInput }) },
 		];
 
 		await Promise.all(filters.map((filter) => this.queryClient.cancelQueries(filter)));

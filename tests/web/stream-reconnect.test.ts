@@ -1,12 +1,14 @@
 import "./register-dom";
 import { streamTransport } from "./stream-transport";
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
+import { orpc } from "@renderer/lib/api";
 import { queryClient } from "@renderer/lib/query-client";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { reconnectDelay, StreamSocket } from "@renderer/lib/stream/socket";
 import { streamStatus } from "@renderer/lib/stream/status";
 
-const PROBE_KEY = ["stream-reconnect-probe"];
+const UNWATCHED_KEY = orpc.projects.list.queryOptions().queryKey;
+const WATCHED_KEY = orpc.services.output.queryOptions({ input: { commandId: "svc" } }).queryKey;
 
 const releaseTransport = streamTransport.borrow();
 const realFetch = globalThis.fetch;
@@ -109,7 +111,7 @@ test("a reconnect re-subscribes every watch, then invalidates, then reattaches t
 			order.push("invalidate");
 		}
 	});
-	queryClient.setQueryData(PROBE_KEY, "seeded");
+	queryClient.setQueryData(UNWATCHED_KEY, []);
 	await connected();
 
 	expect(order).toEqual([]);
@@ -121,6 +123,25 @@ test("a reconnect re-subscribes every watch, then invalidates, then reattaches t
 
 	stopWatch();
 	stopTerminal();
+	stopCache();
+});
+
+test("a reconnect leaves the reads the watch stage pushes back untouched", async () => {
+	const invalidated: unknown[] = [];
+	const stopCache = queryClient.getQueryCache().subscribe((event) => {
+		if (event.type === "updated" && event.action.type === "invalidate") {
+			invalidated.push(event.query.queryKey);
+		}
+	});
+	queryClient.setQueryData(WATCHED_KEY, "seeded");
+	queryClient.setQueryData(UNWATCHED_KEY, []);
+	await connected();
+
+	streamTransport.disconnect();
+	await backoff();
+
+	expect(invalidated).toEqual([UNWATCHED_KEY]);
+
 	stopCache();
 });
 

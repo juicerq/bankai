@@ -20,11 +20,14 @@ const aliasWeb = {
 	"@shared": resolve(import.meta.dirname, "./src/shared"),
 };
 
+// eslint-disable-next-line import/no-default-export
 export default defineConfig({
 	main: {
 		plugins: [externalizeDepsPlugin()],
 		resolve: { alias: aliasNode },
 		build: {
+			minify: "esbuild",
+			sourcemap: true,
 			rollupOptions: {
 				input: {
 					index: resolve(import.meta.dirname, "./src/main/index.ts"),
@@ -52,6 +55,7 @@ export default defineConfig({
 			tailwindcss(),
 		],
 		resolve: { alias: aliasWeb },
+		build: { minify: "esbuild" },
 		worker: { format: "es" },
 		server: {
 			host: "127.0.0.1",

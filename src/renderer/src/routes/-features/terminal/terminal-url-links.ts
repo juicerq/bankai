@@ -1,4 +1,4 @@
-import { SessionPageUrl } from "@shared/session-page";
+import { SessionPageUrl } from "@shared/session-page-url";
 
 interface TerminalUrlLink {
 	url: string;

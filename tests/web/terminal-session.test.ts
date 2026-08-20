@@ -185,7 +185,7 @@ async function startSession(options?: {
 }
 
 function fileLinkContext(options: {
-	paths: ReadonlySet<string>;
+	paths: readonly string[];
 	worktree?: string;
 	onOpen: (target: TerminalFileTarget) => void;
 }) {
@@ -372,7 +372,7 @@ test("a path printed in the shell opens the current file target and unregisters 
 	let firstOpened: TerminalFileTarget | undefined;
 	let currentOpened: TerminalFileTarget | undefined;
 	let context = fileLinkContext({
-		paths: new Set(["src/a.ts"]),
+		paths: ["src/a.ts"],
 		onOpen: (target: TerminalFileTarget) => {
 			firstOpened = target;
 		},
@@ -380,7 +380,7 @@ test("a path printed in the shell opens the current file target and unregisters 
 	const session = await startSession({ fileLinks: () => context });
 	lastTerminal().lines = ["  at src/a.ts:12"];
 	context = fileLinkContext({
-		paths: new Set(["src/a.ts"]),
+		paths: ["src/a.ts"],
 		onOpen: (target) => {
 			currentOpened = target;
 		},
@@ -406,7 +406,7 @@ test("a path wrapped across terminal rows remains one link from either row", asy
 	const opened: TerminalFileTarget[] = [];
 	const session = await startSession({
 		fileLinks: () => fileLinkContext({
-			paths: new Set(["src/my file.ts"]),
+			paths: ["src/my file.ts"],
 			onOpen: (target) => opened.push(target),
 		}),
 	});
@@ -436,7 +436,7 @@ test("a path a TUI broke with a real newline remains one link from either row", 
 	const opened: TerminalFileTarget[] = [];
 	const session = await startSession({
 		fileLinks: () => fileLinkContext({
-			paths: new Set(["src/my file.ts"]),
+			paths: ["src/my file.ts"],
 			onOpen: (target) => opened.push(target),
 		}),
 	});
@@ -463,7 +463,7 @@ test("a path a TUI broke with a real newline remains one link from either row", 
 
 test("a link on a neighbouring row is not offered for the queried row", async () => {
 	const session = await startSession({
-		fileLinks: () => fileLinkContext({ paths: new Set(["src/a.ts"]), onOpen: () => {} }),
+		fileLinks: () => fileLinkContext({ paths: ["src/a.ts"], onOpen: () => {} }),
 	});
 	const terminal = lastTerminal();
 	terminal.cols = 12;
@@ -495,7 +495,7 @@ test("a shell gains file links when its current worktree paths arrive after the 
 
 	view.rerender({
 		fileLinks: fileLinkContext({
-			paths: new Set(["src/a.ts"]),
+			paths: ["src/a.ts"],
 			onOpen: (target) => {
 				firstOpened = target;
 			},
@@ -505,7 +505,7 @@ test("a shell gains file links when its current worktree paths arrive after the 
 	const links = provideLinks(1) ?? [];
 	view.rerender({
 		fileLinks: fileLinkContext({
-			paths: new Set(["src/a.ts"]),
+			paths: ["src/a.ts"],
 			onOpen: (target) => {
 				currentOpened = target;
 			},
@@ -523,7 +523,7 @@ test("a shell gains file links when its current worktree paths arrive after the 
 
 test("a path missing from the current worktree stays plain text", async () => {
 	const session = await startSession({
-		fileLinks: () => fileLinkContext({ paths: new Set(["src/a.ts"]), onOpen: () => {} }),
+		fileLinks: () => fileLinkContext({ paths: ["src/a.ts"], onOpen: () => {} }),
 	});
 	lastTerminal().lines = ["  at src/ghost.ts:12"];
 
@@ -583,7 +583,7 @@ test("a named page link opens in Page and rejects an unsupported target", async 
 
 test("file and page targets on one line are offered in text order", async () => {
 	const session = await startSession({
-		fileLinks: () => fileLinkContext({ paths: new Set(["src/a.ts"]), onOpen: () => {} }),
+		fileLinks: () => fileLinkContext({ paths: ["src/a.ts"], onOpen: () => {} }),
 		urlLinks: () => () => {},
 	});
 	lastTerminal().lines = ["src/a.ts:12 then https://example.com/docs"];

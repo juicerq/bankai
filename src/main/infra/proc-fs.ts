@@ -31,7 +31,17 @@ async function procStart(pid: number): Promise<string | null> {
 	return stat?.start ?? null;
 }
 
+const COMM_CACHE_TTL_MS = 30_000;
+
+const commCache = { byPid: new Map<number, string>(), filledAt: 0 };
+
 async function named(comm: string): Promise<number[]> {
+	const now = Date.now();
+	if (now - commCache.filledAt >= COMM_CACHE_TTL_MS) {
+		commCache.byPid.clear();
+		commCache.filledAt = now;
+	}
+
 	const entries = await readdir("/proc").catch((): string[] => []);
 	const pids = entries.flatMap((entry) => {
 		const pid = Number(entry);
@@ -41,18 +51,30 @@ async function named(comm: string): Promise<number[]> {
 
 		return [pid];
 	});
-	const matched = await Promise.all(
-		pids.map(async (pid) => {
-			const raw = await readFile(`/proc/${pid}/comm`, "utf8").catch(() => null);
-			if (raw?.trim() !== comm) {
-				return null;
-			}
+	const live = new Set(pids);
 
-			return pid;
+	for (const pid of commCache.byPid.keys()) {
+		if (!live.has(pid)) {
+			commCache.byPid.delete(pid);
+		}
+	}
+
+	const unread = pids.filter((pid) => !commCache.byPid.has(pid));
+	const read = await Promise.all(
+		unread.map(async (pid) => {
+			const raw = await readFile(`/proc/${pid}/comm`, "utf8").catch(() => null);
+
+			return { pid, comm: raw?.trim() };
 		}),
 	);
 
-	return matched.flatMap((pid) => pid ?? []);
+	for (const entry of read) {
+		if (entry.comm !== undefined) {
+			commCache.byPid.set(entry.pid, entry.comm);
+		}
+	}
+
+	return pids.filter((pid) => commCache.byPid.get(pid) === comm);
 }
 
 async function commandLine(pid: number): Promise<string[] | null> {

@@ -9,7 +9,7 @@ interface TerminalFileLink extends TerminalFileTarget {
 }
 
 interface TerminalFileLinkOptions {
-	paths: ReadonlySet<string>;
+	paths: readonly string[];
 	worktree?: string;
 }
 
@@ -19,11 +19,28 @@ const TRAILING_WRAPPERS = /[)\]}'"`.,;!?]+$/;
 const WRAP_GAP = /^\n[ \t]*$/;
 const WRAP_GAPS = /\n[ \t]*/g;
 
-interface PathCatalog extends TerminalFileLinkOptions {
+interface PathCatalog {
+	paths: ReadonlySet<string>;
+	worktree?: string;
 	suffixes: ReadonlyMap<string, string | null>;
 }
 
-function prepare(options: TerminalFileLinkOptions) {
+const detectors = new WeakMap<readonly string[], TerminalFileLinkDetector>();
+
+function prepare(options: TerminalFileLinkOptions): TerminalFileLinkDetector {
+	const shared = detectors.get(options.paths);
+
+	if (shared) {
+		return shared;
+	}
+
+	const detector = build(options);
+	detectors.set(options.paths, detector);
+
+	return detector;
+}
+
+function build(options: TerminalFileLinkOptions) {
 	let longestPath = 0;
 	const suffixes = new Map<string, string | null>();
 
@@ -37,7 +54,7 @@ function prepare(options: TerminalFileLinkOptions) {
 		}
 	}
 
-	const catalog: PathCatalog = { ...options, suffixes };
+	const catalog: PathCatalog = { ...options, paths: new Set(options.paths), suffixes };
 	const maxExternalLength = externalLength(longestPath, options.worktree);
 
 	return {
@@ -196,6 +213,6 @@ function repoPath(text: string, worktree?: string) {
 	return normalized;
 }
 
-export type TerminalFileLinkDetector = ReturnType<typeof prepare>;
+export type TerminalFileLinkDetector = ReturnType<typeof build>;
 
 export const TerminalFileLinks = { prepare };

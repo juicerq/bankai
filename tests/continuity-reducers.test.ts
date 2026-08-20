@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { ContinuityShell, ContinuityValue } from "@shared/continuity";
-import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity";
+import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity-values";
 import { ContinuityReducers, nextShellNumber, type ShellName } from "@shared/continuity-reducers";
 
 const NOW = 1_700_000_000_000;

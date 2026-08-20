@@ -10,7 +10,7 @@ import { type ReactNode, useCallback, useMemo, useState } from "react";
 import type { Project } from "@shared/projects";
 import type { ProjectMarks } from "@renderer/routes/-features/projects/use-project-narrowing";
 import { BankaiWordmark } from "@renderer/routes/-features/app/chrome/bankai-wordmark";
-import { ProjectNarrowing } from "@renderer/routes/-features/projects/project-narrowing";
+import { ProjectFilter } from "@renderer/routes/-features/projects/project-filter";
 import {
 	SessionCard,
 	type SessionGestures,
@@ -19,6 +19,7 @@ import {
 import { type SessionMenu, SessionRowMenu } from "@renderer/routes/-features/sessions/list/session-row-menu";
 import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 import { SessionSearchField } from "@renderer/routes/-features/sessions/list/session-search-field";
+import { SidebarIconButton } from "@renderer/routes/-features/sessions/list/sidebar-icon-button";
 import type { useSessionList } from "@renderer/routes/-features/sessions/list/use-session-list";
 
 export function SessionSidebar({
@@ -96,41 +97,33 @@ export function SessionSidebar({
 			className="flex min-h-0 w-full shrink-0 flex-col border-r border-outline bg-surface-raised"
 		>
 			<BankaiWordmark />
-			<div className="flex shrink-0 items-center justify-between border-b border-outline px-3 py-2 text-label text-secondary">
-				<span className="flex items-center gap-2">
-					SESSIONS <span className="text-outline-strong">{list.open.length}</span>
-				</span>
-				<span className="flex items-center gap-2">
-					<button
-						type="button"
-						data-slot="add-project"
-						className="text-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-						onClick={onAddProject}
-						aria-label="Add project"
-						title="Add project"
-					>
-						<FolderOpenIcon className="size-4" aria-hidden="true" />
-					</button>
-					<button
-						type="button"
-						data-slot="new-session"
-						className="text-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:text-outline-strong"
-						disabled={!canCreateShell}
-						onClick={(event) => onRequestShell(event.altKey)}
-						aria-label="New shell"
-						title="New shell (Ctrl+X T) — hold Alt for a shell with no harness"
-					>
-						<PlusIcon className="size-4" aria-hidden="true" />
-					</button>
-				</span>
-			</div>
-			<SessionSearchField term={list.term} onSearch={list.onSearch} />
-			<ProjectNarrowing
-				projects={projects}
-				openProjectIds={list.openProjectIds}
-				marks={projectMarks}
-				onToggle={onToggleProject}
-				onExclude={onExcludeProject}
+			<SessionSearchField
+				term={list.term}
+				count={list.open.length}
+				onSearch={list.onSearch}
+				actions={
+					<>
+						<ProjectFilter
+							projects={projects}
+							openProjectIds={list.openProjectIds}
+							marks={projectMarks}
+							onToggle={onToggleProject}
+							onExclude={onExcludeProject}
+						/>
+						<SidebarIconButton slot="add-project" label="Add project" onClick={onAddProject}>
+							<FolderOpenIcon className="size-4" aria-hidden="true" />
+						</SidebarIconButton>
+						<SidebarIconButton
+							slot="new-session"
+							label="New shell"
+							title="New shell (Ctrl+X T) — hold Alt for a shell with no harness"
+							disabled={!canCreateShell}
+							onClick={(event) => onRequestShell(event.altKey)}
+						>
+							<PlusIcon className="size-4" aria-hidden="true" />
+						</SidebarIconButton>
+					</>
+				}
 			/>
 			<div className="min-h-0 flex-1 overflow-auto" aria-label="Sessions">
 				{empty && list.searching && (

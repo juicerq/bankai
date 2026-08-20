@@ -1,18 +1,23 @@
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import type { ReactNode } from "react";
 
 export function SessionSearchField({
 	term,
+	count,
 	onSearch,
+	actions,
 }: {
 	term: string;
+	count: number;
 	onSearch: (term: string) => void;
+	actions: ReactNode;
 }) {
 	return (
 		<div
 			data-component="session-search"
-			className="flex h-8 shrink-0 items-center border-b border-outline px-3"
+			className="flex h-8 shrink-0 items-center border-b border-outline"
 		>
-			<MagnifyingGlassIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
+			<MagnifyingGlassIcon className="ml-3 size-3.5 shrink-0 text-secondary" aria-hidden="true" />
 			<input
 				data-slot="session-search-input"
 				value={term}
@@ -29,18 +34,25 @@ export function SessionSearchField({
 					}
 				}}
 			/>
-			{term && (
-				<button
-					type="button"
-					data-slot="clear-session-search"
-					className="flex size-3.5 shrink-0 items-center justify-center text-secondary hover:text-primary"
-					aria-label="Clear the session search"
-					title="Clear (Esc)"
-					onClick={() => onSearch("")}
-				>
-					<XMarkIcon className="size-3.5" aria-hidden="true" />
-				</button>
-			)}
+			{term
+				? (
+					<button
+						type="button"
+						data-slot="clear-session-search"
+						className="mr-2 flex size-3.5 shrink-0 items-center justify-center text-secondary hover:text-primary"
+						aria-label="Clear the session search"
+						title="Clear (Esc)"
+						onClick={() => onSearch("")}
+					>
+						<XMarkIcon className="size-3.5" aria-hidden="true" />
+					</button>
+				)
+				: (
+					<span data-slot="session-count" className="mr-2 shrink-0 text-data text-outline-strong">
+						{count}
+					</span>
+				)}
+			{actions}
 		</div>
 	);
 }

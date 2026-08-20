@@ -104,12 +104,16 @@ function sessionRow(shellId: string) {
 	return get("session-row", { shellId });
 }
 
+function openProjectFilter() {
+	fireEvent.click(slot(get("session-sidebar"), "project-filter"));
+}
+
 function projectChoices() {
 	return [...get("project-narrowing").querySelectorAll<HTMLElement>('[data-component="project-choice"]')];
 }
 
 function projectChoiceNames() {
-	return projectChoices().map((choice) => choice.textContent);
+	return projectChoices().map((choice) => choice.querySelector("span > span")?.textContent);
 }
 
 function menuItems() {
@@ -198,27 +202,32 @@ test("a state each session can be in paints its own border", () => {
 	expect(sessionRow("s2").className).toContain("border-l-added");
 });
 
-test("the header counts the open sessions, not the filed ones", () => {
+test("the search row counts the open sessions, not the filed ones", () => {
 	renderSidebar({ open: [row("a"), row("b")], archived: [row("filed", { archivedAt: NOW })] });
 
-	expect(get("session-sidebar").textContent).toContain("SESSIONS 2");
+	expect(slot(get("session-sidebar"), "session-count").textContent).toBe("2");
 });
 
-test("project choices sit above the list in project order", () => {
+test("the filter lists the projects in project order", () => {
 	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] });
+	openProjectFilter();
 
 	expect(projectChoiceNames()).toEqual(["bankai", "dogama"]);
-	expect(projectChoices().every((choice) => choice.getAttribute("aria-pressed") === "false")).toBe(true);
+	expect(projectChoices().every((choice) => choice.getAttribute("aria-checked") === "false")).toBe(true);
 });
 
-test("project choices use the review header pattern on one scrolling line", () => {
+test("the project filter opens as a menu and closes again", () => {
 	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] });
 
-	const narrowing = get("project-narrowing");
+	expect(query("project-narrowing")).toBeNull();
 
-	expect(narrowing.className).toContain("h-7");
-	expect(narrowing.className).toContain("overflow-x-auto");
-	expect(projectChoices().every((choice) => choice.className.includes("border-r") && choice.className.includes("text-data"))).toBe(true);
+	openProjectFilter();
+
+	expect(get("project-narrowing").className).toContain("fixed");
+
+	openProjectFilter();
+
+	expect(query("project-narrowing")).toBeNull();
 });
 
 test("a project with nothing but archived sessions leaves the header", () => {
@@ -227,14 +236,15 @@ test("a project with nothing but archived sessions leaves the header", () => {
 		archived: [row("s2", { projectId: "p2", projectName: "dogama", archivedAt: NOW })],
 	});
 
-	expect(query("project-narrowing")).toBeNull();
+	expect(query("project-filter")).toBeNull();
 });
 
-test("a chosen project stays in the header after its last session is archived", () => {
+test("a chosen project stays in the filter after its last session is archived", () => {
 	renderSidebar({
 		open: [row("s1")],
 		archived: [row("s2", { projectId: "p2", projectName: "dogama", archivedAt: NOW })],
 	}, { projectMarks: new Map([["p2", "chosen"]]) });
+	openProjectFilter();
 
 	expect(projectChoiceNames()).toEqual(["bankai", "dogama"]);
 });
@@ -246,6 +256,7 @@ test("clicking a project choice names its project instead of touching the sessio
 		onToggleProject: (projectId) => toggled.push(projectId),
 		onSelect: (projectId, shellId) => selected.push(`${projectId}/${shellId}`),
 	});
+	openProjectFilter();
 
 	fireEvent.click(get("project-choice", { projectId: "p2" }));
 
@@ -253,13 +264,14 @@ test("clicking a project choice names its project instead of touching the sessio
 	expect(selected).toEqual([]);
 });
 
-test("a chosen project choice reads as pressed", () => {
+test("a chosen project choice reads as checked", () => {
 	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] }, {
 		projectMarks: new Map([["p1", "chosen"]]),
 	});
+	openProjectFilter();
 
-	expect(get("project-choice", { projectId: "p1" }).getAttribute("aria-pressed")).toBe("true");
-	expect(get("project-choice", { projectId: "p2" }).getAttribute("aria-pressed")).toBe("false");
+	expect(get("project-choice", { projectId: "p1" }).getAttribute("aria-checked")).toBe("true");
+	expect(get("project-choice", { projectId: "p2" }).getAttribute("aria-checked")).toBe("false");
 });
 
 test("an empty list asks for a session without naming a project", () => {
@@ -283,10 +295,10 @@ test("with no project mounted there is no session to ask for", () => {
 	expect(get("session-sidebar").querySelector('[data-slot="start-session"]')).toBeNull();
 });
 
-test("a single project has nothing to narrow, so no project header appears", () => {
+test("a single project has nothing to narrow, so no filter button appears", () => {
 	renderSidebar({ open: [row("s1")] }, { projects: [BANKAI] });
 
-	expect(query("project-narrowing")).toBeNull();
+	expect(get("session-sidebar").querySelector('[data-slot="project-filter"]')).toBeNull();
 });
 
 test("an empty archive means no archive section", () => {
@@ -622,25 +634,28 @@ test("Escape clears the search the same way the button does", () => {
 	expect(listedShellIds()).toEqual(["s1", "s2"]);
 });
 
-test("right-clicking a project hides that project alone", () => {
+test("clicking a chosen project hides that project alone", () => {
 	const excluded: string[] = [];
 	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] }, {
 		onExcludeProject: (projectId) => excluded.push(projectId),
+		projectMarks: new Map([["p2", "chosen"]]),
 	});
+	openProjectFilter();
 
-	fireEvent.contextMenu(get("project-choice", { projectId: "p2" }));
+	fireEvent.click(get("project-choice", { projectId: "p2" }));
 
 	expect(excluded).toEqual(["p2"]);
 });
 
-test("a hidden project reads as struck out and stays in the header", () => {
+test("a hidden project reads as struck out and stays in the filter", () => {
 	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] }, {
 		projectMarks: new Map([["p2", "excluded"]]),
 	});
+	openProjectFilter();
 
 	const hidden = get("project-choice", { projectId: "p2" });
 
 	expect(hidden.dataset.mark).toBe("excluded");
-	expect(hidden.className).toContain("line-through");
-	expect(hidden.getAttribute("aria-pressed")).toBe("false");
+	expect(hidden.innerHTML).toContain("line-through");
+	expect(hidden.getAttribute("aria-checked")).toBe("false");
 });

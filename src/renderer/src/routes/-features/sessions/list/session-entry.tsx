@@ -32,7 +32,7 @@ const HARNESS_GLYPH: Record<string, (props: { active: boolean }) => ReactElement
 };
 
 const HOVER_ACTION_CLASS =
-	"relative flex size-3.5 shrink-0 items-center justify-center hover:text-primary before:absolute before:-inset-1.5";
+	"relative flex size-4 shrink-0 items-center justify-center hover:text-primary before:absolute before:-inset-1.5";
 
 export function SessionCard({ row, gestures }: { row: SessionRow; gestures: SessionGestures }) {
 	return (
@@ -167,8 +167,8 @@ function SessionEntry({
 						onClick={() => gestures.onTogglePin(row)}
 					>
 						{pinned
-							? <BookmarkSlashIcon className="size-3.5" aria-hidden="true" />
-							: <BookmarkIcon className="size-3.5" aria-hidden="true" />}
+							? <BookmarkSlashIcon className="size-4" aria-hidden="true" />
+							: <BookmarkIcon className="size-4" aria-hidden="true" />}
 					</button>
 				)}
 				{archived
@@ -181,7 +181,7 @@ function SessionEntry({
 							title="Unarchive"
 							onClick={() => gestures.onUnarchive(row.projectId, row.shellId)}
 						>
-							<ArrowUturnUpIcon className="size-3.5" aria-hidden="true" />
+							<ArrowUturnUpIcon className="size-4" aria-hidden="true" />
 						</button>
 					)
 					: (
@@ -193,7 +193,7 @@ function SessionEntry({
 							title="Archive"
 							onClick={() => gestures.onArchive(row.projectId, row.shellId)}
 						>
-							<ArchiveBoxArrowDownIcon className="size-3.5" aria-hidden="true" />
+							<ArchiveBoxArrowDownIcon className="size-4" aria-hidden="true" />
 						</button>
 					)}
 				<button
@@ -203,7 +203,7 @@ function SessionEntry({
 					aria-label={`Close ${row.title}`}
 					onClick={() => gestures.onClose(row.projectId, row.shellId)}
 				>
-					<XMarkIcon className="size-3.5" aria-hidden="true" />
+					<XMarkIcon className="size-4" aria-hidden="true" />
 				</button>
 			</span>
 		</div>

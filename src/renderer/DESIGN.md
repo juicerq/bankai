@@ -310,7 +310,10 @@ both are required for a region to read as separate:
    the chassis.
 
 Interaction states use tone alone (`surface-hover`, `surface-active`) and never
-add or remove a border. A control that changes its own outline on hover reads as
+add or remove a border. A control inside a ruled course takes `h-full`, never
+the course's own height: box-sizing leaves the content one pixel short of the
+course, so a fixed `h-8` child in an `h-8` course paints its hover tone over the
+rule and the edge appears to blink out. A control that changes its own outline on hover reads as
 a panel coming loose. Temporary overlays such as context menus may use a compact
 shadow because they sit above the chassis rather than forming part of it.
 
@@ -326,10 +329,18 @@ something a contributor can reach for by accident.
 
 ## Components
 
-**Session header actions.** Add project and new shell sit together at the right
-edge of the Sessions course. Both use 16px outline glyphs; the open folder stays
-available before any project exists, while the plain plus disables until a shell
-has somewhere to start.
+**Session search row.** One 32px course under the wordmark. The search glyph
+and input take the left, the open-session count sits at the right of the input
+and gives way to the clear control while a term is typed, and the icon buttons
+close the row: project filter, add project, new shell. Each button is a 32px
+square divided from its neighbour by a rule on its leading edge.
+
+**Project filter.** A funnel that only appears once two projects have sessions.
+It opens a menu of the listed projects, each row carrying the project name and
+path. A click cycles that project: shown only, hidden, neutral — a check marks
+the first, a struck-out name and an eye-slash mark the second. The trigger holds
+`surface-active` while the menu is open or any project is marked, and the menu
+ends with a control that clears every mark.
 
 **Project settings row.** A stored project. Name, full path, and one visible
 actions control share a single ruled row. The path truncates before the action,

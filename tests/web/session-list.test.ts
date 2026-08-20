@@ -26,10 +26,14 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 	};
 }
 
-const EVERY_PROJECT: ReadonlySet<string> = new Set();
+const EVERY_PROJECT = () => true;
 
-function renderList(rows: SessionRow[], projectIds: ReadonlySet<string> = EVERY_PROJECT) {
-	return renderHook(() => useSessionList({ rows, now: NOW, projectIds }));
+function onlyProjects(...projectIds: string[]) {
+	return (projectId: string) => projectIds.includes(projectId);
+}
+
+function renderList(rows: SessionRow[], includesProject: (projectId: string) => boolean = EVERY_PROJECT) {
+	return renderHook(() => useSessionList({ rows, now: NOW, includesProject }));
 }
 
 test("the open list holds every session the user has not filed away", () => {
@@ -44,14 +48,14 @@ test("the projects with a badge are the ones holding an open session, narrowing 
 		row("a"),
 		row("b", { projectId: "p2", projectName: "dogama" }),
 		row("filed", { projectId: "p3", projectName: "gaita", archivedAt: NOW }),
-	], new Set(["p1"]));
+	], onlyProjects("p1"));
 
 	expect([...result.current.openProjectIds]).toEqual(["p1", "p2"]);
 });
 
 test("a reorder of the incoming rows is the only thing that moves the list", () => {
 	const { result, rerender } = renderHook(
-		({ rows }: { rows: SessionRow[] }) => useSessionList({ rows, now: NOW, projectIds: EVERY_PROJECT }),
+		({ rows }: { rows: SessionRow[] }) => useSessionList({ rows, now: NOW, includesProject: EVERY_PROJECT }),
 		{ initialProps: { rows: [row("a"), row("b")] } },
 	);
 
@@ -111,7 +115,7 @@ test("chosen projects narrow the list to their union, archive included", () => {
 		row("c", { projectId: "p3" }),
 		row("filed", { projectId: "p2", archivedAt: NOW }),
 	];
-	const { result } = renderList(rows, new Set(["p1", "p2"]));
+	const { result } = renderList(rows, onlyProjects("p1", "p2"));
 
 	expect(result.current.open.map((entry) => entry.shellId)).toEqual(["a", "b"]);
 	expect(result.current.archived.map((entry) => entry.shellId)).toEqual(["filed"]);
@@ -126,7 +130,7 @@ test("choosing no project at all is what shows every session", () => {
 
 test("the numbering the keyboard uses walks the narrowed list", () => {
 	const rows = [row("a", { projectId: "p1" }), row("b", { projectId: "p2" }), row("c", { projectId: "p2" })];
-	const { result } = renderList(rows, new Set(["p2"]));
+	const { result } = renderList(rows, onlyProjects("p2"));
 
 	expect(result.current.numbered.map((entry) => entry.shellId)).toEqual(["b", "c"]);
 });
@@ -136,7 +140,7 @@ test("the jump to a waiting session reaches one the chosen projects hide", () =>
 		row("visible", { projectId: "p1" }),
 		row("hidden-wait", { projectId: "p2", activity: "needs-attention" }),
 	];
-	const { result } = renderList(rows, new Set(["p1"]));
+	const { result } = renderList(rows, onlyProjects("p1"));
 
 	expect(result.current.open.map((entry) => entry.shellId)).toEqual(["visible"]);
 	expect(result.current.waiting?.shellId).toBe("hidden-wait");
@@ -147,4 +151,49 @@ test("a stale session with nothing waiting leaves the keyboard nowhere to jump",
 
 	expect(result.current.open).toEqual([]);
 	expect(result.current.waiting).toBeUndefined();
+});
+
+test("the search narrows both sections and opens the archive over what it found", () => {
+	const rows = [
+		row("a", { title: "flatten the sidebar" }),
+		row("b", { title: "psql" }),
+		row("filed", { title: "sidebar spike", archivedAt: NOW }),
+	];
+	const { result } = renderList(rows);
+
+	act(() => result.current.onSearch("sidebar"));
+
+	expect(result.current.open.map((entry) => entry.shellId)).toEqual(["a"]);
+	expect(result.current.archived.map((entry) => entry.shellId)).toEqual(["filed"]);
+	expect(result.current.archivedOpen).toBe(true);
+	expect(result.current.numbered.map((entry) => entry.shellId)).toEqual(["a", "filed"]);
+});
+
+test("the search reads the project and the branch, not the name alone", () => {
+	const rows = [
+		row("a", { projectId: "p2", projectName: "dogama" }),
+		row("b", { branch: "sessions-first-sidebar" }),
+		row("c"),
+	];
+	const { result } = renderList(rows);
+
+	act(() => result.current.onSearch("dogama"));
+
+	expect(result.current.open.map((entry) => entry.shellId)).toEqual(["a"]);
+
+	act(() => result.current.onSearch("first-side"));
+
+	expect(result.current.open.map((entry) => entry.shellId)).toEqual(["b"]);
+});
+
+test("clearing the search gives the list and the closed archive back", () => {
+	const rows = [row("a", { title: "psql" }), row("filed", { archivedAt: NOW })];
+	const { result } = renderList(rows);
+
+	act(() => result.current.onSearch("psql"));
+	act(() => result.current.onSearch("   "));
+
+	expect(result.current.open.map((entry) => entry.shellId)).toEqual(["a"]);
+	expect(result.current.searching).toBe(false);
+	expect(result.current.archivedOpen).toBe(false);
 });

@@ -21,8 +21,12 @@ The left edge region that lists mounted projects and lets the user manage or act
 _Avoid_: Sidebar
 
 **Project badges**:
-The row above the session list that narrows it to chosen Projects. Each badge toggles its own Project and they accumulate; with none active every session is listed. The Project rail's footer rows toggle the same set. It never changes the Selected session, and it is forgotten when Bankai closes.
-_Avoid_: Filter, chips, tabs, segmented control
+The row above the session list that narrows it to chosen Projects. Each badge carries one mark of its own: clicking marks it chosen, right-clicking marks it hidden, and repeating the gesture takes the mark off. Chosen badges accumulate and win — with any of them marked the list holds those Projects alone; with none, the list holds every Project but the hidden ones. The mark belongs to the Project rather than to the badges on screen, so a Project mounted later is listed without asking. It never changes the Selected session, and it is forgotten when Bankai closes.
+_Avoid_: Filter, chips, tabs, segmented control, exclude
+
+**Session search**:
+The field above the session list that narrows both of its sections by session name, Project name, or branch. Typed letters may skip characters, so `first-side` reaches `sessions-first-sidebar`. The sections keep their separation and the archive opens by itself over what the term found. Escape or the field's own button clears it, and it is forgotten when Bankai closes.
+_Avoid_: Filter, quick open, command palette, fuzzy finder
 
 **Project picker**:
 The overlay that mounts a Project, built around one editable path: typing narrows the directory it names, Enter opens the highlighted directory, and Ctrl+Enter mounts whatever the path currently reads. The system dialog stays behind it as an escape hatch.

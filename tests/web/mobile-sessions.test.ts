@@ -4,7 +4,7 @@ import type { SessionRow } from "@renderer/routes/-features/sessions/list/sessio
 import { mobileSessionList } from "@renderer/routes/mobile/-utils/mobile-session-list";
 
 const NOW = 1_800_000_000_000;
-const NO_PROJECTS: ReadonlySet<string> = new Set();
+const EVERY_PROJECT = () => true;
 const NO_PROJECT_LIST: Project[] = [];
 
 function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
@@ -25,8 +25,8 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 	};
 }
 
-function order(rows: SessionRow[], chosenProjectIds: ReadonlySet<string> = NO_PROJECTS): string[] {
-	return mobileSessionList({ rows, projects: NO_PROJECT_LIST, chosenProjectIds, now: NOW })
+function order(rows: SessionRow[], includesProject: (projectId: string) => boolean = EVERY_PROJECT): string[] {
+	return mobileSessionList({ rows, projects: NO_PROJECT_LIST, includesProject, now: NOW })
 		.sessions.map((entry) => entry.shellId);
 }
 
@@ -78,7 +78,7 @@ test("filed sessions leave the list for the shelf, freshest first", () => {
 	const list = mobileSessionList({
 		rows,
 		projects: NO_PROJECT_LIST,
-		chosenProjectIds: NO_PROJECTS,
+		includesProject: EVERY_PROJECT,
 		now: NOW,
 	});
 
@@ -91,7 +91,7 @@ test("chosen projects narrow the shelf as they narrow the list", () => {
 	const list = mobileSessionList({
 		rows,
 		projects: NO_PROJECT_LIST,
-		chosenProjectIds: new Set(["p2"]),
+		includesProject: (projectId: string) => projectId === "p2",
 		now: NOW,
 	});
 
@@ -105,8 +105,8 @@ test("chosen projects narrow the list and accumulate", () => {
 		row("c", { projectId: "p3" }),
 	];
 
-	expect(order(rows, new Set(["p2"]))).toEqual(["b"]);
-	expect(order(rows, new Set(["p2", "p3"]))).toEqual(["b", "c"]);
+	expect(order(rows, (projectId) => projectId === "p2")).toEqual(["b"]);
+	expect(order(rows, (projectId) => ["p2", "p3"].includes(projectId))).toEqual(["b", "c"]);
 });
 
 test("a project badge carries the most urgent state of its sessions", () => {
@@ -118,7 +118,7 @@ test("a project badge carries the most urgent state of its sessions", () => {
 			row("d", { projectId: "p3" }),
 		],
 		projects: NO_PROJECT_LIST,
-		chosenProjectIds: NO_PROJECTS,
+		includesProject: EVERY_PROJECT,
 		now: NOW,
 	});
 
@@ -134,7 +134,7 @@ test("a badge keeps reporting activity of the projects the list is hiding", () =
 			row("b", { projectId: "p2", activity: "needs-attention" }),
 		],
 		projects: NO_PROJECT_LIST,
-		chosenProjectIds: new Set(["p1"]),
+		includesProject: (projectId: string) => projectId === "p1",
 		now: NOW,
 	});
 
@@ -148,7 +148,7 @@ test("the projects come out named in reading order, so every surface shows the s
 		{ id: "p3", name: "axiom", path: "/projects/axiom", createdAt: 3 },
 	];
 
-	const listed = mobileSessionList({ rows: [], projects, chosenProjectIds: NO_PROJECTS, now: NOW });
+	const listed = mobileSessionList({ rows: [], projects, includesProject: EVERY_PROJECT, now: NOW });
 
 	expect(listed.projects.map((project) => project.id)).toEqual(["p3", "p1", "p2"]);
 	expect(projects.map((project) => project.id)).toEqual(["p2", "p1", "p3"]);

@@ -40,7 +40,7 @@ function renderList(
 		archived?: SessionRow[];
 		projects?: Project[];
 		projectActivity?: ReadonlyMap<string, AgentActivityState>;
-		chosenProjectIds?: ReadonlySet<string>;
+		projectMarks?: ReadonlyMap<string, "chosen" | "excluded">;
 		onToggleProject?: (projectId: string) => void;
 		onOpen?: (shellId: string) => void;
 		onCreate?: (projectId: string) => Promise<void>;
@@ -58,7 +58,7 @@ function renderList(
 			archived={options.archived ?? []}
 			projects={options.projects ?? [BANKAI, GHOSTAPI]}
 			projectActivity={options.projectActivity ?? new Map()}
-			chosenProjectIds={options.chosenProjectIds ?? new Set()}
+			projectMarks={options.projectMarks ?? new Map()}
 			onToggleProject={options.onToggleProject ?? (() => {})}
 			onOpen={options.onOpen ?? (() => {})}
 			onCreate={options.onCreate ?? (async () => {})}
@@ -177,7 +177,7 @@ test("tapping a badge names its project instead of touching the sessions", () =>
 });
 
 test("a chosen badge reads as pressed", () => {
-	renderList([row("s1")], { chosenProjectIds: new Set(["p2"]) });
+	renderList([row("s1")], { projectMarks: new Map([["p2", "chosen"]]) });
 
 	expect(badges().map((badge) => badge.getAttribute("aria-pressed"))).toEqual(["false", "true"]);
 });

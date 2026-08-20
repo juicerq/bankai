@@ -16,10 +16,10 @@ function MobileSessions() {
 			mobileSessionList({
 				rows: surface.rows,
 				projects: surface.projects,
-				chosenProjectIds: surface.chosenProjectIds,
+				includesProject: surface.includesProject,
 				now: Date.now(),
 			}),
-		[surface.rows, surface.projects, surface.chosenProjectIds],
+		[surface.rows, surface.projects, surface.includesProject],
 	);
 
 	return (
@@ -28,7 +28,7 @@ function MobileSessions() {
 			archived={archived}
 			projects={projects}
 			projectActivity={projectActivity}
-			chosenProjectIds={surface.chosenProjectIds}
+			projectMarks={surface.projectMarks}
 			onToggleProject={surface.onToggleProject}
 			onOpen={(shellId) => navigate({ to: "/mobile/$shellId", params: { shellId } })}
 			onCreate={createShell}

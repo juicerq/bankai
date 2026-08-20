@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Project } from "@shared/projects";
 import type { AgentActivityState } from "@shared/activity";
+import type { ProjectMarks } from "@renderer/routes/-features/projects/use-project-narrowing";
 import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 import { MobileArchivedShelf } from "@renderer/routes/mobile/-components/mobile-archived-shelf";
 import { MobileNewShell } from "@renderer/routes/mobile/-components/mobile-new-shell";
@@ -14,7 +15,7 @@ export function MobileSessionList({
 	archived,
 	projects,
 	projectActivity,
-	chosenProjectIds,
+	projectMarks,
 	onToggleProject,
 	onOpen,
 	onCreate,
@@ -29,7 +30,7 @@ export function MobileSessionList({
 	archived: SessionRow[];
 	projects: Project[];
 	projectActivity: ReadonlyMap<string, AgentActivityState>;
-	chosenProjectIds: ReadonlySet<string>;
+	projectMarks: ProjectMarks;
 	onToggleProject: (projectId: string) => void;
 	onOpen: (shellId: string) => void;
 	onCreate: (projectId: string) => Promise<void>;
@@ -56,7 +57,7 @@ export function MobileSessionList({
 			<MobilePushBanner />
 			<MobileProjectStrip
 				projects={projects}
-				chosenProjectIds={chosenProjectIds}
+				projectMarks={projectMarks}
 				onToggleProject={onToggleProject}
 			/>
 			<div className="min-h-0 flex-1 overflow-y-auto">

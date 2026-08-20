@@ -1,20 +1,26 @@
 import type { Project } from "@shared/projects";
+import type { ProjectMark, ProjectMarks } from "@renderer/routes/-features/projects/use-project-narrowing";
+
+const MARK_CLASS: Record<ProjectMark, string> = {
+	chosen: "bg-surface-active text-primary",
+	excluded: "text-outline-strong line-through",
+};
 
 export function ProjectNarrowing({
 	projects,
 	openProjectIds,
-	chosenProjectIds,
+	marks,
 	onToggle,
 	onExclude,
 }: {
 	projects: Project[];
 	openProjectIds: ReadonlySet<string>;
-	chosenProjectIds: ReadonlySet<string>;
+	marks: ProjectMarks;
 	onToggle: (projectId: string) => void;
-	onExclude: (projectId: string, listedIds: readonly string[]) => void;
+	onExclude: (projectId: string) => void;
 }) {
 	const listed = projects
-		.filter((project) => openProjectIds.has(project.id) || chosenProjectIds.has(project.id))
+		.filter((project) => openProjectIds.has(project.id) || marks.has(project.id))
 		.sort((left, right) => left.name.localeCompare(right.name));
 
 	if (listed.length < 2) {
@@ -29,7 +35,7 @@ export function ProjectNarrowing({
 			className="flex h-7 shrink-0 overflow-x-auto border-b border-outline"
 		>
 			{listed.map((project) => {
-				const chosen = chosenProjectIds.has(project.id);
+				const mark = marks.get(project.id);
 
 				return (
 					<button
@@ -37,17 +43,16 @@ export function ProjectNarrowing({
 						type="button"
 						data-component="project-choice"
 						data-project-id={project.id}
-						aria-pressed={chosen}
-						title={project.path}
+						data-mark={mark}
+						aria-pressed={mark === "chosen"}
+						title={`${project.path} — right-click hides this project`}
 						className={`flex h-full max-w-40 shrink-0 items-center border-r border-outline px-3 text-data focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
-							chosen
-								? "bg-surface-active text-primary"
-								: "text-secondary hover:bg-surface-hover hover:text-primary"
+							mark ? MARK_CLASS[mark] : "text-secondary hover:bg-surface-hover hover:text-primary"
 						}`}
 						onClick={() => onToggle(project.id)}
 						onContextMenu={(event) => {
 							event.preventDefault();
-							onExclude(project.id, listed.map((listedProject) => listedProject.id));
+							onExclude(project.id);
 						}}
 					>
 						<span className="truncate">{project.name}</span>

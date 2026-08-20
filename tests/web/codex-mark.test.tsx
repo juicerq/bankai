@@ -41,9 +41,12 @@ function renderCards(selectedShellId?: string) {
 				waiting: undefined,
 				archivedOpen: false,
 				toggleArchived: () => {},
+				term: "",
+				searching: false,
+				onSearch: () => {},
 			}}
 			projects={[BANKAI]}
-			chosenProjectIds={new Set()}
+			projectMarks={new Map()}
 			selectedShellId={selectedShellId}
 			canCreateShell
 			onSelect={() => {}}

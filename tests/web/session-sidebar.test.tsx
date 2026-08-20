@@ -1,10 +1,12 @@
 import { afterEach, expect, test } from "bun:test";
 import { useState } from "react";
 import type { Project } from "@shared/projects";
+import type { ProjectMarks } from "@renderer/routes/-features/projects/use-project-narrowing";
 import type { AgentActivityState } from "@shared/activity";
 import { SessionSidebar } from "@renderer/routes/-features/sessions/list/session-sidebar";
 import { ACTIVITY_LABEL } from "@renderer/routes/-features/sessions/list/agent-activity";
 import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
+import { searchSessions } from "@renderer/routes/-features/sessions/list/session-search";
 import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
@@ -48,16 +50,17 @@ function renderSidebar(
 		onRequestShell?: (plain: boolean) => void;
 		onAddProject?: () => void;
 		onToggleProject?: (projectId: string) => void;
-		onExcludeProject?: (projectId: string, listedIds: readonly string[]) => void;
+		onExcludeProject?: (projectId: string) => void;
 		canCreateShell?: boolean;
 		projects?: Project[];
-		chosenProjectIds?: ReadonlySet<string>;
+		projectMarks?: ProjectMarks;
 	} = {},
 ) {
 	function Harness() {
 		const [archivedOpen, setArchivedOpen] = useState(true);
-		const open = sections.open ?? [];
-		const archived = sections.archived ?? [];
+		const [term, setTerm] = useState("");
+		const open = searchSessions(sections.open ?? [], term);
+		const archived = searchSessions(sections.archived ?? [], term);
 
 		return (
 			<SessionSidebar
@@ -69,9 +72,12 @@ function renderSidebar(
 					waiting: open.find((entry) => entry.activity === "needs-attention"),
 					archivedOpen,
 					toggleArchived: () => setArchivedOpen((current) => !current),
+					term,
+					searching: term.trim().length > 0,
+					onSearch: setTerm,
 				}}
 				projects={handlers.projects ?? PROJECTS}
-				chosenProjectIds={handlers.chosenProjectIds ?? new Set()}
+				projectMarks={handlers.projectMarks ?? new Map()}
 				selectedShellId={undefined}
 				canCreateShell={handlers.canCreateShell ?? true}
 				onSelect={handlers.onSelect ?? (() => {})}
@@ -228,7 +234,7 @@ test("a chosen project stays in the header after its last session is archived", 
 	renderSidebar({
 		open: [row("s1")],
 		archived: [row("s2", { projectId: "p2", projectName: "dogama", archivedAt: NOW })],
-	}, { chosenProjectIds: new Set(["p2"]) });
+	}, { projectMarks: new Map([["p2", "chosen"]]) });
 
 	expect(projectChoiceNames()).toEqual(["bankai", "dogama"]);
 });
@@ -249,7 +255,7 @@ test("clicking a project choice names its project instead of touching the sessio
 
 test("a chosen project choice reads as pressed", () => {
 	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] }, {
-		chosenProjectIds: new Set(["p1"]),
+		projectMarks: new Map([["p1", "chosen"]]),
 	});
 
 	expect(get("project-choice", { projectId: "p1" }).getAttribute("aria-pressed")).toBe("true");
@@ -258,7 +264,7 @@ test("a chosen project choice reads as pressed", () => {
 
 test("an empty list asks for a session without naming a project", () => {
 	let requests = 0;
-	renderSidebar({}, { chosenProjectIds: new Set(["p2"]), onRequestShell: () => (requests += 1) });
+	renderSidebar({}, { onRequestShell: () => (requests += 1) });
 
 	fireEvent.click(slot(get("session-sidebar"), "start-session"));
 
@@ -559,4 +565,82 @@ test("session rows leave shortcut numbers out of project names", () => {
 	expect(sessionRow("s1").textContent).not.toContain("alt +");
 	expect(sessionRow("s2").textContent).not.toContain("alt +");
 	expect(sessionRow("s1").querySelector("[aria-label='Codex']")).not.toBeNull();
+});
+
+function searchInput() {
+	const input = slot(document.body, "session-search-input");
+
+	if (!(input instanceof HTMLInputElement)) {
+		throw new Error("Expected the session search to be an input");
+	}
+
+	return input;
+}
+
+function listedShellIds() {
+	return [...document.querySelectorAll<HTMLElement>('[data-component="session-row"]')]
+		.map((entry) => entry.dataset.shellId);
+}
+
+test("the search narrows the open list and the archive alike", () => {
+	renderSidebar({
+		open: [row("s1", { title: "flatten the sidebar" }), row("s2", { title: "psql" })],
+		archived: [row("s3", { title: "sidebar spike", archivedAt: NOW })],
+	});
+
+	fireEvent.input(searchInput(), { target: { value: "sidebar" } });
+
+	expect(listedShellIds()).toEqual(["s1", "s3"]);
+});
+
+test("a search that matches nothing says so instead of showing an empty list", () => {
+	renderSidebar({ open: [row("s1", { title: "psql" })] });
+
+	fireEvent.input(searchInput(), { target: { value: "nothing here" } });
+
+	expect(listedShellIds()).toEqual([]);
+	expect(slot(document.body, "no-match").textContent).toContain("nothing here");
+	expect(query("session-sidebar")?.querySelector('[data-slot="start-session"]')).toBeNull();
+});
+
+test("clearing the search puts every session back", () => {
+	renderSidebar({ open: [row("s1", { title: "flatten the sidebar" }), row("s2", { title: "psql" })] });
+
+	fireEvent.input(searchInput(), { target: { value: "psql" } });
+	fireEvent.click(slot(document.body, "clear-session-search"));
+
+	expect(searchInput().value).toBe("");
+	expect(listedShellIds()).toEqual(["s1", "s2"]);
+});
+
+test("Escape clears the search the same way the button does", () => {
+	renderSidebar({ open: [row("s1"), row("s2")] });
+
+	fireEvent.input(searchInput(), { target: { value: "s1" } });
+	fireEvent.keyDown(searchInput(), { key: "Escape" });
+
+	expect(listedShellIds()).toEqual(["s1", "s2"]);
+});
+
+test("right-clicking a project hides that project alone", () => {
+	const excluded: string[] = [];
+	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] }, {
+		onExcludeProject: (projectId) => excluded.push(projectId),
+	});
+
+	fireEvent.contextMenu(get("project-choice", { projectId: "p2" }));
+
+	expect(excluded).toEqual(["p2"]);
+});
+
+test("a hidden project reads as struck out and stays in the header", () => {
+	renderSidebar({ open: [row("s1"), row("s2", { projectId: "p2", projectName: "dogama" })] }, {
+		projectMarks: new Map([["p2", "excluded"]]),
+	});
+
+	const hidden = get("project-choice", { projectId: "p2" });
+
+	expect(hidden.dataset.mark).toBe("excluded");
+	expect(hidden.className).toContain("line-through");
+	expect(hidden.getAttribute("aria-pressed")).toBe("false");
 });

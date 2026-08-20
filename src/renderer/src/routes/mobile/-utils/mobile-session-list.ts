@@ -32,12 +32,12 @@ function listRank(row: SessionRow): number {
 export function mobileSessionList({
 	rows,
 	projects,
-	chosenProjectIds,
+	includesProject,
 	now,
 }: {
 	rows: SessionRow[];
 	projects: Project[];
-	chosenProjectIds: ReadonlySet<string>;
+	includesProject: (projectId: string) => boolean;
 	now: number;
 }): {
 	sessions: SessionRow[];
@@ -46,11 +46,11 @@ export function mobileSessionList({
 	projectActivity: ReadonlyMap<string, AgentActivityState>;
 } {
 	const { open, archived } = partitionSessions(rows, now);
-	const chosen = (row: SessionRow) => chosenProjectIds.size === 0 || chosenProjectIds.has(row.projectId);
+	const listed = (row: SessionRow) => includesProject(row.projectId);
 
 	return {
-		sessions: open.filter(chosen).sort((left, right) => listRank(left) - listRank(right)),
-		archived: archived.filter(chosen),
+		sessions: open.filter(listed).sort((left, right) => listRank(left) - listRank(right)),
+		archived: archived.filter(listed),
 		projects: [...projects].sort((left, right) => left.name.localeCompare(right.name)),
 		projectActivity: topActivityByProject(open),
 	};

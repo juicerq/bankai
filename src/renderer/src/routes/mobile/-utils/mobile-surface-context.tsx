@@ -1,11 +1,13 @@
 import { createContext, type ReactNode, use } from "react";
 import type { Project } from "@shared/projects";
+import type { ProjectMarks } from "@renderer/routes/-features/projects/use-project-narrowing";
 import type { SessionRow } from "@renderer/routes/-features/sessions/list/session-rows";
 
 interface MobileSurface {
 	projects: Project[];
 	rows: SessionRow[];
-	chosenProjectIds: ReadonlySet<string>;
+	projectMarks: ProjectMarks;
+	includesProject: (projectId: string) => boolean;
 	onToggleProject: (projectId: string) => void;
 	onRename: (projectId: string, shellId: string, title: string) => void;
 	onArchive: (projectId: string, shellId: string) => void;

@@ -34,7 +34,7 @@ import { useFocusTopBand } from "@renderer/routes/-features/workspace/layout/use
 import { useFullscreenProjectRail } from "@renderer/routes/-features/workspace/layout/use-fullscreen-project-rail";
 import { useLayoutPreferences } from "@renderer/routes/-features/workspace/layout/use-layout-preferences";
 import { useReviewPanelState, type WorkspaceBayMode } from "@renderer/routes/-features/review/panel/use-review-panel-state";
-import { useChosenProjects } from "@renderer/routes/-features/projects/use-chosen-projects";
+import { useProjectNarrowing } from "@renderer/routes/-features/projects/use-project-narrowing";
 import { useSessionList } from "@renderer/routes/-features/sessions/list/use-session-list";
 import { useShellFocus } from "@renderer/routes/-features/sessions/lifecycle/use-shell-focus";
 import { useProjectCommands } from "@renderer/routes/-features/commands/use-project-commands";
@@ -213,8 +213,8 @@ function Bankai() {
 		[activateProject, dismissPage, sessions.openShell],
 	);
 	const rows = useSessionRows({ continuity: sessions.continuity, projects: availableProjects, activity });
-	const chosen = useChosenProjects();
-	const list = useSessionList({ rows, now: Date.now(), projectIds: chosen.projectIds });
+	const narrowing = useProjectNarrowing();
+	const list = useSessionList({ rows, now: Date.now(), includesProject: narrowing.includesProject });
 	const [pickerOpen, setPickerOpen] = useState(false);
 	const openPicker = useCallback(() => {
 		setPickerOpen(true);
@@ -399,7 +399,7 @@ function Bankai() {
 				const workspace = workspaces.find((entry) => entry.projectId === input.projectId);
 				await sessionPages.release(workspace?.shells.map((shell) => shell.id) ?? []);
 				dropWorkspace(input.projectId);
-				chosen.forget(input.projectId);
+				narrowing.forget(input.projectId);
 				await reactQueryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
 			},
 		}),
@@ -420,15 +420,15 @@ function Bankai() {
 				<SessionSidebar
 					list={list}
 					projects={availableProjects}
-					chosenProjectIds={chosen.projectIds}
+					projectMarks={narrowing.marks}
 					selectedShellId={selectedShellId}
 					canCreateShell={availableProjects.length > 0}
 					onSelect={selectSession}
 					onCreate={createShell}
 					onRequestShell={requestNewShell}
 					onAddProject={openPicker}
-					onToggleProject={chosen.toggle}
-					onExcludeProject={chosen.chooseAllExcept}
+					onToggleProject={narrowing.toggle}
+					onExcludeProject={narrowing.exclude}
 					onClose={closeShell}
 					onArchive={archiveShell}
 					onUnarchive={sessions.unarchiveShell}

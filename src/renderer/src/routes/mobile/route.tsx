@@ -3,7 +3,7 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { orpc } from "@renderer/lib/api";
 import { useAgentActivities } from "@renderer/routes/-features/sessions/list/use-agent-activity";
-import { useChosenProjects } from "@renderer/routes/-features/projects/use-chosen-projects";
+import { useProjectNarrowing } from "@renderer/routes/-features/projects/use-project-narrowing";
 import { useSessionRows } from "@renderer/routes/-features/sessions/list/use-session-rows";
 import { useSessions } from "@renderer/routes/-features/sessions/lifecycle/use-sessions";
 import { MobileSurfaceProvider } from "@renderer/routes/mobile/-utils/mobile-surface-context";
@@ -16,15 +16,16 @@ function MobileSurface() {
 	const availableProjects = projects.data ?? [];
 	const activity = useAgentActivities(availableProjects.map((project) => project.id));
 	const sessions = useSessions();
-	const chosen = useChosenProjects();
+	const narrowing = useProjectNarrowing();
 	const viewport = useVisualViewport();
 	const rows = useSessionRows({ continuity: sessions.continuity, projects: availableProjects, activity });
 	const surface = useMemo(
 		() => ({
 			projects: availableProjects,
 			rows,
-			chosenProjectIds: chosen.projectIds,
-			onToggleProject: chosen.toggle,
+			projectMarks: narrowing.marks,
+			includesProject: narrowing.includesProject,
+			onToggleProject: narrowing.toggle,
 			onRename: sessions.renameShell,
 			onArchive: sessions.archiveShell,
 			onUnarchive: sessions.unarchiveShell,
@@ -35,8 +36,9 @@ function MobileSurface() {
 		[
 			availableProjects,
 			rows,
-			chosen.projectIds,
-			chosen.toggle,
+			narrowing.marks,
+			narrowing.includesProject,
+			narrowing.toggle,
 			sessions.renameShell,
 			sessions.archiveShell,
 			sessions.unarchiveShell,

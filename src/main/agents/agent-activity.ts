@@ -549,7 +549,7 @@ class AgentActivityTracker {
 
 		const attentionEntries = ShellActivity.attentionEntries(previousStates, shellStates);
 		if (attentionEntries.length > 0) {
-			DesktopAttention.request();
+			DesktopAttention.request("needs-attention", attentionEntries.length);
 		}
 		for (const sessionId of attentionEntries) {
 			const owner = owners.get(sessionId);
@@ -564,7 +564,7 @@ class AgentActivityTracker {
 
 		const doneEntries = ShellActivity.doneEntries(previousStates, shellStates);
 		if (doneEntries.length > 0) {
-			DesktopAttention.request();
+			DesktopAttention.request("done", doneEntries.length);
 		}
 		for (const sessionId of doneEntries) {
 			const owner = owners.get(sessionId);

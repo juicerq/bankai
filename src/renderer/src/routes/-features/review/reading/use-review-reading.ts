@@ -80,11 +80,15 @@ export function useReviewReading({
 			enabled: prepare && layout.initialPaths.length > 0,
 		}),
 	);
+	const pendingFiles = useMemo(
+		() => files.filter((file) => isFileOpen(file.path) && !initialPathSet.has(file.path)),
+		[files, initialPathSet, isFileOpen],
+	);
 	const fileQueries = useQueries({
-		queries: files.map((file) =>
+		queries: pendingFiles.map((file) =>
 			orpc.review.file.queryOptions({
 				input: { ...scope, path: file.path },
-				enabled: prepare && isFileOpen(file.path) && !initialPathSet.has(file.path),
+				enabled: prepare,
 			}),
 		),
 	});
@@ -102,7 +106,7 @@ export function useReviewReading({
 			}
 		}
 		for (const [index, query] of fileQueries.entries()) {
-			const file = files[index];
+			const file = pendingFiles[index];
 			if (file && query.data) {
 				content.set(file.path, query.data);
 			} else if (file && query.isError) {
@@ -110,17 +114,14 @@ export function useReviewReading({
 			}
 		}
 		return content;
-	}, [fileQueries, files, initialContent, initialContentError, layout.initialPaths]);
+	}, [fileQueries, pendingFiles, initialContent, initialContentError, layout.initialPaths]);
 
-	const contentReady = files.every((file, index) => {
+	const contentReady = files.every((file) => {
 		if (!isFileOpen(file.path)) {
 			return true;
 		}
-		if (initialPathSet.has(file.path)) {
-			return contentByPath.has(file.path);
-		}
-		const query = fileQueries[index];
-		return !!query?.data || !!query?.isError;
+
+		return contentByPath.has(file.path);
 	});
 
 	const focusedChanged = !!focusedPath && files.some((file) => file.path === focusedPath);
@@ -293,7 +294,8 @@ class ReviewQueryObserver {
 	private async refresh() {
 		const projectInput = { projectId: this.watched.projectId };
 		const worktreeInput = { ...projectInput, worktree: this.watched.worktree };
-		const worktreeFilters = [
+		const filters = [
+			{ queryKey: orpc.review.worktrees.key({ type: "query", input: projectInput }), exact: true },
 			{ queryKey: orpc.review.snapshot.key({ type: "query", input: worktreeInput }) },
 			{ queryKey: orpc.review.files.key({ type: "query", input: worktreeInput }) },
 			{ queryKey: orpc.review.file.key({ type: "query", input: worktreeInput }) },
@@ -302,15 +304,7 @@ class ReviewQueryObserver {
 			{ queryKey: orpc.review.browseFile.key({ type: "query", input: worktreeInput }) },
 			{ queryKey: orpc.review.searchContent.key({ type: "query", input: worktreeInput }) },
 		];
-		const filters = [
-			{ queryKey: orpc.review.worktrees.key({ type: "query", input: projectInput }), exact: true },
-			...worktreeFilters.flatMap((filter) =>
-				this.queryClient
-					.getQueryCache()
-					.findAll(filter)
-					.map((query) => ({ queryKey: query.queryKey, exact: true })),
-			),
-		];
+
 		await Promise.all(filters.map((filter) => this.queryClient.cancelQueries(filter)));
 		await Promise.all(filters.map((filter) => this.queryClient.invalidateQueries(filter)));
 	}

@@ -1,6 +1,6 @@
 import type { ContinuityValue } from "@shared/continuity";
 import type { AgentActivityState } from "@shared/activity";
-import { SESSION_AUTO_ARCHIVE_MS, shellTitle } from "@shared/continuity";
+import { SESSION_AUTO_ARCHIVE_MS, shellTitle } from "@shared/continuity-values";
 
 export interface SessionRow {
 	shellId: string;

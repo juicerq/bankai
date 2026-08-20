@@ -192,11 +192,26 @@ function watch(send: (detected: ShellPortsDetected) => void) {
 	const tick = () => {
 		running.tick().catch((err) => Logger.warn("shell-ports:scan-failed", { err: String(err) }));
 	};
-	const timer = setInterval(tick, POLL_INTERVAL_MS);
-	timer.unref();
-	tick();
+	let timer: ReturnType<typeof setInterval> | undefined;
 
-	return () => clearInterval(timer);
+	const resume = () => {
+		if (timer) {
+			return;
+		}
+
+		timer = setInterval(tick, POLL_INTERVAL_MS);
+		timer.unref();
+		tick();
+	};
+
+	const pause = () => {
+		clearInterval(timer);
+		timer = undefined;
+	};
+
+	resume();
+
+	return { resume, pause };
 }
 
 export const ShellPorts = {

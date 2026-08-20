@@ -77,13 +77,15 @@ async function turnChange(input: {
 }): Promise<FileChange | undefined> {
 	const target = resolve(input.root, input.file);
 
-	if (input.before.kind === "oversized") {
+	if (input.before.kind !== "absent") {
 		const stats = await lstat(target).catch(() => null);
 		if (stats?.size === input.before.size && stats.mtimeMs === input.before.mtimeMs) {
 			return undefined;
 		}
 
-		return { path: input.file, status: turnStatus(input, !!stats, true), additions: 0, deletions: 0 };
+		if (input.before.kind === "oversized") {
+			return { path: input.file, status: turnStatus(input, !!stats, true), additions: 0, deletions: 0 };
+		}
 	}
 
 	const current = await readFile(target).catch(() => null);
@@ -224,10 +226,8 @@ async function countAddedLines(path: string): Promise<number> {
 			}
 			bytes += buffer.length;
 			lastByte = buffer.at(-1) ?? lastByte;
-			for (const byte of buffer) {
-				if (byte === 10) {
-					lines += 1;
-				}
+			for (let index = buffer.indexOf(10); index !== -1; index = buffer.indexOf(10, index + 1)) {
+				lines += 1;
 			}
 		}
 	} catch {

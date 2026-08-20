@@ -97,7 +97,12 @@ async function createWindow() {
 
 	mainWindow = win;
 	SessionPageView.attach(win);
-	win.once("close", ShellPorts.watch((detected) => win.webContents.send(SHELL_PORTS_IPC.detected, detected)));
+	const ports = ShellPorts.watch((detected) => win.webContents.send(SHELL_PORTS_IPC.detected, detected));
+	win.on("focus", ports.resume);
+	win.on("show", ports.resume);
+	win.on("blur", ports.pause);
+	win.on("hide", ports.pause);
+	win.once("close", ports.pause);
 	DesktopAttention.setup(win);
 	DesktopWindow.publishMaximized(win);
 	Startup.mark("window-created");
@@ -151,7 +156,7 @@ async function start() {
 		Services.autostart().catch((err) => Logger.error("services:autostart-failed", { err: String(err) }));
 		DesktopWindow.setup();
 		SessionPageView.setup();
-		UpdateIpc.setup();
+		await UpdateIpc.setup();
 		Startup.mark("ipc-ready");
 		await createWindow();
 	} catch (err) {

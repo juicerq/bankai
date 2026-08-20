@@ -7,7 +7,7 @@ import type {
 import { useReviewQuickOpen } from "@renderer/routes/-features/review/header/review-quick-open/review-quick-open-context";
 
 export function ReviewQuickOpenPaths() {
-	const { filter, matchCount, choices, picker, onFilterChange, onChoose } = useReviewQuickOpen().paths;
+	const { filter, searching, matchCount, choices, picker, onFilterChange, onChoose } = useReviewQuickOpen().paths;
 	const contentAction = choices.find((choice): choice is QuickOpenContentAction => choice.kind === "content");
 	const paths = choices.filter((choice): choice is QuickOpenPath => choice.kind === "path");
 	let chooseLabel = "Open";
@@ -29,6 +29,7 @@ export function ReviewQuickOpenPaths() {
 					spellCheck={false}
 					autoComplete="off"
 					aria-label="File, folder, or text to find"
+					aria-busy={searching}
 					placeholder="Open a file or search its contents"
 					className="min-w-0 flex-1 bg-transparent text-body text-primary outline-none placeholder:text-secondary"
 					value={filter}

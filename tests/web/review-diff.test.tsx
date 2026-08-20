@@ -127,7 +127,7 @@ test("a replacement reading with nothing read yet paints at the top", () => {
 });
 
 function gapsOf(lines: DiffLine[]) {
-	const rows = reviewRows({
+	const { rows } = reviewRows({
 		files: [fileOf("a")],
 		closedFiles: new Set(),
 		contentByPath: new Map([["a", { status: "ready", lines }]]),

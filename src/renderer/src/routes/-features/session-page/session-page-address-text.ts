@@ -1,4 +1,4 @@
-import { SessionPageUrl } from "@shared/session-page";
+import { SessionPageUrl } from "@shared/session-page-url";
 
 const WEB_SCHEME = /^https?:\/\//i;
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;

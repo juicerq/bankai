@@ -3,36 +3,36 @@ import { orpc } from "@renderer/lib/api";
 import { matchQuery, type QueryClient } from "@tanstack/react-query";
 
 export function installReviewPrewarm({ queryClient, mode }: { queryClient: QueryClient; mode: ReviewMode }) {
-	const prewarmed = new Set<string>();
 	const listOptions = orpc.projects.list.queryOptions();
 
-	const prewarm = () => {
+	const prewarm = (): boolean => {
 		const projects = queryClient.getQueryData(listOptions.queryKey);
-		for (const project of projects ?? []) {
-			if (prewarmed.has(project.id)) {
-				continue;
-			}
+		if (!projects) {
+			return false;
+		}
 
-			prewarmed.add(project.id);
+		for (const project of projects) {
 			queryClient
 				.prefetchQuery(
 					orpc.review.snapshot.queryOptions({
-						input: { projectId: project.id, mode },
+						input: { projectId: project.id, worktree: project.path, mode },
 					}),
 				)
-				.catch((error) =>
-					console.error("Failed to prewarm review snapshot", error),
-				);
+				.catch((error) => console.error("Failed to prewarm review snapshot", error));
 		}
+
+		return true;
 	};
 
-	prewarm();
-
-	return queryClient.getQueryCache().subscribe((event) => {
-		if (
-			matchQuery({ queryKey: listOptions.queryKey, exact: true }, event.query)
-		) {
-			prewarm();
+	const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+		if (matchQuery({ queryKey: listOptions.queryKey, exact: true }, event.query) && prewarm()) {
+			unsubscribe();
 		}
 	});
+
+	if (prewarm()) {
+		unsubscribe();
+	}
+
+	return unsubscribe;
 }

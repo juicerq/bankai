@@ -3,11 +3,11 @@ import { StorePaths } from "@main/store/store-paths";
 import { SESSION_PAGE_IPC } from "@shared/session-page-ipc";
 import {
 	SessionPageSchemas,
-	SessionPageUrl,
 	type SessionPagePresentation,
 	type SessionPageShortcut,
 	type SessionPageState,
 } from "@shared/session-page";
+import { SessionPageUrl } from "@shared/session-page-url";
 import {
 	BrowserWindow,
 	ipcMain,

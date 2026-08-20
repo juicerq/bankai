@@ -1,5 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject, type UIEvent } from "react";
+import { memo, useCallback, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject, type UIEvent } from "react";
 import type { FileChange, ReviewContent, ReviewMode } from "@shared/review";
 import { ReviewFileHeader } from "@renderer/routes/-features/review/reading/review-file-header";
 import { ReviewDiffGap } from "@renderer/routes/-features/review/reading/review-gap";
@@ -100,7 +100,7 @@ function ReviewDiffView({
 	onFocusFile: (path: string) => void;
 }) {
 	const scroll = useRef<HTMLDivElement>(null);
-	const rows = useMemo(
+	const { rows, headers } = useMemo(
 		() => reviewRows({ files, closedFiles, contentByPath }),
 		[closedFiles, contentByPath, files],
 	);
@@ -109,8 +109,18 @@ function ReviewDiffView({
 		[rows],
 	);
 	const contentWidth = useMemo(
-		() => diffContentWidth(rows.flatMap((row) => (row.kind === "line" ? [row.line] : []))),
-		[rows],
+		() =>
+			diffContentWidth(
+				files.flatMap((file) => {
+					const content = contentByPath.get(file.path);
+					if (content?.status !== "ready") {
+						return [];
+					}
+
+					return content.lines;
+				}),
+			),
+		[contentByPath, files],
 	);
 	const [initialOffset] = useState(() => readingOffset(position.current, rows, fileRowByPath, files));
 	const virtualizer = useVirtualizer({
@@ -135,7 +145,7 @@ function ReviewDiffView({
 	const trackReadingPosition = (event: UIEvent<HTMLDivElement>) => {
 		const node = event.currentTarget;
 		const item = virtualizer.getVirtualItemForOffset(node.scrollTop);
-		const path = item ? anchorPath(rows, item.index) : undefined;
+		const path = item ? anchorPath(rows, headers, item.index) : undefined;
 		if (!item || !path) {
 			position.current = null;
 			return;
@@ -170,7 +180,7 @@ function ReviewDiffView({
 	}));
 
 	const virtualRows = virtualizer.getVirtualItems();
-	const activeFileRow = activeFile(rows, virtualizer.range?.startIndex ?? 0);
+	const activeFileRow = activeFile(rows, headers, virtualizer.range?.startIndex ?? 0);
 
 	return (
 		<div
@@ -221,7 +231,7 @@ function ReviewDiffView({
 	);
 }
 
-function ReviewVirtualRow({
+const ReviewVirtualRow = memo(function ReviewVirtualRow({
 	row,
 	onToggleOpen,
 	onFocusFile,
@@ -241,4 +251,4 @@ function ReviewVirtualRow({
 	}
 
 	return <ReviewDiffLine path={row.path} line={row.line} lines={row.lines} lineIndex={row.lineIndex} />;
-}
+});

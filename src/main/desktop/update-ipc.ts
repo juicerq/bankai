@@ -1,4 +1,4 @@
-import electronUpdater from "electron-updater";
+import type { AppUpdater } from "electron-updater";
 import { app, BrowserWindow, ipcMain } from "electron";
 import { Logger } from "@main/infra/logger";
 import { SelfUpdate } from "@main/desktop/self-update";
@@ -12,22 +12,13 @@ const UPDATE_CHECK_TTL_MS = 5 * 60 * 1000;
 let pending: UpdateDownloadedEvent | undefined;
 let checkedAt = 0;
 
-function setupUpdateIpc(): void {
-	const { autoUpdater } = electronUpdater;
-
+async function setupUpdateIpc(): Promise<void> {
 	ipcMain.handle(UPDATE_IPC.getPending, () => pending ?? null);
 
 	ipcMain.handle(UPDATE_IPC.activeWork, () => countActiveWork());
 
 	ipcMain.on(UPDATE_IPC.install, () => {
-		if (!pending) {
-			return;
-		}
-		try {
-			autoUpdater.quitAndInstall();
-		} catch (err) {
-			Logger.error("update:install-failed", { err: String(err) });
-		}
+		void install();
 	});
 
 	if (!app.isPackaged) {
@@ -45,6 +36,8 @@ function setupUpdateIpc(): void {
 		Logger.info("update:managed-externally", { execPath: process.execPath });
 		return;
 	}
+
+	const { autoUpdater } = await import("electron-updater");
 
 	autoUpdater.autoDownload = true;
 	autoUpdater.autoInstallOnAppQuit = true;
@@ -73,6 +66,20 @@ function setupUpdateIpc(): void {
 	app.on("browser-window-focus", () => checkForUpdates(autoUpdater));
 }
 
+async function install(): Promise<void> {
+	if (!pending) {
+		return;
+	}
+
+	try {
+		const { autoUpdater } = await import("electron-updater");
+
+		autoUpdater.quitAndInstall();
+	} catch (err) {
+		Logger.error("update:install-failed", { err: String(err) });
+	}
+}
+
 function countActiveWork(): UpdateWorkload {
 	const shells = shellProcesses.list();
 
@@ -94,7 +101,7 @@ function countActiveWork(): UpdateWorkload {
 	return { kind: "agents", count };
 }
 
-function checkForUpdates(autoUpdater: electronUpdater.AppUpdater): void {
+function checkForUpdates(autoUpdater: AppUpdater): void {
 	const now = Date.now();
 	if (now - checkedAt < UPDATE_CHECK_TTL_MS) {
 		return;

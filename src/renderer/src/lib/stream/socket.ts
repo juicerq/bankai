@@ -91,7 +91,7 @@ export class StreamSocket {
 
 	private readonly wake = (): void => {
 		if (document.visibilityState === "visible") {
-			this.retry();
+			this.connect();
 		}
 	};
 

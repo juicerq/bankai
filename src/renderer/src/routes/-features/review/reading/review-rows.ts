@@ -33,19 +33,30 @@ export function reviewRows({
 	files: FileChange[];
 	closedFiles: ReadonlySet<string>;
 	contentByPath: ReadonlyMap<string, ReviewContent>;
-}): ReviewRow[] {
+}) {
 	const rows: ReviewRow[] = [];
+	const headers: number[] = [];
+	let header = -1;
+
+	function push(row: ReviewRow) {
+		if (row.kind === "file") {
+			header = rows.length;
+		}
+
+		rows.push(row);
+		headers.push(header);
+	}
 
 	for (const file of files) {
 		const open = !closedFiles.has(file.path);
-		rows.push({ kind: "file", key: `file:${file.path}`, file, open, first: rows.length === 0 });
+		push({ kind: "file", key: `file:${file.path}`, file, open, first: rows.length === 0 });
 		if (!open) {
 			continue;
 		}
 
 		const content = contentByPath.get(file.path);
 		if (content?.status !== "ready") {
-			rows.push({
+			push({
 				kind: "notice",
 				key: `notice:${file.path}`,
 				path: file.path,
@@ -60,10 +71,10 @@ export function reviewRows({
 			const skipped = skippedLines(line, last);
 
 			if (skipped > 0) {
-				rows.push({ kind: "gap", key: `gap:${file.path}:${line.hunk}`, path: file.path, skipped });
+				push({ kind: "gap", key: `gap:${file.path}:${line.hunk}`, path: file.path, skipped });
 			}
 
-			rows.push({
+			push({
 				kind: "line",
 				key: lineKey(file.path, line),
 				path: file.path,
@@ -78,7 +89,7 @@ export function reviewRows({
 		}
 	}
 
-	return rows;
+	return { rows, headers: new Int32Array(headers) };
 }
 
 export function diffContentWidth(lines: readonly Pick<DiffLine, "content">[]): string {
@@ -163,7 +174,7 @@ function readingIndex(
 	return fileRowByPath.get(neighbour.path);
 }
 
-export function anchorPath(rows: ReviewRow[], startIndex: number): string | undefined {
+export function anchorPath(rows: ReviewRow[], headers: Int32Array, startIndex: number): string | undefined {
 	const row = rows[startIndex];
 
 	if (row?.kind === "file") {
@@ -173,15 +184,15 @@ export function anchorPath(rows: ReviewRow[], startIndex: number): string | unde
 		return row.path;
 	}
 
-	return activeFile(rows, startIndex)?.file.path;
+	return activeFile(rows, headers, startIndex)?.file.path;
 }
 
-export function activeFile(rows: ReviewRow[], startIndex: number): ReviewFileRow | undefined {
-	for (let index = Math.min(startIndex, rows.length - 1); index >= 0; index -= 1) {
-		const row = rows[index];
-		if (row?.kind === "file") {
-			return row;
-		}
+export function activeFile(rows: ReviewRow[], headers: Int32Array, startIndex: number): ReviewFileRow | undefined {
+	const header = headers[Math.min(startIndex, rows.length - 1)] ?? -1;
+	const row = rows[header];
+
+	if (row?.kind === "file") {
+		return row;
 	}
 
 	return undefined;

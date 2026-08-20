@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { readlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import { ShellActivity } from "@main/agents/shell-activity";
 import { ClaudeHarness, parseSessionRecord } from "@main/agents/harness/claude/claude-harness";
@@ -566,6 +567,12 @@ describe("shell to agent binding", () => {
 });
 
 describe.if(process.platform === "linux")("binding against real processes", () => {
+	async function execed(pid: number, binary: string): Promise<boolean> {
+		const exe = await readlink(`/proc/${pid}/exe`).catch(() => null);
+
+		return exe !== null && basename(exe) === binary;
+	}
+
 	test("walks up from a live pid to the process that spawned it", async () => {
 		const parent = await ProcFs.parent(process.pid);
 		if (parent === null) {
@@ -586,15 +593,15 @@ describe.if(process.platform === "linux")("binding against real processes", () =
 
 	test("binds a harness the shell orphaned, by its stamped environment", async () => {
 		const shellId = `shell-${process.pid}`;
-		const orphan = Bun.spawn(["sh", "-c", "echo ready; exec sleep 30"], {
+		const binary = "sleep";
+		const orphan = Bun.spawn(["sh", "-c", `exec ${binary} 30`], {
 			env: { ...process.env, [SHELL_ID_ENV]: shellId },
 			stdin: "ignore",
-			stdout: "pipe",
+			stdout: "ignore",
 			stderr: "ignore",
 		});
 		try {
-			await orphan.stdout.getReader().read();
-			while ((await ShellAgents.shellOf(orphan.pid)) !== shellId) {
+			while (!(await execed(orphan.pid, binary)) || (await ShellAgents.shellOf(orphan.pid)) !== shellId) {
 				await Bun.sleep(5);
 			}
 

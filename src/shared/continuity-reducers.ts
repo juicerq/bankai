@@ -1,10 +1,10 @@
-import {
-	type ContinuitySessionRef,
-	type ContinuityShell,
-	type ContinuityValue,
-	type ContinuityWorkspace,
-	SESSION_AUTO_ARCHIVE_MS,
+import type {
+	ContinuitySessionRef,
+	ContinuityShell,
+	ContinuityValue,
+	ContinuityWorkspace,
 } from "@shared/continuity";
+import { SESSION_AUTO_ARCHIVE_MS } from "@shared/continuity-values";
 
 export interface ShellAddress {
 	projectId: string;

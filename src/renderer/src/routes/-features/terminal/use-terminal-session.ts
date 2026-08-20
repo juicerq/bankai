@@ -12,7 +12,7 @@ import type {
 } from "@renderer/routes/-features/terminal/terminal-file-links";
 import { TerminalLinks } from "@renderer/routes/-features/terminal/terminal-links";
 import { registerTerminalStyle, TERMINAL_OPTIONS } from "@renderer/routes/-features/terminal/terminal-style";
-import { SessionPageUrl } from "@shared/session-page";
+import { SessionPageUrl } from "@shared/session-page-url";
 import type { TerminalAttached, TerminalCommandErrorEvent } from "@shared/terminal";
 import { throttle } from "@shared/throttle";
 

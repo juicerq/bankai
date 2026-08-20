@@ -1,7 +1,5 @@
 import { type } from "arktype";
 
-export const SESSION_AUTO_ARCHIVE_MS = 3 * 24 * 60 * 60 * 1000;
-
 export const continuitySessionRefSchema = type({ harness: "string", sessionId: "string", cwd: "string" });
 
 export const continuityShellSchema = type({
@@ -42,8 +40,4 @@ export interface ContinuityChangedEvent {
 export interface BankaiContinuityApi {
 	subscribe: () => void;
 	onChanged: (listener: (event: ContinuityChangedEvent) => void) => () => void;
-}
-
-export function shellTitle(shell: Pick<ContinuityShell, "label" | "title" | "branch">): string {
-	return [shell.title, shell.branch].find((value) => !!value?.trim()) ?? shell.label;
 }

@@ -4,7 +4,7 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { Logger } from "@main/infra/logger";
 
 export const REVIEW_CHANGE_DEBOUNCE_MS = 250;
-const REVIEW_FALLBACK_INTERVAL_MS = 30_000;
+const REVIEW_FALLBACK_INTERVAL_MS = 300_000;
 
 interface WatchTarget {
 	path: string;

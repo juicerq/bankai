@@ -17,6 +17,15 @@ export interface ReviewWorktreeSelection {
 	onRemove: (path: string) => void;
 }
 
+function matchWorktrees(worktrees: Worktree[], query: string) {
+	const needle = query.trim().toLowerCase();
+	if (!needle) {
+		return worktrees;
+	}
+
+	return worktrees.filter((worktree) => `${worktreeLabel(worktree)} ${worktree.path}`.toLowerCase().includes(needle));
+}
+
 export function ReviewWorktree({
 	worktrees,
 	activePath,
@@ -51,32 +60,35 @@ export function ReviewWorktree({
 					{worktrees.length > 0 && <DropdownMenuSeparator />}
 				</>
 			}
+			search={{ placeholder: "Filter worktrees" }}
 		>
-			{worktrees.map((worktree) => {
-				const failure = removeFailure?.path === worktree.path ? removeFailure.message : undefined;
-				const root = worktree.path === mainPath;
-				const state = activity.get(worktree.path);
+			{(query) =>
+				matchWorktrees(worktrees, query).map((worktree) => {
+					const failure = removeFailure?.path === worktree.path ? removeFailure.message : undefined;
+					const root = worktree.path === mainPath;
+					const state = activity.get(worktree.path);
 
-				return (
-					<DropdownMenuItem
-						key={worktree.path}
-						label={worktreeLabel(worktree)}
-						detail={failure ?? (root ? `root · ${worktree.path}` : worktree.path)}
-						detailTone={failure ? "danger" : undefined}
-						selected={!following && worktree.path === activePath}
-						signal={state === undefined ? undefined : { title: state, className: ACTIVITY_DOT_CLASS[state] }}
-						remove={
-							root
-								? undefined
-								: {
-										label: `Remove worktree ${worktreeLabel(worktree)}`,
-										onConfirm: () => onRemove(worktree.path),
-									}
-						}
-						onClick={() => onSelect(worktree.path)}
-					/>
-				);
-			})}
+					return (
+						<DropdownMenuItem
+							key={worktree.path}
+							label={worktreeLabel(worktree)}
+							detail={failure ?? (root ? `root · ${worktree.path}` : worktree.path)}
+							detailTone={failure ? "danger" : undefined}
+							selected={!following && worktree.path === activePath}
+							signal={state === undefined ? undefined : { title: state, className: ACTIVITY_DOT_CLASS[state] }}
+							remove={
+								root
+									? undefined
+									: {
+											label: `Remove worktree ${worktreeLabel(worktree)}`,
+											onConfirm: () => onRemove(worktree.path),
+										}
+							}
+							onClick={() => onSelect(worktree.path)}
+						/>
+					);
+				})
+			}
 		</DropdownMenu>
 	);
 }

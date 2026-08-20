@@ -1,4 +1,4 @@
-import { CheckIcon, ChevronDownIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { CheckIcon, ChevronDownIcon, MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { type ReactNode, useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMenuDismissal } from "@renderer/routes/-features/shared/menus/use-menu-dismissal";
@@ -34,6 +34,7 @@ export function DropdownMenu({
 	truncate = false,
 	badge,
 	pinned,
+	search,
 	children,
 }: {
 	component: string;
@@ -45,12 +46,28 @@ export function DropdownMenu({
 	truncate?: boolean;
 	badge?: ReactNode;
 	pinned?: ReactNode;
-	children: ReactNode;
+	search?: { placeholder: string };
+	children: ReactNode | ((query: string) => ReactNode);
 }) {
 	const [menu, setMenu] = useState<{ x: number; y: number; width: number }>();
-	const closeMenu = useCallback(() => setMenu(undefined), []);
+	const [query, setQuery] = useState("");
+	const closeMenu = useCallback(() => {
+		setMenu(undefined);
+		setQuery("");
+	}, []);
 	const triggerRef = useRef<HTMLButtonElement>(null);
 	const registerMenuDismissal = useMenuDismissal(closeMenu, triggerRef);
+	const searchable = !!search;
+	const attachMenu = useCallback(
+		(element: HTMLDivElement | null) => {
+			if (element && !searchable) {
+				element.focus();
+			}
+
+			return registerMenuDismissal(element);
+		},
+		[registerMenuDismissal, searchable],
+	);
 
 	const trigger = `flex items-center gap-2 text-body ${TRIGGER_SHAPE[variant]} ${
 		truncate ? "min-w-0 shrink" : "shrink-0"
@@ -94,9 +111,10 @@ export function DropdownMenu({
 			</button>
 			{menu && createPortal(
 				<div
-					ref={registerMenuDismissal}
+					ref={attachMenu}
 					data-component={`${component}-menu`}
 					role="menu"
+					tabIndex={-1}
 					aria-label={ariaLabel}
 					className="fixed z-50 flex flex-col border border-outline-strong bg-surface-raised text-body shadow-lg"
 					style={{
@@ -107,20 +125,72 @@ export function DropdownMenu({
 					}}
 					onPointerDown={(event) => event.stopPropagation()}
 					onClick={closeMenu}
+					onKeyDown={(event) => {
+						if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+							event.preventDefault();
+							focusMenuItem(event.currentTarget, event.key === "ArrowDown" ? 1 : -1);
+							return;
+						}
+
+						if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
+							event.preventDefault();
+							menuItems(event.currentTarget)[0]?.click();
+						}
+					}}
 				>
 					{pinned && (
 						<div role="presentation" data-slot="pinned" className="shrink-0">
 							{pinned}
 						</div>
 					)}
+					{search && (
+						<div
+							role="presentation"
+							data-slot="search"
+							className="flex h-8 shrink-0 items-center border-outline border-b"
+						>
+							<MagnifyingGlassIcon className="ml-3 size-3.5 shrink-0 text-secondary" aria-hidden="true" />
+							<input
+								data-slot="search-input"
+								autoFocus
+								value={query}
+								placeholder={search.placeholder}
+								aria-label={search.placeholder}
+								spellCheck={false}
+								autoComplete="off"
+								className="h-full min-w-0 flex-1 border-0 bg-transparent px-2 text-body text-primary outline-none placeholder:text-secondary"
+								onClick={(event) => event.stopPropagation()}
+								onInput={(event) => setQuery(event.currentTarget.value)}
+							/>
+						</div>
+					)}
 					<div role="presentation" className="min-h-0 overflow-auto">
-						{children}
+						{typeof children === "function" ? children(query) : children}
 					</div>
 				</div>,
 				document.body,
 			)}
 		</>
 	);
+}
+
+function menuItems(menu: HTMLElement) {
+	return [...menu.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]')];
+}
+
+function focusMenuItem(menu: HTMLElement, step: number) {
+	const items = menuItems(menu);
+	if (!items.length) {
+		return;
+	}
+
+	const current = items.findIndex((item) => item === document.activeElement);
+	if (current === -1) {
+		items[step > 0 ? 0 : items.length - 1]?.focus();
+		return;
+	}
+
+	items[(current + step + items.length) % items.length]?.focus();
 }
 
 export function DropdownMenuItem({

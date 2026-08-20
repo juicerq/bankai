@@ -237,3 +237,43 @@ test("an unlisted shell worktree is not read", () => {
 test("a listing that has not arrived yet still follows the shell", () => {
 	expect(resolveReviewWorktree({ shellWorktree: SOLO, worktrees: [] })).toBe(SOLO);
 });
+
+test("the menu opens with the filter focused and narrows the worktrees typed into it", () => {
+	render(<ReviewWorktreeHarness />);
+
+	fireEvent.click(get("review-worktree"));
+
+	const filter = get("review-worktree-menu").querySelector<HTMLInputElement>('[data-slot="search-input"]');
+	if (!filter) {
+		throw new Error("No worktree filter input");
+	}
+
+	expect(document.activeElement).toBe(filter);
+
+	fireEvent.input(filter, { target: { value: "feat" } });
+
+	expect(menuItem("feat/worktrees")).not.toBeNull();
+	expect(() => menuItem("main")).toThrow();
+});
+
+test("reopening the menu clears the previous filter", () => {
+	render(<ReviewWorktreeHarness />);
+
+	fireEvent.click(get("review-worktree"));
+
+	const filter = () => {
+		const input = get("review-worktree-menu").querySelector<HTMLInputElement>('[data-slot="search-input"]');
+		if (!input) {
+			throw new Error("No worktree filter input");
+		}
+
+		return input;
+	};
+
+	fireEvent.input(filter(), { target: { value: "feat" } });
+	fireEvent.click(get("review-worktree"));
+	fireEvent.click(get("review-worktree"));
+
+	expect(filter().value).toBe("");
+	expect(menuItem("main")).not.toBeNull();
+});

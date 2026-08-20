@@ -12,6 +12,12 @@ const UPDATE_CHECK_TTL_MS = 5 * 60 * 1000;
 let pending: UpdateDownloadedEvent | undefined;
 let checkedAt = 0;
 
+async function loadAutoUpdater(): Promise<AppUpdater> {
+	const updater = await import("electron-updater");
+
+	return (updater.default ?? updater).autoUpdater;
+}
+
 async function setupUpdateIpc(): Promise<void> {
 	ipcMain.handle(UPDATE_IPC.getPending, () => pending ?? null);
 
@@ -37,7 +43,7 @@ async function setupUpdateIpc(): Promise<void> {
 		return;
 	}
 
-	const { autoUpdater } = await import("electron-updater");
+	const autoUpdater = await loadAutoUpdater();
 
 	autoUpdater.autoDownload = true;
 	autoUpdater.autoInstallOnAppQuit = true;
@@ -72,7 +78,7 @@ async function install(): Promise<void> {
 	}
 
 	try {
-		const { autoUpdater } = await import("electron-updater");
+		const autoUpdater = await loadAutoUpdater();
 
 		autoUpdater.quitAndInstall();
 	} catch (err) {

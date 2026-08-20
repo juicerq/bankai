@@ -19,6 +19,7 @@ test("releasing removed Shells forgets and releases every page they owned", asyn
 		openExternal: async () => {},
 		clearData: async () => {},
 		snapshot: async () => null,
+		preview: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
 	};

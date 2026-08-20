@@ -69,6 +69,7 @@ beforeEach(() => {
 			browserDataClears += 1;
 		},
 		snapshot: async () => null,
+		preview: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
 	} satisfies BankaiSessionPageApi;

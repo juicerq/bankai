@@ -69,6 +69,17 @@ describe("favorites", () => {
 		});
 	});
 
+	it("keeps the page picture the draft carries and refuses one that is not a page picture", async () => {
+		const preview = "data:image/jpeg;base64,AAAA";
+		const added = await Favorites.add({ title: "Docs", url: "https://docs.example.com/", preview });
+
+		expect(added.preview).toBe(preview);
+		expect((await Favorites.update({ id: added.id, title: "Handbook" })).preview).toBe(preview);
+		expect(() =>
+			favoriteDraftSchema.assert({ title: "Docs", url: "https://docs.example.com/", preview: "https://docs.example.com/shot.png" })
+		).toThrow();
+	});
+
 	it("refuses to save a site the session page cannot open", async () => {
 		const client = createRouterClient(favoritesRouter);
 

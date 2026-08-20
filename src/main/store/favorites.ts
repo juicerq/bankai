@@ -14,7 +14,7 @@ export const Favorites = {
 	list: store.read.bind(store),
 
 	add: async (draft: FavoriteDraft): Promise<Favorite> => {
-		const favorite: Favorite = { id: randomUUID(), title: draft.title, url: draft.url };
+		const favorite: Favorite = { id: randomUUID(), ...draft };
 		await store.mutate((current) => [...current, favorite]);
 
 		return favorite;

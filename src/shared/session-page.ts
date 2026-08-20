@@ -122,6 +122,7 @@ export interface BankaiSessionPageApi {
 	openExternal: () => Promise<void>;
 	clearData: () => Promise<void>;
 	snapshot: () => Promise<string | null>;
+	preview: () => Promise<string | null>;
 	onState: (listener: (state: SessionPageState) => void) => () => void;
 	onShortcut: (listener: (shortcut: SessionPageShortcut) => void) => () => void;
 }

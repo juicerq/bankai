@@ -379,6 +379,7 @@ test("a URL from the active Shell opens Page and Review takes over the shared ba
 		openExternal: async () => {},
 		clearData: async () => {},
 		snapshot: async () => null,
+		preview: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
 	};
@@ -435,6 +436,7 @@ test("the revealed project rail freezes the Page into a snapshot it can cover", 
 		openExternal: async () => {},
 		clearData: async () => {},
 		snapshot: async () => "data:image/jpeg;base64,frozen",
+		preview: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
 	};
@@ -558,6 +560,7 @@ test("the header opens Page blank on a Shell with no page and closing it leaves 
 		openExternal: async () => {},
 		clearData: async () => {},
 		snapshot: async () => null,
+		preview: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
 	};
@@ -608,6 +611,7 @@ test("leaving Page by another route discards the blank instead of stranding it",
 		openExternal: async () => {},
 		clearData: async () => {},
 		snapshot: async () => null,
+		preview: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
 	};
@@ -648,6 +652,7 @@ test("leaving Page by another route keeps a page that reached a URL", async () =
 		openExternal: async () => {},
 		clearData: async () => {},
 		snapshot: async () => null,
+		preview: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
 	};
@@ -699,6 +704,7 @@ test("closing Page releases the loaded browser while Review can hide without rel
 		openExternal: async () => {},
 		clearData: async () => {},
 		snapshot: async () => null,
+		preview: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
 	};
@@ -866,6 +872,7 @@ test("leaving a Page for the Todo list leaves the caret in the capture line", as
 		openExternal: async () => {},
 		clearData: async () => {},
 		snapshot: async () => null,
+		preview: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
 	};
@@ -937,6 +944,7 @@ test("closing a blank Page forgets it so the Shell goes back to having none", as
 		openExternal: async () => {},
 		clearData: async () => {},
 		snapshot: async () => null,
+		preview: async () => null,
 		onState: () => () => {},
 		onShortcut: () => () => {},
 	};

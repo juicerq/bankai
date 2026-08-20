@@ -65,6 +65,8 @@ async function blankPanel() {
 	return registry;
 }
 
+const PREVIEW = "data:image/jpeg;base64,AAAA";
+
 function rows() {
 	return [...document.querySelectorAll<HTMLElement>('[data-component="session-page-favorite"]')];
 }
@@ -101,12 +103,25 @@ afterEach(() => {
 test("the blank page numbers every favorite and opens the one that is clicked", async () => {
 	const registry = await blankPanel();
 
-	expect(shortcuts()).toEqual(["⌃1", "⌃2", "⌃3"]);
+	expect(shortcuts()).toEqual(["Ctrl+1", "Ctrl+2", "Ctrl+3"]);
 	expect(slot(row("f3"), "host").textContent).toBe("board.example.com");
 
 	fireEvent.click(slot(row("f2"), "open"));
 
 	expect(registry.get("shell-1")?.url).toBe("https://status.example.com/");
+});
+
+test("a card shows the page picture the favorite was saved with and names its host without one", async () => {
+	transport.favorites = [
+		{ id: "f1", title: "Docs", url: "https://docs.example.com/", preview: PREVIEW },
+		{ id: "f2", title: "Status", url: "https://status.example.com/" },
+	];
+
+	await blankPanel();
+
+	expect(slot(row("f1"), "preview").querySelector("img")?.getAttribute("src")).toBe(PREVIEW);
+	expect(slot(row("f2"), "preview").querySelector("img")).toBeNull();
+	expect(slot(row("f2"), "fallback").textContent).toBe("status.example.com");
 });
 
 test("only the first nine favorites carry a shortcut box", async () => {
@@ -194,7 +209,7 @@ test("dragging a favorite renumbers the list while it moves and saves the order 
 	fireEvent.dragOver(row("f1"), { dataTransfer: transfer });
 
 	expect(titles()).toEqual(["Board", "Docs", "Status"]);
-	expect(slot(row("f3"), "shortcut").textContent).toBe("⌃1");
+	expect(slot(row("f3"), "shortcut").textContent).toBe("Ctrl+1");
 
 	fireEvent.drop(row("f3"), { dataTransfer: transfer });
 	fireEvent.dragEnd(row("f3"));
@@ -262,6 +277,7 @@ test("the star saves the open page and takes it back off the list", async () => 
 		openExternal: async () => {},
 		clearData: async () => {},
 		snapshot: async () => null,
+		preview: async () => PREVIEW,
 		onState: () => () => {},
 		onShortcut: () => () => {},
 	};
@@ -287,7 +303,7 @@ test("the star saves the open page and takes it back off the list", async () => 
 
 	await waitFor(() => expect(star().getAttribute("aria-label")).toBe("Remove page from favorites"));
 	expect(transport.favorites).toEqual([
-		{ id: "f1", title: "Handbook", url: "https://handbook.example.com/start" },
+		{ id: "f1", title: "Handbook", url: "https://handbook.example.com/start", preview: PREVIEW },
 	]);
 
 	fireEvent.click(star());

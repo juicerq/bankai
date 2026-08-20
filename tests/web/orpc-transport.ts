@@ -428,7 +428,7 @@ const router = {
 		}),
 		add: os.input(favoriteDraftSchema).handler(({ input }) => {
 			const transport = requireWritableFavorites();
-			const favorite: Favorite = { id: `f${transport.favorites.length + 1}`, title: input.title, url: input.url };
+			const favorite: Favorite = { id: `f${transport.favorites.length + 1}`, ...input };
 			transport.favorites = [...transport.favorites, favorite];
 
 			return favorite;

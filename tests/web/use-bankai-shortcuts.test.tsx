@@ -152,6 +152,7 @@ test("semantic shortcuts from a focused Page keep global Bankai controls working
 		openExternal: async () => {},
 		clearData: async () => {},
 		snapshot: async () => null,
+		preview: async () => null,
 		onState: () => () => {},
 		onShortcut: (listener) => {
 			relay = listener;

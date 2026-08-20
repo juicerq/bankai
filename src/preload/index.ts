@@ -68,6 +68,7 @@ const sessionPageApi: BankaiSessionPageApi = {
 	openExternal: () => ipcRenderer.invoke(SESSION_PAGE_IPC.openExternal),
 	clearData: () => ipcRenderer.invoke(SESSION_PAGE_IPC.clearData),
 	snapshot: () => ipcRenderer.invoke(SESSION_PAGE_IPC.snapshot),
+	preview: () => ipcRenderer.invoke(SESSION_PAGE_IPC.preview),
 	onState: (listener) => {
 		const handler = (_event: Electron.IpcRendererEvent, payload: SessionPageState) => {
 			listener(payload);

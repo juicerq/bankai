@@ -230,15 +230,22 @@ export function SessionPagePanel({
 					label={saved ? "Remove page from favorites" : "Save page to favorites"}
 					slot="favorite"
 					disabled={blank}
-					onClick={() => {
+					onClick={async () => {
 						if (saved) {
 							favorites.remove(saved.id);
 							return;
 						}
 
-						if (current) {
-							favorites.add({ title: favoriteTitle(current, state?.title), url: current });
+						if (!current) {
+							return;
 						}
+
+						const preview = await window.bankaiSessionPage?.preview().catch(() => null);
+						favorites.add({
+							title: favoriteTitle(current, state?.title),
+							url: current,
+							...(preview ? { preview } : {}),
+						});
 					}}
 				>
 					{saved ? <StarSolidIcon className="size-4 text-tertiary" /> : <StarIcon className="size-4" />}

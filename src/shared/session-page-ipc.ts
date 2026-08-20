@@ -7,6 +7,7 @@ export const SESSION_PAGE_IPC = {
 	openExternal: "session-page:open-external",
 	clearData: "session-page:clear-data",
 	snapshot: "session-page:snapshot",
+	preview: "session-page:preview",
 	state: "session-page:state",
 	shortcut: "session-page:shortcut",
 } as const;

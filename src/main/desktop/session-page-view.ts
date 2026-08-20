@@ -26,6 +26,9 @@ interface SessionPageSnapshot {
 }
 
 const controllers = new WeakMap<BrowserWindow, SessionPageController>();
+const SNAPSHOT_QUALITY = 80;
+const PREVIEW_WIDTH = 480;
+const PREVIEW_QUALITY = 60;
 const modifierCode = /^(?:Alt|Control|Meta|Shift)(?:Left|Right)$/;
 
 function roundedIntersection({ bounds, container, zoom }: { bounds: Rectangle; container: Rectangle; zoom: number }): Rectangle {
@@ -309,6 +312,24 @@ class SessionPageController {
 	}
 
 	async snapshot() {
+		const image = await this.capture();
+
+		return image && `data:image/jpeg;base64,${image.toJPEG(SNAPSHOT_QUALITY).toString("base64")}`;
+	}
+
+	async preview() {
+		const image = await this.capture();
+
+		if (!image) {
+			return null;
+		}
+
+		const thumbnail = image.resize({ width: PREVIEW_WIDTH, quality: "good" });
+
+		return `data:image/jpeg;base64,${thumbnail.toJPEG(PREVIEW_QUALITY).toString("base64")}`;
+	}
+
+	private async capture() {
 		if (!this.currentShellId || !this.requestedVisible || this.failure || !this.view) {
 			return null;
 		}
@@ -319,7 +340,7 @@ class SessionPageController {
 			return null;
 		}
 
-		return `data:image/jpeg;base64,${image.toJPEG(80).toString("base64")}`;
+		return image;
 	}
 
 	private hide() {
@@ -515,6 +536,11 @@ function setup() {
 		SessionPageSchemas.none.assert(payload);
 
 		return controllerFor(event).snapshot();
+	});
+	ipcMain.handle(SESSION_PAGE_IPC.preview, async (event, payload) => {
+		SessionPageSchemas.none.assert(payload);
+
+		return controllerFor(event).preview();
 	});
 }
 

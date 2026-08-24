@@ -1,5 +1,4 @@
 import { type } from "arktype";
-import { dialog, shell } from "electron";
 import { Directories } from "@main/infra/directories";
 import { base } from "@main/transport/rpc/rpc-base";
 import { Services } from "@main/services";
@@ -16,13 +15,6 @@ export const projectsRouter = {
 		const path = await Directories.ensureProject(input.path);
 		return await Projects.add(path);
 	}),
-	openDirectory: base.input(type({ projectId: "string" })).handler(async ({ input }) => {
-		const project = await Projects.find(input.projectId);
-		const error = await shell.openPath(project.path);
-		if (error) {
-			throw new Error(error);
-		}
-	}),
 	remove: base.input(type({ projectId: "string" })).handler(async ({ input }) => {
 		await Projects.find(input.projectId);
 		Services.stopProject(input.projectId);
@@ -30,16 +22,5 @@ export const projectsRouter = {
 		await ProjectCommands.purgeProject(input.projectId);
 		await Continuity.purgeProject(input.projectId);
 		await Todos.purgeProject(input.projectId);
-	}),
-	chooseDirectory: base.handler(async () => {
-		const result = await dialog.showOpenDialog({
-			properties: ["openDirectory"],
-			title: "Add project",
-		});
-		const path = result.filePaths[0];
-		if (result.canceled || !path) {
-			return null;
-		}
-		return await Projects.add(path);
 	}),
 };

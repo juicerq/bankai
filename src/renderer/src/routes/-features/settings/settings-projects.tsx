@@ -14,7 +14,7 @@ export function SettingsProjects({
 }: {
 	projects: Project[];
 	shellCounts: ReadonlyMap<string, number>;
-	onOpenDirectory: (projectId: string) => void;
+	onOpenDirectory: (path: string) => void;
 	onRemove: (projectId: string) => void;
 }) {
 	const [menu, setMenu] = useState<{ project: Project; x: number; y: number }>();
@@ -88,7 +88,7 @@ export function SettingsProjects({
 						className="block w-full px-3 py-2 text-left text-primary hover:bg-surface-hover"
 						onClick={() => {
 							closeMenu();
-							onOpenDirectory(menu.project.id);
+							onOpenDirectory(menu.project.path);
 						}}
 					>
 						Open folder

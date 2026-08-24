@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import { type BankaiDesktopApi, DESKTOP_IPC } from "@shared/desktop";
 import { AUTH_IPC, type BankaiAuthApi } from "@shared/server";
 import { THEME_LIGHT_CLASS, themeFromArguments } from "@shared/theme";
 import { UPDATE_IPC, type BankaiUpdateApi, type UpdateDownloadedEvent } from "@shared/update";
@@ -111,6 +112,15 @@ ipcRenderer.on("window:maximized", (_event, value: boolean) => {
 		listener();
 	}
 });
+
+const desktopApi: BankaiDesktopApi = {
+	attention: (reason, count) => ipcRenderer.send(DESKTOP_IPC.attention, reason, count),
+	pickDirectory: () => ipcRenderer.invoke(DESKTOP_IPC.pickDirectory),
+	openPath: (path) => ipcRenderer.invoke(DESKTOP_IPC.openPath, path),
+	clipboardImage: () => ipcRenderer.invoke(DESKTOP_IPC.clipboardImage),
+};
+
+contextBridge.exposeInMainWorld("bankaiDesktop", desktopApi);
 
 const windowApi: BankaiWindowApi = {
 	minimize: () => ipcRenderer.send("window:minimize"),

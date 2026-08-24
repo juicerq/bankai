@@ -25,7 +25,7 @@ export function SettingsModal({
 }: {
 	projects: Project[];
 	shellCounts: ReadonlyMap<string, number>;
-	onOpenDirectory: (projectId: string) => void;
+	onOpenDirectory: (path: string) => void;
 	onRemoveProject: (projectId: string) => void;
 	onClose: () => void;
 }) {

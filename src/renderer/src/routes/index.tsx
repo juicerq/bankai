@@ -386,10 +386,24 @@ function Bankai() {
 	const { mutate: addProject, isPending: addingProject, error: addProjectError } = useMutation(
 		orpc.projects.add.mutationOptions({ onSuccess: mountProject }),
 	);
-	const { mutate: chooseDirectory } = useMutation(
-		orpc.projects.chooseDirectory.mutationOptions({ onSuccess: mountProject }),
-	);
-	const openDirectory = useMutation(orpc.projects.openDirectory.mutationOptions());
+	const pickDirectory = useCallback(() => {
+		const desktop = window.bankaiDesktop;
+		if (!desktop) {
+			return;
+		}
+
+		desktop
+			.pickDirectory()
+			.then((path) => {
+				if (path) {
+					addProject({ path });
+				}
+			})
+			.catch((err) => console.error("Failed to pick a project directory", err));
+	}, [addProject]);
+	const openDirectory = useCallback((path: string) => {
+		window.bankaiDesktop?.openPath(path).catch((err) => console.error("Failed to open the project folder", err));
+	}, []);
 	const removeProject = useMutation(
 		orpc.projects.remove.mutationOptions({
 			onSuccess: async (_, input) => {
@@ -542,7 +556,7 @@ function Bankai() {
 				<SettingsModal
 					projects={availableProjects}
 					shellCounts={shellCounts}
-					onOpenDirectory={(projectId) => openDirectory.mutate({ projectId })}
+					onOpenDirectory={openDirectory}
 					onRemoveProject={(projectId) => removeProject.mutate({ projectId })}
 					onClose={closeSettings}
 				/>
@@ -555,7 +569,7 @@ function Bankai() {
 					adding={addingProject}
 					addError={addProjectError?.message}
 					onAdd={(path) => addProject({ path })}
-					onOpenSystemPicker={() => chooseDirectory({})}
+					onOpenSystemPicker={pickDirectory}
 					onClose={closePicker}
 				/>
 			)}

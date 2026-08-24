@@ -2,7 +2,6 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { type IBufferCellPosition, type IDisposable, Terminal } from "@xterm/xterm";
 import { useCallback, useRef } from "react";
-import { client } from "@renderer/lib/api";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { terminalStream } from "@renderer/lib/stream/terminal";
 import type { ResumeOutcome } from "@renderer/routes/-features/sessions/lifecycle/resume-state";
@@ -529,7 +528,7 @@ export class RendererTerminalSession {
 			return;
 		}
 
-		const image = await client.clipboard.image();
+		const image = await window.bankaiDesktop?.clipboardImage();
 		if (image) {
 			this.terminal.paste(`${image} `);
 		}

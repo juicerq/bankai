@@ -15,6 +15,7 @@ import { type WindowStartupSettings, WindowSettings } from "@main/settings/windo
 import { MobileAccess } from "@main/infra/tailscale/mobile-access";
 import { UpdateIpc } from "@main/desktop/update-ipc";
 import { DesktopAttention } from "@main/desktop/desktop-attention";
+import { DesktopIpc } from "@main/desktop/desktop-ipc";
 import { DesktopWindow } from "@main/desktop/desktop-window";
 import { SessionPageView } from "@main/desktop/session-page-view";
 import { AUTH_IPC } from "@shared/server";
@@ -156,6 +157,7 @@ async function start() {
 		Services.autostart().catch((err) => Logger.error("services:autostart-failed", { err: String(err) }));
 		DesktopWindow.setup();
 		SessionPageView.setup();
+		DesktopIpc.setup();
 		await UpdateIpc.setup();
 		Startup.mark("ipc-ready");
 		await createWindow();

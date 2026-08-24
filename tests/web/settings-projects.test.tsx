@@ -17,7 +17,7 @@ afterEach(() => {
 
 function renderProjects(options: {
 	shellCounts?: ReadonlyMap<string, number>;
-	onOpenDirectory?: (projectId: string) => void;
+	onOpenDirectory?: (path: string) => void;
 	onRemove?: (projectId: string) => void;
 } = {}) {
 	return render(
@@ -45,11 +45,11 @@ test("lists every project in settings", () => {
 
 test("opens a project's directory from its actions", () => {
 	const opened: string[] = [];
-	renderProjects({ onOpenDirectory: (projectId) => opened.push(projectId) });
+	renderProjects({ onOpenDirectory: (path) => opened.push(path) });
 
 	fireEvent.click(slot(openActions("zulu"), "open-project-directory"));
 
-	expect(opened).toEqual(["zulu"]);
+	expect(opened).toEqual(["/projects/zulu"]);
 	expect(query("settings-project-menu")).toBeNull();
 });
 

@@ -30,15 +30,15 @@ function running(shellId: string) {
 	const terminal = new FakeProcess();
 	const sessionId = `session-${shellId}`;
 
-	shellProcesses.register({ projectId: "p1", shellId, sessionId, process: terminal });
+	shellProcesses.register({ projectId: "p1", shellId, sessionId, process: terminal, cols: 80, rows: 24 });
 
 	return { terminal, sessionId };
 }
 
-function attach(sessionId: string, connection: StreamConnection) {
+async function attach(sessionId: string, connection: StreamConnection) {
 	const events: TerminalStreamEvent[] = [];
 
-	shellProcesses.attach(sessionId, {
+	await shellProcesses.attach(sessionId, {
 		connectionId: connection.id,
 		send: (event) => events.push(event),
 	});
@@ -55,8 +55,8 @@ test("an attachment that landed after its connection closed lets go of the shell
 	const { sessionId } = running("late-attach");
 	gone.close();
 
-	const missed = attach(sessionId, gone);
-	const seen = attach(sessionId, connected());
+	const missed = await attach(sessionId, gone);
+	const seen = await attach(sessionId, connected());
 	TerminalMessages.detachOnClose(gone, { sessionId });
 	shellProcesses.noteData(sessionId, "output the phone will never see");
 	await flushed();
@@ -69,7 +69,7 @@ test("an attachment made while the connection was open is let go when it closes"
 	const connection = connected();
 	const { sessionId } = running("close-later");
 
-	const events = attach(sessionId, connection);
+	const events = await attach(sessionId, connection);
 	TerminalMessages.detachOnClose(connection, { sessionId });
 	connection.close();
 	shellProcesses.noteData(sessionId, "output after the phone went away");

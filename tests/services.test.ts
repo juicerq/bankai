@@ -39,6 +39,8 @@ void mock.module("@main/terminal/shell-spawn", () => ({
 				sessionId,
 				projectId: input.projectId,
 				shellId: input.shellId,
+				cols: 80,
+				rows: 24,
 				process: {
 					pid,
 					write: () => {},

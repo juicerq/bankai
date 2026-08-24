@@ -196,6 +196,8 @@ describe("a turn asked from the phone notifies the phone", () => {
 		shellProcesses.register({
 			...OWNER,
 			sessionId,
+			cols: 80,
+			rows: 24,
 			process: { pid: 4242, write: () => {}, resize: () => {}, kill: () => {} },
 		});
 

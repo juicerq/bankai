@@ -37,6 +37,8 @@ export const ShellSpawn = {
 			sessionId,
 			projectId: input.projectId,
 			shellId: input.shellId,
+			cols: input.cols,
+			rows: input.rows,
 			process: {
 				pid: terminal.pid,
 				write: (data) => terminal.write(data),

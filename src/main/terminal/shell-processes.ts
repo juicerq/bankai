@@ -1,6 +1,6 @@
 import { Logger } from "@main/infra/logger";
 import { TerminalDataBuffer } from "@main/terminal/buffer/terminal-data-buffer";
-import { TerminalRingBuffer } from "@main/terminal/buffer/terminal-ring-buffer";
+import { TerminalMirror, type TerminalSize } from "@main/terminal/buffer/terminal-mirror";
 import type { TerminalStreamEvent } from "@shared/terminal";
 
 const TERMINAL_KILL_GRACE_MS = 5_000;
@@ -29,10 +29,10 @@ export interface TerminalSessionInfo extends ShellRef {
 	pid: number;
 }
 
-interface ShellProcess extends ShellRef {
+interface ShellProcess extends ShellRef, TerminalSize {
 	process: TerminalProcess;
 	output: TerminalDataBuffer;
-	ring: TerminalRingBuffer;
+	mirror: TerminalMirror;
 	attachments: Map<string, ShellAttachment>;
 	closing: boolean;
 	forceKill: ReturnType<typeof setTimeout> | undefined;
@@ -43,17 +43,19 @@ export class ShellProcesses {
 
 	constructor(private readonly killGraceMs = TERMINAL_KILL_GRACE_MS) {}
 
-	register(input: ShellRef & { sessionId: string; process: TerminalProcess }): void {
+	register(input: ShellRef & TerminalSize & { sessionId: string; process: TerminalProcess }): void {
 		const { sessionId } = input;
 
 		this.sessions.set(sessionId, {
 			projectId: input.projectId,
 			shellId: input.shellId,
+			cols: input.cols,
+			rows: input.rows,
 			process: input.process,
 			output: new TerminalDataBuffer((data) => {
 				this.broadcast(sessionId, { type: "data", payload: { sessionId, data } });
 			}),
-			ring: new TerminalRingBuffer(),
+			mirror: new TerminalMirror(input),
 			attachments: new Map(),
 			closing: false,
 			forceKill: undefined,
@@ -79,16 +81,27 @@ export class ShellProcesses {
 		return undefined;
 	}
 
-	attach(sessionId: string, attachment: ShellAttachment): string | undefined {
+	async attach(sessionId: string, attachment: ShellAttachment, size?: TerminalSize): Promise<string | undefined> {
 		const session = this.live(sessionId);
 		if (!session) {
 			return undefined;
 		}
 
+		await session.mirror.drain();
+
+		if (!this.live(sessionId)) {
+			throw new Error("shell exited during attach");
+		}
+
+		if (size) {
+			this.resize(sessionId, size.cols, size.rows);
+		}
+
+		const replay = await session.mirror.snapshot();
 		session.output.flush();
 		session.attachments.set(attachment.connectionId, attachment);
 
-		return session.ring.read();
+		return replay;
 	}
 
 	detach(sessionId: string, connectionId: string): void {
@@ -101,7 +114,7 @@ export class ShellProcesses {
 			return;
 		}
 
-		session.ring.append(data);
+		session.mirror.write(data);
 		session.output.append(data);
 	}
 
@@ -124,7 +137,15 @@ export class ShellProcesses {
 	}
 
 	resize(sessionId: string, cols: number, rows: number): void {
-		this.live(sessionId)?.process.resize(cols, rows);
+		const session = this.live(sessionId);
+		if (!session || (session.cols === cols && session.rows === rows)) {
+			return;
+		}
+
+		session.cols = cols;
+		session.rows = rows;
+		session.process.resize(cols, rows);
+		session.mirror.resize({ cols, rows });
 	}
 
 	close(sessionId: string): void {

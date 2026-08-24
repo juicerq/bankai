@@ -39,6 +39,8 @@ function openShell(shellId: string): string {
 		projectId: "daemon-router",
 		shellId,
 		sessionId,
+		cols: 80,
+		rows: 24,
 		process: { pid: 4242, write: () => {}, resize: () => {}, kill: () => {} },
 	});
 

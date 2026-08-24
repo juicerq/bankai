@@ -188,6 +188,8 @@ describe("daemon client", () => {
 			projectId: "daemon-client",
 			shellId: "client-shell",
 			sessionId,
+			cols: 80,
+			rows: 24,
 			process: { pid: 4242, write: () => {}, resize: () => {}, kill: () => {} },
 		});
 

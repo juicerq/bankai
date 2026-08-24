@@ -33,7 +33,7 @@ async function handleTerminalMessage(
 				throw new Error("This process is not running");
 			}
 
-			const replay = shellProcesses.attach(sessionId, attachmentOf(connection));
+			const replay = await shellProcesses.attach(sessionId, attachmentOf(connection));
 
 			return detachOnClose(connection, replay ? { sessionId, replay } : { sessionId });
 		}

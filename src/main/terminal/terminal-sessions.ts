@@ -72,10 +72,10 @@ async function resumableCwd(input: ShellRef, cwd: string): Promise<string> {
 	throw new Error(`The session directory no longer exists: ${cwd}`);
 }
 
-function spawnOrAttach(attachment: ShellAttachment, input: SpawnInput): TerminalAttached {
+async function spawnOrAttach(attachment: ShellAttachment, input: SpawnInput): Promise<TerminalAttached> {
 	const running = shellProcesses.find(input);
 	if (running) {
-		return attached(running, shellProcesses.attach(running, attachment));
+		return attached(running, await shellProcesses.attach(running, attachment, input));
 	}
 
 	const { sessionId } = ShellSpawn.run({
@@ -97,7 +97,7 @@ function spawnOrAttach(attachment: ShellAttachment, input: SpawnInput): Terminal
 		},
 	});
 
-	return attached(sessionId, shellProcesses.attach(sessionId, attachment));
+	return attached(sessionId, await shellProcesses.attach(sessionId, attachment));
 }
 
 function attached(sessionId: string, replay: string | undefined): TerminalAttached {

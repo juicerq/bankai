@@ -66,16 +66,21 @@ describe("loopback listen", () => {
 		server.close();
 	});
 
-	it("fails with the busy port named instead of moving to another one", async () => {
+	it("fails on a busy port with the code the caller branches on", async () => {
 		const taken = createServer();
 		await ServerListen.on(taken, { port: 0, host: SERVER_HOST });
 
 		const { port } = boundAddress(taken);
 		const second = createServer();
 
-		const failure = await ServerListen.on(second, { port, host: SERVER_HOST }).catch((err) => String(err));
+		const failure: NodeJS.ErrnoException = await ServerListen.on(second, { port, host: SERVER_HOST })
+			.then(() => {
+				throw new Error("expected the busy port to reject");
+			})
+			.catch((err: NodeJS.ErrnoException) => err);
 
-		expect(failure).toInclude(`port ${port}`);
+		expect(failure.code).toBe("EADDRINUSE");
+		expect(String(failure)).toInclude(String(port));
 		expect(second.listening).toBe(false);
 
 		taken.close();

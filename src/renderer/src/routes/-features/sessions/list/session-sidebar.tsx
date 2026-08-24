@@ -125,7 +125,7 @@ export function SessionSidebar({
 					</>
 				}
 			/>
-			<div className="min-h-0 flex-1 overflow-auto" aria-label="Sessions">
+			<div className="min-h-0 flex-1 divide-y divide-outline overflow-auto" aria-label="Sessions">
 				{empty && list.searching && (
 					<p data-slot="no-match" className="px-3 py-6 text-center text-secondary text-support">
 						No session matches “{list.term}”.
@@ -146,7 +146,6 @@ export function SessionSidebar({
 				{list.archived.length > 0 && (
 					<ArchivedShelfHeader
 						count={list.archived.length}
-						ruled={list.open.length > 0}
 						open={list.archivedOpen}
 						onToggle={list.toggleArchived}
 						onClear={() => {
@@ -178,13 +177,11 @@ export function SessionSidebar({
 
 function ArchivedShelfHeader({
 	count,
-	ruled,
 	open,
 	onToggle,
 	onClear,
 }: {
 	count: number;
-	ruled: boolean;
 	open: boolean;
 	onToggle: () => void;
 	onClear: () => void;
@@ -193,9 +190,7 @@ function ArchivedShelfHeader({
 
 	return (
 		<div
-			className={`group sticky top-0 z-10 flex h-7 w-full items-center bg-surface-raised pr-2 text-label text-secondary ${
-				ruled ? "border-outline border-t" : ""
-			}`}
+			className="group sticky top-0 z-10 flex h-7 w-full items-center bg-surface-raised pr-2 text-label text-secondary"
 			onMouseLeave={() => setArmed(false)}
 		>
 			<button

@@ -342,6 +342,23 @@ the first, a struck-out name and an eye-slash mark the second. The trigger holds
 `surface-active` while the menu is open or any project is marked, and the menu
 ends with a control that clears every mark.
 
+**Session list.** The scrolling column under the search row: one card per open
+shell, then the sticky `ARCHIVED` header, then the archived rows it toggles. A
+card stacks the project name with the harness mark, the title, and a line
+carrying the branch against the activity state; an archived row collapses to a
+single 28px course of title and project name.
+
+The container draws every separator. `divide-y divide-outline` sits on the
+scrolling element, and no row, no header, and no empty state carries a border of
+its own — that is what stops two adjacent sessions from summing to a 2px seam,
+and it is why the archived header has no rule of its own against the card above
+it. A row that needs to mark itself reaches for tone, never for an edge.
+
+The 2px edge down a row's left is the exception, and it is a marker rather than a
+separator: `tertiary` while the agent works, `terminal-blue` when it waits on the
+operator, `added` when it finishes, `outline-strong` for the selected shell, and
+transparent for everything else.
+
 **Project settings row.** A stored project. Name, full path, and one visible
 actions control share a single ruled row. The path truncates before the action,
 and the temporary menu owns open, copy, and remove without returning a permanent

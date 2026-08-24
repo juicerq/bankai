@@ -1,6 +1,7 @@
 import { app } from "electron";
 import { AgentActivity } from "@main/agents/agent-activity";
 import { ClaudeHooks } from "@main/agents/harness/claude/claude-hooks";
+import { DaemonIdle } from "@main/daemon/daemon-idle";
 import { DaemonShutdown } from "@main/daemon/daemon-shutdown";
 import { APP_VERSION } from "@main/infra/app-version";
 import { Logger } from "@main/infra/logger";
@@ -53,6 +54,7 @@ async function startDaemon(): Promise<void> {
 	});
 
 	AgentActivity.start();
+	new DaemonIdle().watch();
 
 	ClaudeHooks.removeInstalled().catch((err) => {
 		Logger.warn("hooks:removal-failed", { err: String(err) });

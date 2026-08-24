@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/node";
 import { CORSPlugin } from "@orpc/server/plugins";
+import { DaemonProbes } from "@main/daemon/daemon-probes";
 import { APP_VERSION } from "@main/infra/app-version";
 import { Logger } from "@main/infra/logger";
 import { router } from "@main/transport/rpc/router";
@@ -77,6 +78,7 @@ async function route(
 	bundle: BundleAssets | undefined,
 ): Promise<void> {
 	if (req.url === DAEMON_HELLO_PATH && fromLoopback(req)) {
+		DaemonProbes.note();
 		res
 			.writeHead(200, { "content-type": "application/json" })
 			.end(

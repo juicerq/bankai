@@ -9,18 +9,7 @@ function countActiveWork(): UpdateWorkload {
 		return { kind: "shells", count: shells.length };
 	}
 
-	const projectIds = new Set(shells.map((shell) => shell.projectId));
-	let count = 0;
-
-	for (const projectId of projectIds) {
-		for (const state of Object.values(AgentActivity.getProjectSnapshot(projectId).shells)) {
-			if (state === "working" || state === "needs-attention") {
-				count += 1;
-			}
-		}
-	}
-
-	return { kind: "agents", count };
+	return { kind: "agents", count: AgentActivity.countWorking(new Set(shells.map((shell) => shell.projectId))) };
 }
 
 export const ActiveWork = {

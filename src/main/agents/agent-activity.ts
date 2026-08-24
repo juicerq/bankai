@@ -215,6 +215,20 @@ class AgentActivityTracker {
 		return this.projectSnapshots.get(projectId) ?? emptySnapshot();
 	}
 
+	countWorking(projectIds: Iterable<string>): number {
+		let count = 0;
+
+		for (const projectId of projectIds) {
+			for (const state of Object.values(this.getProjectSnapshot(projectId).shells)) {
+				if (state === "working" || state === "needs-attention") {
+					count += 1;
+				}
+			}
+		}
+
+		return count;
+	}
+
 	liveAgentSessions(): ReadonlySet<string> {
 		return this.boundSessions;
 	}

@@ -25,4 +25,5 @@ function closeLiveConnections(): void {
 export const LiveConnections = {
 	track: trackLiveConnection,
 	closeAll: closeLiveConnections,
+	count: () => live.size,
 };

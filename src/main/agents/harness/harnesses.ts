@@ -1,10 +1,11 @@
 import type { AgentPresence, Harness } from "@main/agents/harness/harness";
 import { ClaudeHarness } from "@main/agents/harness/claude/claude-harness";
 import { CodexHarness } from "@main/agents/harness/codex/codex-harness";
+import { OpencodeHarness } from "@main/agents/harness/opencode/opencode-harness";
 import { Logger } from "@main/infra/logger";
 import type { HarnessSettings } from "@shared/settings";
 
-const harnesses: Harness[] = [ClaudeHarness, CodexHarness];
+const harnesses: Harness[] = [ClaudeHarness, CodexHarness, OpencodeHarness];
 
 const DEFAULT_HARNESS_SETTINGS: HarnessSettings = {
 	autostart: true,

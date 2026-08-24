@@ -8,6 +8,7 @@ import {
 import type { ReactElement, ReactNode } from "react";
 import { ClaudeGlyph } from "@renderer/routes/-features/sessions/list/claude-glyph";
 import { CodexGlyph } from "@renderer/routes/-features/sessions/list/codex-glyph";
+import { OpencodeGlyph } from "@renderer/routes/-features/sessions/list/opencode-glyph";
 import { ElapsedClock } from "@renderer/routes/-features/shared/time/elapsed-clock";
 import { ShellGlyph } from "@renderer/routes/-features/sessions/list/shell-glyph";
 import { ACTIVITY_BORDER_CLASS, ACTIVITY_LABEL, ACTIVITY_TEXT_CLASS } from "@renderer/routes/-features/sessions/list/agent-activity";
@@ -29,6 +30,7 @@ export interface SessionGestures {
 const HARNESS_GLYPH: Record<string, (props: { active: boolean }) => ReactElement> = {
 	claude: ClaudeGlyph,
 	codex: CodexGlyph,
+	opencode: OpencodeGlyph,
 };
 
 const HOVER_ACTION_CLASS =

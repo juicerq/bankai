@@ -4,6 +4,8 @@ export const CLAUDE_HARNESS_ID = "claude";
 
 export const CODEX_HARNESS_ID = "codex";
 
+export const OPENCODE_HARNESS_ID = "opencode";
+
 export interface AgentPresence {
 	harness: string;
 	sessionId?: string;

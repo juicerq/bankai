@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ClaudeHarness } from "@main/agents/harness/claude/claude-harness";
 import { CodexHarness } from "@main/agents/harness/codex/codex-harness";
+import { OpencodeHarness } from "@main/agents/harness/opencode/opencode-harness";
 import { Harnesses } from "@main/agents/harness/harnesses";
 import { HarnessSettings } from "@main/settings/harness-settings";
 import { ShellAutostart } from "@main/terminal/shell-autostart";
@@ -22,6 +23,7 @@ describe("launchable harnesses", () => {
 		expect(Harnesses.launchable()).toEqual([
 			{ id: ClaudeHarness.id, label: ClaudeHarness.label, conversation: true, file: "claude" },
 			{ id: CodexHarness.id, label: CodexHarness.label, conversation: true, file: "codex" },
+			{ id: OpencodeHarness.id, label: OpencodeHarness.label, conversation: true, file: "opencode" },
 		]);
 	});
 
@@ -31,6 +33,15 @@ describe("launchable harnesses", () => {
 
 	test("resolves the codex launch capability", () => {
 		expect(Harnesses.get(CodexHarness.id)?.launch).toBe(CodexHarness.launch);
+	});
+
+	test("resolves the opencode launch and resume capabilities", () => {
+		const harness = Harnesses.get(OpencodeHarness.id);
+		assertDefined(harness);
+
+		expect(harness.launch?.()).toEqual({ file: "opencode", args: [] });
+		expect(harness.resume?.({ sessionId: "ses_abc123" })).toEqual({ file: "opencode", args: ["--session", "ses_abc123"] });
+		expect(harness.resume?.({ sessionId: "not-a-session" })).toBeNull();
 	});
 
 	test("returns nothing for an unknown harness", () => {

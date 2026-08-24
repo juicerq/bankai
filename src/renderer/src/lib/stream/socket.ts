@@ -37,7 +37,8 @@ export class StreamSocket {
 	private readonly pending = new Map<string, PendingRequest>();
 	private nextRequestId = 0;
 	private status: StreamStatus = "connecting";
-	private serverVersion: string | undefined;
+	private server: StreamHello | undefined;
+	private lostQueue = false;
 	private attempt = 0;
 	private generation = 0;
 	private retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -169,15 +170,18 @@ export class StreamSocket {
 			});
 	}
 
-	private handshake(version: string): void {
-		if (this.serverVersion && this.serverVersion !== version) {
+	private handshake(hello: StreamHello): void {
+		const known = this.server;
+
+		if (known && (known.protocol !== hello.protocol || known.version !== hello.version)) {
 			this.halt("outdated");
 
 			return;
 		}
 
-		const reconnected = !!this.serverVersion;
-		this.serverVersion = version;
+		const reconnected = !!known || this.lostQueue;
+		this.lostQueue = false;
+		this.server = hello;
 		this.connecting = false;
 		this.attempt = 0;
 		this.setStatus("open");
@@ -210,6 +214,7 @@ export class StreamSocket {
 		this.generation += 1;
 		this.socket = undefined;
 		this.connecting = false;
+		this.lostQueue ||= this.outbox.length > 0;
 		this.outbox = [];
 		this.rejectPending(error);
 
@@ -253,7 +258,7 @@ export class StreamSocket {
 		const envelope: StreamEnvelope = JSON.parse(data);
 
 		if (envelope.channel === "system" && envelope.type === STREAM_HELLO) {
-			this.handshake(helloVersion(envelope.payload));
+			this.handshake(helloOf(envelope.payload));
 
 			return;
 		}
@@ -295,12 +300,18 @@ function haltError(status: StreamStatus): Error {
 	return new Error(`The Bankai stream is ${status}`);
 }
 
-function helloVersion(payload: unknown): StreamHello["version"] {
-	if (!payload || typeof payload !== "object" || !("version" in payload) || typeof payload.version !== "string") {
-		throw new Error("The Bankai stream announced no version");
+function helloOf(payload: unknown): StreamHello {
+	if (!payload || typeof payload !== "object" || !("protocol" in payload) || !("version" in payload)) {
+		throw new Error("The Bankai stream announced no protocol version");
 	}
 
-	return payload.version;
+	const { protocol, version } = payload;
+
+	if (typeof protocol !== "number" || typeof version !== "string") {
+		throw new Error("The Bankai stream announced no protocol version");
+	}
+
+	return { protocol, version };
 }
 
 async function streamUrl(): Promise<string> {

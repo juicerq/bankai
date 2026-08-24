@@ -6,6 +6,7 @@ import { queryClient } from "@renderer/lib/query-client";
 import { streamResync } from "@renderer/lib/stream/resync";
 import { reconnectDelay, StreamSocket } from "@renderer/lib/stream/socket";
 import { streamStatus } from "@renderer/lib/stream/status";
+import { DAEMON_PROTOCOL_VERSION } from "@shared/daemon";
 
 const UNWATCHED_KEY = orpc.projects.list.queryOptions().queryKey;
 const WATCHED_KEY = orpc.services.output.queryOptions({ input: { commandId: "svc" } }).queryKey;
@@ -145,9 +146,9 @@ test("a reconnect leaves the reads the watch stage pushes back untouched", async
 	stopCache();
 });
 
-test("a server announcing a different version stops the client instead of talking to it", async () => {
+test("a server announcing a different protocol stops the client instead of talking to it", async () => {
 	const socket = await connected();
-	streamTransport.version = "99.0.0";
+	streamTransport.protocol = DAEMON_PROTOCOL_VERSION + 1;
 
 	streamTransport.disconnect();
 	await backoff();
@@ -158,4 +159,44 @@ test("a server announcing a different version stops the client instead of talkin
 	await settle();
 
 	expect(streamTransport.payloads("activity", "unwatch")).toEqual([]);
+});
+
+test("a watch queued before the very first connection is re-issued once the socket opens", async () => {
+	const rewatched: string[] = [];
+	const stopWatch = streamResync.register("watch", () => {
+		rewatched.push("watch");
+	});
+	streamTransport.failNext = true;
+
+	const socket = new StreamSocket();
+	sockets.push(socket);
+	socket.send("activity", "watch-attention");
+	await settle();
+
+	expect(rewatched).toEqual([]);
+
+	await backoff();
+
+	expect(rewatched).toEqual(["watch"]);
+
+	stopWatch();
+});
+
+test("an app updated under an open window asks it to restart", async () => {
+	await connected();
+	streamTransport.version = "99.0.0";
+
+	streamTransport.disconnect();
+	await backoff();
+
+	expect(streamStatus.get()).toBe("outdated");
+});
+
+test("the same app across a reconnect keeps the window talking", async () => {
+	await connected();
+
+	streamTransport.disconnect();
+	await backoff();
+
+	expect(streamStatus.get()).toBe("open");
 });

@@ -1,0 +1,3 @@
+export const DAEMON_PROTOCOL_VERSION = 1;
+
+export const DAEMON_ENV_FLAG = "BANKAI_DAEMON";

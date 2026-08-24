@@ -1,5 +1,6 @@
 import "./register-dom";
 import "./auth-bridge";
+import { DAEMON_PROTOCOL_VERSION } from "@shared/daemon";
 import { STREAM_HELLO, STREAM_REJECT, STREAM_REPLY, type StreamChannel, type StreamEnvelope } from "@shared/stream";
 
 const STREAM_TEST_VERSION = "0.0.0-test";
@@ -20,9 +21,20 @@ class FakeWebSocket {
 	constructor(readonly url: string) {
 		streamTransport.hold(this);
 		queueMicrotask(() => {
+			if (streamTransport.failNext) {
+				streamTransport.failNext = false;
+				this.close();
+
+				return;
+			}
+
 			this.readyState = FakeWebSocket.OPEN;
 			this.dispatch("open", {});
-			this.deliver({ channel: "system", type: STREAM_HELLO, payload: { version: streamTransport.version } });
+			this.deliver({
+				channel: "system",
+				type: STREAM_HELLO,
+				payload: { protocol: streamTransport.protocol, version: streamTransport.version },
+			});
 		});
 	}
 
@@ -55,7 +67,9 @@ class FakeWebSocket {
 
 class StreamTransport {
 	readonly calls: StreamEnvelope[] = [];
+	protocol = DAEMON_PROTOCOL_VERSION;
 	version = STREAM_TEST_VERSION;
+	failNext = false;
 	connections = 0;
 	private readonly handlers = new Map<string, TransportHandler>();
 	private socket: FakeWebSocket | undefined;
@@ -73,7 +87,9 @@ class StreamTransport {
 	reset() {
 		this.calls.length = 0;
 		this.connections = 0;
+		this.protocol = DAEMON_PROTOCOL_VERSION;
 		this.version = STREAM_TEST_VERSION;
+		this.failNext = false;
 	}
 
 	push(channel: StreamChannel, type: string, payload?: unknown) {

@@ -1,6 +1,6 @@
 import type { Server } from "node:http";
-import { app } from "electron";
 import { type RawData, WebSocketServer } from "ws";
+import { APP_VERSION } from "@main/infra/app-version";
 import { Logger } from "@main/infra/logger";
 import { ServerAuth } from "@main/transport/server/server-auth";
 import { LiveConnections } from "@main/transport/server/live-connections";
@@ -14,6 +14,7 @@ import { STREAM_MAX_PAYLOAD_BYTES, streamEnvelopeSchema } from "@main/transport/
 import { ReviewMessages } from "@main/transport/stream/review-messages";
 import { ServiceMessages } from "@main/transport/stream/service-messages";
 import { TerminalMessages } from "@main/transport/stream/terminal-messages";
+import { DAEMON_PROTOCOL_VERSION } from "@shared/daemon";
 import { STREAM_HELLO, type StreamChannel, type StreamEnvelope, type StreamHello } from "@shared/stream";
 
 const CHANNEL_HANDLERS: Record<
@@ -49,7 +50,10 @@ function attachStreamServer(server: Server): void {
 			const connection = new StreamConnection(accepted);
 
 			LiveConnections.track(accepted);
-			connection.send("system", STREAM_HELLO, { version: app.getVersion() } satisfies StreamHello);
+			connection.send("system", STREAM_HELLO, {
+				protocol: DAEMON_PROTOCOL_VERSION,
+				version: APP_VERSION,
+			} satisfies StreamHello);
 			accepted.on("message", (data) => {
 				receive(connection, textOf(data));
 			});

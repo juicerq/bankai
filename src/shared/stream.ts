@@ -15,6 +15,7 @@ export const STREAM_REJECT = "reject";
 export const STREAM_HELLO = "hello";
 
 export interface StreamHello {
+	protocol: number;
 	version: string;
 }
 

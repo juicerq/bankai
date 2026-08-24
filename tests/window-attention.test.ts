@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { EventEmitter } from "node:events";
 import { DesktopAttention } from "@main/desktop/desktop-attention";
+import type { AttentionReason } from "@shared/activity";
 import { FakeNotification, notifications } from "./utils/electron-mock";
 
 class AttentionWindow extends EventEmitter {
@@ -102,6 +103,28 @@ describe("desktop attention", () => {
 
 		expect(win.shown).toBe(1);
 		expect(win.focused).toBe(1);
+	});
+
+	test("a reason the desktop cannot phrase is ignored", () => {
+		const win = new AttentionWindow();
+		DesktopAttention.setup(win);
+
+		const fromIpc: AttentionReason = JSON.parse('"compiling"');
+
+		DesktopAttention.request(fromIpc, 1);
+
+		expect(win.flashes).toEqual([]);
+		expect(notifications).toEqual([]);
+	});
+
+	test("a count that is not a number is ignored", () => {
+		const win = new AttentionWindow();
+		DesktopAttention.setup(win);
+
+		DesktopAttention.request("done", Number.NaN);
+
+		expect(win.flashes).toEqual([]);
+		expect(notifications).toEqual([]);
 	});
 
 	test("a desktop without notifications still flashes", () => {

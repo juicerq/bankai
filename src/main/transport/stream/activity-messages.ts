@@ -1,9 +1,10 @@
 import { AgentActivity } from "@main/agents/agent-activity";
+import { AttentionSignal } from "@main/agents/attention-signal";
 import { ShellFocus } from "@main/terminal/shell-focus";
 import type { StreamConnection } from "@main/transport/stream/stream-connection";
 import { ConnectionWatches } from "@main/transport/stream/connection-watches";
 import { ActivitySchemas } from "@main/transport/stream/stream-messages";
-import type { ActivityChangedEvent } from "@shared/activity";
+import type { ActivityAttentionEvent, ActivityChangedEvent } from "@shared/activity";
 import type { StreamEnvelope } from "@shared/stream";
 
 async function handleActivityMessage(connection: StreamConnection, message: StreamEnvelope): Promise<unknown> {
@@ -18,6 +19,15 @@ async function handleActivityMessage(connection: StreamConnection, message: Stre
 			);
 
 			return AgentActivity.getProjectSnapshot(projectId);
+		}
+		case "watch-attention": {
+			await ConnectionWatches.retain({ connection, channel: "activity", key: "attention" }, () =>
+				AttentionSignal.listen((event) => {
+					connection.send("activity", "attention", event satisfies ActivityAttentionEvent);
+				}),
+			);
+
+			return undefined;
 		}
 		case "unwatch": {
 			const { projectId } = ActivitySchemas.project.assert(message.payload);

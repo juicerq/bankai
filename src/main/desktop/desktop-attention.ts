@@ -1,13 +1,12 @@
 import type { BrowserWindow } from "electron";
 import { app, Notification } from "electron";
+import type { AttentionReason } from "@shared/activity";
 
 type AttentionWindow = Pick<BrowserWindow, "flashFrame" | "isDestroyed" | "isFocused"> & {
 	show: () => void;
 	focus: () => void;
 	on: (event: "focus", listener: () => void) => unknown;
 };
-
-type AttentionReason = "needs-attention" | "done";
 
 const ATTENTION_TEXT: Record<AttentionReason, { one: string; many: string }> = {
 	"needs-attention": { one: "session needs attention", many: "sessions need attention" },
@@ -45,7 +44,7 @@ function notifyDesktop(win: AttentionWindow, reason: AttentionReason, count: num
 
 function requestDesktopAttention(reason: AttentionReason, count: number): void {
 	const win = mainWindow;
-	if (!win || win.isDestroyed() || win.isFocused() || count < 1) {
+	if (!win || win.isDestroyed() || win.isFocused() || !ATTENTION_TEXT[reason] || !(count >= 1)) {
 		return;
 	}
 

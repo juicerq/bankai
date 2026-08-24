@@ -16,7 +16,7 @@ import { NotifyAttention } from "@main/push/notify-attention";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { shellProcesses } from "@main/terminal/shell-processes";
-import { DesktopAttention } from "@main/desktop/desktop-attention";
+import { AttentionSignal } from "@main/agents/attention-signal";
 import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activity";
 import type { ContinuityValue } from "@shared/continuity";
 import {
@@ -549,7 +549,7 @@ class AgentActivityTracker {
 
 		const attentionEntries = ShellActivity.attentionEntries(previousStates, shellStates);
 		if (attentionEntries.length > 0) {
-			DesktopAttention.request("needs-attention", attentionEntries.length);
+			AttentionSignal.raise({ reason: "needs-attention", count: attentionEntries.length });
 		}
 		for (const sessionId of attentionEntries) {
 			const owner = owners.get(sessionId);
@@ -564,7 +564,7 @@ class AgentActivityTracker {
 
 		const doneEntries = ShellActivity.doneEntries(previousStates, shellStates);
 		if (doneEntries.length > 0) {
-			DesktopAttention.request("done", doneEntries.length);
+			AttentionSignal.raise({ reason: "done", count: doneEntries.length });
 		}
 		for (const sessionId of doneEntries) {
 			const owner = owners.get(sessionId);

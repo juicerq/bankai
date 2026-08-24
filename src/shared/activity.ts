@@ -23,9 +23,18 @@ export interface ActivityChangedEvent extends ProjectActivitySnapshot {
 	projectId: string;
 }
 
+export type AttentionReason = "needs-attention" | "done";
+
+export interface ActivityAttentionEvent {
+	reason: AttentionReason;
+	count: number;
+}
+
 export interface BankaiActivityApi {
 	watch: (projectId: string) => Promise<ProjectActivitySnapshot>;
 	unwatch: (projectId: string) => void;
+	watchAttention: () => void;
 	onChanged: (listener: (event: ActivityChangedEvent) => void) => () => void;
+	onAttention: (listener: (event: ActivityAttentionEvent) => void) => () => void;
 	focusShell: (shellId?: string) => void;
 }

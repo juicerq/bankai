@@ -7,6 +7,7 @@ import { ShellPorts } from "@main/terminal/shell-ports";
 import { ThemeSettings } from "@main/settings/theme-settings";
 import { DaemonClient } from "@main/desktop/daemon-client";
 import { UpdateIpc } from "@main/desktop/update-ipc";
+import { DaemonIpc } from "@main/desktop/daemon-ipc";
 import { DesktopAttention } from "@main/desktop/desktop-attention";
 import { DesktopIpc } from "@main/desktop/desktop-ipc";
 import { DesktopWindow } from "@main/desktop/desktop-window";
@@ -147,6 +148,7 @@ async function start() {
 		DesktopWindow.setup();
 		SessionPageView.setup();
 		DesktopIpc.setup();
+		DaemonIpc.setup();
 		await UpdateIpc.setup();
 		Startup.mark("ipc-ready");
 		await createWindow();

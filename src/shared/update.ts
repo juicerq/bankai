@@ -2,7 +2,7 @@ export const UPDATE_IPC = {
 	getPending: "update:get-pending",
 	downloaded: "update:downloaded",
 	install: "update:install",
-	activeWork: "update:active-work",
+	installCost: "update:install-cost",
 } as const;
 
 export interface UpdateDownloadedEvent {
@@ -17,7 +17,7 @@ export interface UpdateWorkload {
 export interface BankaiUpdateApi {
 	getPending: () => Promise<UpdateDownloadedEvent | null>;
 	onDownloaded: (listener: (event: UpdateDownloadedEvent) => void) => () => void;
-	countActiveWork: () => Promise<UpdateWorkload>;
+	installCost: () => Promise<UpdateWorkload | null>;
 	install: () => void;
 }
 

@@ -17,4 +17,5 @@ function canSelfUpdate(input: {
 
 export const SelfUpdate = {
 	allowed: canSelfUpdate,
+	coreSurvives: (platform: NodeJS.Platform) => platform === "linux",
 };

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "bun:test";
 import { APP_VERSION } from "@main/infra/app-version";
+import { DaemonProbes } from "@main/daemon/daemon-probes";
 import { DaemonClient } from "@main/desktop/daemon-client";
 import { BankaiServer } from "@main/transport/server/bankai-server";
 import { Reach } from "@main/transport/server/server-reach";
@@ -59,7 +60,7 @@ async function outdatedDaemon(input: { workload: UpdateWorkload }) {
 
 		if (req.url?.endsWith("/daemon/stop")) {
 			stops.push(req.url);
-			hello = { ...hello, appVersion: APP_VERSION };
+			hello = { protocolVersion: DAEMON_PROTOCOL_VERSION, appVersion: APP_VERSION, pid: hello.pid + 1 };
 			res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ json: null }));
 			return;
 		}
@@ -117,6 +118,17 @@ describe("daemon probe", () => {
 				pid: process.pid,
 			},
 		});
+
+		daemon.close();
+	});
+
+	it("leaves a mark on the daemon, so an idle one does not die under a booting app", async () => {
+		const daemon = await runningDaemon();
+		const reached = Date.now();
+
+		await DaemonClient.probe();
+
+		expect(DaemonProbes.lastAt()).toBeGreaterThanOrEqual(reached);
 
 		daemon.close();
 	});
@@ -212,5 +224,63 @@ describe("daemon of another build", () => {
 		expect(skew?.data).toMatchObject({ daemon: "0.0.1-ancient", app: APP_VERSION });
 
 		outdated.close();
+	});
+
+	it("reads the adopted daemon's version off the wire so the window can say so", async () => {
+		const outdated = await outdatedDaemon({ workload: { kind: "agents", count: 3 } });
+
+		await DaemonClient.ensure();
+
+		expect(await DaemonClient.skew()).toEqual({ daemonVersion: "0.0.1-ancient", appVersion: APP_VERSION });
+
+		outdated.close();
+	});
+
+	it("reports no skew once the daemon speaks for this build", async () => {
+		const daemon = await runningDaemon();
+
+		await DaemonClient.ensure();
+
+		expect(await DaemonClient.skew()).toBeNull();
+
+		daemon.close();
+	});
+
+	it("reports no skew when nothing holds the port", async () => {
+		const daemon = await runningDaemon();
+		daemon.close();
+
+		expect(await DaemonClient.skew()).toBeNull();
+	});
+
+	it("restarting replaces the adopted daemon and clears the skew", async () => {
+		const outdated = await outdatedDaemon({ workload: { kind: "agents", count: 3 } });
+		await DaemonClient.ensure();
+
+		await DaemonClient.restart();
+
+		expect(outdated.stops).toHaveLength(1);
+		expect(await DaemonClient.skew()).toBeNull();
+
+		outdated.close();
+	});
+});
+
+describe("stopping the daemon", () => {
+	it("waits for the running daemon to hand the port over", async () => {
+		const outdated = await outdatedDaemon({ workload: { kind: "agents", count: 3 } });
+
+		await DaemonClient.stop();
+
+		expect(outdated.stops).toHaveLength(1);
+
+		outdated.close();
+	});
+
+	it("returns at once when no daemon holds the port", async () => {
+		const daemon = await runningDaemon();
+		daemon.close();
+
+		expect(await DaemonClient.stop()).toBeUndefined();
 	});
 });

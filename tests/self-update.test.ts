@@ -39,3 +39,17 @@ describe("self update eligibility", () => {
 		).toBe(true);
 	});
 });
+
+describe("what the core loses to an install", () => {
+	it("leaves the Linux core running, so the update costs no agent", () => {
+		expect(SelfUpdate.coreSurvives("linux")).toBe(true);
+	});
+
+	it("stops the core on Windows, where the installer overwrites a locked binary", () => {
+		expect(SelfUpdate.coreSurvives("win32")).toBe(false);
+	});
+
+	it("stops the core on macOS, where the install replaces the bundle it runs from", () => {
+		expect(SelfUpdate.coreSurvives("darwin")).toBe(false);
+	});
+});

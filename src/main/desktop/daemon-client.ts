@@ -15,6 +15,7 @@ import {
 	DAEMON_HELLO_PATH,
 	DAEMON_PROTOCOL_VERSION,
 	type DaemonHello,
+	type DaemonSkew,
 	daemonHelloSchema,
 } from "@shared/daemon";
 import { SERVER_HOST, SERVER_RPC_PREFIX, type ServerReach } from "@shared/server";
@@ -22,7 +23,7 @@ import { SERVER_HOST, SERVER_RPC_PREFIX, type ServerReach } from "@shared/server
 const HELLO_TIMEOUT_MS = 1_000;
 const READY_POLL_MS = 100;
 const READY_TIMEOUT_MS = 20_000;
-const RETIRE_TIMEOUT_MS = 15_000;
+const STOP_TIMEOUT_MS = 5_000;
 
 const CLOSE_INHERITED_FDS =
 	'for fd in /proc/self/fd/*; do case "${fd##*/}" in 0|1|2) ;; *) eval "exec ${fd##*/}>&-" 2>/dev/null;; esac; done; exec "$0" "$@"';
@@ -100,6 +101,33 @@ function spawnDaemon(): void {
 	child.unref();
 }
 
+async function stopDaemon(): Promise<void> {
+	const running = await probeDaemon();
+
+	if (running.kind !== "daemon") {
+		return;
+	}
+
+	Logger.info("daemon:stop-requested", { pid: running.hello.pid, appVersion: running.hello.appVersion });
+	await client.daemon.stop().catch((err: unknown) => {
+		Logger.warn("daemon:stop-unanswered", { err: String(err) });
+	});
+
+	const deadline = Date.now() + STOP_TIMEOUT_MS;
+
+	while (Date.now() < deadline) {
+		await sleep(READY_POLL_MS);
+
+		const probe = await probeDaemon();
+
+		if (probe.kind !== "daemon" || probe.hello.pid !== running.hello.pid) {
+			return;
+		}
+	}
+
+	throw new Error(`The Bankai daemon on ${SERVER_HOST}:${await daemonPort()} did not stop`);
+}
+
 async function retireOutdatedDaemon(hello: DaemonHello): Promise<boolean> {
 	const workload = await client.daemon.workload().catch((err: unknown) => {
 		Logger.warn("daemon:workload-unreadable", { err: String(err) });
@@ -119,22 +147,19 @@ async function retireOutdatedDaemon(hello: DaemonHello): Promise<boolean> {
 		return false;
 	}
 
-	Logger.info("daemon:retiring", { pid: hello.pid, appVersion: hello.appVersion });
-	await client.daemon.stop();
+	await stopDaemon();
 
-	const deadline = Date.now() + RETIRE_TIMEOUT_MS;
+	return true;
+}
 
-	while (Date.now() < deadline) {
-		await sleep(READY_POLL_MS);
+async function daemonSkew(): Promise<DaemonSkew | null> {
+	const probe = await probeDaemon();
 
-		const probe = await probeDaemon();
-
-		if (probe.kind !== "daemon" || speaksForThisBuild(probe.hello)) {
-			return true;
-		}
+	if (probe.kind !== "daemon" || speaksForThisBuild(probe.hello)) {
+		return null;
 	}
 
-	throw new Error(`The outdated Bankai daemon on ${SERVER_HOST}:${await daemonPort()} did not stop`);
+	return { daemonVersion: probe.hello.appVersion, appVersion: APP_VERSION };
 }
 
 async function ensureDaemon(): Promise<void> {
@@ -196,10 +221,18 @@ const link = new RPCLink({
 
 const client: RouterClient<Router> = createORPCClient(link);
 
+async function restartDaemon(): Promise<void> {
+	await stopDaemon();
+	await ensureDaemon();
+}
+
 export const DaemonClient = {
 	ensure: ensureDaemon,
 	probe: probeDaemon,
 	reach: daemonReach,
+	restart: restartDaemon,
+	skew: daemonSkew,
+	stop: stopDaemon,
 	shells: client.daemon.shells,
 	workload: client.daemon.workload,
 };

@@ -1,10 +1,9 @@
 import "./register-dom";
 import { setTodosTransport, type TodosTransport } from "./orpc-transport";
 import { streamTransport } from "./stream-transport";
-import { afterEach, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
 import type { ILink, ILinkProvider } from "@xterm/xterm";
 import { Profiler, useState } from "react";
-import type { BankaiUpdateApi } from "@shared/update";
 import type { Worktree } from "@shared/review";
 import { LEADING_CONTEXT } from "@renderer/routes/-features/review/reading/review-focused-file";
 import { REVIEW_ROW_HEIGHT } from "@renderer/routes/-features/review/reading/review-rows";
@@ -23,6 +22,20 @@ import { installReviewEnvironment } from "./review-harness";
 import { act, cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 const terminals: MockTerminal[] = [];
+
+function installChromeApis() {
+	window.bankaiUpdate = {
+		getPending: async () => null,
+		onDownloaded: () => () => {},
+		installCost: async () => null,
+		install: () => {},
+	};
+	window.bankaiDaemon = {
+		getSkew: async () => null,
+		countActiveWork: async () => ({ kind: "shells", count: 0 }),
+		restart: async () => {},
+	};
+}
 
 class MockAddon {
 	fit() {}
@@ -264,6 +277,8 @@ function resolveAll(environment: ReturnType<typeof installReviewEnvironment>, pr
 	}
 }
 
+beforeEach(installChromeApis);
+
 afterEach(() => {
 	cleanup();
 	setTodosTransport({ todos: [] });
@@ -275,13 +290,6 @@ afterEach(() => {
 });
 
 test("a file link from the active shell opens Review on that shell worktree, path, and line", async () => {
-	const updateApi: BankaiUpdateApi = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
-	window.bankaiUpdate = updateApi;
 	const environment = installReviewEnvironment();
 	const view = render(<WorkspaceHarness shellWorktree="/p1-feature" />, { wrapper: environment.wrapper });
 
@@ -344,12 +352,6 @@ test("a file link from the active shell opens Review on that shell worktree, pat
 });
 
 test("the expand shortcut opens Review expanded over the Shell from a closed bay", async () => {
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	const environment = installReviewEnvironment();
 	render(<WorkspaceHarness shellWorktree="/p1-feature" />, { wrapper: environment.wrapper });
 
@@ -419,12 +421,6 @@ test("a URL from the active Shell opens Page and Review takes over the shared ba
 
 test("the revealed project rail freezes the Page into a snapshot it can cover", async () => {
 	const presentations: unknown[] = [];
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	window.bankaiSessionPage = {
 		present: async (value) => {
 			presentations.push(value);
@@ -491,12 +487,6 @@ test("the revealed project rail freezes the Page into a snapshot it can cover", 
 });
 
 test("revealing the project rail leaves the workspace untouched", async () => {
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	let renders = 0;
 	const environment = installReviewEnvironment();
 	const view = render(
@@ -523,12 +513,6 @@ test("revealing the project rail leaves the workspace untouched", async () => {
 });
 
 test("Page leaves no empty frame or pressed control when the selected Shell has no page", () => {
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	const environment = installReviewEnvironment();
 	render(<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="page" />, { wrapper: environment.wrapper });
 
@@ -541,12 +525,6 @@ test("Page leaves no empty frame or pressed control when the selected Shell has 
 test("the header opens Page blank on a Shell with no page and closing it leaves nothing behind", async () => {
 	const presentations: unknown[] = [];
 	const released: string[] = [];
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	window.bankaiSessionPage = {
 		present: async (value) => {
 			presentations.push(value);
@@ -596,12 +574,6 @@ test("the header opens Page blank on a Shell with no page and closing it leaves 
 });
 
 test("leaving Page by another route discards the blank instead of stranding it", async () => {
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	window.bankaiSessionPage = {
 		present: async () => {},
 		release: async () => {},
@@ -637,12 +609,6 @@ test("leaving Page by another route discards the blank instead of stranding it",
 });
 
 test("leaving Page by another route keeps a page that reached a URL", async () => {
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	window.bankaiSessionPage = {
 		present: async () => {},
 		release: async () => {},
@@ -687,12 +653,6 @@ test("leaving Page by another route keeps a page that reached a URL", async () =
 
 test("closing Page releases the loaded browser while Review can hide without releasing it", async () => {
 	const released: string[] = [];
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	window.bankaiSessionPage = {
 		present: async () => {},
 		release: async (shellId) => {
@@ -724,12 +684,6 @@ test("closing Page releases the loaded browser while Review can hide without rel
 });
 
 test("opening the Todo list takes the bay from whatever held it", async () => {
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	setTodosTransport({ todos: [] });
 	const environment = installReviewEnvironment();
 	render(<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="review" />, { wrapper: environment.wrapper });
@@ -768,12 +722,6 @@ test("opening the Todo list takes the bay from whatever held it", async () => {
 });
 
 test("the Todo list captures a written Todo and keeps it in the open list", async () => {
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	const todos: TodosTransport = { todos: [] };
 	setTodosTransport(todos);
 	const environment = installReviewEnvironment();
@@ -816,12 +764,6 @@ test("the Todo list captures a written Todo and keeps it in the open list", asyn
 });
 
 test("a Todo that fails to be written stays in the capture line and says why", async () => {
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	setTodosTransport({ todos: [], saveFailure: "todos.json is read-only" });
 	const environment = installReviewEnvironment();
 	render(<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="todos" />, { wrapper: environment.wrapper });
@@ -839,12 +781,6 @@ test("a Todo that fails to be written stays in the capture line and says why", a
 });
 
 test("a Todo list that fails to be read never claims the project is empty", async () => {
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	setTodosTransport({ todos: [], listFailure: "todos.json is corrupt" });
 	const environment = installReviewEnvironment();
 	render(<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="todos" />, { wrapper: environment.wrapper });
@@ -857,12 +793,6 @@ test("a Todo list that fails to be read never claims the project is empty", asyn
 
 test("leaving a Page for the Todo list leaves the caret in the capture line", async () => {
 	const shellFocusRequests: number[] = [];
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	window.bankaiSessionPage = {
 		present: async () => {},
 		release: async () => {},
@@ -903,12 +833,6 @@ test("leaving a Page for the Todo list leaves the caret in the capture line", as
 });
 
 test("a Todo list whose project goes inactive stops reading and takes the caret back on return", async () => {
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	setTodosTransport({ todos: [] });
 	const environment = installReviewEnvironment();
 	const view = render(
@@ -929,12 +853,6 @@ test("a Todo list whose project goes inactive stops reading and takes the caret 
 });
 
 test("closing a blank Page forgets it so the Shell goes back to having none", async () => {
-	window.bankaiUpdate = {
-		getPending: async () => null,
-		onDownloaded: () => () => {},
-		countActiveWork: async () => ({ kind: "shells", count: 0 }),
-		install: () => {},
-	};
 	window.bankaiSessionPage = {
 		present: async () => {},
 		release: async () => {},

@@ -23,6 +23,7 @@ export const windows: FakeWindow[] = [];
 export const externalUrls: string[] = [];
 export const exposed = new Map<string, BankaiSessionPageApi>();
 export const invoked: { channel: string; payload: unknown }[] = [];
+export const errorBoxes: { title: string; content: string }[] = [];
 
 class FakeIpcRenderer extends EventEmitter {
 	async invoke(channel: string, payload?: unknown) {
@@ -268,6 +269,11 @@ void mock.module("electron", () => ({
 	ipcMain: {
 		handle: (channel: string, handler: (event: { sender: object }, payload?: unknown) => unknown) => {
 			ipcHandlers.set(channel, handler);
+		},
+	},
+	dialog: {
+		showErrorBox: (title: string, content: string) => {
+			errorBoxes.push({ title, content });
 		},
 	},
 	session: {

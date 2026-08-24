@@ -8,6 +8,7 @@ import {
 	ViewColumnsIcon,
 } from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
+import { DaemonSkewButton } from "@renderer/routes/-features/app/daemon/daemon-skew-button";
 import { UpdateButton } from "@renderer/routes/-features/app/update/update-button";
 import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-features/workspace/layout/layout-motion";
 import { WINDOW_DRAG_CLASS, WINDOW_NO_DRAG_CLASS } from "@renderer/routes/-features/app/chrome/window-drag";
@@ -78,6 +79,7 @@ export function ProjectWorkspaceHeader({
 					<span className="min-w-0 truncate text-body text-secondary">{title}</span>
 					{title !== projectName && <span className="shrink-0 truncate text-data text-outline-strong">{projectName}</span>}
 				</div>
+				{active && <DaemonSkewButton />}
 				{active && <UpdateButton />}
 				{shellId
 					&& ports

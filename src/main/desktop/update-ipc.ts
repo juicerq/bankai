@@ -20,7 +20,13 @@ async function loadAutoUpdater(): Promise<AppUpdater> {
 async function setupUpdateIpc(): Promise<void> {
 	ipcMain.handle(UPDATE_IPC.getPending, () => pending ?? null);
 
-	ipcMain.handle(UPDATE_IPC.activeWork, () => DaemonClient.workload());
+	ipcMain.handle(UPDATE_IPC.installCost, () => {
+		if (SelfUpdate.coreSurvives(process.platform)) {
+			return null;
+		}
+
+		return DaemonClient.workload();
+	});
 
 	ipcMain.on(UPDATE_IPC.install, () => {
 		void install();
@@ -76,11 +82,23 @@ async function install(): Promise<void> {
 		return;
 	}
 
+	if (!SelfUpdate.coreSurvives(process.platform)) {
+		await DaemonClient.stop().catch((err: unknown) => {
+			Logger.error("update:core-stop-failed", { err: String(err) });
+		});
+	}
+
 	try {
 		const autoUpdater = await loadAutoUpdater();
 
 		autoUpdater.quitAndInstall();
 	} catch (err) {
+		if (!SelfUpdate.coreSurvives(process.platform)) {
+			await DaemonClient.ensure().catch((recovery: unknown) => {
+				Logger.error("update:core-restore-failed", { err: String(recovery) });
+			});
+		}
+
 		Logger.error("update:install-failed", { err: String(err) });
 	}
 }

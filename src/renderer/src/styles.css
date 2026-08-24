@@ -209,7 +209,7 @@ html.theme-light {
 	animation: notice-enter 300ms ease-out;
 }
 
-@keyframes update-button-enter {
+@keyframes header-notice-enter {
 	from {
 		opacity: 0;
 	}
@@ -218,8 +218,8 @@ html.theme-light {
 	}
 }
 
-.update-button-enter {
-	animation: update-button-enter 300ms ease-out;
+.header-notice-enter {
+	animation: header-notice-enter 300ms ease-out;
 }
 
 @keyframes picker-backdrop {

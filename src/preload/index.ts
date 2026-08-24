@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import { type BankaiDaemonApi, DAEMON_IPC } from "@shared/daemon-ipc";
 import { type BankaiDesktopApi, DESKTOP_IPC } from "@shared/desktop";
 import { AUTH_IPC, type BankaiAuthApi } from "@shared/server";
 import { THEME_LIGHT_CLASS, themeFromArguments } from "@shared/theme";
@@ -45,9 +46,17 @@ const authApi: BankaiAuthApi = {
 
 contextBridge.exposeInMainWorld("bankaiAuth", authApi);
 
+const daemonApi: BankaiDaemonApi = {
+	getSkew: () => ipcRenderer.invoke(DAEMON_IPC.getSkew),
+	countActiveWork: () => ipcRenderer.invoke(DAEMON_IPC.activeWork),
+	restart: () => ipcRenderer.invoke(DAEMON_IPC.restart),
+};
+
+contextBridge.exposeInMainWorld("bankaiDaemon", daemonApi);
+
 const updateApi: BankaiUpdateApi = {
 	getPending: () => ipcRenderer.invoke(UPDATE_IPC.getPending),
-	countActiveWork: () => ipcRenderer.invoke(UPDATE_IPC.activeWork),
+	installCost: () => ipcRenderer.invoke(UPDATE_IPC.installCost),
 	install: () => ipcRenderer.send(UPDATE_IPC.install),
 	onDownloaded: (listener) => {
 		const handler = (_event: Electron.IpcRendererEvent, payload: UpdateDownloadedEvent) => {

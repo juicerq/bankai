@@ -13,3 +13,8 @@ export const daemonHelloSchema = type({
 });
 
 export type DaemonHello = typeof daemonHelloSchema.infer;
+
+export interface DaemonSkew {
+	daemonVersion: string;
+	appVersion: string;
+}

@@ -2,16 +2,9 @@ import { ArrowPathIcon } from "@heroicons/react/24/outline";
 import { useCallback, useState } from "react";
 import { ConfirmDialog } from "@renderer/routes/-features/shared/interaction/confirm-dialog";
 import { useDownloadedUpdate } from "@renderer/routes/-features/app/update/use-downloaded-update";
-import { WINDOW_NO_DRAG_CLASS } from "@renderer/routes/-features/app/chrome/window-drag";
+import { workloadLosses } from "@renderer/routes/-features/app/daemon/workload-losses";
+import { HEADER_NOTICE_CLASS } from "@renderer/routes/-features/app/chrome/header-notice";
 import type { UpdateWorkload } from "@shared/update";
-
-function losses({ kind, count }: UpdateWorkload) {
-	if (kind === "agents") {
-		return `stops ${count} ${count === 1 ? "agent" : "agents"} mid-turn`;
-	}
-
-	return `closes ${count} open ${count === 1 ? "shell" : "shells"}`;
-}
 
 export function UpdateButton() {
 	const update = useDownloadedUpdate();
@@ -22,23 +15,17 @@ export function UpdateButton() {
 		return null;
 	}
 
-	const requestInstall = async () => {
-		const workload = await window.bankaiUpdate.countActiveWork()
-			.catch((err) => {
-				console.error("Failed to count active work", err);
-				return null;
-			});
+	const requestInstall = () => {
+		window.bankaiUpdate.installCost()
+			.then((cost) => {
+				if (!cost?.count) {
+					window.bankaiUpdate.install();
+					return;
+				}
 
-		if (workload === null) {
-			return;
-		}
-
-		if (!workload.count) {
-			window.bankaiUpdate.install();
-			return;
-		}
-
-		setConfirming(workload);
+				setConfirming(cost);
+			})
+			.catch((err) => console.error("Failed to read what the update costs", err));
 	};
 
 	return (
@@ -47,7 +34,7 @@ export function UpdateButton() {
 				type="button"
 				data-component="update-button"
 				data-version={update.version}
-				className={`update-button-enter flex h-full shrink-0 items-center gap-1.5 border-outline border-l px-3 text-label text-tertiary hover:bg-surface-hover ${WINDOW_NO_DRAG_CLASS}`}
+				className={HEADER_NOTICE_CLASS}
 				aria-label={`Update to v${update.version}`}
 				title={`Update to v${update.version} — restarts Bankai`}
 				onClick={requestInstall}
@@ -67,7 +54,7 @@ export function UpdateButton() {
 						window.bankaiUpdate.install();
 					}}
 				>
-					Installing v{update.version} {losses(confirming)} and restarts Bankai.
+					Installing v{update.version} {workloadLosses(confirming)} and restarts Bankai.
 				</ConfirmDialog>
 			)}
 		</>

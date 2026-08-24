@@ -6,7 +6,6 @@ import { LayoutSettings } from "@main/settings/layout-settings";
 import { PushSettings } from "@main/settings/push-settings";
 import { ServerSettings } from "@main/settings/server-settings";
 import { ThemeSettings } from "@main/settings/theme-settings";
-import { WindowSettings } from "@main/settings/window-settings";
 import { SettingsStore } from "@main/store/settings-store";
 import { SERVER_DEFAULT_PORT, SERVER_TOKEN_BYTES } from "@shared/server";
 import { DEFAULT_THEME } from "@shared/theme";
@@ -34,15 +33,6 @@ describe("settings layout", () => {
 		const merged = await LayoutSettings.update({ diffWidth: 512 });
 
 		expect(merged).toEqual({ railWidth: 300, fullscreen: true, diffWidth: 512 });
-	});
-
-	it("keeps window bounds intact when the layout changes", async () => {
-		await WindowSettings.update({ x: 1, y: 2, width: 900, height: 620, maximized: false });
-		await LayoutSettings.update({ railWidth: 260 });
-
-		const settings = await SettingsStore.read();
-		expect(settings.windowBounds?.width).toBe(900);
-		expect(settings.layout).toEqual({ railWidth: 260 });
 	});
 });
 

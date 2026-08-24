@@ -11,13 +11,14 @@ import { StorePaths } from "@main/store/store-paths";
 import { ShellAgents } from "@main/terminal/shell-agents";
 import { ShellPorts } from "@main/terminal/shell-ports";
 import { shellProcesses } from "@main/terminal/shell-processes";
-import { type WindowStartupSettings, WindowSettings } from "@main/settings/window-settings";
+import { ThemeSettings } from "@main/settings/theme-settings";
 import { MobileAccess } from "@main/infra/tailscale/mobile-access";
 import { UpdateIpc } from "@main/desktop/update-ipc";
 import { DesktopAttention } from "@main/desktop/desktop-attention";
 import { DesktopIpc } from "@main/desktop/desktop-ipc";
 import { DesktopWindow } from "@main/desktop/desktop-window";
 import { SessionPageView } from "@main/desktop/session-page-view";
+import { WindowBoundsStore } from "@main/desktop/window-bounds-store";
 import { AUTH_IPC } from "@shared/server";
 import { SHELL_PORTS_IPC } from "@shared/shell-ports-ipc";
 import type { WindowBounds } from "@shared/settings";
@@ -67,16 +68,18 @@ function debounce<A extends unknown[]>(
 }
 
 async function createWindow() {
-	const settings = await WindowSettings.startup().catch(
-		(err): WindowStartupSettings => {
+	const [preference, bounds] = await Promise.all([
+		ThemeSettings.get().catch((err) => {
 			Logger.error("settings:read-failed", { err: String(err) });
-			return { theme: DEFAULT_THEME };
-		},
-	);
+
+			return DEFAULT_THEME;
+		}),
+		WindowBoundsStore.read(),
+	]);
 	Startup.mark("settings-read");
 
-	const saved = visibleBounds(settings.windowBounds);
-	const theme = resolveTheme(settings.theme, () => nativeTheme.shouldUseDarkColors);
+	const saved = visibleBounds(bounds);
+	const theme = resolveTheme(preference, () => nativeTheme.shouldUseDarkColors);
 
 	const win = new BrowserWindow({
 		width: saved?.width ?? 1440,
@@ -118,12 +121,10 @@ async function createWindow() {
 	}
 
 	const saveBounds = debounce(() => {
-		WindowSettings.update({
-				...win.getNormalBounds(),
-				maximized: win.isMaximized(),
-			}).catch((err) =>
-			Logger.error("settings:windowBounds-save-failed", { err: String(err) }),
-		);
+		WindowBoundsStore.save({
+			...win.getNormalBounds(),
+			maximized: win.isMaximized(),
+		}).catch((err) => Logger.error("window:bounds-save-failed", { err: String(err) }));
 	}, 500);
 
 	win.on("resize", saveBounds);

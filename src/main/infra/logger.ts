@@ -2,6 +2,7 @@ import { appendFileSync, mkdirSync, renameSync, rmSync, statSync } from "node:fs
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import type * as ElectronModule from "electron";
+import { DAEMON_ENV_FLAG } from "@shared/daemon";
 
 const require = createRequire(import.meta.url);
 export const LOGGER_MAX_SIZE_BYTES = 10 * 1024 * 1024;
@@ -10,12 +11,13 @@ type Severity = "info" | "warn" | "error";
 interface LogEvent { ts: number; severity: Severity; message: string; data?: unknown }
 
 function resolveLogPath(): string {
+	const name = process.env[DAEMON_ENV_FLAG] === "1" ? "log-daemon.ndjson" : "log.ndjson";
 	const fromEnv = process.env.DATA_DIR;
 	if (fromEnv) {
-		return join(fromEnv, "log.ndjson");
+		return join(fromEnv, name);
 	}
 	const { app }: typeof ElectronModule = require("electron");
-	return join(app.getPath("userData"), "log.ndjson");
+	return join(app.getPath("userData"), name);
 }
 
 function rotateBeforeAppend(path: string, incomingBytes: number): void {

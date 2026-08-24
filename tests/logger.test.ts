@@ -1,4 +1,4 @@
-import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type } from "arktype";
 import { describe, expect, it } from "bun:test";
@@ -53,6 +53,19 @@ describe("logger", () => {
 		expect(() => Logger.info("nowhere to write")).not.toThrow();
 
 		process.env.DATA_DIR = restore;
+	});
+
+	it("writes to its own file when it runs inside the daemon", () => {
+		process.env.BANKAI_DAEMON = "1";
+
+		Logger.info("from the daemon");
+
+		delete process.env.BANKAI_DAEMON;
+		assertDefined(process.env.DATA_DIR);
+		const raw = readFileSync(join(process.env.DATA_DIR, "log-daemon.ndjson"), "utf8");
+
+		expect(raw).toContain("from the daemon");
+		expect(existsSync(join(process.env.DATA_DIR, "log.ndjson"))).toBe(false);
 	});
 
 	it("rotates before an append would exceed the size limit", () => {

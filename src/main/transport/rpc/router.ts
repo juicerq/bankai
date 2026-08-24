@@ -1,5 +1,6 @@
 import { commandsRouter } from "@main/transport/rpc/commands-router";
 import { continuityRouter } from "@main/transport/rpc/continuity-router";
+import { daemonRouter } from "@main/transport/rpc/daemon-router";
 import { favoritesRouter } from "@main/transport/rpc/favorites-router";
 import { loggerRouter } from "@main/transport/rpc/logger-router";
 import { mobileRouter } from "@main/transport/rpc/mobile-router";
@@ -13,6 +14,7 @@ import { todosRouter } from "@main/transport/rpc/todos-router";
 export const router = {
 	commands: commandsRouter,
 	continuity: continuityRouter,
+	daemon: daemonRouter,
 	favorites: favoritesRouter,
 	logger: loggerRouter,
 	mobile: mobileRouter,

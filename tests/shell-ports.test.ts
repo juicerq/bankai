@@ -47,7 +47,7 @@ function watching({
 	const sent: unknown[] = [];
 	const watcher = ShellPorts.watcher({
 		send: (detected) => sent.push(detected),
-		shells: () => shellIds,
+		shells: async () => shellIds,
 		scan: async () => output,
 		reader: proc,
 	});
@@ -135,7 +135,7 @@ describe("watching the ports of live shells", () => {
 		let live: string[] = [];
 		const watcher = ShellPorts.watcher({
 			send: (detected) => sent.push(detected),
-			shells: () => live,
+			shells: async () => live,
 			scan: async () => {
 				scans += 1;
 
@@ -166,7 +166,7 @@ describe("watching the ports of live shells", () => {
 		let scans = 0;
 		const watcher = ShellPorts.watcher({
 			send: (detected) => sent.push(detected),
-			shells: () => ["shell-a"],
+			shells: async () => ["shell-a"],
 			scan: async () => {
 				scans += 1;
 

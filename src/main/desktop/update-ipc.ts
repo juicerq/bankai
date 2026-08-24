@@ -1,10 +1,9 @@
 import type { AppUpdater } from "electron-updater";
 import { app, BrowserWindow, ipcMain } from "electron";
 import { Logger } from "@main/infra/logger";
+import { DaemonClient } from "@main/desktop/daemon-client";
 import { SelfUpdate } from "@main/desktop/self-update";
-import { AgentActivity } from "@main/agents/agent-activity";
-import { shellProcesses } from "@main/terminal/shell-processes";
-import { UPDATE_IPC, type UpdateDownloadedEvent, type UpdateWorkload } from "@shared/update";
+import { UPDATE_IPC, type UpdateDownloadedEvent } from "@shared/update";
 
 const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
 const UPDATE_CHECK_TTL_MS = 5 * 60 * 1000;
@@ -21,7 +20,7 @@ async function loadAutoUpdater(): Promise<AppUpdater> {
 async function setupUpdateIpc(): Promise<void> {
 	ipcMain.handle(UPDATE_IPC.getPending, () => pending ?? null);
 
-	ipcMain.handle(UPDATE_IPC.activeWork, () => countActiveWork());
+	ipcMain.handle(UPDATE_IPC.activeWork, () => DaemonClient.workload());
 
 	ipcMain.on(UPDATE_IPC.install, () => {
 		void install();
@@ -84,27 +83,6 @@ async function install(): Promise<void> {
 	} catch (err) {
 		Logger.error("update:install-failed", { err: String(err) });
 	}
-}
-
-function countActiveWork(): UpdateWorkload {
-	const shells = shellProcesses.list();
-
-	if (process.platform !== "linux") {
-		return { kind: "shells", count: shells.length };
-	}
-
-	const projectIds = new Set(shells.map((shell) => shell.projectId));
-	let count = 0;
-
-	for (const projectId of projectIds) {
-		for (const state of Object.values(AgentActivity.getProjectSnapshot(projectId).shells)) {
-			if (state === "working" || state === "needs-attention") {
-				count += 1;
-			}
-		}
-	}
-
-	return { kind: "agents", count };
 }
 
 function checkForUpdates(autoUpdater: AppUpdater): void {

@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { Logger } from "@main/infra/logger";
 import { type ProcReader, ShellAgents } from "@main/terminal/shell-agents";
-import { shellProcesses } from "@main/terminal/shell-processes";
 import { type ShellPortsDetected, ShellPortsSchemas } from "@shared/shell-ports";
 
 const LSOF_ARGS = ["-iTCP", "-sTCP:LISTEN", "-P", "-n", "-F", "pcn"];
@@ -141,7 +140,7 @@ function watcher({
 	reader,
 }: {
 	send: (detected: ShellPortsDetected) => void;
-	shells: () => string[];
+	shells: () => Promise<string[]>;
 	scan: () => Promise<string | undefined>;
 	reader?: ProcReader;
 }) {
@@ -164,7 +163,7 @@ function watcher({
 				return;
 			}
 
-			const shellIds = shells();
+			const shellIds = await shells();
 
 			if (shellIds.length === 0) {
 				publish({});
@@ -183,12 +182,14 @@ function watcher({
 	};
 }
 
-function watch(send: (detected: ShellPortsDetected) => void) {
-	const running = watcher({
-		send,
-		shells: () => [...new Set(shellProcesses.list().map((session) => session.shellId))],
-		scan,
-	});
+function watch({
+	send,
+	shells,
+}: {
+	send: (detected: ShellPortsDetected) => void;
+	shells: () => Promise<string[]>;
+}) {
+	const running = watcher({ send, shells, scan });
 	const tick = () => {
 		running.tick().catch((err) => Logger.warn("shell-ports:scan-failed", { err: String(err) }));
 	};

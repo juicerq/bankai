@@ -260,42 +260,44 @@ export function SessionPagePanel({
 					<XMarkIcon className="size-4" />
 				</SessionPageAction>
 			</div>
-			<div className="relative min-h-0 flex-1 bg-surface-sunken">
-				{blank
-					? (
-						<div data-slot="blank" className="absolute inset-0 flex items-center justify-center px-6">
-							<SessionPageFavorites store={favorites} onOpen={(url) => registry.open(shellId, url)} />
+			<div className="min-h-0 flex-1 bg-surface-sunken p-4">
+				<div className="relative size-full">
+					{blank
+						? (
+							<div data-slot="blank" className="absolute inset-0 flex items-center justify-center px-6">
+								<SessionPageFavorites store={favorites} onOpen={(url) => registry.open(shellId, url)} />
+							</div>
+						)
+						: <div data-slot="native" ref={registerNativeSlot} className="absolute inset-0" />}
+					{frozen && <img data-slot="frozen" src={frozen} alt="" className="absolute inset-0 size-full" />}
+					{state?.failure && (
+						<div
+							data-component="session-page-failure"
+							className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-surface-sunken px-6 text-center"
+						>
+							<span className="text-title text-primary">Page unavailable</span>
+							<span className="max-w-lg text-support text-secondary">{state.failure}</span>
+							<div className="flex gap-2">
+								<button
+									type="button"
+									data-slot="retry"
+									className="border border-outline-strong bg-primary px-3 py-2 text-label text-surface hover:bg-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+									onClick={() => window.bankaiSessionPage?.reload()}
+								>
+									Try again
+								</button>
+								<button
+									type="button"
+									data-slot="external"
+									className="border border-outline-strong px-3 py-2 text-label text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+									onClick={() => window.bankaiSessionPage?.openExternal()}
+								>
+									Open externally
+								</button>
+							</div>
 						</div>
-					)
-					: <div data-slot="native" ref={registerNativeSlot} className="absolute inset-0" />}
-				{frozen && <img data-slot="frozen" src={frozen} alt="" className="absolute inset-0 size-full" />}
-				{state?.failure && (
-					<div
-						data-component="session-page-failure"
-						className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-surface-sunken px-6 text-center"
-					>
-						<span className="text-title text-primary">Page unavailable</span>
-						<span className="max-w-lg text-support text-secondary">{state.failure}</span>
-						<div className="flex gap-2">
-							<button
-								type="button"
-								data-slot="retry"
-								className="border border-outline-strong bg-primary px-3 py-2 text-label text-surface hover:bg-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-								onClick={() => window.bankaiSessionPage?.reload()}
-							>
-								Try again
-							</button>
-							<button
-								type="button"
-								data-slot="external"
-								className="border border-outline-strong px-3 py-2 text-label text-secondary hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-								onClick={() => window.bankaiSessionPage?.openExternal()}
-							>
-								Open externally
-							</button>
-						</div>
-					</div>
-				)}
+					)}
+				</div>
 			</div>
 		</section>
 	);

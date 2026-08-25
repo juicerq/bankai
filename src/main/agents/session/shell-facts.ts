@@ -32,12 +32,16 @@ async function shellName(
 		return null;
 	}
 
+	if (shell.titleSessionId === session.sessionId) {
+		return null;
+	}
+
 	const title = await harnessTitle(shell.id, session);
 	if (!title) {
 		return null;
 	}
 
-	return { title, source: "harness" };
+	return { title, source: "harness", sessionId: session.sessionId };
 }
 
 async function nameShell(input: {

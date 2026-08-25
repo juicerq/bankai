@@ -163,6 +163,18 @@ describe("ShellFacts.stamp titles", () => {
 		expect((await shell(project.id, "s1"))?.title).toBe("Outro assunto");
 	});
 
+	it("keeps the name it read for a session when the harness publishes another one", async () => {
+		const cwd = repo("republished", "main");
+		const project = await Projects.add(cwd);
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
+		await claudeSession({ projectId: project.id, sessionId: "abc", cwd, intent: "oi", title: "O primeiro assunto" });
+		await ShellFacts.stamp({ projectId: project.id, shellId: "s1" });
+		await claudeSession({ projectId: project.id, sessionId: "abc", cwd, intent: "oi", title: "Outro assunto" });
+		await ShellFacts.stamp({ projectId: project.id, shellId: "s1" });
+
+		expect((await shell(project.id, "s1"))?.title).toBe("O primeiro assunto");
+	});
+
 	it("never takes a harness title back from a name the user typed", async () => {
 		const cwd = repo("user-named", "main");
 		const project = await Projects.add(cwd);

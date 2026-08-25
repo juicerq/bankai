@@ -72,7 +72,7 @@ test("no reducer mutates the value it was given", () => {
 	ContinuityReducers.pinShell(before, address);
 	ContinuityReducers.unpinShell(before, address);
 	ContinuityReducers.renameShell(before, { ...address, title: "psql" });
-	ContinuityReducers.nameShell(before, { ...address, title: "psql", source: "harness" });
+	ContinuityReducers.nameShell(before, { ...address, title: "psql", source: "harness", sessionId: "sess" });
 	ContinuityReducers.touchShell(before, { ...address, branch: "main" });
 	ContinuityReducers.startTurn(before, address);
 	ContinuityReducers.finishTurn(before, { ...address, at: NOW });
@@ -287,14 +287,21 @@ test("a name the user typed by hand survives every automatic source", () => {
 	const renamed = ContinuityReducers.renameShell(oneShell(), { ...A1, title: "psql" });
 
 	for (const source of AUTOMATIC_SOURCES) {
-		expect(ContinuityReducers.nameShell(renamed, { ...A1, title: "outra coisa", source })).toEqual(renamed);
+		expect(ContinuityReducers.nameShell(renamed, { ...A1, title: "outra coisa", source, sessionId: "sess" })).toEqual(renamed);
 	}
 });
 
 test("writing the name a shell already carries counts nothing and changes nothing", () => {
-	const harness = ContinuityReducers.nameShell(oneShell(), { ...A1, title: "do harness", source: "harness" });
+	const harness = ContinuityReducers.nameShell(oneShell(), {
+		...A1,
+		title: "do harness",
+		source: "harness",
+		sessionId: "sess",
+	});
 
-	expect(ContinuityReducers.nameShell(harness, { ...A1, title: "do harness", source: "harness" })).toEqual(harness);
+	expect(
+		ContinuityReducers.nameShell(harness, { ...A1, title: "do harness", source: "harness", sessionId: "sess" }),
+	).toEqual(harness);
 });
 
 test("a title stamped before name origins existed is still open to naming", () => {
@@ -302,6 +309,7 @@ test("a title stamped before name origins existed is still open to naming", () =
 		...A1,
 		title: "sessao de naming",
 		source: "harness",
+		sessionId: "sess",
 	});
 
 	expect(onlyShell(named)?.title).toBe("sessao de naming");

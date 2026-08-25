@@ -11,6 +11,7 @@ export const continuityShellSchema = type({
 	"branch?": "string",
 	"title?": "string",
 	"titleSource?": "'user' | 'harness'",
+	"titleSessionId?": "string",
 	"archivedAt?": "number",
 	"pinnedAt?": "number",
 	"doneAt?": "number",

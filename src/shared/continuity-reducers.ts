@@ -23,6 +23,7 @@ export type OpenedShell = Pick<ContinuityShell, "id" | "plain" | "launch" | "tit
 export interface ShellName {
 	title: string;
 	source: Exclude<ShellTitleSource, "user">;
+	sessionId: string;
 }
 
 const TITLE_RANK: Record<ShellTitleSource, number> = { harness: 1, user: 2 };
@@ -204,11 +205,17 @@ export const ContinuityReducers = {
 				return shell;
 			}
 
-			if (shell.title === input.title && shell.titleSource === input.source) {
+			if (shell.title === input.title && shell.titleSource === input.source
+				&& shell.titleSessionId === input.sessionId) {
 				return shell;
 			}
 
-			return { ...shell, title: input.title, titleSource: input.source };
+			return {
+				...shell,
+				title: input.title,
+				titleSource: input.source,
+				titleSessionId: input.sessionId,
+			};
 		}),
 
 	touchShell: (

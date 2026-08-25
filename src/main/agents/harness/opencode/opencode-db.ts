@@ -8,6 +8,13 @@ interface OpencodeTurn {
 	endedAt?: number;
 }
 
+export interface OpencodeRootSession {
+	sessionId: string;
+	cwd: string;
+	timeCreated: number;
+	timeUpdated: number;
+}
+
 export interface OpencodeSessionState {
 	sessionId: string;
 	cwd: string;
@@ -27,6 +34,13 @@ const sessionRowSchema = type({
 	id: "string",
 	directory: "string",
 	title: "string",
+});
+
+const rootSessionRowSchema = type({
+	id: "string",
+	directory: "string",
+	time_created: "number",
+	time_updated: "number",
 });
 
 const partUpdateRowSchema = type({
@@ -94,21 +108,32 @@ function scalar(query: string, parameters: (string | number)[]): unknown {
 	return Object.values(row)[0];
 }
 
-function latestRootSession(directory: string): { sessionId: string; cwd: string } | undefined {
-	const row = firstRow(
-		"SELECT id, directory, title FROM session WHERE parent_id IS NULL AND time_archived IS NULL AND directory = ? ORDER BY time_updated DESC LIMIT 1",
-		[directory],
-	);
-	if (!row) {
-		return undefined;
+const ROOT_SESSION_COLUMNS =
+	"SELECT id, directory, time_created, time_updated FROM session WHERE parent_id IS NULL AND time_archived IS NULL AND directory = ?";
+
+function rootSessions(directory: string, limit: number): OpencodeRootSession[] {
+	const recent = [
+		...rows(`${ROOT_SESSION_COLUMNS} ORDER BY time_created DESC LIMIT ?`, [directory, limit]),
+		...rows(`${ROOT_SESSION_COLUMNS} ORDER BY time_updated DESC LIMIT ?`, [directory, limit]),
+	];
+	const found = new Map<string, OpencodeRootSession>();
+
+	for (const row of recent) {
+		const parsed = rootSessionRowSchema(row);
+
+		if (parsed instanceof type.errors) {
+			continue;
+		}
+
+		found.set(parsed.id, {
+			sessionId: parsed.id,
+			cwd: parsed.directory,
+			timeCreated: parsed.time_created,
+			timeUpdated: parsed.time_updated,
+		});
 	}
 
-	const parsed = sessionRowSchema(row);
-	if (parsed instanceof type.errors) {
-		return undefined;
-	}
-
-	return { sessionId: parsed.id, cwd: parsed.directory };
+	return [...found.values()];
 }
 
 function messageTurn(sessionId: string): OpencodeTurn {
@@ -204,7 +229,7 @@ function subagentSession(sessionId: string, callId: string): string | undefined 
 }
 
 export const OpencodeDb = {
-	latestRootSession,
+	rootSessions,
 	state,
 	title,
 	updatedParts,

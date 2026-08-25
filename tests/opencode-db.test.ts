@@ -67,14 +67,29 @@ describe("the opencode database state", () => {
 		});
 	});
 
-	test("the newest root session in a directory wins the binding", () => {
+	test("the root sessions of a directory carry their creation and activity times", () => {
 		const older = "ses_older0001";
 		seedSession(older, "/repo/c", "Older");
-		db.prepare("UPDATE session SET time_updated = 5 WHERE id = ?").run(older);
+		db.prepare("UPDATE session SET time_created = 2, time_updated = 5 WHERE id = ?").run(older);
 		seedSession("ses_newer0001", "/repo/c", "Newer");
-		db.prepare("UPDATE session SET time_updated = 9 WHERE id = ?").run("ses_newer0001");
+		db.prepare("UPDATE session SET time_created = 7, time_updated = 9 WHERE id = ?").run("ses_newer0001");
 
-		expect(OpencodeDb.latestRootSession("/repo/c")?.sessionId).toBe("ses_newer0001");
+		expect(OpencodeDb.rootSessions("/repo/c", 2)).toEqual([
+			{ sessionId: "ses_newer0001", cwd: "/repo/c", timeCreated: 7, timeUpdated: 9 },
+			{ sessionId: older, cwd: "/repo/c", timeCreated: 2, timeUpdated: 5 },
+		]);
+	});
+
+	test("the busiest session comes along even when younger ones crowd the limit", () => {
+		seedSession("ses_busy00001", "/repo/e", "Busy");
+		db.prepare("UPDATE session SET time_created = 1, time_updated = 90 WHERE id = ?").run("ses_busy00001");
+		seedSession("ses_young00001", "/repo/e", "Young");
+		db.prepare("UPDATE session SET time_created = 50, time_updated = 60 WHERE id = ?").run("ses_young00001");
+
+		expect(OpencodeDb.rootSessions("/repo/e", 1).map((session) => session.sessionId)).toEqual([
+			"ses_young00001",
+			"ses_busy00001",
+		]);
 	});
 
 	test("a task tool names the child session it delegated to", () => {

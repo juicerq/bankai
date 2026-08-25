@@ -1,4 +1,4 @@
-import { readdir, readFile, readlink } from "node:fs/promises";
+import { readdir, readFile, readlink, stat } from "node:fs/promises";
 
 interface ProcStat {
 	parent: number | null;
@@ -29,6 +29,12 @@ async function parent(pid: number): Promise<number | null> {
 async function procStart(pid: number): Promise<string | null> {
 	const stat = await readStat(pid);
 	return stat?.start ?? null;
+}
+
+async function startedAt(pid: number): Promise<number | null> {
+	const entry = await stat(`/proc/${pid}`).catch(() => null);
+
+	return entry?.mtimeMs ?? null;
 }
 
 const COMM_CACHE_TTL_MS = 30_000;
@@ -99,4 +105,4 @@ async function openFiles(pid: number): Promise<string[]> {
 	return targets.flatMap((target) => target ?? []);
 }
 
-export const ProcFs = { parent, procStart, named, commandLine, openFiles, workingDirectory };
+export const ProcFs = { parent, procStart, startedAt, named, commandLine, openFiles, workingDirectory };

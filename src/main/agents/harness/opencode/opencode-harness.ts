@@ -1,3 +1,4 @@
+import { OpencodeBinding } from "@main/agents/harness/opencode/opencode-binding";
 import { OpencodeConfig } from "@main/agents/harness/opencode/opencode-config";
 import { OpencodeConversationParser } from "@main/agents/harness/opencode/opencode-conversation";
 import { type OpencodeSessionState, OpencodeDb } from "@main/agents/harness/opencode/opencode-db";
@@ -136,43 +137,48 @@ export function opencodePresence(input: {
 	};
 }
 
-function boundSession(sessionId: string | undefined, cwd: string): OpencodeSessionState | undefined {
-	if (sessionId === undefined) {
-		const found = OpencodeDb.latestRootSession(cwd);
-		if (!found) {
-			return undefined;
-		}
-
-		const state = OpencodeDb.state(found.sessionId);
-		if (!state) {
-			return undefined;
-		}
-
-		return { ...found, ...state };
-	}
-
-	const state = OpencodeDb.state(sessionId);
-	if (!state) {
-		return undefined;
-	}
-
-	return { sessionId, ...state };
+interface OpencodeProcessFacts {
+	pid: number;
+	argv: string[];
+	procStart: string;
+	startedAt: number;
+	cwd: string;
+	sessionId?: string;
 }
 
-async function presenceOf(pid: number): Promise<AgentPresence | null> {
-	const [argv, procStart, cwd] = await Promise.all([
+async function factsOf(pid: number): Promise<OpencodeProcessFacts | null> {
+	const [argv, procStart, startedAt, cwd] = await Promise.all([
 		ProcFs.commandLine(pid),
 		ProcFs.procStart(pid),
+		ProcFs.startedAt(pid),
 		ProcFs.workingDirectory(pid),
 	]);
 	const command = interactiveInvocation(argv);
-	if (!command.interactive || procStart === null || cwd === null) {
+
+	if (!argv || !command.interactive || procStart === null || startedAt === null || cwd === null) {
 		return null;
 	}
 
-	const session = boundSession(command.sessionId, cwd);
+	return {
+		pid,
+		argv,
+		procStart,
+		startedAt,
+		cwd,
+		...(command.sessionId !== undefined && { sessionId: command.sessionId }),
+	};
+}
 
-	return opencodePresence({ pid, argv, procStart, cwd, ...(session && { session }) });
+function presencesIn(cwd: string, group: OpencodeProcessFacts[]): AgentPresence[] {
+	const bound = OpencodeBinding.bind(group, OpencodeDb.rootSessions(cwd, group.length));
+
+	return group.flatMap((process) => {
+		const sessionId = bound.get(process.pid);
+		const state = sessionId === undefined ? undefined : OpencodeDb.state(sessionId);
+		const session = sessionId !== undefined && state ? { sessionId, ...state } : undefined;
+
+		return opencodePresence({ ...process, ...(session && { session }) }) ?? [];
+	});
 }
 
 export const OpencodeHarness: Harness = {
@@ -198,7 +204,13 @@ export const OpencodeHarness: Harness = {
 	async discover() {
 		OpencodeTranscript.pumpKnown();
 		const pids = await ProcFs.named(OPENCODE_PROCESS);
+		const found = (await Promise.all(pids.map(factsOf))).flatMap((facts) => facts ?? []);
+		const byDirectory = new Map<string, OpencodeProcessFacts[]>();
 
-		return (await Promise.all(pids.map((pid) => presenceOf(pid)))).flatMap((presence) => presence ?? []);
+		for (const process of found) {
+			byDirectory.set(process.cwd, [...(byDirectory.get(process.cwd) ?? []), process]);
+		}
+
+		return [...byDirectory].flatMap(([cwd, group]) => presencesIn(cwd, group));
 	},
 };

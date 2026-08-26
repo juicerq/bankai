@@ -20,6 +20,7 @@ export function useHarnessSettings() {
 	const mutation = useMutation(
 		orpc.settings.updateHarness.mutationOptions({
 			onMutate: (harness) => {
+				void queryClient.cancelQueries({ queryKey: key });
 				const previous = queryClient.getQueryData<HarnessSettings>(key);
 				queryClient.setQueryData(key, harness);
 

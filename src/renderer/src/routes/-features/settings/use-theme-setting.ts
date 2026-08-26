@@ -10,6 +10,7 @@ export function useThemeSetting() {
 	const { mutate, error } = useMutation(
 		orpc.settings.updateTheme.mutationOptions({
 			onMutate: ({ theme }) => {
+				void queryClient.cancelQueries({ queryKey: key });
 				const previous = queryClient.getQueryData<ThemePreference>(key) ?? DEFAULT_THEME;
 				queryClient.setQueryData(key, theme);
 				Theme.set(theme);

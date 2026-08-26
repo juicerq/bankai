@@ -16,7 +16,7 @@ import { ProjectWorkspace } from "@renderer/routes/-features/workspace/surface/p
 import { ServiceLogPane } from "@renderer/routes/-features/services/service-log-pane";
 import { ServicesFooter } from "@renderer/routes/-features/services/services-footer";
 import { SessionSidebar } from "@renderer/routes/-features/sessions/list/session-sidebar";
-import { SettingsModal } from "@renderer/routes/-features/settings/settings-modal";
+import { SettingsScreen } from "@renderer/routes/-features/settings/settings-screen";
 import { ShellPicker } from "@renderer/routes/-features/projects/shell-picker";
 import { WindowControls } from "@renderer/routes/-features/app/chrome/window-controls";
 import { LAYOUT_MOTION_DURATION_MS } from "@renderer/routes/-features/workspace/layout/layout-motion";
@@ -542,6 +542,15 @@ function Bankai() {
 					</div>
 				)}
 			</section>
+			{settingsOpen && (
+				<SettingsScreen
+					projects={availableProjects}
+					shellCounts={shellCounts}
+					onOpenDirectory={openDirectory}
+					onRemoveProject={(projectId) => removeProject.mutate({ projectId })}
+					onClose={closeSettings}
+				/>
+			)}
 			<WindowControls fullscreen={projectRail.fullscreen} topBand={topBand} />
 			{shellPickerOpen && (
 				<ShellPicker
@@ -550,15 +559,6 @@ function Bankai() {
 					shellCounts={shellCounts}
 					onCreate={createRequestedShell}
 					onClose={closeShellPicker}
-				/>
-			)}
-			{settingsOpen && (
-				<SettingsModal
-					projects={availableProjects}
-					shellCounts={shellCounts}
-					onOpenDirectory={openDirectory}
-					onRemoveProject={(projectId) => removeProject.mutate({ projectId })}
-					onClose={closeSettings}
 				/>
 			)}
 			{commandsOpen && (

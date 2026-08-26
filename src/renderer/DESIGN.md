@@ -398,6 +398,17 @@ their meaning through a 20% `added` or `removed` background and the leading
 marker, keeping the code at full opacity and readable without losing the diff
 signal.
 
+**Settings screen.** Settings are a full-window surface, not a dialog: it covers
+the rail and the workspace, keeping only the window controls above it. The top
+course carries the back control and the `SETTINGS` marker inside a 224px block
+whose right rule continues down the section rail, so the course and the rail
+share one machined line. The rail lists one section per 32px row — icon, name,
+and the same 2px leading marker the session list uses, in `outline-strong`
+because a chosen section is UI state and not identity. The body scrolls on its
+own and centers a single reading column, so a wide window adds air around the
+settings instead of stretching them. Each section renders one panel on
+`surface-raised` with `divide-y` drawing every row separator.
+
 **Empty state.** Centered, one mark in `secondary`, a title, a line of support
 prose, and a single primary action. It occupies the plane it replaces rather
 than floating in a card.

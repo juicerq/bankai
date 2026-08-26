@@ -39,7 +39,7 @@ export function SettingsProjects({
 			title="Projects"
 			description="Working directories available for new sessions."
 		>
-			<div data-component="settings-projects" className="max-h-48 overflow-y-auto border border-outline">
+			<div data-component="settings-projects" className="divide-y divide-outline border border-outline">
 				{sorted.length === 0 && (
 					<p className="px-2 py-2 text-data text-secondary">No projects added.</p>
 				)}
@@ -48,7 +48,7 @@ export function SettingsProjects({
 						key={project.id}
 						data-component="settings-project"
 						data-project-id={project.id}
-						className="flex h-9 items-center gap-2 border-b border-outline px-2 last:border-b-0"
+						className="flex h-9 items-center gap-2 px-2"
 					>
 						<span className="min-w-0 flex-1 truncate text-body text-primary" title={project.name}>
 							{project.name}

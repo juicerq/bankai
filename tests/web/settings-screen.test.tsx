@@ -10,7 +10,7 @@ import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Project } from "@shared/projects";
 import type { BankaiSessionPageApi } from "@shared/session-page";
-import { SettingsModal } from "@renderer/routes/-features/settings/settings-modal";
+import { SettingsScreen } from "@renderer/routes/-features/settings/settings-screen";
 import { TailscaleAccess } from "@main/infra/tailscale/tailscale-access";
 import { pairingUrl } from "@shared/server";
 import { DEFAULT_THEME, THEME_LIGHT_CLASS } from "@shared/theme";
@@ -30,12 +30,12 @@ const projects: Project[] = [
 	{ id: "bankai", name: "bankai", path: "/projects/bankai", createdAt: 1 },
 ];
 
-function renderModal() {
+function renderScreen() {
 	const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
 
 	return render(
 		<QueryClientProvider client={queryClient}>
-			<SettingsModal
+			<SettingsScreen
 				projects={projects}
 				shellCounts={new Map()}
 				onOpenDirectory={() => {}}
@@ -46,13 +46,14 @@ function renderModal() {
 	);
 }
 
-async function loadedModal() {
-	renderModal();
+async function loadedScreen(section: string = "harness") {
+	renderScreen();
 	await waitFor(() => {
-		expect(slot(get("settings-modal"), "autostart")).not.toBeNull();
+		expect(slot(get("settings-screen"), "autostart")).not.toBeNull();
 	});
+	fireEvent.click(get("settings-nav", { id: section }));
 
-	return get("settings-modal");
+	return get("settings-screen");
 }
 
 beforeEach(() => {
@@ -107,9 +108,9 @@ afterEach(() => {
 });
 
 test("clears the Bankai browser profile only after confirmation", async () => {
-	const modal = await loadedModal();
+	const screen = await loadedScreen("data");
 
-	fireEvent.click(slot(modal, "clear-browser-data"));
+	fireEvent.click(slot(screen, "clear-browser-data"));
 
 	const confirmation = get("clear-browser-data-confirm");
 	expect(slot(confirmation, "confirm-message").textContent).toContain("sign out");
@@ -123,21 +124,21 @@ test("clears the Bankai browser profile only after confirmation", async () => {
 });
 
 test("shows the stored autostart switch and the selected harness", async () => {
-	const modal = await loadedModal();
+	const screen = await loadedScreen();
 
-	expect(slot(modal, "autostart").getAttribute("aria-checked")).toBe("true");
+	expect(slot(screen, "autostart").getAttribute("aria-checked")).toBe("true");
 	expect(get("settings-harness", { id: "claude" }).getAttribute("aria-checked")).toBe("true");
 	expect(get("settings-harness", { id: "codex" }).getAttribute("aria-checked")).toBe("false");
 });
 
 test("keeps project management in settings", async () => {
-	await loadedModal();
+	await loadedScreen("projects");
 
 	expect(get("settings-project", { projectId: "bankai" })).toBeDefined();
 });
 
 test("choosing another harness persists the id and keeps autostart on", async () => {
-	await loadedModal();
+	await loadedScreen();
 
 	fireEvent.click(get("settings-harness", { id: "codex" }));
 
@@ -149,31 +150,45 @@ test("choosing another harness persists the id and keeps autostart on", async ()
 });
 
 test("turning autostart off persists the switch and keeps the chosen harness", async () => {
-	const modal = await loadedModal();
+	const screen = await loadedScreen();
 
-	fireEvent.click(slot(modal, "autostart"));
+	fireEvent.click(slot(screen, "autostart"));
 
 	await waitFor(() => {
-		expect(slot(get("settings-modal"), "autostart").getAttribute("aria-checked")).toBe("false");
+		expect(slot(get("settings-screen"), "autostart").getAttribute("aria-checked")).toBe("false");
 	});
 	expect(transport.updates).toEqual([{ autostart: false, id: "claude" }]);
 	expect(get("settings-harness", { id: "claude" }).getAttribute("aria-checked")).toBe("true");
 	expect(get("settings-harness", { id: "claude" }).hasAttribute("disabled")).toBe(true);
 });
 
-test("closes on Escape and on a click outside the panel", async () => {
-	const modal = await loadedModal();
+test("closes on Escape and on the back control", async () => {
+	const screen = await loadedScreen();
 
-	fireEvent.keyDown(modal, { key: "Escape" });
+	fireEvent.keyDown(screen, { key: "Escape" });
 	expect(onClose).toHaveBeenCalledTimes(1);
 
-	fireEvent.pointerDown(modal);
-	expect(onClose).toHaveBeenCalledTimes(1);
+	fireEvent.click(slot(screen, "close-settings"));
+	expect(onClose).toHaveBeenCalledTimes(2);
+});
+
+test("shows one section at a time and keeps the chosen one marked", async () => {
+	const screen = await loadedScreen();
+
+	expect(get("settings-nav", { id: "harness" }).getAttribute("aria-current")).toBe("page");
+	expect(screen.querySelector('[data-component="settings-projects"]')).toBeNull();
+
+	fireEvent.click(get("settings-nav", { id: "projects" }));
+
+	expect(get("settings-nav", { id: "projects" }).getAttribute("aria-current")).toBe("page");
+	expect(get("settings-nav", { id: "harness" }).hasAttribute("aria-current")).toBe(false);
+	expect(screen.querySelector('[data-slot="autostart"]')).toBeNull();
+	expect(get("settings-projects")).toBeDefined();
 });
 
 test("marks a harness the shell cannot find and never calls it current", async () => {
 	transport.harnesses = [{ id: "claude", label: "Claude Code", conversation: true, available: false }];
-	await loadedModal();
+	await loadedScreen();
 
 	const row = get("settings-harness", { id: "claude" });
 	expect(slot(row, "missing").textContent).toBe("NOT ON PATH");
@@ -181,8 +196,8 @@ test("marks a harness the shell cannot find and never calls it current", async (
 });
 
 test("persists extra arguments on blur and drops them when emptied", async () => {
-	const modal = await loadedModal();
-	const field = slot(modal, "harness-args");
+	const screen = await loadedScreen();
+	const field = slot(screen, "harness-args");
 
 	fireEvent.focus(field);
 	fireEvent.input(field, { target: { value: "  --model opus  " } });
@@ -203,9 +218,9 @@ test("persists extra arguments on blur and drops them when emptied", async () =>
 });
 
 test("leaves the arguments alone when the field is blurred untouched", async () => {
-	const modal = await loadedModal();
+	const screen = await loadedScreen();
 
-	const field = slot(modal, "harness-args");
+	const field = slot(screen, "harness-args");
 	fireEvent.focus(field);
 	fireEvent.focusOut(field);
 
@@ -214,24 +229,24 @@ test("leaves the arguments alone when the field is blurred untouched", async () 
 
 test("says so when a save fails instead of quietly reverting", async () => {
 	transport.saveFailure = "disk is read-only";
-	const modal = await loadedModal();
+	const screen = await loadedScreen();
 
-	fireEvent.click(slot(modal, "autostart"));
+	fireEvent.click(slot(screen, "autostart"));
 
 	await waitFor(() => {
-		expect(slot(get("settings-modal"), "save-error").textContent).toContain("Could not save");
+		expect(slot(get("settings-screen"), "save-error").textContent).toContain("Could not save");
 	});
-	expect(slot(get("settings-modal"), "autostart").getAttribute("aria-checked")).toBe("true");
+	expect(slot(get("settings-screen"), "autostart").getAttribute("aria-checked")).toBe("true");
 });
 
 test("keeps typed arguments when the blur that saves them races the next change", async () => {
-	const modal = await loadedModal();
-	const field = slot(modal, "harness-args");
+	const screen = await loadedScreen();
+	const field = slot(screen, "harness-args");
 
 	fireEvent.focus(field);
 	fireEvent.input(field, { target: { value: "--model opus" } });
 	fireEvent.focusOut(field);
-	fireEvent.click(slot(modal, "autostart"));
+	fireEvent.click(slot(screen, "autostart"));
 
 	await waitFor(() => {
 		expect(transport.updates).toHaveLength(2);
@@ -244,73 +259,73 @@ test("keeps typed arguments when the blur that saves them races the next change"
 });
 
 test("shows the pairing link and its QR once Tailscale names the machine", async () => {
-	const modal = await loadedModal();
+	const screen = await loadedScreen("mobile");
 
 	await waitFor(() => {
-		expect(slot(modal, "pairing-url").textContent).toBe(PAIRING_URL);
+		expect(slot(screen, "pairing-url").textContent).toBe(PAIRING_URL);
 	});
-	expect(slot(modal, "pairing-qr").tagName.toLowerCase()).toBe("svg");
-	expect(slot(modal, "mobile-access").getAttribute("aria-checked")).toBe("false");
+	expect(slot(screen, "pairing-qr").tagName.toLowerCase()).toBe("svg");
+	expect(slot(screen, "mobile-access").getAttribute("aria-checked")).toBe("false");
 });
 
 test("leaves the pairing controls dead while nothing is serving the phone", async () => {
-	const modal = await loadedModal();
+	const screen = await loadedScreen("mobile");
 
 	await waitFor(() => {
-		expect(slot(modal, "pairing-url")).not.toBeNull();
+		expect(slot(screen, "pairing-url")).not.toBeNull();
 	});
-	expect(slot(modal, "regenerate-token").hasAttribute("disabled")).toBe(true);
+	expect(slot(screen, "regenerate-token").hasAttribute("disabled")).toBe(true);
 
-	fireEvent.click(slot(modal, "enlarge-qr"));
+	fireEvent.click(slot(screen, "enlarge-qr"));
 
-	expect(modal.querySelector('[data-slot="enlarged-qr"]')).toBeNull();
+	expect(screen.querySelector('[data-slot="enlarged-qr"]')).toBeNull();
 });
 
 test("the QR enlarges to a dialog and Escape closes only the enlargement", async () => {
 	mobile.access = { ...mobile.access, exposed: true };
-	const modal = await loadedModal();
+	const screen = await loadedScreen("mobile");
 	await waitFor(() => {
-		expect(slot(modal, "pairing-url")).not.toBeNull();
+		expect(slot(screen, "pairing-url")).not.toBeNull();
 	});
 
-	fireEvent.click(slot(modal, "enlarge-qr"));
+	fireEvent.click(slot(screen, "enlarge-qr"));
 
-	const enlarged = slot(modal, "enlarged-qr");
+	const enlarged = slot(screen, "enlarged-qr");
 	expect(enlarged.getAttribute("role")).toBe("dialog");
 	expect(enlarged.querySelector('[data-slot="pairing-qr"]')).not.toBeNull();
 
 	fireEvent.keyDown(enlarged, { key: "Escape" });
 
-	expect(modal.querySelector('[data-slot="enlarged-qr"]')).toBeNull();
+	expect(screen.querySelector('[data-slot="enlarged-qr"]')).toBeNull();
 	expect(onClose).not.toHaveBeenCalled();
 });
 
 test("turning mobile access on asks tailscale to serve the app", async () => {
-	const modal = await loadedModal();
+	const screen = await loadedScreen("mobile");
 	await waitFor(() => {
-		expect(slot(modal, "pairing-url")).not.toBeNull();
+		expect(slot(screen, "pairing-url")).not.toBeNull();
 	});
 
-	fireEvent.click(slot(modal, "mobile-access"));
+	fireEvent.click(slot(screen, "mobile-access"));
 
 	await waitFor(() => {
-		expect(slot(get("settings-modal"), "mobile-access").getAttribute("aria-checked")).toBe("true");
+		expect(slot(get("settings-screen"), "mobile-access").getAttribute("aria-checked")).toBe("true");
 	});
 	expect(mobile.exposeCalls).toEqual([true]);
 });
 
 test("regenerating the token replaces the pairing link", async () => {
 	mobile.access = { ...mobile.access, exposed: true };
-	const modal = await loadedModal();
+	const screen = await loadedScreen("mobile");
 	await waitFor(() => {
-		expect(slot(modal, "pairing-url")).not.toBeNull();
+		expect(slot(screen, "pairing-url")).not.toBeNull();
 	});
-	const before = slot(modal, "pairing-url").textContent;
+	const before = slot(screen, "pairing-url").textContent;
 
-	fireEvent.click(slot(modal, "regenerate-token"));
+	fireEvent.click(slot(screen, "regenerate-token"));
 
 	await waitFor(() => {
-		expect(slot(get("settings-modal"), "pairing-url").textContent).not.toBe(before);
+		expect(slot(get("settings-screen"), "pairing-url").textContent).not.toBe(before);
 	});
 	expect(mobile.regenerations).toBe(1);
 });
@@ -324,63 +339,63 @@ test("says so plainly when Tailscale names no machine instead of showing a broke
 		tailnetOpen: false,
 		problem: undefined,
 	};
-	const modal = await loadedModal();
+	const screen = await loadedScreen("mobile");
 
 	await waitFor(() => {
-		expect(slot(modal, "no-tailscale").textContent).toContain("MagicDNS");
+		expect(slot(screen, "no-tailscale").textContent).toContain("MagicDNS");
 	});
-	expect(modal.querySelector('[data-slot="pairing-qr"]')).toBeNull();
+	expect(screen.querySelector('[data-slot="pairing-qr"]')).toBeNull();
 });
 
 test("surfaces the operator remedy when tailscale refuses the change", async () => {
 	mobile.access = { ...mobile.access, problem: TailscaleAccess.TAILSCALE_OPERATOR_REMEDY };
-	const modal = await loadedModal();
+	const screen = await loadedScreen("mobile");
 
 	await waitFor(() => {
-		expect(slot(modal, "mobile-access-problem").textContent).toContain("sudo tailscale set --operator=$USER");
+		expect(slot(screen, "mobile-access-problem").textContent).toContain("sudo tailscale set --operator=$USER");
 	});
 });
 
 test("falls back to the tailnet address when the tailnet issues no certificate", async () => {
 	mobile.plainOnly = true;
-	const modal = await loadedModal();
+	const screen = await loadedScreen("mobile");
 
 	await waitFor(() => {
-		expect(slot(modal, "pairing-url")).not.toBeNull();
+		expect(slot(screen, "pairing-url")).not.toBeNull();
 	});
-	expect(modal.querySelector('[data-slot="mobile-access-problem"]')).toBeNull();
+	expect(screen.querySelector('[data-slot="mobile-access-problem"]')).toBeNull();
 
-	fireEvent.click(slot(modal, "mobile-access"));
+	fireEvent.click(slot(screen, "mobile-access"));
 
 	await waitFor(() => {
-		expect(slot(get("settings-modal"), "pairing-url").textContent).toBe(TAILNET_URL);
+		expect(slot(get("settings-screen"), "pairing-url").textContent).toBe(TAILNET_URL);
 	});
-	expect(slot(get("settings-modal"), "tailnet-notice").textContent).toContain("login.tailscale.com/admin/dns");
-	expect(slot(get("settings-modal"), "mobile-access").getAttribute("aria-checked")).toBe("true");
+	expect(slot(get("settings-screen"), "tailnet-notice").textContent).toContain("login.tailscale.com/admin/dns");
+	expect(slot(get("settings-screen"), "mobile-access").getAttribute("aria-checked")).toBe("true");
 });
 
 test("says nothing about plain HTTP while HTTPS is working", async () => {
-	const modal = await loadedModal();
+	const screen = await loadedScreen("mobile");
 
 	await waitFor(() => {
-		expect(slot(modal, "pairing-url").textContent).toBe(PAIRING_URL);
+		expect(slot(screen, "pairing-url").textContent).toBe(PAIRING_URL);
 	});
-	expect(modal.querySelector('[data-slot="tailnet-notice"]')).toBeNull();
+	expect(screen.querySelector('[data-slot="tailnet-notice"]')).toBeNull();
 });
 
 test("pairs against the tailnet address while it is the only way in", async () => {
 	mobile.access = { ...mobile.access, tailnetOpen: true };
-	const modal = await loadedModal();
+	const screen = await loadedScreen("mobile");
 
 	await waitFor(() => {
-		expect(slot(modal, "pairing-url").textContent).toBe(TAILNET_URL);
+		expect(slot(screen, "pairing-url").textContent).toBe(TAILNET_URL);
 	});
-	expect(slot(modal, "mobile-access").getAttribute("aria-checked")).toBe("true");
+	expect(slot(screen, "mobile-access").getAttribute("aria-checked")).toBe("true");
 });
 
 test("marks the stored theme among the three choices", async () => {
 	theme.theme = "system";
-	await loadedModal();
+	await loadedScreen("appearance");
 
 	await waitFor(() => {
 		expect(get("settings-theme", { id: "system" }).getAttribute("aria-checked")).toBe("true");
@@ -390,7 +405,7 @@ test("marks the stored theme among the three choices", async () => {
 });
 
 test("choosing the light theme persists it and paints the document at once", async () => {
-	await loadedModal();
+	await loadedScreen("appearance");
 
 	fireEvent.click(get("settings-theme", { id: "light" }));
 
@@ -403,13 +418,13 @@ test("choosing the light theme persists it and paints the document at once", asy
 
 test("hands each harness its own extra arguments field", async () => {
 	transport.harness = { autostart: true, id: "claude", profiles: { claude: { args: "--model opus" } } };
-	const modal = await loadedModal();
+	const screen = await loadedScreen();
 
-	expect(slot<HTMLInputElement>(modal, "harness-args").value).toBe("--model opus");
+	expect(slot<HTMLInputElement>(screen, "harness-args").value).toBe("--model opus");
 
 	fireEvent.click(get("settings-harness", { id: "codex" }));
 
 	await waitFor(() => {
-		expect(slot<HTMLInputElement>(get("settings-modal"), "harness-args").value).toBe("");
+		expect(slot<HTMLInputElement>(get("settings-screen"), "harness-args").value).toBe("");
 	});
 });

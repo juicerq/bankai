@@ -113,14 +113,14 @@ function ReviewDiffView({
 			diffContentWidth(
 				files.flatMap((file) => {
 					const content = contentByPath.get(file.path);
-					if (content?.status !== "ready") {
+					if (closedFiles.has(file.path) || content?.status !== "ready") {
 						return [];
 					}
 
 					return content.lines;
 				}),
 			),
-		[contentByPath, files],
+		[closedFiles, contentByPath, files],
 	);
 	const [initialOffset] = useState(() => readingOffset(position.current, rows, fileRowByPath, files));
 	const virtualizer = useVirtualizer({
@@ -191,7 +191,7 @@ function ReviewDiffView({
 			aria-hidden={covered || undefined}
 		>
 			{activeFileRow && (
-				<div style={{ width: contentWidth }} className="sticky top-0 left-0 z-20 h-0 min-w-full">
+				<div style={{ width: contentWidth }} className="sticky top-0 left-0 z-20 h-0 min-w-full text-code">
 					<ReviewFileHeader
 						row={activeFileRow}
 						sticky
@@ -202,7 +202,7 @@ function ReviewDiffView({
 			)}
 			<div
 				style={{ width: contentWidth, height: virtualizer.getTotalSize(), tabSize: DIFF_TAB_SIZE }}
-				className="relative min-w-full"
+				className="relative min-w-full text-code"
 			>
 				{virtualRows.map((virtualRow) => {
 					const row = rows[virtualRow.index];

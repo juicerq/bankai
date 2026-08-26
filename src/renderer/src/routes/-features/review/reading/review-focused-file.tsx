@@ -150,7 +150,7 @@ function ReviewFocusedFileReader({
 					height: virtualizer.getTotalSize(),
 					tabSize: DIFF_TAB_SIZE,
 				}}
-				className="relative min-w-full"
+				className="relative min-w-full text-code"
 			>
 				{virtualRows.map((virtualRow) => {
 					const line = content.lines[virtualRow.index];

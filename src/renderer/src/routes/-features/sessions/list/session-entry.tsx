@@ -40,6 +40,7 @@ export function SessionCard({ row, gestures }: { row: SessionRow; gestures: Sess
 	return (
 		<SessionEntry row={row} gestures={gestures} archived={false}>
 			<span className="flex w-full items-center gap-2">
+				<span className="min-w-0 truncate text-data text-secondary">{row.projectName}</span>
 				{row.pinnedAt !== undefined && (
 					<BookmarkIcon
 						data-slot="pinned-mark"
@@ -48,8 +49,9 @@ export function SessionCard({ row, gestures }: { row: SessionRow; gestures: Sess
 						className="size-3 shrink-0 text-tertiary"
 					/>
 				)}
-				<span className="min-w-0 flex-1 truncate text-data text-secondary">{row.projectName}</span>
-				<HarnessMark harness={row.harness} active={row.shellId === gestures.selectedShellId} />
+				<span className="ml-auto flex shrink-0 items-center">
+					<HarnessMark harness={row.harness} active={row.shellId === gestures.selectedShellId} />
+				</span>
 			</span>
 			<span className="w-full truncate text-body text-primary">{row.title}</span>
 			<span

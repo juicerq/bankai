@@ -56,7 +56,7 @@ function ArchivedRow({
 			type="button"
 			data-component="mobile-archived-row"
 			data-shell-id={row.shellId}
-			className="flex min-h-11 w-full touch-pan-y select-none items-center gap-3 border-b border-b-outline px-4 text-left active:bg-surface-active"
+			className="flex min-h-11 w-full touch-pan-y select-none items-center gap-3 px-4 text-left active:bg-surface-active"
 			{...longPress.press}
 			onClick={() => {
 				if (!longPress.held()) {

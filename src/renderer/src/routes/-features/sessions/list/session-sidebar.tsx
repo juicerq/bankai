@@ -155,8 +155,11 @@ export function SessionSidebar({
 						}}
 					/>
 				)}
-				{list.archivedOpen
-					&& list.archived.map((row) => <SessionShelfRow key={row.shellId} row={row} gestures={gestures} />)}
+				{list.archivedOpen && (
+					<div data-slot="archived-rows">
+						{list.archived.map((row) => <SessionShelfRow key={row.shellId} row={row} gestures={gestures} />)}
+					</div>
+				)}
 			</div>
 			<div className="flex min-h-0 max-h-2/5 shrink-0 flex-col border-t border-outline">{footer}</div>
 			{menu && (

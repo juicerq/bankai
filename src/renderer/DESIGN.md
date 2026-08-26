@@ -352,7 +352,11 @@ The container draws every separator. `divide-y divide-outline` sits on the
 scrolling element, and no row, no header, and no empty state carries a border of
 its own — that is what stops two adjacent sessions from summing to a 2px seam,
 and it is why the archived header has no rule of its own against the card above
-it. A row that needs to mark itself reaches for tone, never for an edge.
+it. A row that needs to mark itself reaches for tone, never for an edge. The
+archived rows are the one block outside that rule: they sit in a wrapper of their
+own, so `divide-y` rules the wrapper against the header above and nothing between
+the rows inside it. Hover tone alone separates one archived session from the
+next.
 
 The 2px edge down a row's left is the exception, and it is a marker rather than a
 separator: `tertiary` while the agent works, `terminal-blue` when it waits on the

@@ -32,7 +32,7 @@
       },
       "devDependencies": {
         "@happy-dom/global-registrator": "^20.11.1",
-        "@juicerq/check": "^0.2.1",
+        "@juicerq/check": "^0.3.0",
         "@tailwindcss/vite": "^4.2.4",
         "@tanstack/router-cli": "^1.167.21",
         "@tanstack/router-plugin": "^1.167.22",
@@ -204,7 +204,7 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@juicerq/check": ["@juicerq/check@0.2.1", "", { "dependencies": { "knip": "^6.27.0", "oxlint": "^1.75.0", "oxlint-tsgolint": "^7.0.2001" }, "bin": { "juicerq-check": "dist/bin/check.js" } }, "sha512-Ga54XZeS9grnRqynjuPSkuoPiGgDqjZ+ZvMHAc2nI2lYF1Ww23aAOqXH8qeeLix0YzH7OABN8Fwd6yEnLqRrzg=="],
+    "@juicerq/check": ["@juicerq/check@0.3.0", "", { "dependencies": { "knip": "^6.27.0", "oxlint": "^1.75.0", "oxlint-tsgolint": "^7.0.2001" }, "bin": { "juicerq-check": "dist/bin/check.js" } }, "sha512-datDQmOwbKV3AJsRAZvV929LV+mHAEFN79cMsMOnTpdF9ecxsQGOYJugANgS9Qha1vm5M+YXSxQSjFoyG6Btsw=="],
 
     "@malept/cross-spawn-promise": ["@malept/cross-spawn-promise@2.0.0", "", { "dependencies": { "cross-spawn": "^7.0.1" } }, "sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg=="],
 

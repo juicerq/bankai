@@ -186,6 +186,80 @@ function owners(
 	);
 }
 
+interface ShellEntry<T> {
+	projectId: string;
+	shellId: string;
+	value: T;
+}
+
+function byProject<T>(entries: ShellEntry<T>[]): Map<string, Record<string, T>> {
+	const grouped = new Map<string, Record<string, T>>();
+	for (const { projectId, shellId, value } of entries) {
+		const bucket = grouped.get(projectId) ?? {};
+		bucket[shellId] = value;
+		grouped.set(projectId, bucket);
+	}
+
+	return grouped;
+}
+
+function ownedEntries<T>(
+	owners: Map<string, ShellOwner>,
+	source: ReadonlyMap<string, T>,
+): ShellEntry<T>[] {
+	const entries: ShellEntry<T>[] = [];
+	for (const owner of owners.values()) {
+		const value = source.get(owner.shellId);
+		if (value === undefined) {
+			continue;
+		}
+
+		entries.push({ projectId: owner.projectId, shellId: owner.shellId, value });
+	}
+
+	return entries;
+}
+
+function shellEntries(
+	shellStates: Map<string, AgentActivityState>,
+	owners: Map<string, ShellOwner>,
+	doneShells: ReadonlyMap<string, DoneShell>,
+): ShellEntry<AgentActivityState>[] {
+	const byShellId = new Map<string, ShellEntry<AgentActivityState>>();
+	for (const [sessionId, state] of shellStates) {
+		const owner = owners.get(sessionId);
+		if (owner === undefined || (state === "done" && !doneShells.has(owner.shellId))) {
+			continue;
+		}
+
+		byShellId.set(owner.shellId, { projectId: owner.projectId, shellId: owner.shellId, value: state });
+	}
+
+	for (const [shellId, done] of doneShells) {
+		if (!byShellId.has(shellId)) {
+			byShellId.set(shellId, { projectId: done.projectId, shellId, value: "done" });
+		}
+	}
+
+	return [...byShellId.values()];
+}
+
+function statusSinceOf(
+	shells: Record<string, AgentActivityState>,
+	statusSince: ReadonlyMap<string, number>,
+	doneShells: ReadonlyMap<string, DoneShell>,
+): Record<string, number> {
+	const byShellId: Record<string, number> = {};
+	for (const [shellId, state] of Object.entries(shells)) {
+		const at = statusSince.get(shellId) ?? (state === "done" ? doneShells.get(shellId)?.at : undefined);
+		if (at !== undefined) {
+			byShellId[shellId] = at;
+		}
+	}
+
+	return byShellId;
+}
+
 function snapshotsByProject({
 	shellStates,
 	owners,
@@ -201,72 +275,23 @@ function snapshotsByProject({
 	harnesses: ReadonlyMap<string, string>;
 	doneShells: ReadonlyMap<string, DoneShell>;
 }): Map<string, ProjectActivitySnapshot> {
-	const projectIds = new Set<string>();
-	const shellsByProject = new Map<string, Record<string, AgentActivityState>>();
-	for (const [sessionId, state] of shellStates) {
-		const owner = owners.get(sessionId);
-		if (owner === undefined || (state === "done" && !doneShells.has(owner.shellId))) {
-			continue;
-		}
+	const shellsByProject = byProject(shellEntries(shellStates, owners, doneShells));
+	const worktreesByProject = byProject(ownedEntries(owners, worktrees));
+	const harnessesByProject = byProject(ownedEntries(owners, harnesses));
 
-		const grouped = shellsByProject.get(owner.projectId) ?? {};
-		grouped[owner.shellId] = state;
-		shellsByProject.set(owner.projectId, grouped);
-		projectIds.add(owner.projectId);
-	}
-
-	for (const [shellId, done] of doneShells) {
-		const grouped = shellsByProject.get(done.projectId) ?? {};
-		if (grouped[shellId] === undefined) {
-			grouped[shellId] = "done";
-		}
-		shellsByProject.set(done.projectId, grouped);
-		projectIds.add(done.projectId);
-	}
-
-	const worktreesByProject = new Map<string, Record<string, string>>();
-	for (const owner of owners.values()) {
-		const worktree = worktrees.get(owner.shellId);
-		if (worktree === undefined) {
-			continue;
-		}
-
-		const grouped = worktreesByProject.get(owner.projectId) ?? {};
-		grouped[owner.shellId] = worktree;
-		worktreesByProject.set(owner.projectId, grouped);
-		projectIds.add(owner.projectId);
-	}
-
-	const harnessesByProject = new Map<string, Record<string, string>>();
-	for (const owner of owners.values()) {
-		const harness = harnesses.get(owner.shellId);
-		if (harness === undefined) {
-			continue;
-		}
-
-		const grouped = harnessesByProject.get(owner.projectId) ?? {};
-		grouped[owner.shellId] = harness;
-		harnessesByProject.set(owner.projectId, grouped);
-		projectIds.add(owner.projectId);
-	}
+	const projectIds = new Set([
+		...shellsByProject.keys(),
+		...worktreesByProject.keys(),
+		...harnessesByProject.keys(),
+	]);
 
 	const snapshots = new Map<string, ProjectActivitySnapshot>();
 	for (const projectId of projectIds) {
 		const shells = shellsByProject.get(projectId) ?? {};
-		const statusSinceByShellId: Record<string, number> = {};
-		for (const shellId of Object.keys(shells)) {
-			const since =
-				statusSince.get(shellId) ??
-				(shells[shellId] === "done" ? doneShells.get(shellId)?.at : undefined);
-			if (since !== undefined) {
-				statusSinceByShellId[shellId] = since;
-			}
-		}
-
 		snapshots.set(projectId, {
 			shells,
 			worktreeByShellId: worktreesByProject.get(projectId) ?? {},
-			statusSinceByShellId,
+			statusSinceByShellId: statusSinceOf(shells, statusSince, doneShells),
 			harnessByShellId: harnessesByProject.get(projectId) ?? {},
 		});
 	}

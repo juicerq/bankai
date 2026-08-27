@@ -42,43 +42,9 @@ export function ProjectPicker({
 }) {
 	const [typedPath, setTypedPath] = useState<string>();
 	const [submittedPath, setSubmittedPath] = useState<string>();
-	const queryPath = typedPath === undefined ? HOME_PATH : browseDirectoryPath(typedPath);
-	const { data, isError } = useQuery(
-		orpc.projects.browse.queryOptions({
-			input: { path: queryPath },
-			enabled: queryPath.length > 0,
-			placeholderData: keepPreviousData,
-		}),
-	);
-	const path = typedPath ?? (data ? `${data.path}${browseSeparator(data.path)}` : "");
-	const inspected = useQuery(
-		orpc.projects.inspect.queryOptions({
-			input: { path: path.trim() },
-			enabled: path.trim().length > 0,
-		}),
-	);
-	const filter = browseLeafSegment(path);
-	const parentPath = browseParentPath(path);
-	const items = [
-		...(parentPath ? [{ name: "..", nextPath: parentPath }] : []),
-		...(queryPath.length > 0 ? (data?.directories ?? []) : [])
-			.filter((name) => name.toLowerCase().startsWith(filter.toLowerCase()))
-			.filter((name) => filter.startsWith(".") || !name.startsWith("."))
-			.map((name) => ({ name, nextPath: appendBrowseSegment(path, name) })),
-	];
+	const { queryPath, path, items, browseFailed } = useDirectoryListing(typedPath);
 	const failure = submittedPath === path.trim() ? addError : undefined;
-	const pathState = inspected.data?.state;
-	const notDirectoryNotice = inspected.data?.state === "not-directory"
-		? `Not a directory: ${inspected.data.path}`
-		: undefined;
-	const missingParentNotice = inspected.data?.state === "missing-parent"
-		? `Parent directory does not exist: ${inspected.data.parent}`
-		: undefined;
-	const notice = failure
-		?? notDirectoryNotice
-		?? missingParentNotice
-		?? (inspected.isError ? "This path cannot be checked." : undefined)
-		?? (isError && pathState !== "creatable" ? "This directory cannot be read." : undefined);
+	const { pathState, notice } = useProjectNotice({ path, failure, browseFailed });
 
 	const submit = () => {
 		setSubmittedPath(path.trim());
@@ -193,6 +159,72 @@ export function ProjectPicker({
 			</PickerFooter>
 		</PickerFrame>
 	);
+}
+
+function useDirectoryListing(typedPath?: string) {
+	const queryPath = typedPath === undefined ? HOME_PATH : browseDirectoryPath(typedPath);
+	const { data, isError } = useQuery(
+		orpc.projects.browse.queryOptions({
+			input: { path: queryPath },
+			enabled: queryPath.length > 0,
+			placeholderData: keepPreviousData,
+		}),
+	);
+
+	const path = typedPath ?? (data ? `${data.path}${browseSeparator(data.path)}` : "");
+	const filter = browseLeafSegment(path);
+	const parentPath = browseParentPath(path);
+	const directories = queryPath.length > 0 ? (data?.directories ?? []) : [];
+	const items = [
+		...(parentPath ? [{ name: "..", nextPath: parentPath }] : []),
+		...directories
+			.filter((name) => name.toLowerCase().startsWith(filter.toLowerCase()))
+			.filter((name) => filter.startsWith(".") || !name.startsWith("."))
+			.map((name) => ({ name, nextPath: appendBrowseSegment(path, name) })),
+	];
+
+	return { queryPath, path, items, browseFailed: isError };
+}
+
+function useProjectNotice({
+	path,
+	failure,
+	browseFailed,
+}: {
+	path: string;
+	failure?: string;
+	browseFailed: boolean;
+}) {
+	const inspected = useQuery(
+		orpc.projects.inspect.queryOptions({
+			input: { path: path.trim() },
+			enabled: path.trim().length > 0,
+		}),
+	);
+
+	const inspection = inspected.data;
+	const pathState = inspection?.state;
+	if (failure) {
+		return { pathState, notice: failure };
+	}
+
+	if (inspection?.state === "not-directory") {
+		return { pathState, notice: `Not a directory: ${inspection.path}` };
+	}
+
+	if (inspection?.state === "missing-parent") {
+		return { pathState, notice: `Parent directory does not exist: ${inspection.parent}` };
+	}
+
+	if (inspected.isError) {
+		return { pathState, notice: "This path cannot be checked." };
+	}
+
+	if (browseFailed && pathState !== "creatable") {
+		return { pathState, notice: "This directory cannot be read." };
+	}
+
+	return { pathState, notice: undefined };
 }
 
 function PickerItem({

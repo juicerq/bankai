@@ -16,6 +16,30 @@ import type { SessionPageRegistryValue } from "@renderer/routes/-features/sessio
 import { TodoPanel } from "@renderer/routes/-features/todos/todo-panel";
 import type { WorkspaceBayMode } from "@renderer/routes/-features/review/panel/use-review-panel-state";
 
+function bayState({
+	active,
+	bayMode,
+	activeShellId,
+	sessionPages,
+}: {
+	active: boolean;
+	bayMode: WorkspaceBayMode;
+	activeShellId?: string;
+	sessionPages: SessionPageRegistryValue;
+}) {
+	const reviewOpen = bayMode === "review";
+	const pageOpen = active && bayMode === "page" && !!activeShellId && sessionPages.has(activeShellId);
+	const todosOpen = active && bayMode === "todos";
+
+	return {
+		reviewOpen,
+		pageOpen,
+		todosOpen,
+		anyOpen: reviewOpen || pageOpen || todosOpen,
+		reviewHidden: pageOpen || todosOpen,
+	};
+}
+
 export const ProjectWorkspace = memo(function ProjectWorkspace({
 	project,
 	active,
@@ -62,9 +86,12 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 	const [motion, setMotion] = useState<ReviewPanelMotion>();
 	const [quickOpen, setQuickOpen] = useState(false);
 	const [reviewPanel] = useState(createReviewPanelStore);
-	const reviewOpen = bayMode === "review";
-	const pageOpen = active && bayMode === "page" && !!activeShellId && sessionPages.has(activeShellId);
-	const todosOpen = active && bayMode === "todos";
+	const { reviewOpen, pageOpen, todosOpen, anyOpen, reviewHidden } = bayState({
+		active,
+		bayMode,
+		activeShellId,
+		sessionPages,
+	});
 	const bayModeRef = useRef(bayMode);
 	bayModeRef.current = bayMode;
 	const restoreShellFocus = useCallback(() => {
@@ -205,7 +232,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					onOpenUrl={handleOpenTerminalUrl}
 				/>
 				<ReviewPanelFrame
-					open={reviewOpen || pageOpen || todosOpen}
+					open={anyOpen}
 					expanded={reviewExpanded}
 					motion={motion}
 					width={geometry.dockedWidth}
@@ -213,7 +240,7 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 					divider={geometry.diffDivider}
 					onMotionEnd={() => setMotion(undefined)}
 				>
-					<div className={pageOpen || todosOpen ? "hidden" : "contents"}>
+					<div className={reviewHidden ? "hidden" : "contents"}>
 						<ReviewPanel
 							panel={reviewPanel}
 							project={project}

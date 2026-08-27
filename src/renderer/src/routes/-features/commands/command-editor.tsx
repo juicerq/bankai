@@ -18,34 +18,8 @@ export function CommandEditor({
 	onSave: (projectId: string, draft: ProjectCommandDraft) => void;
 	onCancel: () => void;
 }) {
-	const [ownerId, setOwnerId] = useState(command?.projectId ?? projectId ?? "");
-	const [scopedId, setScopedId] = useState(projectId);
-	const [label, setLabel] = useState(command?.label ?? "");
-	const [line, setLine] = useState(command?.command ?? "");
-	const [kind, setKind] = useState<ProjectCommand["kind"]>(command?.kind ?? "task");
-	const [autostart, setAutostart] = useState(command?.autostart === true);
-
-	if (!command && projectId !== scopedId) {
-		setScopedId(projectId);
-		setOwnerId(projectId ?? "");
-	}
-
-	const owner = projects.find((project) => project.id === ownerId);
-	const complete = !!owner && !!label.trim() && !!line.trim();
-
-	const save = () => {
-		if (!complete) {
-			return;
-		}
-
-		if (kind === "service") {
-			onSave(owner.id, { label: label.trim(), command: line.trim(), kind, autostart });
-
-			return;
-		}
-
-		onSave(owner.id, { label: label.trim(), command: line.trim(), kind });
-	};
+	const { ownerId, setOwnerId, label, setLabel, line, setLine, kind, setKind, autostart, setAutostart, owner, complete, save } =
+		useCommandDraft({ command, projects, projectId, onSave });
 
 	return (
 		<div
@@ -66,32 +40,13 @@ export function CommandEditor({
 				</span>
 			</div>
 			<Field label="PROJECT">
-				{command ? (
-					<div data-slot="command-project" className="border border-outline bg-surface px-2 py-1.5 text-body text-primary">
-						{owner?.name}
-						<span className="ml-2 text-data text-secondary">{owner?.path}</span>
-					</div>
-				) : (
-					<DropdownMenu
-						component="project-select"
-						variant="field"
-						truncate
-						icon={<FolderIcon className="size-4 shrink-0" aria-hidden="true" />}
-						label={owner?.name ?? "Choose a project"}
-						ariaLabel={`Command project: ${owner?.name ?? "none"}`}
-						title={owner?.path}
-					>
-						{projects.map((project) => (
-							<DropdownMenuItem
-								key={project.id}
-								label={project.name}
-								detail={project.path}
-								selected={project.id === ownerId}
-								onClick={() => setOwnerId(project.id)}
-							/>
-						))}
-					</DropdownMenu>
-				)}
+				<ProjectChoice
+					locked={!!command}
+					owner={owner}
+					projects={projects}
+					ownerId={ownerId}
+					onSelect={setOwnerId}
+				/>
 			</Field>
 			<Field label="KIND">
 				<div data-slot="command-kind" className="flex border border-outline">
@@ -187,6 +142,94 @@ export function CommandEditor({
 				</button>
 			</div>
 		</div>
+	);
+}
+
+function useCommandDraft({
+	command,
+	projects,
+	projectId,
+	onSave,
+}: {
+	command: ProjectCommand | undefined;
+	projects: readonly Project[];
+	projectId: string | undefined;
+	onSave: (projectId: string, draft: ProjectCommandDraft) => void;
+}) {
+	const [ownerId, setOwnerId] = useState(command?.projectId ?? projectId ?? "");
+	const [scopedId, setScopedId] = useState(projectId);
+	const [label, setLabel] = useState(command?.label ?? "");
+	const [line, setLine] = useState(command?.command ?? "");
+	const [kind, setKind] = useState<ProjectCommand["kind"]>(command?.kind ?? "task");
+	const [autostart, setAutostart] = useState(command?.autostart === true);
+
+	if (!command && projectId !== scopedId) {
+		setScopedId(projectId);
+		setOwnerId(projectId ?? "");
+	}
+
+	const owner = projects.find((project) => project.id === ownerId);
+	const complete = !!owner && !!label.trim() && !!line.trim();
+
+	const save = () => {
+		if (!complete) {
+			return;
+		}
+
+		if (kind === "service") {
+			onSave(owner.id, { label: label.trim(), command: line.trim(), kind, autostart });
+
+			return;
+		}
+
+		onSave(owner.id, { label: label.trim(), command: line.trim(), kind });
+	};
+
+	return { ownerId, setOwnerId, label, setLabel, line, setLine, kind, setKind, autostart, setAutostart, owner, complete, save };
+}
+
+function ProjectChoice({
+	locked,
+	owner,
+	projects,
+	ownerId,
+	onSelect,
+}: {
+	locked: boolean;
+	owner: Project | undefined;
+	projects: readonly Project[];
+	ownerId: string;
+	onSelect: (projectId: string) => void;
+}) {
+	if (locked) {
+		return (
+			<div data-slot="command-project" className="border border-outline bg-surface px-2 py-1.5 text-body text-primary">
+				{owner?.name}
+				<span className="ml-2 text-data text-secondary">{owner?.path}</span>
+			</div>
+		);
+	}
+
+	return (
+		<DropdownMenu
+			component="project-select"
+			variant="field"
+			truncate
+			icon={<FolderIcon className="size-4 shrink-0" aria-hidden="true" />}
+			label={owner?.name ?? "Choose a project"}
+			ariaLabel={`Command project: ${owner?.name ?? "none"}`}
+			title={owner?.path}
+		>
+			{projects.map((project) => (
+				<DropdownMenuItem
+					key={project.id}
+					label={project.name}
+					detail={project.path}
+					selected={project.id === ownerId}
+					onClick={() => onSelect(project.id)}
+				/>
+			))}
+		</DropdownMenu>
 	);
 }
 

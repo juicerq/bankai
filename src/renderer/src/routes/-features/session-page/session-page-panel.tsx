@@ -33,27 +33,20 @@ function favoriteTitle(url: string, title: string | undefined) {
 	return (SessionPageAddressText.describe(url)?.host ?? url).slice(0, TITLE_LIMIT);
 }
 
-export function SessionPagePanel({
+function useNativePresentation({
 	registry,
 	shellId,
 	obscured,
 	coverable,
-	expanded,
-	onToggleExpanded,
-	onClose,
 	onRestoreTerminalFocus,
 }: {
 	registry: SessionPageRegistryValue;
 	shellId: string;
 	obscured: boolean;
 	coverable: boolean;
-	expanded: boolean;
-	onToggleExpanded: () => void;
-	onClose?: () => void;
 	onRestoreTerminalFocus: () => void;
 }) {
 	useSyncExternalStore((listener) => registry.subscribe(listener), () => registry.getSnapshot());
-	const favorites = useFavorites();
 	const stream = useSyncExternalStore(streamStatus.subscribe, streamStatus.get);
 	const covered = useSyncExternalStore(ProjectRailReveal.subscribe, () => coverable && ProjectRailReveal.get());
 	const entry = registry.get(shellId);
@@ -171,6 +164,40 @@ export function SessionPagePanel({
 		}).catch(() => {});
 	}, []);
 
+	return { entry, state, covered, frozen, shouldPresent, registerNativeSlot, registerPresentation, registerCover };
+}
+
+export function SessionPagePanel({
+	registry,
+	shellId,
+	obscured,
+	coverable,
+	expanded,
+	onToggleExpanded,
+	onClose,
+	onRestoreTerminalFocus,
+}: {
+	registry: SessionPageRegistryValue;
+	shellId: string;
+	obscured: boolean;
+	coverable: boolean;
+	expanded: boolean;
+	onToggleExpanded: () => void;
+	onClose?: () => void;
+	onRestoreTerminalFocus: () => void;
+}) {
+	const {
+		entry,
+		state,
+		covered,
+		frozen,
+		shouldPresent,
+		registerNativeSlot,
+		registerPresentation,
+		registerCover,
+	} = useNativePresentation({ registry, shellId, obscured, coverable, onRestoreTerminalFocus });
+	const favorites = useFavorites();
+
 	if (!entry) {
 		return null;
 	}
@@ -178,8 +205,6 @@ export function SessionPagePanel({
 	const blank = !entry.url;
 	const address = registry.displayUrl(shellId);
 	const loading = !!state?.loading;
-	const current = SessionPageUrl.parse(state?.url ?? entry.url);
-	const saved = current ? favorites.favorites.find((favorite) => favorite.url === current) : undefined;
 
 	return (
 		<section
@@ -226,30 +251,12 @@ export function SessionPagePanel({
 				>
 					<ArrowPathIcon data-loading={loading} className={`size-4 ${loading ? "pending-pulse" : ""}`} />
 				</SessionPageAction>
-				<SessionPageAction
-					label={saved ? "Remove page from favorites" : "Save page to favorites"}
-					slot="favorite"
+				<FavoriteAction
+					store={favorites}
+					url={state?.url ?? entry.url}
+					title={state?.title}
 					disabled={blank}
-					onClick={async () => {
-						if (saved) {
-							favorites.remove(saved.id);
-							return;
-						}
-
-						if (!current) {
-							return;
-						}
-
-						const preview = await window.bankaiSessionPage?.preview().catch(() => null);
-						favorites.add({
-							title: favoriteTitle(current, state?.title),
-							url: current,
-							...(preview ? { preview } : {}),
-						});
-					}}
-				>
-					{saved ? <StarSolidIcon className="size-4 text-tertiary" /> : <StarIcon className="size-4" />}
-				</SessionPageAction>
+				/>
 				<SessionPageAction label="Open page externally" disabled={blank} onClick={() => window.bankaiSessionPage?.openExternal()}>
 					<ArrowTopRightOnSquareIcon className="size-4" />
 				</SessionPageAction>
@@ -300,6 +307,48 @@ export function SessionPagePanel({
 				</div>
 			</div>
 		</section>
+	);
+}
+
+function FavoriteAction({
+	store,
+	url,
+	title,
+	disabled,
+}: {
+	store: ReturnType<typeof useFavorites>;
+	url?: string;
+	title?: string;
+	disabled: boolean;
+}) {
+	const current = SessionPageUrl.parse(url);
+	const saved = current ? store.favorites.find((favorite) => favorite.url === current) : undefined;
+
+	return (
+		<SessionPageAction
+			label={saved ? "Remove page from favorites" : "Save page to favorites"}
+			slot="favorite"
+			disabled={disabled}
+			onClick={async () => {
+				if (saved) {
+					store.remove(saved.id);
+					return;
+				}
+
+				if (!current) {
+					return;
+				}
+
+				const preview = await window.bankaiSessionPage?.preview().catch(() => null);
+				store.add({
+					title: favoriteTitle(current, title),
+					url: current,
+					...(preview ? { preview } : {}),
+				});
+			}}
+		>
+			{saved ? <StarSolidIcon className="size-4 text-tertiary" /> : <StarIcon className="size-4" />}
+		</SessionPageAction>
 	);
 }
 

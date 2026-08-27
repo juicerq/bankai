@@ -44,29 +44,22 @@ function activePathMessage(filtering: boolean, highlightedPath?: string) {
 	return highlightedPath;
 }
 
-export function ReviewTree({
+function useReviewTreeState({
 	files,
 	browsePaths,
 	treeView,
 	focusedPath,
-	divider,
-	onSelectTreeView,
 	onOpenFile,
 	onToggleFocusFile,
-	onCloseFiles,
 }: {
 	files: FileChange[];
 	browsePaths?: string[];
 	treeView: ReviewTreeView;
 	focusedPath?: string;
-	divider: ReturnType<typeof useDivider>;
-	onSelectTreeView: (view: ReviewTreeView) => void;
 	onOpenFile: (path: string) => void;
 	onToggleFocusFile: (path: string) => void;
-	onCloseFiles: (paths: string[], closed: boolean) => void;
 }) {
 	const browsing = treeView === "browse";
-	const compactFilter = divider.valueNow <= COMPACT_FILTER_WIDTH;
 	const [collapsedChanges, setCollapsedChanges] = useState<ReadonlySet<string>>(new Set());
 	const [expandedBrowse, setExpandedBrowse] = useState<ReadonlySet<string>>(new Set());
 	const [filter, setFilter] = useState("");
@@ -236,6 +229,105 @@ export function ReviewTree({
 
 		openChangedFile(highlightedPath);
 	};
+	const initialOffset = filtering ? filterScrollTops.current[treeView] : scrollTops.current[treeView];
+	const focusFilter = () => {
+		filterInput.current?.focus();
+	};
+
+	return {
+		browsing,
+		filter,
+		settledFilter,
+		filtering,
+		filterEmpty,
+		filterCollapsed,
+		filterLabel: browsing ? "Filter all files" : "Filter changed files",
+		emptyLabel: browsing ? "No files match this filter." : "No changed files match this filter.",
+		listKey: filtering ? "filtered" : "normal",
+		initialOffset,
+		rows,
+		paths,
+		count: filtered.count,
+		visibleFileCount,
+		visibleCollapsed,
+		collapsedChanges,
+		expandedBrowse,
+		highlightedPath,
+		activePathId,
+		activePathAnnouncement,
+		listNode,
+		attachList,
+		attachFilterInput,
+		focusFilter,
+		trackScroll,
+		clearFilter,
+		updateFilter,
+		updateFilterCollapsed,
+		navigateFilter,
+		openHighlightedPath,
+		openChangedFile,
+		setCollapsedChanges,
+		setExpandedBrowse,
+	};
+}
+
+export function ReviewTree({
+	files,
+	browsePaths,
+	treeView,
+	focusedPath,
+	divider,
+	onSelectTreeView,
+	onOpenFile,
+	onToggleFocusFile,
+	onCloseFiles,
+}: {
+	files: FileChange[];
+	browsePaths?: string[];
+	treeView: ReviewTreeView;
+	focusedPath?: string;
+	divider: ReturnType<typeof useDivider>;
+	onSelectTreeView: (view: ReviewTreeView) => void;
+	onOpenFile: (path: string) => void;
+	onToggleFocusFile: (path: string) => void;
+	onCloseFiles: (paths: string[], closed: boolean) => void;
+}) {
+	const compactFilter = divider.valueNow <= COMPACT_FILTER_WIDTH;
+	const {
+		browsing,
+		filter,
+		settledFilter,
+		filtering,
+		filterEmpty,
+		filterCollapsed,
+		filterLabel,
+		emptyLabel,
+		listKey,
+		initialOffset,
+		rows,
+		paths,
+		count,
+		visibleFileCount,
+		visibleCollapsed,
+		collapsedChanges,
+		expandedBrowse,
+		highlightedPath,
+		activePathId,
+		activePathAnnouncement,
+		listNode,
+		attachList,
+		attachFilterInput,
+		focusFilter,
+		trackScroll,
+		clearFilter,
+		updateFilter,
+		updateFilterCollapsed,
+		navigateFilter,
+		openHighlightedPath,
+		openChangedFile,
+		setCollapsedChanges,
+		setExpandedBrowse,
+	} = useReviewTreeState({ files, browsePaths, treeView, focusedPath, onOpenFile, onToggleFocusFile });
 
 	return (
 		<div
@@ -254,7 +346,7 @@ export function ReviewTree({
 
 				if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
 					event.preventDefault();
-					filterInput.current?.focus();
+					focusFilter();
 				}
 			}}
 		>
@@ -294,8 +386,8 @@ export function ReviewTree({
 						ref={attachFilterInput}
 						data-slot="tree-filter-input"
 						value={filter}
-						placeholder={browsing ? "Filter all files" : "Filter changed files"}
-						aria-label={browsing ? "Filter all files" : "Filter changed files"}
+						placeholder={filterLabel}
+						aria-label={filterLabel}
 						aria-describedby={activePathId}
 						aria-busy={filter !== settledFilter}
 						spellCheck={false}
@@ -324,10 +416,10 @@ export function ReviewTree({
 					{!compactFilter && (
 						<span
 							data-slot="tree-filter-count"
-							data-filtered={filtered.count}
+							data-filtered={count}
 							data-total={paths.length}
-							aria-label={`${filtered.count} of ${paths.length} files`}
-							title={`${filtered.count} of ${paths.length} files`}
+							aria-label={`${count} of ${paths.length} files`}
+							title={`${count} of ${paths.length} files`}
 							className="flex h-full shrink-0 items-center px-2 text-data text-outline-strong tabular-nums"
 						>
 							{visibleFileCount}
@@ -371,12 +463,12 @@ export function ReviewTree({
 							data-scope={treeView}
 							className="px-3 py-2 text-body text-secondary"
 						>
-							{browsing ? "No files match this filter." : "No changed files match this filter."}
+							{emptyLabel}
 						</div>
 					)}
 					{!filterEmpty && browsing && (
 						<ReviewTreeBrowse
-							key={filtering ? "filtered" : "normal"}
+							key={listKey}
 							loading={!browsePaths}
 							rows={rows}
 							filtering={filtering}
@@ -386,7 +478,7 @@ export function ReviewTree({
 							highlightedPath={highlightedPath}
 							expanded={expandedBrowse}
 							scrollElement={listNode}
-							initialOffset={filtering ? filterScrollTops.current[treeView] : scrollTops.current[treeView]}
+							initialOffset={initialOffset}
 							onExpandedChange={setExpandedBrowse}
 							onFilterCollapsedChange={updateFilterCollapsed}
 							onToggleFocus={onToggleFocusFile}
@@ -394,7 +486,7 @@ export function ReviewTree({
 					)}
 					{!filterEmpty && !browsing && (
 						<ReviewTreeChanges
-							key={filtering ? "filtered" : "normal"}
+							key={listKey}
 							rows={rows}
 							filtering={filtering}
 							filterCollapsed={filterCollapsed.changes}
@@ -407,7 +499,7 @@ export function ReviewTree({
 							onToggleFocusFile={onToggleFocusFile}
 							onCloseFiles={onCloseFiles}
 							scrollElement={listNode}
-							initialOffset={filtering ? filterScrollTops.current[treeView] : scrollTops.current[treeView]}
+							initialOffset={initialOffset}
 						/>
 					)}
 				</ReviewTreeRowFilter>

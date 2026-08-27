@@ -72,10 +72,59 @@ export function useReviewReading({
 	const files = currentSnapshot?.files ?? [];
 
 	const layout = useLayoutGeneration(scope, files, isFileOpen);
+	const content = useReviewContent({
+		scope,
+		files,
+		layout,
+		prepare: watchReady && !snapshotQuery.isPlaceholderData,
+		isFileOpen,
+	});
+	const focused = useFocusedFile({
+		scope,
+		files,
+		focusedPath,
+		watchReady,
+		snapshotPending: !watchError && snapshotQuery.isPending,
+	});
+
+	const reading: ReviewReadingGeneration | undefined = currentSnapshot
+		? {
+			layoutGeneration: layout.generation,
+			snapshot: currentSnapshot,
+			...(!snapshotQuery.isPlaceholderData && content.ready ? { contentByPath: content.byPath } : {}),
+		}
+		: undefined;
+	const published = useRetainedReading(scope, reading);
+
+	if (watchError) {
+		return { ...focused, error: watchError, refreshing: false };
+	}
+
+	const result: ReviewReading = { ...focused, refreshing: !!published && published !== reading };
+	if (published) {
+		result.generation = published;
+	}
+	if (queryError) {
+		result.error = queryError;
+	}
+
+	return result;
+}
+
+function useReviewContent({
+	scope,
+	files,
+	layout,
+	prepare,
+	isFileOpen,
+}: {
+	scope: ReviewScopeInput;
+	files: FileChange[];
+	layout: { initialPaths: string[] };
+	prepare: boolean;
+	isFileOpen: (path: string) => boolean;
+}) {
 	const initialPathSet = useMemo(() => new Set(layout.initialPaths), [layout.initialPaths]);
-
-	const prepare = watchReady && !snapshotQuery.isPlaceholderData;
-
 	const initialContentQuery = useQuery(
 		orpc.review.files.queryOptions({
 			input: { ...scope, files: layout.initialPaths },
@@ -98,7 +147,7 @@ export function useReviewReading({
 
 	const initialContent = initialContentQuery.data;
 	const initialContentError = initialContentQuery.isError;
-	const contentByPath = useMemo(() => {
+	const byPath = useMemo(() => {
 		const content = new Map<string, ReviewContent>();
 		for (const file of initialContent?.files ?? []) {
 			content.set(file.path, file.content);
@@ -119,61 +168,55 @@ export function useReviewReading({
 		return content;
 	}, [fileQueries, pendingFiles, initialContent, initialContentError, layout.initialPaths]);
 
-	const contentReady = files.every((file) => {
+	const ready = files.every((file) => {
 		if (!isFileOpen(file.path)) {
 			return true;
 		}
 
-		return contentByPath.has(file.path);
+		return byPath.has(file.path);
 	});
 
-	const focusedChanged = !!focusedPath && files.some((file) => file.path === focusedPath);
-	const snapshotComing = !watchError && snapshotQuery.isPending;
-	const focusedRaw = !!focusedPath && !focusedChanged && !snapshotComing;
+	return { byPath, ready };
+}
+
+function useFocusedFile({
+	scope,
+	files,
+	focusedPath,
+	watchReady,
+	snapshotPending,
+}: {
+	scope: ReviewScopeInput;
+	files: FileChange[];
+	focusedPath?: string;
+	watchReady: boolean;
+	snapshotPending: boolean;
+}): Pick<ReviewReading, "fullFile" | "fullFileError"> {
+	const changed = !!focusedPath && files.some((file) => file.path === focusedPath);
+	const raw = !!focusedPath && !changed && !snapshotPending;
 
 	const fullFileQuery = useQuery(
 		orpc.review.fullFile.queryOptions({
 			input: { ...scope, path: focusedPath ?? "" },
-			enabled: watchReady && focusedChanged,
+			enabled: watchReady && changed,
 		}),
 	);
 	const browseFileQuery = useQuery(
 		orpc.review.browseFile.queryOptions({
-			input: { projectId, worktree, path: focusedPath ?? "" },
-			enabled: focusedRaw,
+			input: { projectId: scope.projectId, worktree: scope.worktree, path: focusedPath ?? "" },
+			enabled: raw,
 		}),
 	);
-	const focusedQuery = focusedChanged ? fullFileQuery : browseFileQuery;
 
-	const reading: ReviewReadingGeneration | undefined = currentSnapshot
-		? {
-			layoutGeneration: layout.generation,
-			snapshot: currentSnapshot,
-			...(!snapshotQuery.isPlaceholderData && contentReady ? { contentByPath } : {}),
-		}
-		: undefined;
-	const published = useRetainedReading(scope, reading);
-
-	const focused: Pick<ReviewReading, "fullFile" | "fullFileError"> = {};
-	if (focusedQuery.data) {
-		focused.fullFile = focusedQuery.data;
-	} else if (focusedQuery.error) {
-		focused.fullFileError = String(focusedQuery.error);
+	const query = changed ? fullFileQuery : browseFileQuery;
+	if (query.data) {
+		return { fullFile: query.data };
+	}
+	if (query.error) {
+		return { fullFileError: String(query.error) };
 	}
 
-	if (watchError) {
-		return { ...focused, error: watchError, refreshing: false };
-	}
-
-	const result: ReviewReading = { ...focused, refreshing: !!published && published !== reading };
-	if (published) {
-		result.generation = published;
-	}
-	if (queryError) {
-		result.error = queryError;
-	}
-
-	return result;
+	return {};
 }
 
 function useRetainedReading(scope: ReviewScopeInput, reading?: ReviewReadingGeneration) {

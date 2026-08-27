@@ -20,6 +20,54 @@ import { useReviewReading } from "@renderer/routes/-features/review/reading/use-
 import { worktreeActivity } from "@renderer/routes/-features/review/header/worktree-activity";
 import { useWorkspaceAgents, useWorkspaceControl } from "@renderer/routes/-features/workspace/layout/workspace-context";
 
+function useWorktreeSelection({
+	project,
+	shellWorktree,
+	pinnedWorktree,
+	agents,
+	onSelect,
+}: {
+	project: Project;
+	shellWorktree?: string;
+	pinnedWorktree?: string;
+	agents: ReturnType<typeof useWorkspaceAgents>;
+	onSelect: ReviewWorktreeSelection["onSelect"];
+}) {
+	const queryClient = useQueryClient();
+	const { data: worktreeData } = useQuery(orpc.review.worktrees.queryOptions({ input: { projectId: project.id } }));
+	const {
+		error: removeWorktreeError,
+		variables: removeWorktreeVariables,
+		mutate: removeWorktree,
+	} = useMutation(
+		orpc.review.removeWorktree.mutationOptions({
+			onSuccess: async () => {
+				await queryClient.invalidateQueries({ queryKey: orpc.review.worktrees.key() });
+			},
+		}),
+	);
+
+	const worktrees = worktreeData ?? [];
+	const worktree = resolveReviewWorktree({ pinned: pinnedWorktree, shellWorktree, worktrees }) ?? project.path;
+	const removeFailure = removeWorktreeError && removeWorktreeVariables
+		? { path: removeWorktreeVariables.worktree, message: removeWorktreeError.message }
+		: undefined;
+
+	const worktreeSelection: ReviewWorktreeSelection = {
+		worktrees,
+		activePath: worktree,
+		mainPath: project.path,
+		pinnedPath: worktree === pinnedWorktree ? pinnedWorktree : undefined,
+		shellPath: shellWorktree,
+		activity: worktreeActivity({ shellWorktrees: agents.worktrees, shellActivity: agents.shells }),
+		removeFailure,
+		onSelect,
+		onRemove: (path) => removeWorktree({ projectId: project.id, worktree: path }),
+	};
+
+	return { worktree, worktreeSelection };
+}
+
 export function ReviewPanel({
 	panel,
 	project,
@@ -53,21 +101,13 @@ export function ReviewPanel({
 	const diff = useRef<ReviewDiffHandle>(null);
 	const isFileOpen = useCallback((path: string) => !closedFiles.has(path), [closedFiles]);
 
-	const queryClient = useQueryClient();
-	const { data: worktreeData } = useQuery(orpc.review.worktrees.queryOptions({ input: { projectId: project.id } }));
-	const {
-		error: removeWorktreeError,
-		variables: removeWorktreeVariables,
-		mutate: removeWorktree,
-	} = useMutation(
-		orpc.review.removeWorktree.mutationOptions({
-			onSuccess: async () => {
-				await queryClient.invalidateQueries({ queryKey: orpc.review.worktrees.key() });
-			},
-		}),
-	);
-	const worktrees = worktreeData ?? [];
-	const worktree = resolveReviewWorktree({ pinned: pinnedWorktree, shellWorktree, worktrees }) ?? project.path;
+	const { worktree, worktreeSelection } = useWorktreeSelection({
+		project,
+		shellWorktree,
+		pinnedWorktree,
+		agents,
+		onSelect: panel.actions.pinWorktree,
+	});
 
 	const { data: browsePaths } = useQuery(
 		orpc.review.browseFiles.queryOptions({
@@ -130,21 +170,6 @@ export function ReviewPanel({
 		shellWorktrees: agents.worktrees,
 		shellActivity: agents.shells,
 	});
-	const worktreeSelection: ReviewWorktreeSelection = {
-		worktrees,
-		activePath: worktree,
-		mainPath: project.path,
-		pinnedPath: worktree === pinnedWorktree ? pinnedWorktree : undefined,
-		shellPath: shellWorktree,
-		activity: worktreeActivity({ shellWorktrees: agents.worktrees, shellActivity: agents.shells }),
-		removeFailure:
-			removeWorktreeError && removeWorktreeVariables
-				? { path: removeWorktreeVariables.worktree, message: removeWorktreeError.message }
-				: undefined,
-		onSelect: panel.actions.pinWorktree,
-		onRemove: (path) => removeWorktree({ projectId: project.id, worktree: path }),
-	};
-
 	return (
 		<aside className="flex bg-surface-raised" aria-label="Review">
 			{quickOpen.open && (

@@ -195,14 +195,14 @@ function Bankai() {
 				sessionPages.close(selectedShellId);
 			}
 
-			if (!sessionPages.has(shellId)) {
-				dismissPage();
+			if (reviewPanel.mode === "page") {
+				sessionPages.blank(shellId);
 			}
 			sessions.selectShell(projectId, shellId);
 			activateProject(projectId);
 			serviceLog.close();
 		},
-		[activateProject, dismissPage, selectedShellId, serviceLog.close, sessionPages, sessions.selectShell],
+		[activateProject, reviewPanel.mode, selectedShellId, serviceLog.close, sessionPages, sessions.selectShell],
 	);
 	const createShell = useCallback(
 		(projectId: string, plain?: boolean) => {

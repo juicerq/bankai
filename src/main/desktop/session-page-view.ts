@@ -75,11 +75,11 @@ class SessionPageController {
 	readonly histories = new Map<string, SessionPageSnapshot>();
 	currentShellId: string | undefined;
 	loadedNavigation: number | undefined;
+	committedUrl: string | undefined;
 	generation = 0;
 	closed = false;
 	failure: string | null = null;
 	requestedVisible = false;
-	requestedUrl: string | undefined;
 	leaderArmed = false;
 	transition = Promise.resolve();
 
@@ -156,8 +156,14 @@ class SessionPageController {
 		contents.on("blur", () => {
 			this.leaderArmed = false;
 		});
-		contents.on("did-navigate", () => this.publishState());
-		contents.on("did-navigate-in-page", () => this.publishState());
+		contents.on("did-navigate", (_event, url) => {
+			this.committedUrl = url;
+			this.publishState();
+		});
+		contents.on("did-navigate-in-page", (_event, url) => {
+			this.committedUrl = url;
+			this.publishState();
+		});
 		contents.on("page-title-updated", () => this.publishState());
 
 		return view;
@@ -198,7 +204,6 @@ class SessionPageController {
 			container: this.win.contentView.getBounds(),
 			zoom: this.win.webContents.getZoomFactor(),
 		});
-		this.requestedUrl = presentation.url;
 		view.setBounds(bounds);
 		const hasVisibleBounds = bounds.width > 0 && bounds.height > 0;
 		this.requestedVisible = hasVisibleBounds;
@@ -208,6 +213,7 @@ class SessionPageController {
 
 			if (this.loadedNavigation !== presentation.navigation) {
 				this.loadedNavigation = presentation.navigation;
+				this.committedUrl = presentation.url;
 				await view.webContents.loadURL(presentation.url);
 			}
 
@@ -222,6 +228,7 @@ class SessionPageController {
 		this.saveCurrentHistory();
 		this.currentShellId = presentation.shellId;
 		this.loadedNavigation = presentation.navigation;
+		this.committedUrl = presentation.url;
 		const snapshot = this.histories.get(presentation.shellId);
 
 		try {
@@ -254,7 +261,7 @@ class SessionPageController {
 
 		this.currentShellId = undefined;
 		this.loadedNavigation = undefined;
-		this.requestedUrl = undefined;
+		this.committedUrl = undefined;
 		this.generation += 1;
 		this.requestedVisible = false;
 		this.closeView();
@@ -296,7 +303,7 @@ class SessionPageController {
 			return;
 		}
 
-		const currentUrl = SessionPageUrl.parse(this.view.webContents.getURL()) ?? this.requestedUrl;
+		const currentUrl = SessionPageUrl.parse(this.committedUrl ?? "");
 
 		if (currentUrl) {
 			await shell.openExternal(currentUrl);
@@ -463,7 +470,7 @@ class SessionPageController {
 		if (this.currentShellId && this.view) {
 			state = {
 				shellId: this.currentShellId,
-				url: SessionPageUrl.parse(this.view.webContents.getURL()) ?? null,
+				url: SessionPageUrl.parse(this.committedUrl ?? "") ?? null,
 				title: this.view.webContents.getTitle(),
 				canGoBack: this.view.webContents.navigationHistory.canGoBack(),
 				canGoForward: this.view.webContents.navigationHistory.canGoForward(),
@@ -484,7 +491,7 @@ class SessionPageController {
 		this.generation += 1;
 		this.currentShellId = undefined;
 		this.loadedNavigation = undefined;
-		this.requestedUrl = undefined;
+		this.committedUrl = undefined;
 		this.histories.clear();
 		this.closeView();
 		controllers.delete(this.win);

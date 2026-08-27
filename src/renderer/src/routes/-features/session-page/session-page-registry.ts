@@ -59,12 +59,8 @@ function create() {
 			publish();
 		},
 		open(shellId: string, url: string) {
-			const current = entries.get(shellId);
-			entries = new Map(entries).set(shellId, {
-				url,
-				navigation: (current?.navigation ?? 0) + 1,
-				...(current?.state ? { state: current.state } : {}),
-			});
+			const navigation = (entries.get(shellId)?.navigation ?? 0) + 1;
+			entries = new Map(entries).set(shellId, { url, navigation });
 			publish();
 		},
 		update(state: SessionPageState) {

@@ -64,6 +64,8 @@ class FakeHistory {
 	restoreCalls: { entries: Entry[]; index?: number }[] = [];
 	waitForRestore: Promise<void> | undefined;
 
+	constructor(private readonly onMove: (url: string) => void) {}
+
 	getAllEntries() {
 		return this.entries.map((entry) => ({ ...entry }));
 	}
@@ -83,12 +85,14 @@ class FakeHistory {
 	goBack() {
 		if (this.canGoBack()) {
 			this.activeIndex -= 1;
+			this.onMove(this.entries[this.activeIndex]?.url ?? "");
 		}
 	}
 
 	goForward() {
 		if (this.canGoForward()) {
 			this.activeIndex += 1;
+			this.onMove(this.entries[this.activeIndex]?.url ?? "");
 		}
 	}
 
@@ -106,7 +110,7 @@ class FakeHistory {
 }
 
 class FakeWebContents extends EventEmitter {
-	readonly navigationHistory = new FakeHistory();
+	readonly navigationHistory: FakeHistory;
 	loadURLCalls: string[] = [];
 	loadWaits = new Map<string, Promise<void>>();
 	reloadCount = 0;
@@ -117,6 +121,7 @@ class FakeWebContents extends EventEmitter {
 
 	constructor(readonly session: FakeSession) {
 		super();
+		this.navigationHistory = new FakeHistory((url) => this.emit("did-navigate", {}, url));
 	}
 
 	async loadURL(url: string) {

@@ -41,7 +41,8 @@ test("session pages keep one transient destination and native state per shell", 
 	registry.open("shell-1", "https://one.example/next");
 
 	expect(registry.get("shell-1")?.navigation).toBe(3);
-	expect(registry.get("shell-1")?.state?.title).toBe("One");
+	expect(registry.get("shell-1")?.state).toBeUndefined();
+	expect(registry.displayUrl("shell-1")).toBe("https://one.example/next");
 	expect(changes).toBe(5);
 
 	await registry.release(["shell-1"]);

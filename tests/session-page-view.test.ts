@@ -536,6 +536,75 @@ test("main-frame failures hide the native page until retry and publish a DOM-saf
 	expect(windows[0]?.webContents.sent.at(-1)?.payload).toMatchObject({ failure: null });
 });
 
+test("a shell switch reports the requested address while the new page is still loading", async () => {
+	const win = new BrowserWindow();
+	SessionPageView.attach(win);
+	const page = views[0]?.webContents;
+
+	await invoke(win, SESSION_PAGE_IPC.present, {
+		shellId: "shell-1",
+		url: "https://github.example",
+		navigation: 1,
+		bounds: { x: 0, y: 0, width: 900, height: 600 },
+	});
+
+	let finishLoad = () => {};
+	page?.loadWaits.set("http://localhost:5000/", new Promise<void>((resolve) => {
+		finishLoad = resolve;
+	}));
+	const switching = invoke(win, SESSION_PAGE_IPC.present, {
+		shellId: "shell-2",
+		url: "http://localhost:5000",
+		navigation: 1,
+		bounds: { x: 0, y: 0, width: 900, height: 600 },
+	});
+	await Promise.resolve();
+	page?.emit("did-start-loading");
+
+	expect(windows[0]?.webContents.sent.at(-1)?.payload).toMatchObject({
+		shellId: "shell-2",
+		url: "http://localhost:5000/",
+	});
+
+	finishLoad();
+	await switching;
+});
+
+test("a failed load after switching shells reports the requested page, not the previous shell's", async () => {
+	const win = new BrowserWindow();
+	SessionPageView.attach(win);
+	const page = views[0]?.webContents;
+
+	await invoke(win, SESSION_PAGE_IPC.present, {
+		shellId: "shell-1",
+		url: "https://github.example",
+		navigation: 1,
+		bounds: { x: 0, y: 0, width: 900, height: 600 },
+	});
+
+	let finishLoad = () => {};
+	page?.loadWaits.set("http://localhost:5000/", new Promise<void>((resolve) => {
+		finishLoad = resolve;
+	}));
+	const switching = invoke(win, SESSION_PAGE_IPC.present, {
+		shellId: "shell-2",
+		url: "http://localhost:5000",
+		navigation: 1,
+		bounds: { x: 0, y: 0, width: 900, height: 600 },
+	});
+	await Promise.resolve();
+	page?.emit("did-fail-load", {}, -102, "ERR_CONNECTION_REFUSED", "http://localhost:5000/", true);
+
+	expect(windows[0]?.webContents.sent.at(-1)?.payload).toMatchObject({
+		shellId: "shell-2",
+		url: "http://localhost:5000/",
+		failure: "ERR_CONNECTION_REFUSED",
+	});
+
+	finishLoad();
+	await switching;
+});
+
 test("guest keyboard handling relays only Bankai shortcut actions", async () => {
 	const win = new BrowserWindow();
 	SessionPageView.attach(win);

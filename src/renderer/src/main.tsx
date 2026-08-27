@@ -4,7 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@renderer/lib/api";
 import { installContinuityPush } from "@renderer/lib/continuity-push";
-import { installDesktopAttention } from "@renderer/lib/desktop-attention";
+import { installDesktopAttention } from "@renderer/lib/attention-alert";
 import { installLoggerBridge } from "@renderer/lib/logger-bridge";
 import { installReviewPrewarm } from "@renderer/lib/prewarm-reviews";
 import { installPushSync } from "@renderer/lib/push";

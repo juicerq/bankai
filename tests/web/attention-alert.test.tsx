@@ -1,7 +1,7 @@
 import "./register-dom";
 import { streamTransport } from "./stream-transport";
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
-import { installDesktopAttention } from "@renderer/lib/desktop-attention";
+import { installDesktopAttention } from "@renderer/lib/attention-alert";
 import { streamResync } from "@renderer/lib/stream/resync";
 import type { BankaiDesktopApi } from "@shared/desktop";
 

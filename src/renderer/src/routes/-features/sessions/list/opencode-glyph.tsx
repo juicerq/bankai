@@ -1,9 +1,9 @@
-const OPENCODE_MARK = "M27 0H3V30H27V0ZM21 6H9V24H21V6ZM21 12H9V24H21V12Z";
+const OPENCODE_MARK = "M24 0H0V24H24V0ZM19 5H5V19H19V5ZM19 11H5V19H19V11Z";
 
 export function OpencodeGlyph({ active }: { active: boolean }) {
 	return (
 		<svg
-			viewBox="0 0 30 30"
+			viewBox="-1.6 -1.6 27.2 27.2"
 			className={`size-3.5 shrink-0 ${active ? "fill-tertiary" : "fill-outline-strong"}`}
 			aria-label="OpenCode"
 			role="img"

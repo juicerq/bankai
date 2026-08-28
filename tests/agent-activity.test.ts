@@ -573,6 +573,19 @@ describe.if(process.platform === "linux")("binding against real processes", () =
 		return exe !== null && basename(exe) === binary;
 	}
 
+	async function agentForShell(shellId: string, binary: string): Promise<number> {
+		while (true) {
+			const agents = await ProcFs.named(binary);
+			for (const pid of agents) {
+				if ((await ShellAgents.shellOf(pid)) === shellId) {
+					return pid;
+				}
+			}
+
+			await Bun.sleep(5);
+		}
+	}
+
 	test("walks up from a live pid to the process that spawned it", async () => {
 		const parent = await ProcFs.parent(process.pid);
 		if (parent === null) {
@@ -619,19 +632,18 @@ describe.if(process.platform === "linux")("binding against real processes", () =
 
 	test("binds a harness launched the way a pane launches it", async () => {
 		const shell = "/bin/sh";
+		const shellId = `pane-${process.pid}`;
 		const pane = Bun.spawn([shell, ...ShellCommandLine.shellArgs(shell, "sleep 30")], {
+			env: { ...process.env, PATH: "/usr/bin:/bin", [SHELL_ID_ENV]: shellId },
 			stdin: "ignore",
 			stdout: "ignore",
 			stderr: "ignore",
 		});
 		try {
-			await Bun.sleep(300);
-			const listed = await new Response(Bun.spawn(["pgrep", "-P", String(pane.pid)]).stdout).text();
-			const harness = Number(listed.trim().split("\n")[0]);
-			expect(harness).toBeGreaterThan(0);
+			const harness = await agentForShell(shellId, "sleep");
 
 			const bindings = await SessionBinder.bind({
-				shells: [{ sessionId: "pane", shellId: "shell-pane", pid: pane.pid }],
+				shells: [{ sessionId: "pane", shellId, pid: pane.pid }],
 				agents: [harness],
 				parentOf: ProcFs.parent,
 			});

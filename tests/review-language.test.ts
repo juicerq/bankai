@@ -49,6 +49,7 @@ const NEWLY_COVERED_EXTENSIONS = {
 	php: "php",
 	graphql: "graphql",
 	proto: "proto",
+	prisma: "prisma",
 	ini: "ini",
 	env: "dotenv",
 } as const;
@@ -60,7 +61,7 @@ describe("review language", () => {
 		}
 	});
 
-	it("resolves the 11 newly covered extensions to a grammar id", () => {
+	it("resolves the newly covered extensions to a grammar id", () => {
 		for (const [extension, language] of Object.entries(NEWLY_COVERED_EXTENSIONS)) {
 			expect(reviewLanguage(`file.${extension}`)).toBe(language);
 		}

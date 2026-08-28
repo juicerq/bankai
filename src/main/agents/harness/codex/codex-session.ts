@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { Logger } from "@main/infra/logger";
 import { type } from "arktype";
+import type { SessionName } from "@main/agents/harness/harness";
 
 const RESPONSE_ID = 2;
 const READ_TIMEOUT_MS = 5_000;
@@ -21,7 +22,6 @@ const responseSchema = type({
 	id: raw.id,
 	sessionId: raw.result.thread.id,
 	name: raw.result.thread.name,
-	preview: raw.result.thread.preview,
 	transcript: raw.result.thread.path,
 }));
 
@@ -47,7 +47,7 @@ function request(sessionId: string): string {
 function sessionFromLine(
 	line: string,
 	sessionId: string,
-): { name: string | null; transcript: string | null } | null | undefined {
+): { name: SessionName; transcript: string | null } | null | undefined {
 	let value: unknown;
 	try {
 		value = JSON.parse(line);
@@ -65,11 +65,10 @@ function sessionFromLine(
 		return null;
 	}
 
-	const name = [response.name, response.preview]
-		.find((candidate) => !!candidate?.trim())
-		?.trim()
-		.replace(/\s+/g, " ")
-		.slice(0, NAME_LIMIT) ?? null;
+	const published = response.name?.trim().replace(/\s+/g, " ").slice(0, NAME_LIMIT);
+	const name = published
+		? { state: "published" as const, value: published }
+		: { state: "pending" as const };
 
 	return { name, transcript: response.transcript };
 }
@@ -77,7 +76,7 @@ function sessionFromLine(
 async function readResponse(
 	stdout: NodeJS.ReadableStream,
 	sessionId: string,
-): Promise<{ name: string | null; transcript: string | null } | null> {
+): Promise<{ name: SessionName; transcript: string | null } | null> {
 	const lines = createInterface({ input: stdout, crlfDelay: Number.POSITIVE_INFINITY });
 
 	try {
@@ -94,7 +93,7 @@ async function readResponse(
 	return null;
 }
 
-async function readCodexSession(sessionId: string): Promise<{ name: string | null; transcript: string | null } | null> {
+async function readCodexSession(sessionId: string) {
 	const child = spawn("codex", ["app-server"], { env: process.env, stdio: ["pipe", "pipe", "pipe"] });
 	let errorOutput = "";
 	let spawnError: Error | undefined;

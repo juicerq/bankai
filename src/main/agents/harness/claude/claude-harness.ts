@@ -81,7 +81,14 @@ export const ClaudeHarness: Harness = {
 
 		return { file: "claude", args: ["--resume", ref.sessionId] };
 	},
-	title: ClaudeTranscript.title,
+	publishedName: async (ref) => {
+		const value = await ClaudeTranscript.title(ref);
+		if (!value) {
+			return { state: "pending" };
+		}
+
+		return { state: "published", value };
+	},
 	watch: () => [sessionsDirectory(), ...transcriptFiles],
 	async discover() {
 		const directory = sessionsDirectory();

@@ -26,6 +26,10 @@ export interface ConversationLineParser {
 	consume: (line: string) => ConversationBlock[];
 }
 
+export type SessionName =
+	| { state: "pending" }
+	| { state: "published"; value: string };
+
 export interface Harness {
 	id: string;
 	label: string;
@@ -37,6 +41,6 @@ export interface Harness {
 	discover: () => Promise<AgentPresence[]>;
 	launch?: () => HarnessCommand;
 	resume?: (ref: { sessionId: string }) => HarnessCommand | null;
-	title?: (ref: { sessionId: string; cwd: string }) => Promise<string | null>;
+	publishedName: (ref: { sessionId: string; cwd: string }) => Promise<SessionName>;
 	watch?: () => string[];
 }

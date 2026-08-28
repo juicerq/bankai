@@ -31,16 +31,19 @@ function respondWith(input: { name: string | null; preview: string; transcript?:
 }
 
 describe("the codex session", () => {
-	test("uses the same extracted title and transcript that codex returns", async () => {
+	test("keeps the session name pending when codex has only the first-message preview", async () => {
 		respondWith({ name: null, preview: "oi", transcript: TRANSCRIPT });
 
-		expect(await CodexSession.read(SESSION)).toEqual({ name: "oi", transcript: TRANSCRIPT });
+		expect(await CodexSession.read(SESSION)).toEqual({ name: { state: "pending" }, transcript: TRANSCRIPT });
 	});
 
-	test("prefers the name chosen with rename", async () => {
+	test("publishes the user-facing name codex returns", async () => {
 		respondWith({ name: "Corrigir download da NFE", preview: "oi", transcript: TRANSCRIPT });
 
-		expect(await CodexSession.read(SESSION)).toEqual({ name: "Corrigir download da NFE", transcript: TRANSCRIPT });
+		expect(await CodexSession.read(SESSION)).toEqual({
+			name: { state: "published", value: "Corrigir download da NFE" },
+			transcript: TRANSCRIPT,
+		});
 	});
 
 	test("returns no session when codex does not return a valid thread", async () => {
@@ -51,10 +54,13 @@ describe("the codex session", () => {
 });
 
 describe("the codex harness", () => {
-	test("gets the card name and conversation from the native session", async () => {
-		respondWith({ name: null, preview: "oi", transcript: TRANSCRIPT });
+	test("gets the published name and conversation from the native session", async () => {
+		respondWith({ name: "Corrigir download da NFE", preview: "oi", transcript: TRANSCRIPT });
 
-		expect(await CodexHarness.title?.({ sessionId: SESSION, cwd: "/x" })).toBe("oi");
+		expect(await CodexHarness.publishedName({ sessionId: SESSION, cwd: "/x" })).toEqual({
+			state: "published",
+			value: "Corrigir download da NFE",
+		});
 		expect(await CodexHarness.conversation?.transcript({ sessionId: SESSION, cwd: "/x" })).toBe(TRANSCRIPT);
 	});
 });

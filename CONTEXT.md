@@ -180,6 +180,10 @@ _Avoid_: Adapter, plugin, integration, driver
 A durable conversation owned by a Harness. It may outlive its Agent process and can be resumed when the Harness supports it.
 _Avoid_: Shell, process, PTY
 
+**Published session name**:
+The user-facing name an Agent assigns to one Agent session. A prompt, conversation preview, branch and Shell title are not a Published session name.
+_Avoid_: Preview, prompt, inferred title
+
 **Live agent session**:
 An Agent session whose Agent process is still running inside a Shell, whether it is Working, Needs attention, or idle inside the Agent. Leaving the Agent and returning to the shell prompt ends the live session.
 _Avoid_: Working session, active Shell

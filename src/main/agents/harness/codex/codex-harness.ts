@@ -146,7 +146,7 @@ export const CodexHarness: Harness = {
 
 		return { file: "codex", args: [RESUME_COMMAND, ref.sessionId] };
 	},
-	title: async ({ sessionId }) => (await CodexSession.read(sessionId))?.name ?? null,
+	publishedName: async ({ sessionId }) => (await CodexSession.read(sessionId))?.name ?? { state: "pending" },
 	watch: () => rootRollouts,
 	async discover() {
 		const pids = await ProcFs.named(CODEX_PROCESS);

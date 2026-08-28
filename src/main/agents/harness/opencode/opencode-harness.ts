@@ -199,7 +199,14 @@ export const OpencodeHarness: Harness = {
 
 		return { file: "opencode", args: ["--session", ref.sessionId] };
 	},
-	title: async ({ sessionId }) => OpencodeDb.title(sessionId),
+	publishedName: async ({ sessionId }) => {
+		const value = OpencodeDb.title(sessionId);
+		if (!value) {
+			return { state: "pending" };
+		}
+
+		return { state: "published", value };
+	},
 	watch: () => [OpencodeConfig.dbPath(), `${OpencodeConfig.dbPath()}-wal`],
 	async discover() {
 		OpencodeTranscript.pumpKnown();

@@ -405,6 +405,46 @@ describe("continuity store", () => {
 		expect(shells?.[4]?.title).toBe("fish");
 	});
 
+	it("makes persisted codex harness names eligible for the published name", async () => {
+		writeContinuityFile({
+			version: 10,
+			data: {
+				workspaces: [{
+					projectId: "p1",
+					shells: [
+						{
+							id: "s1",
+							label: "Shell 1",
+							createdAt: 1,
+							title: "primeiro prompt",
+							titleSource: "harness",
+							titleSessionId: "codex-session",
+							session: { harness: "codex", sessionId: "codex-session", cwd: "/repo" },
+						},
+						{
+							id: "s2",
+							label: "Shell 2",
+							createdAt: 1,
+							title: "meu nome",
+							titleSource: "user",
+							session: { harness: "codex", sessionId: "other", cwd: "/repo" },
+						},
+					],
+				}],
+			},
+		});
+
+		const { value, failed } = await Continuity.load();
+		const shells = value.workspaces[0]?.shells;
+
+		expect(failed).toBe(false);
+		expect(shells?.[0]?.title).toBeUndefined();
+		expect(shells?.[0]?.titleSource).toBeUndefined();
+		expect(shells?.[0]?.titleSessionId).toBeUndefined();
+		expect(shells?.[1]?.title).toBe("meu nome");
+		expect(shells?.[1]?.titleSource).toBe("user");
+	});
+
 	it("keeps a v1 topology while dropping session refs that predate the recorded directory", async () => {
 		writeContinuityFile({
 			version: 1,

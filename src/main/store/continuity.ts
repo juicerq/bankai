@@ -99,7 +99,23 @@ const modelNamedShellsSchema = type({
 	workspaces: type({ projectId: "string", shells: modelNamedShellSchema.array() }).array(),
 });
 
-export const CONTINUITY_STORE_VERSION = 10;
+const codexPreviewNamedShellsSchema = continuitySchema.pipe((value): ContinuityValue => ({
+	...value,
+	workspaces: value.workspaces.map((workspace) => ({
+		...workspace,
+		shells: workspace.shells.map((shell) => {
+			if (shell.session?.harness !== "codex" || shell.titleSource !== "harness") {
+				return shell;
+			}
+
+			const { title: _title, titleSource: _titleSource, titleSessionId: _titleSessionId, ...pending } = shell;
+
+			return pending;
+		}),
+	})),
+}));
+
+export const CONTINUITY_STORE_VERSION = 11;
 
 const store = new Store({
 	name: "continuity",
@@ -115,6 +131,7 @@ const store = new Store({
 		7: (raw) => raw,
 		8: (raw) => raw,
 		9: (raw) => modelNamedShellsSchema.assert(raw),
+		10: (raw) => codexPreviewNamedShellsSchema.assert(raw),
 	},
 	seed: (): ContinuityValue => ({ workspaces: [] }),
 });

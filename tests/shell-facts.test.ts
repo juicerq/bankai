@@ -142,6 +142,24 @@ describe("ShellFacts.stamp titles", () => {
 		expect((await shell(project.id, "s1"))?.title).toBeUndefined();
 	});
 
+	it("keeps reading until the harness publishes a session name", async () => {
+		const cwd = repo("eventually-titled", "main");
+		const project = await Projects.add(cwd);
+		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });
+		await claudeSession({ projectId: project.id, sessionId: "abc", cwd, intent: "arruma o header" });
+		await ShellFacts.stamp({ projectId: project.id, shellId: "s1" });
+		await claudeSession({
+			projectId: project.id,
+			sessionId: "abc",
+			cwd,
+			intent: "arruma o header",
+			title: "Arrumar o header",
+		});
+		await ShellFacts.stamp({ projectId: project.id, shellId: "s1" });
+
+		expect((await shell(project.id, "s1"))?.title).toBe("Arrumar o header");
+	});
+
 	it("titles an agentless shell with the raw title its own shell wrote", async () => {
 		const project = await Projects.add(repo("osc-titled", "main"));
 		await Continuity.openShell({ projectId: project.id, shell: { id: "s1" } });

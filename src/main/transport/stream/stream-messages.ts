@@ -1,18 +1,10 @@
 import { type } from "arktype";
 import { terminalColumnsSchema, terminalRowsSchema } from "@main/terminal/terminal-dimensions";
 import { TerminalInput } from "@main/terminal/terminal-input";
-import { STREAM_CHANNELS } from "@shared/stream";
 
 export const TERMINAL_WRITE_MAX_LENGTH = 65_536;
 
 export const STREAM_MAX_PAYLOAD_BYTES = TERMINAL_WRITE_MAX_LENGTH * 8;
-
-export const streamEnvelopeSchema = type({
-	channel: type.enumerated(...STREAM_CHANNELS),
-	type: "string",
-	"payload?": "unknown",
-	"requestId?": "string",
-});
 
 const shellAddress = type({ projectId: "string", shellId: "string" });
 

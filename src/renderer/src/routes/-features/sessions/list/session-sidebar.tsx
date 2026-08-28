@@ -99,7 +99,6 @@ export function SessionSidebar({
 			<BankaiWordmark />
 			<SessionSearchField
 				term={list.term}
-				count={list.open.length}
 				onSearch={list.onSearch}
 				actions={
 					<>

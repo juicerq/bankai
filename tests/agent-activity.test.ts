@@ -85,49 +85,49 @@ describe("shell turns", () => {
 	}
 
 	test("a shell that starts working opens its own turn", () => {
-		expect(ShellActivity.turnStarts(shells({}), shells({ a: "working" }))).toEqual(["a"]);
+		expect(ShellActivity.changes(shells({}), shells({ a: "working" })).started).toEqual(["a"]);
 	});
 
 	test("a shell staying in its turn does not open another", () => {
-		expect(ShellActivity.turnStarts(shells({ a: "working" }), shells({ a: "working" }))).toEqual([]);
+		expect(ShellActivity.changes(shells({ a: "working" }), shells({ a: "working" })).started).toEqual([]);
 	});
 
 	test("a shell blocked on the user keeps the turn it is already in open", () => {
-		expect(ShellActivity.turnStarts(shells({ a: "working" }), shells({ a: "needs-attention" }))).toEqual([]);
+		expect(ShellActivity.changes(shells({ a: "working" }), shells({ a: "needs-attention" })).started).toEqual([]);
 	});
 
 	test("working again after the shell went quiet opens a new turn", () => {
-		expect(ShellActivity.turnStarts(shells({ a: "done" }), shells({ a: "working" }))).toEqual(["a"]);
+		expect(ShellActivity.changes(shells({ a: "done" }), shells({ a: "working" })).started).toEqual(["a"]);
 	});
 
 	test("finished work waiting for a decision never opens a turn", () => {
-		expect(ShellActivity.turnStarts(shells({}), shells({ a: "done" }))).toEqual([]);
+		expect(ShellActivity.changes(shells({}), shells({ a: "done" })).started).toEqual([]);
 	});
 
 	test("a sibling shell opens its turn without touching the one already working", () => {
 		const before = shells({ a: "working" });
 		const after = shells({ a: "working", b: "working", c: "needs-attention" });
 
-		expect(ShellActivity.turnStarts(before, after)).toEqual(["b", "c"]);
+		expect(ShellActivity.changes(before, after).started).toEqual(["b", "c"]);
 	});
 
 	test("a working shell that blocks on the user enters needs attention", () => {
-		expect(ShellActivity.attentionEntries(shells({ a: "working" }), shells({ a: "needs-attention" }))).toEqual(["a"]);
+		expect(ShellActivity.changes(shells({ a: "working" }), shells({ a: "needs-attention" })).needsAttention).toEqual(["a"]);
 	});
 
 	test("a shell already blocked on the user does not enter it again", () => {
-		expect(ShellActivity.attentionEntries(shells({ a: "needs-attention" }), shells({ a: "needs-attention" }))).toEqual([]);
+		expect(ShellActivity.changes(shells({ a: "needs-attention" }), shells({ a: "needs-attention" })).needsAttention).toEqual([]);
 	});
 
 	test("a shell that resumes working left needs attention behind", () => {
-		expect(ShellActivity.attentionEntries(shells({ a: "needs-attention" }), shells({ a: "working" }))).toEqual([]);
+		expect(ShellActivity.changes(shells({ a: "needs-attention" }), shells({ a: "working" })).needsAttention).toEqual([]);
 	});
 
 	test("only the shell that blocked enters needs attention", () => {
 		const before = shells({ a: "needs-attention", b: "working" });
 		const after = shells({ a: "needs-attention", b: "needs-attention", c: "working" });
 
-		expect(ShellActivity.attentionEntries(before, after)).toEqual(["b"]);
+		expect(ShellActivity.changes(before, after).needsAttention).toEqual(["b"]);
 	});
 });
 
@@ -169,7 +169,7 @@ describe("shell worktrees", () => {
 
 	test("a turn opening captures its baseline in the shell's worktree", () => {
 		const baselines = ShellActivity.turnBaselines({
-			before: states({}),
+			started: ["session-a"],
 			after: states({ "session-a": "working" }),
 			owners,
 			previousWorktrees: new Map(),
@@ -181,7 +181,7 @@ describe("shell worktrees", () => {
 
 	test("a turn opening outside any worktree captures the project itself", () => {
 		const baselines = ShellActivity.turnBaselines({
-			before: states({}),
+			started: ["session-a"],
 			after: states({ "session-a": "working" }),
 			owners,
 			previousWorktrees: new Map(),
@@ -193,7 +193,7 @@ describe("shell worktrees", () => {
 
 	test("an agent that creates its worktree mid-turn re-captures the baseline there", () => {
 		const baselines = ShellActivity.turnBaselines({
-			before: states({ "session-a": "working" }),
+			started: [],
 			after: states({ "session-a": "working" }),
 			owners,
 			previousWorktrees: new Map(),
@@ -206,7 +206,7 @@ describe("shell worktrees", () => {
 	test("a settled worktree does not re-capture the baseline on every tick", () => {
 		const worktrees = new Map([["shell-a", "/tmp/repo-slug"]]);
 		const baselines = ShellActivity.turnBaselines({
-			before: states({ "session-a": "working" }),
+			started: [],
 			after: states({ "session-a": "working" }),
 			owners,
 			previousWorktrees: worktrees,
@@ -218,7 +218,7 @@ describe("shell worktrees", () => {
 
 	test("a worktree appearing outside a turn does not capture a baseline", () => {
 		const baselines = ShellActivity.turnBaselines({
-			before: states({}),
+			started: [],
 			after: states({}),
 			owners,
 			previousWorktrees: new Map(),

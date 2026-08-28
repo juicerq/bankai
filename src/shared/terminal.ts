@@ -1,4 +1,15 @@
+import { type } from "arktype";
+
 export const TERMINAL_KEYS = ["1", "2", "3", "up", "down", "enter", "escape"] as const;
+
+export const terminalAttachedSchema = type({ sessionId: "string", "replay?": "string" });
+export const terminalDataEventSchema = type({ sessionId: "string", data: "string" });
+export const terminalExitEventSchema = type({ sessionId: "string", exitCode: "number" });
+export const terminalCommandErrorEventSchema = type({
+	sessionId: "string",
+	command: "'write' | 'resize' | 'close'",
+	error: "string",
+});
 
 export type TerminalKey = (typeof TERMINAL_KEYS)[number];
 

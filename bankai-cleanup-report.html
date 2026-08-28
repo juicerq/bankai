@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Bankai cleanup report</title>
+	<style>
+		:root { color-scheme: dark; --paper:#e7e7e4; --soft:#858581; --amber:#c9954a; --black:#040404; --panel:#0a0a0a; --active:#171715; --line:#292929; --strong:#444; --green:#7ee787; --red:#ff7b72; }
+		* { box-sizing: border-box; }
+		body { margin:0; background:var(--black); color:var(--paper); font:500 12px/1.55 "Maple Mono NF",ui-monospace,monospace; }
+		main { width:min(1120px,calc(100% - 32px)); margin:0 auto; padding:48px 0 64px; }
+		header { display:grid; grid-template-columns:1fr auto; align-items:end; gap:24px; border-bottom:1px solid var(--line); padding-bottom:24px; }
+		.eyebrow,.label { color:var(--soft); font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+		h1 { margin:8px 0 0; font-size:clamp(28px,5vw,56px); line-height:1.05; letter-spacing:-.05em; font-weight:500; }
+		.status { color:var(--green); text-align:right; font-variant-numeric:tabular-nums; }
+		.metrics { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--line); }
+		.metric { padding:24px 16px; border-right:1px solid var(--line); }
+		.metric:first-child { padding-left:0; }
+		.metric:last-child { border-right:0; }
+		.value { display:block; margin-top:6px; font-size:24px; line-height:1; font-variant-numeric:tabular-nums; }
+		section { padding:32px 0; border-bottom:1px solid var(--line); }
+		h2 { margin:0 0 20px; font-size:17px; font-weight:500; }
+		.cards { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+		.card { background:var(--panel); border:1px solid var(--line); padding:20px; min-height:188px; }
+		.card h3 { margin:12px 0 8px; font-size:14px; font-weight:600; }
+		.card p { margin:0; max-width:55ch; color:var(--soft); }
+		.flow { display:grid; grid-template-columns:1fr 40px 1fr; align-items:stretch; margin-top:20px; }
+		.code { border:1px solid var(--line); background:var(--panel); padding:16px; overflow-wrap:anywhere; }
+		.code b { display:block; margin-bottom:12px; color:var(--soft); font-size:10px; letter-spacing:.12em; }
+		.code del { color:var(--red); text-decoration:none; }
+		.code ins { color:var(--green); text-decoration:none; }
+		.arrow { display:grid; place-items:center; color:var(--amber); font-size:20px; }
+		.pipeline { display:grid; grid-template-columns:repeat(5,1fr); align-items:center; margin-top:20px; }
+		.node { min-height:80px; display:grid; place-items:center; padding:12px; border:1px solid var(--line); background:var(--panel); text-align:center; }
+		.node.good { border-color:color-mix(in srgb,var(--green) 45%,var(--line)); }
+		.link { height:1px; background:var(--strong); }
+		.tests { display:grid; grid-template-columns:2fr 1fr; gap:12px; }
+		.pass { display:flex; align-items:center; justify-content:space-between; gap:20px; background:var(--panel); border:1px solid var(--line); padding:20px; }
+		.pass strong { color:var(--green); font-size:24px; font-weight:500; font-variant-numeric:tabular-nums; }
+		.scope { color:var(--soft); }
+		footer { padding-top:24px; display:flex; justify-content:space-between; gap:20px; color:var(--soft); }
+		.path { color:var(--paper); overflow-wrap:anywhere; }
+		@media (max-width:720px) { main{width:min(100% - 24px,1120px);padding-top:28px} header{grid-template-columns:1fr}.status{text-align:left}.metrics{grid-template-columns:repeat(2,1fr)}.metric:nth-child(2){border-right:0}.cards,.tests{grid-template-columns:1fr}.flow{grid-template-columns:1fr}.arrow{height:40px;transform:rotate(90deg)}.pipeline{grid-template-columns:1fr}.link{width:1px;height:24px;justify-self:center}footer{display:block}.path{margin-top:8px} }
+	</style>
+</head>
+<body>
+	<main>
+		<header>
+			<div><div class="eyebrow">Bankai · cleanup 2026-08-28</div><h1>Menos paths.<br>Uma regra.</h1></div>
+			<div class="status">● VERDE</div>
+		</header>
+		<div class="metrics">
+			<div class="metric"><span class="label">payloads validados</span><span class="value">12</span></div>
+			<div class="metric"><span class="label">gramáticas</span><span class="value">3→1</span></div>
+			<div class="metric"><span class="label">varreduras</span><span class="value">3→1</span></div>
+			<div class="metric"><span class="label">testes</span><span class="value">1.645</span></div>
+		</div>
+		<section>
+			<h2>O que mudou</h2>
+			<div class="cards">
+				<article class="card"><span class="label">01 · Stream</span><h3>Envelope e payload</h3><p>Cada adapter valida sua resposta e seus eventos. Dado quebrado não chega ao caller.</p></article>
+				<article class="card"><span class="label">02 · OpenCode</span><h3>Tempo precisa ser número</h3><p>O JSON do banco é validado antes de virar estado de sessão.</p></article>
+				<article class="card"><span class="label">03 · Queries</span><h3>Ausente continua ausente</h3><p>Review e Services usam <code>skipToken</code>. Nenhuma rota recebe <code>""</code> inventado.</p></article>
+				<article class="card"><span class="label">04 · Interface</span><h3>Complexidade escondida</h3><p>Callers aprendem menos. A validação vive no seam que recebe os dados.</p></article>
+				<article class="card"><span class="label">05 · Atalhos</span><h3>Uma gramática</h3><p>Electron e renderer leem a mesma tabela. Cada caller só executa as ações que possui.</p></article>
+				<article class="card"><span class="label">06 · Atividade</span><h3>Uma transição</h3><p>Início, atenção e conclusão saem da mesma leitura do estado.</p></article>
+			</div>
+		</section>
+		<section>
+			<h2>Desenho removido</h2>
+			<div class="flow">
+				<div class="code"><b>ANTES</b><del>Electron: leaderArmed + 9 ifs</del><br><del>App: leaderArmed + 6 ifs</del><br><del>Workspace: leaderArmed + 6 ifs</del></div>
+				<div class="arrow">→</div>
+				<div class="code"><b>AGORA</b><ins>ShortcutInterpreter.accept(stroke)</ins><br><br>tabela leader + tabela direta</div>
+			</div>
+		</section>
+		<section>
+			<h2>Exemplo prático</h2>
+			<div class="flow">
+				<div class="code"><b>ANTES</b><del>{ time: { created: "yesterday" } }</del><br><br>startedAt = <del>"yesterday"</del></div>
+				<div class="arrow">→</div>
+				<div class="code"><b>AGORA</b><ins>messageDataSchema.assert(data)</ins><br><br>turn = <ins>{ open: false }</ins></div>
+			</div>
+		</section>
+		<section>
+			<h2>Fluxo do stream</h2>
+			<div class="pipeline">
+				<div class="node">WebSocket</div><div class="link"></div><div class="node good">Schema<br><span class="scope">envelope + payload</span></div><div class="link"></div><div class="node">Listener</div>
+			</div>
+		</section>
+		<section>
+			<h2>Decision paths</h2>
+			<div class="tests">
+				<div class="pass"><span>hotspots · limite 10</span><strong>48 → 44</strong></div>
+				<div class="pass"><span>cópias removidas</span><strong>4</strong></div>
+			</div>
+			<p class="scope">JSX condicional não virou abstração rasa. AgentActivity manteve o lifecycle no módulo que o possui.</p>
+		</section>
+		<section>
+			<h2>Provas</h2>
+			<div class="tests">
+					<div class="pass"><span>Suíte completa</span><strong>1.645 / 1.645</strong></div>
+				<div class="pass"><span>check</span><strong>OK</strong></div>
+			</div>
+			<p class="scope">2 smoke tests externos continuam opt-in. Alterações preexistentes da busca de sessões foram preservadas.</p>
+		</section>
+			<footer><span>Relatório local</span><span class="path">fora do commit de produto</span></footer>
+	</main>
+</body>
+</html>

@@ -1,4 +1,22 @@
+import { type } from "arktype";
+
 export type AgentActivityState = "working" | "needs-attention" | "done";
+
+const agentActivityStateSchema = type("'working' | 'needs-attention' | 'done'");
+
+export const projectActivitySnapshotSchema = type({
+	shells: { "[string]": agentActivityStateSchema },
+	worktreeByShellId: { "[string]": "string" },
+	statusSinceByShellId: { "[string]": "number" },
+	harnessByShellId: { "[string]": "string" },
+});
+
+export const activityChangedEventSchema = projectActivitySnapshotSchema.and({ projectId: "string" });
+
+export const activityAttentionEventSchema = type({
+	reason: "'needs-attention' | 'done'",
+	count: "number",
+});
 
 const AGGREGATE_PRIORITY: AgentActivityState[] = ["needs-attention", "done", "working"];
 

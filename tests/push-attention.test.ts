@@ -54,15 +54,15 @@ describe("the turns that are worth a notification", () => {
 	const done = new Map<string, AgentActivityState>([["s1", "done"]]);
 
 	test("a turn that just finished is the one that notifies", () => {
-		expect(ShellActivity.doneEntries(working, done)).toEqual(["s1"]);
+		expect(ShellActivity.changes(working, done).done).toEqual(["s1"]);
 	});
 
 	test("a session that was already done does not notify again", () => {
-		expect(ShellActivity.doneEntries(done, done)).toEqual([]);
+		expect(ShellActivity.changes(done, done).done).toEqual([]);
 	});
 
 	test("a session that went back to work does not notify", () => {
-		expect(ShellActivity.doneEntries(done, working)).toEqual([]);
+		expect(ShellActivity.changes(done, working).done).toEqual([]);
 	});
 });
 

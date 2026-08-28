@@ -8,6 +8,8 @@ import {
 	STREAM_HELLO,
 	STREAM_REJECT,
 	STREAM_REPLY,
+	streamEnvelopeSchema,
+	streamHelloSchema,
 	type StreamChannel,
 	type StreamEnvelope,
 	type StreamHello,
@@ -27,6 +29,10 @@ interface PendingRequest {
 
 interface StreamListener {
 	deliver(payload: unknown): void;
+}
+
+interface PayloadSchema<Value> {
+	assert(value: unknown): Value;
 }
 
 export class StreamSocket {
@@ -66,22 +72,49 @@ export class StreamSocket {
 		this.emit({ channel, type, payload });
 	}
 
-	async request<Value>(channel: StreamChannel, type: string, payload?: unknown): Promise<Value> {
+	async request<Value>(
+		channel: StreamChannel,
+		type: string,
+		payload: unknown,
+		response: PayloadSchema<Value>,
+	): Promise<Value> {
 		this.nextRequestId += 1;
 		const requestId = String(this.nextRequestId);
 
 		return await new Promise<Value>((resolve, reject) => {
-			this.pending.set(requestId, { resolve, reject });
+			this.pending.set(requestId, {
+				resolve: (value) => {
+					try {
+						resolve(response.assert(value));
+					} catch (err) {
+						reject(new Error(`Invalid Bankai stream reply: ${String(err)}`));
+					}
+				},
+				reject,
+			});
 			this.emit({ channel, type, payload, requestId });
 		});
 	}
 
-	on<Payload>(channel: StreamChannel, type: string, listener: (payload: Payload) => void): () => void {
+	on<Payload>(
+		channel: StreamChannel,
+		type: string,
+		payload: PayloadSchema<Payload>,
+		listener: (payload: Payload) => void,
+	): () => void {
 		const key = `${channel} ${type}`;
 		const listeners = this.listeners.get(key) ?? new Set<StreamListener>();
 		this.listeners.set(key, listeners);
 
-		const entry: StreamListener = { deliver: listener };
+		const entry: StreamListener = {
+			deliver: (value) => {
+				try {
+					listener(payload.assert(value));
+				} catch (err) {
+					console.error("Ignored invalid Bankai stream payload", err);
+				}
+			},
+		};
 		listeners.add(entry);
 		this.connect();
 
@@ -255,10 +288,21 @@ export class StreamSocket {
 	}
 
 	private receive(data: string): void {
-		const envelope: StreamEnvelope = JSON.parse(data);
+		let envelope: StreamEnvelope;
+		try {
+			envelope = streamEnvelopeSchema.assert(JSON.parse(data));
+		} catch (err) {
+			console.error("Ignored invalid Bankai stream message", err);
+
+			return;
+		}
 
 		if (envelope.channel === "system" && envelope.type === STREAM_HELLO) {
-			this.handshake(helloOf(envelope.payload));
+			try {
+				this.handshake(streamHelloSchema.assert(envelope.payload));
+			} catch (err) {
+				console.error("Ignored invalid Bankai stream hello", err);
+			}
 
 			return;
 		}
@@ -298,20 +342,6 @@ export class StreamSocket {
 
 function haltError(status: StreamStatus): Error {
 	return new Error(`The Bankai stream is ${status}`);
-}
-
-function helloOf(payload: unknown): StreamHello {
-	if (!payload || typeof payload !== "object" || !("protocol" in payload) || !("version" in payload)) {
-		throw new Error("The Bankai stream announced no protocol version");
-	}
-
-	const { protocol, version } = payload;
-
-	if (typeof protocol !== "number" || typeof version !== "string") {
-		throw new Error("The Bankai stream announced no protocol version");
-	}
-
-	return { protocol, version };
 }
 
 async function streamUrl(): Promise<string> {

@@ -60,49 +60,31 @@ function turnOpen(state: AgentActivityState | undefined): boolean {
 	return state === "working" || state === "needs-attention";
 }
 
-function turnStarts(
+export interface ActivityChanges {
+	started: string[];
+	needsAttention: string[];
+	done: string[];
+}
+
+function changes(
 	before: ReadonlyMap<string, AgentActivityState>,
 	after: ReadonlyMap<string, AgentActivityState>,
-): string[] {
-	const started: string[] = [];
+): ActivityChanges {
+	const result: ActivityChanges = { started: [], needsAttention: [], done: [] };
 
 	for (const [sessionId, state] of after) {
 		if (turnOpen(state) && !turnOpen(before.get(sessionId))) {
-			started.push(sessionId);
+			result.started.push(sessionId);
 		}
-	}
-
-	return started;
-}
-
-function attentionEntries(
-	before: ReadonlyMap<string, AgentActivityState>,
-	after: ReadonlyMap<string, AgentActivityState>,
-): string[] {
-	const entered: string[] = [];
-
-	for (const [sessionId, state] of after) {
 		if (state === "needs-attention" && before.get(sessionId) !== "needs-attention") {
-			entered.push(sessionId);
+			result.needsAttention.push(sessionId);
 		}
-	}
-
-	return entered;
-}
-
-function doneEntries(
-	before: ReadonlyMap<string, AgentActivityState>,
-	after: ReadonlyMap<string, AgentActivityState>,
-): string[] {
-	const finished: string[] = [];
-
-	for (const [sessionId, state] of after) {
 		if (state === "done" && before.get(sessionId) !== "done") {
-			finished.push(sessionId);
+			result.done.push(sessionId);
 		}
 	}
 
-	return finished;
+	return result;
 }
 
 function doneShells(value: ContinuityValue): Map<string, DoneShell> {
@@ -138,7 +120,7 @@ function nextWorktrees(
 }
 
 function turnBaselines(input: {
-	before: ReadonlyMap<string, AgentActivityState>;
+	started: readonly string[];
 	after: ReadonlyMap<string, AgentActivityState>;
 	owners: ReadonlyMap<string, ShellOwner>;
 	previousWorktrees: ReadonlyMap<string, string>;
@@ -146,7 +128,7 @@ function turnBaselines(input: {
 }): { owner: ShellOwner; worktree?: string }[] {
 	const capture = new Map<string, ShellOwner>();
 
-	for (const sessionId of turnStarts(input.before, input.after)) {
+	for (const sessionId of input.started) {
 		const owner = input.owners.get(sessionId);
 		if (owner) {
 			capture.set(owner.shellId, owner);
@@ -302,9 +284,7 @@ function snapshotsByProject({
 export const ShellActivity = {
 	next,
 	clockSince,
-	turnStarts,
-	attentionEntries,
-	doneEntries,
+	changes,
 	doneShells,
 	nextWorktrees,
 	turnBaselines,

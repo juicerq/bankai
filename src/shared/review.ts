@@ -62,6 +62,7 @@ export const reviewSnapshotSchema = type({
 		files: "number",
 	},
 });
+export const reviewChangedEventSchema = type({ projectId: "string", worktree: "string" });
 export type ReviewSnapshot = typeof reviewSnapshotSchema.infer;
 export type FullFile = ReviewContent;
 

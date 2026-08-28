@@ -187,7 +187,7 @@ function Bankai() {
 		}
 	}, [changeBayMode, reviewPanel.mode]);
 	const serviceLog = useServiceLog({ services: serviceCommands, onOpen: closeBay });
-	const serviceLogStatus = services.statusOf(serviceLog.opened?.id ?? "");
+	const serviceLogStatus = services.statusOf(serviceLog.opened?.id);
 	const serviceLogOutput = useServiceOutput({ commandId: serviceLog.opened?.id, status: serviceLogStatus });
 	const selectSession = useCallback(
 		(projectId: string, shellId: string) => {

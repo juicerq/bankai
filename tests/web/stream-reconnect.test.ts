@@ -7,6 +7,8 @@ import { streamResync } from "@renderer/lib/stream/resync";
 import { reconnectDelay, StreamSocket } from "@renderer/lib/stream/socket";
 import { streamStatus } from "@renderer/lib/stream/status";
 import { DAEMON_PROTOCOL_VERSION } from "@shared/daemon";
+import { streamVoidSchema } from "@shared/stream";
+import { type } from "arktype";
 
 const UNWATCHED_KEY = orpc.projects.list.queryOptions().queryKey;
 const WATCHED_KEY = orpc.services.output.queryOptions({ input: { commandId: "svc" } }).queryKey;
@@ -33,7 +35,7 @@ async function backoff() {
 async function connected() {
 	const socket = new StreamSocket();
 	sockets.push(socket);
-	socket.on("activity", "changed", () => {});
+	socket.on("activity", "changed", type("unknown"), () => {});
 	await settle();
 
 	return socket;
@@ -63,7 +65,7 @@ test("the backoff grows with every failed attempt and then holds at its cap", ()
 
 test("a request still waiting when the socket drops rejects instead of hanging", async () => {
 	const socket = await connected();
-	const pending = socket.request("review", "watch", { projectId: "p1" });
+	const pending = socket.request("review", "watch", { projectId: "p1" }, streamVoidSchema);
 
 	streamTransport.disconnect();
 	const outcome = await pending.catch((err: Error) => err.message);
@@ -199,4 +201,30 @@ test("the same app across a reconnect keeps the window talking", async () => {
 	await backoff();
 
 	expect(streamStatus.get()).toBe("open");
+});
+
+test("a malformed server message never reaches a stream listener", async () => {
+	const received: unknown[] = [];
+	const socket = new StreamSocket();
+	sockets.push(socket);
+	socket.on("activity", "changed", type({ projectId: "string" }), (payload) => received.push(payload));
+	await settle();
+
+	streamTransport.pushRaw(JSON.stringify({ channel: "unknown", type: "changed", payload: "unsafe" }));
+	streamTransport.pushRaw("not json");
+	streamTransport.pushRaw(JSON.stringify({ channel: "system", type: "hello", payload: { protocol: "one" } }));
+	streamTransport.push("activity", "changed", "unsafe");
+	await settle();
+
+	expect(received).toEqual([]);
+	expect(streamStatus.get()).toBe("open");
+});
+
+test("a malformed reply rejects its request", async () => {
+	streamTransport.handle("activity", "watch", () => "unsafe");
+	const socket = await connected();
+	const pending = socket.request("activity", "watch", {}, type({ projectId: "string" }));
+	const outcome = await pending.catch((err: Error) => err.message);
+
+	expect(outcome).toContain("Invalid Bankai stream reply");
 });

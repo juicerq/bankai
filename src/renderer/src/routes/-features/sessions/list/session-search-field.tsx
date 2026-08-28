@@ -3,12 +3,10 @@ import type { ReactNode } from "react";
 
 export function SessionSearchField({
 	term,
-	count,
 	onSearch,
 	actions,
 }: {
 	term: string;
-	count: number;
 	onSearch: (term: string) => void;
 	actions: ReactNode;
 }) {
@@ -34,24 +32,18 @@ export function SessionSearchField({
 					}
 				}}
 			/>
-			{term
-				? (
-					<button
-						type="button"
-						data-slot="clear-session-search"
-						className="mr-2 flex size-3.5 shrink-0 items-center justify-center text-secondary hover:text-primary"
-						aria-label="Clear the session search"
-						title="Clear (Esc)"
-						onClick={() => onSearch("")}
-					>
-						<XMarkIcon className="size-3.5" aria-hidden="true" />
-					</button>
-				)
-				: (
-					<span data-slot="session-count" className="mr-2 shrink-0 text-data text-outline-strong">
-						{count}
-					</span>
-				)}
+			{term && (
+				<button
+					type="button"
+					data-slot="clear-session-search"
+					className="mr-2 flex size-3.5 shrink-0 items-center justify-center text-secondary hover:text-primary"
+					aria-label="Clear the session search"
+					title="Clear (Esc)"
+					onClick={() => onSearch("")}
+				>
+					<XMarkIcon className="size-3.5" aria-hidden="true" />
+				</button>
+			)}
 			{actions}
 		</div>
 	);

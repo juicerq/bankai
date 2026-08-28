@@ -6,6 +6,7 @@ import { refreshReach } from "@renderer/lib/reach";
 import { reconnectDelay, StreamSocket } from "@renderer/lib/stream/socket";
 import { streamStatus } from "@renderer/lib/stream/status";
 import { pairingUrl, SERVER_RPC_PREFIX, SERVER_TOKEN_STORAGE_KEY } from "@shared/server";
+import { type } from "arktype";
 
 const TOKEN = "a".repeat(64);
 const PHONE_ORIGIN = "http://cachyos.tail74b3f3.ts.net/";
@@ -26,7 +27,7 @@ async function settle(ticks = 6) {
 async function browserSocket() {
 	const socket = new StreamSocket();
 	sockets.push(socket);
-	socket.on("activity", "changed", () => {});
+	socket.on("activity", "changed", type("unknown"), () => {});
 	await settle();
 
 	return socket;

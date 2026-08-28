@@ -21,6 +21,7 @@ import type { AgentActivityState, ProjectActivitySnapshot } from "@shared/activi
 import type { ContinuityValue } from "@shared/continuity";
 import {
 	ShellActivity,
+	type ActivityChanges,
 	type DoneShell,
 	type ShellOwner,
 } from "@main/agents/shell-activity";
@@ -75,9 +76,9 @@ async function locateWorktree(
 }
 
 
-function sameRecord<T>(
-	before: Record<string, T>,
-	after: Record<string, T>,
+function sameRecord(
+	before: Readonly<Record<string, unknown>>,
+	after: Readonly<Record<string, unknown>>,
 ): boolean {
 	const keys = Object.keys(before);
 	if (keys.length !== Object.keys(after).length) {
@@ -87,32 +88,13 @@ function sameRecord<T>(
 	return keys.every((key) => before[key] === after[key]);
 }
 
+const SNAPSHOT_RECORDS = ["shells", "worktreeByShellId", "statusSinceByShellId", "harnessByShellId"] as const;
+
 function sameSnapshot(
 	before: ProjectActivitySnapshot | undefined,
 	after: ProjectActivitySnapshot | undefined,
 ): boolean {
-	if (!sameRecord(before?.shells ?? {}, after?.shells ?? {})) {
-		return false;
-	}
-	if (
-		!sameRecord(before?.worktreeByShellId ?? {}, after?.worktreeByShellId ?? {})
-	) {
-		return false;
-	}
-
-	if (
-		!sameRecord(
-			before?.statusSinceByShellId ?? {},
-			after?.statusSinceByShellId ?? {},
-		)
-	) {
-		return false;
-	}
-
-	return sameRecord(
-		before?.harnessByShellId ?? {},
-		after?.harnessByShellId ?? {},
-	);
+	return SNAPSHOT_RECORDS.every((field) => sameRecord(before?.[field] ?? {}, after?.[field] ?? {}));
 }
 
 function emptySnapshot(): ProjectActivitySnapshot {
@@ -291,16 +273,19 @@ class AgentActivityTracker {
 		const shells = shellProcesses.list();
 		const owners = ShellActivity.owners(shells);
 		if (shells.length === 0) {
+			const shellStates = new Map<string, AgentActivityState>();
+			const changes = ShellActivity.changes(this.shellStates, shellStates);
 			this.boundSessions = new Set();
 			this.sessionRefs = new Map();
 			this.agentCwds.clear();
 			this.watchHarnessFiles([]);
 			this.commit({
-				shellStates: new Map(),
+				shellStates,
 				owners,
 				worktrees: new Map(),
 				statusSince: new Map(),
 				harnesses: new Map(),
+				changes,
 			});
 			return;
 		}
@@ -359,8 +344,8 @@ class AgentActivityTracker {
 		if (pass === "full") {
 			this.watchHarnessFiles(Harnesses.watchPaths());
 		}
-		const stateChanged = ShellActivity.turnStarts(this.shellStates, nextStates).length > 0
-			|| ShellActivity.doneEntries(this.shellStates, nextStates).length > 0;
+		const changes = ShellActivity.changes(this.shellStates, nextStates);
+		const stateChanged = changes.started.length > 0 || changes.done.length > 0;
 		if (pass === "event" || sessionRefsChanged || stateChanged) {
 			await this.refreshSessionNames(shells, bindings, liveByPid);
 		}
@@ -370,6 +355,7 @@ class AgentActivityTracker {
 			worktrees,
 			statusSince,
 			harnesses,
+			changes,
 		});
 	}
 
@@ -504,14 +490,15 @@ class AgentActivityTracker {
 		worktrees,
 		statusSince,
 		harnesses,
+		changes,
 	}: {
 		shellStates: Map<string, AgentActivityState>;
 		owners: Map<string, ShellOwner>;
 		worktrees: Map<string, string>;
 		statusSince: Map<string, number>;
 		harnesses: Map<string, string>;
+		changes: ActivityChanges;
 	}): void {
-		const previousStates = this.shellStates;
 		const previousWorktrees = this.shellWorktrees;
 		const previous = this.projectSnapshots;
 		const nextSnapshots = ShellActivity.snapshotsByProject({
@@ -528,7 +515,7 @@ class AgentActivityTracker {
 		this.projectSnapshots = nextSnapshots;
 
 		const baselines = ShellActivity.turnBaselines({
-			before: previousStates,
+			started: changes.started,
 			after: shellStates,
 			owners,
 			previousWorktrees,
@@ -543,7 +530,7 @@ class AgentActivityTracker {
 			);
 		}
 
-		for (const sessionId of ShellActivity.turnStarts(previousStates, shellStates)) {
+		for (const sessionId of changes.started) {
 			const owner = owners.get(sessionId);
 			if (!owner) {
 				continue;
@@ -561,7 +548,7 @@ class AgentActivityTracker {
 			);
 		}
 
-		const attentionEntries = ShellActivity.attentionEntries(previousStates, shellStates);
+		const attentionEntries = changes.needsAttention;
 		if (attentionEntries.length > 0) {
 			AttentionSignal.raise({ reason: "needs-attention", count: attentionEntries.length });
 		}
@@ -576,7 +563,7 @@ class AgentActivityTracker {
 			);
 		}
 
-		const doneEntries = ShellActivity.doneEntries(previousStates, shellStates);
+		const doneEntries = changes.done;
 		if (doneEntries.length > 0) {
 			AttentionSignal.raise({ reason: "done", count: doneEntries.length });
 		}

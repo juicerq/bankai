@@ -50,6 +50,14 @@ const partUpdateRowSchema = type({
 	time_updated: "number",
 });
 
+const messageDataSchema = type({
+	role: "string",
+	"time?": {
+		"created?": "number",
+		"completed?": "number",
+	},
+});
+
 let handle: DatabaseSync | undefined;
 let handlePath: string | undefined;
 
@@ -142,9 +150,9 @@ function messageTurn(sessionId: string): OpencodeTurn {
 		return { open: false };
 	}
 
-	let data: { role?: string; time?: { created?: number; completed?: number } };
+	let data: typeof messageDataSchema.infer;
 	try {
-		data = JSON.parse(raw);
+		data = messageDataSchema.assert(JSON.parse(raw));
 	} catch {
 		return { open: false };
 	}

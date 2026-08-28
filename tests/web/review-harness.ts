@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement, type ReactNode } from "react";
 import { streamSocket } from "@renderer/lib/stream/socket";
 import type { ReviewWatchInput } from "@shared/review";
+import { streamVoidSchema } from "@shared/stream";
 import { renderHook } from "./testing-library";
 import { type ReviewReading, useReviewReading } from "@renderer/routes/-features/review/reading/use-review-reading";
 
@@ -76,7 +77,7 @@ const HANDSHAKE = "harness-handshake";
 streamTransport.handle("review", "watch", (input: ReviewWatchInput) => current.queueWatch(input));
 streamTransport.handle("review", HANDSHAKE, () => {});
 
-await streamSocket.request("review", HANDSHAKE);
+await streamSocket.request("review", HANDSHAKE, undefined, streamVoidSchema);
 
 export type ReviewReadingProps = Parameters<typeof useReviewReading>[0];
 

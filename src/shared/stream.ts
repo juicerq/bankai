@@ -1,4 +1,6 @@
-export const STREAM_CHANNELS = [
+import { type } from "arktype";
+
+const STREAM_CHANNELS = [
 	"terminal",
 	"activity",
 	"review",
@@ -14,14 +16,16 @@ export const STREAM_REPLY = "reply";
 export const STREAM_REJECT = "reject";
 export const STREAM_HELLO = "hello";
 
-export interface StreamHello {
-	protocol: number;
-	version: string;
-}
+export const streamHelloSchema = type({ protocol: "number", version: "string" });
+export const streamVoidSchema = type("undefined");
 
-export interface StreamEnvelope {
-	channel: StreamChannel;
-	type: string;
-	payload?: unknown;
-	requestId?: string;
-}
+export const streamEnvelopeSchema = type({
+	channel: type.enumerated(...STREAM_CHANNELS),
+	type: "string",
+	"payload?": "unknown",
+	"requestId?": "string",
+});
+
+export type StreamHello = typeof streamHelloSchema.infer;
+
+export type StreamEnvelope = typeof streamEnvelopeSchema.infer;

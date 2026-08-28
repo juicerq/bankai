@@ -1,4 +1,36 @@
+import { type } from "arktype";
+
 export type ConversationToolState = "running" | "done" | "failed";
+
+const conversationBlockSchema = type({ kind: "'user'", id: "string", text: "string" })
+	.or({ kind: "'agent'", id: "string", text: "string" })
+	.or({ kind: "'thinking'", id: "string", text: "string" })
+	.or({
+		kind: "'tool'",
+		id: "string",
+		name: "string",
+		state: "'running' | 'done' | 'failed'",
+		"edit?": { added: "number", removed: "number" },
+		"agent?": "boolean",
+	})
+	.or({ kind: "'compacted'", id: "string" })
+	.or({ kind: "'interrupted'", id: "string" });
+
+export const conversationSnapshotSchema = type({
+	blocks: conversationBlockSchema.array(),
+	"title?": "string",
+	startOffset: "number",
+	atStart: "boolean",
+});
+
+const conversationAddressSchema = type({ shellId: "string", "agent?": "string" });
+
+export const conversationAppendedEventSchema = conversationAddressSchema.and({
+	blocks: conversationBlockSchema.array(),
+	"title?": "string",
+});
+
+export const conversationResetEventSchema = conversationAddressSchema.and(conversationSnapshotSchema);
 
 export interface ConversationEdit {
 	added: number;

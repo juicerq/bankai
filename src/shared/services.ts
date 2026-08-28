@@ -1,4 +1,17 @@
+import { type } from "arktype";
+
 export type ServiceStatus = "running" | "stopped" | "failed";
+
+const serviceStateSchema = type({
+	commandId: "string",
+	projectId: "string",
+	status: "'running' | 'stopped' | 'failed'",
+	"pid?": "number",
+	"startedAt?": "number",
+	"exitCode?": "number",
+});
+
+export const servicesChangedEventSchema = type({ states: serviceStateSchema.array() });
 
 export interface ServiceState {
 	commandId: string;

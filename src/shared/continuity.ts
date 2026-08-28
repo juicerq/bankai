@@ -29,6 +29,8 @@ export const continuitySchema = type({
 	workspaces: continuityWorkspaceSchema.array(),
 });
 
+export const continuityChangedEventSchema = type({ value: continuitySchema });
+
 export type ContinuitySessionRef = typeof continuitySessionRefSchema.infer;
 export type ContinuityShell = typeof continuityShellSchema.infer;
 export type ContinuityWorkspace = typeof continuityWorkspaceSchema.infer;

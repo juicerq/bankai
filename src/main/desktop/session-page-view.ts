@@ -8,6 +8,7 @@ import {
 	type SessionPageState,
 } from "@shared/session-page";
 import { SessionPageUrl } from "@shared/session-page-url";
+import { ShortcutInterpreter } from "@shared/shortcuts";
 import {
 	BrowserWindow,
 	ipcMain,
@@ -29,7 +30,6 @@ const controllers = new WeakMap<BrowserWindow, SessionPageController>();
 const SNAPSHOT_QUALITY = 80;
 const PREVIEW_WIDTH = 480;
 const PREVIEW_QUALITY = 60;
-const modifierCode = /^(?:Alt|Control|Meta|Shift)(?:Left|Right)$/;
 
 function roundedIntersection({ bounds, container, zoom }: { bounds: Rectangle; container: Rectangle; zoom: number }): Rectangle {
 	const requested = {
@@ -80,7 +80,7 @@ class SessionPageController {
 	closed = false;
 	failure: string | null = null;
 	requestedVisible = false;
-	leaderArmed = false;
+	readonly shortcuts = new ShortcutInterpreter();
 	transition = Promise.resolve();
 
 	constructor(private readonly win: BrowserWindow) {
@@ -153,9 +153,7 @@ class SessionPageController {
 		});
 		contents.on("render-process-gone", () => this.fail("Page process stopped"));
 		contents.on("before-input-event", (event, input) => this.handleShortcut(event, input));
-		contents.on("blur", () => {
-			this.leaderArmed = false;
-		});
+		contents.on("blur", () => this.shortcuts.reset());
 		contents.on("did-navigate", (_event, url) => {
 			this.committedUrl = url;
 			this.publishState();
@@ -369,60 +367,14 @@ class SessionPageController {
 	}
 
 	private handleShortcut(event: Electron.Event, input: Input) {
-		if (input.type !== "keyDown") {
+		const interpreted = this.shortcuts.accept(input);
+		if (!interpreted) {
 			return;
 		}
 
-		if (this.leaderArmed) {
-			if (modifierCode.test(input.code)) {
-				return;
-			}
-
-			this.leaderArmed = false;
-
-			if (input.code === "KeyT") {
-				event.preventDefault();
-				this.publishShortcut({ action: "new-shell", plain: input.shift });
-				return;
-			}
-
-			const actions: Partial<Record<string, Exclude<SessionPageShortcut["action"], "jump-row" | "new-shell">>> = {
-				KeyR: "toggle-review",
-				KeyE: "toggle-expanded",
-				KeyG: "toggle-page",
-				KeyL: "toggle-todos",
-				KeyC: "open-commands",
-				Comma: "open-settings",
-				KeyP: "open-quick-open",
-				KeyF: "toggle-fullscreen",
-				KeyX: "archive-shell",
-			};
-			const action = actions[input.code];
-
-			if (!action) {
-				return;
-			}
-
-			event.preventDefault();
-			this.publishShortcut({ action });
-			return;
-		}
-
-		if (input.control && !input.alt && !input.meta && input.code === "KeyX") {
-			event.preventDefault();
-			this.leaderArmed = true;
-			return;
-		}
-
-		if (input.alt && !input.control && !input.meta && /^Digit[1-9]$/.test(input.code)) {
-			event.preventDefault();
-			this.publishShortcut({ action: "jump-row", index: Number(input.code.slice(5)) - 1 });
-			return;
-		}
-
-		if (input.control && !input.alt && !input.meta && input.code === "Tab") {
-			event.preventDefault();
-			this.publishShortcut({ action: "jump-waiting" });
+		event.preventDefault();
+		if (interpreted.kind === "shortcut") {
+			this.publishShortcut(interpreted.shortcut);
 		}
 	}
 

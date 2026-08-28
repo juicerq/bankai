@@ -58,6 +58,10 @@ class FakeWebSocket {
 		this.dispatch("message", { data: JSON.stringify(envelope) });
 	}
 
+	deliverRaw(data: string) {
+		this.dispatch("message", { data });
+	}
+
 	private dispatch(type: string, event: { data?: string }) {
 		for (const listener of this.listeners.get(type) ?? []) {
 			listener(event);
@@ -94,6 +98,10 @@ class StreamTransport {
 
 	push(channel: StreamChannel, type: string, payload?: unknown) {
 		this.socket?.deliver({ channel, type, payload });
+	}
+
+	pushRaw(data: string) {
+		this.socket?.deliverRaw(data);
 	}
 
 	disconnect() {

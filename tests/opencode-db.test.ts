@@ -67,6 +67,17 @@ describe("the opencode database state", () => {
 		});
 	});
 
+	test("a message with invalid external data cannot invent an open turn", () => {
+		const sessionId = "ses_invalid001";
+		seedSession(sessionId, "/repo/invalid", "Invalid");
+		db.prepare("INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES ('bad1', ?, 40, 40, ?)").run(
+			sessionId,
+			JSON.stringify({ role: "assistant", time: { created: "yesterday" } }),
+		);
+
+		expect(OpencodeDb.state(sessionId)).toEqual({ cwd: "/repo/invalid", turn: { open: false } });
+	});
+
 	test("the root sessions of a directory carry their creation and activity times", () => {
 		const older = "ses_older0001";
 		seedSession(older, "/repo/c", "Older");

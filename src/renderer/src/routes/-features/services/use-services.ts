@@ -1,15 +1,15 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { skipToken, useMutation, useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { orpc } from "@renderer/lib/api";
 import type { ServiceStatus } from "@shared/services";
 
 export function useServiceOutput({ commandId, status }: { commandId: string | undefined; status: ServiceStatus }) {
-	const retained = useQuery({
-		...orpc.services.output.queryOptions({ input: { commandId: commandId ?? "" } }),
+	const { data: output, isPending: pending } = useQuery(orpc.services.output.queryOptions({
+		input: commandId ? { commandId } : skipToken,
 		enabled: !!commandId && status !== "running",
-	});
+	}));
 
-	return { output: retained.data, pending: retained.isPending };
+	return { output, pending };
 }
 
 export function useServices() {
@@ -22,7 +22,13 @@ export function useServices() {
 		[listed.data],
 	);
 	const statusOf = useCallback(
-		(commandId: string): ServiceStatus => states.get(commandId)?.status ?? "stopped",
+		(commandId?: string): ServiceStatus => {
+			if (!commandId) {
+				return "stopped";
+			}
+
+			return states.get(commandId)?.status ?? "stopped";
+		},
 		[states],
 	);
 

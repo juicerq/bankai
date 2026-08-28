@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
 	ConversationSchemas,
-	streamEnvelopeSchema,
 	TERMINAL_WRITE_MAX_LENGTH,
 	TerminalSchemas,
 } from "@main/transport/stream/stream-messages";
 import { TERMINAL_MAX_COLUMNS } from "@main/terminal/terminal-dimensions";
+import { streamEnvelopeSchema } from "@shared/stream";
 
 describe("the envelope every client message arrives in", () => {
 	test("a request carries its channel, type and correlation id", () => {

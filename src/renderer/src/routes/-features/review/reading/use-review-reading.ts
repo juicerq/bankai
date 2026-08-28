@@ -1,4 +1,4 @@
-import { keepPreviousData, type QueryClient, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, type QueryClient, skipToken, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useSyncExternalStore } from "react";
 import type { FileChange, FullFile, ReviewContent, ReviewMode, ReviewSnapshot } from "@shared/review";
 import { orpc } from "@renderer/lib/api";
@@ -197,13 +197,15 @@ function useFocusedFile({
 
 	const fullFileQuery = useQuery(
 		orpc.review.fullFile.queryOptions({
-			input: { ...scope, path: focusedPath ?? "" },
+			input: focusedPath ? { ...scope, path: focusedPath } : skipToken,
 			enabled: watchReady && changed,
 		}),
 	);
 	const browseFileQuery = useQuery(
 		orpc.review.browseFile.queryOptions({
-			input: { projectId: scope.projectId, worktree: scope.worktree, path: focusedPath ?? "" },
+			input: focusedPath
+				? { projectId: scope.projectId, worktree: scope.worktree, path: focusedPath }
+				: skipToken,
 			enabled: raw,
 		}),
 	);

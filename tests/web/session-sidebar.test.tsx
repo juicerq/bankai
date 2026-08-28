@@ -202,10 +202,10 @@ test("a state each session can be in paints its own border", () => {
 	expect(sessionRow("s2").className).toContain("border-l-added");
 });
 
-test("the search row counts the open sessions, not the filed ones", () => {
+test("the search row leaves the session count out", () => {
 	renderSidebar({ open: [row("a"), row("b")], archived: [row("filed", { archivedAt: NOW })] });
 
-	expect(slot(get("session-sidebar"), "session-count").textContent).toBe("2");
+	expect(get("session-sidebar").querySelector('[data-slot="session-count"]')).toBeNull();
 });
 
 test("the filter lists the projects in project order", () => {

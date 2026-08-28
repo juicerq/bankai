@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-
-const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
+import type { SessionPageShortcut } from "@shared/session-page";
+import { useShortcutListener } from "@renderer/routes/-features/app/use-shortcut-listener";
 
 export function useBankaiShortcuts({
 	onToggleFullscreen,
@@ -17,94 +17,34 @@ export function useBankaiShortcuts({
 	onJumpToRow: (index: number) => void;
 	onJumpToWaiting: () => void;
 }) {
-	return useCallback(() => {
-		let leaderArmed = false;
+	const dispatch = useCallback((shortcut: SessionPageShortcut) => {
+		if (shortcut.action === "new-shell") {
+			onNewShell(shortcut.plain);
 
-		const shortcutAction = (event: KeyboardEvent) => {
-			if (leaderArmed) {
-				leaderArmed = false;
-				if (event.code === "KeyF") {
-					return onToggleFullscreen;
-				}
-				if (event.code === "KeyT") {
-					return () => onNewShell(event.shiftKey);
-				}
-				if (event.code === "KeyX") {
-					return onArchiveShell;
-				}
-				if (event.code === "Comma") {
-					return onOpenSettings;
-				}
+			return true;
+		}
 
-				return;
-			}
+		if (shortcut.action === "jump-row") {
+			onJumpToRow(shortcut.index);
 
-			if (event.altKey && !event.ctrlKey && !event.metaKey && /^Digit[1-9]$/.test(event.code)) {
-				const index = Number(event.code.slice(5)) - 1;
-				return () => onJumpToRow(index);
-			}
+			return true;
+		}
 
-			if (!event.ctrlKey || event.altKey || event.metaKey) {
-				return;
-			}
-
-			if (event.code === "Tab") {
-				return onJumpToWaiting;
-			}
-
-			if (event.code === "KeyX") {
-				return () => {
-					leaderArmed = true;
-				};
-			}
-
-			return;
+		const actions: Partial<Record<SessionPageShortcut["action"], () => void>> = {
+			"toggle-fullscreen": onToggleFullscreen,
+			"archive-shell": onArchiveShell,
+			"open-settings": onOpenSettings,
+			"jump-waiting": onJumpToWaiting,
 		};
+		const action = actions[shortcut.action];
+		if (!action) {
+			return false;
+		}
 
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (MODIFIER_KEYS.has(event.key) || event.target instanceof HTMLInputElement) {
-				return;
-			}
+		action();
 
-			const action = shortcutAction(event);
-			if (!action) {
-				return;
-			}
+		return true;
+	}, [onArchiveShell, onJumpToRow, onJumpToWaiting, onNewShell, onOpenSettings, onToggleFullscreen]);
 
-			event.preventDefault();
-			event.stopPropagation();
-			action();
-		};
-		const handleWindowBlur = () => {
-			leaderArmed = false;
-		};
-
-		window.addEventListener("keydown", handleKeyDown, true);
-		window.addEventListener("blur", handleWindowBlur);
-		const unsubscribeShortcut = window.bankaiSessionPage?.onShortcut((shortcut) => {
-			if (shortcut.action === "toggle-fullscreen") {
-				onToggleFullscreen();
-			}
-			if (shortcut.action === "new-shell") {
-				onNewShell(shortcut.plain);
-			}
-			if (shortcut.action === "archive-shell") {
-				onArchiveShell();
-			}
-			if (shortcut.action === "open-settings") {
-				onOpenSettings();
-			}
-			if (shortcut.action === "jump-waiting") {
-				onJumpToWaiting();
-			}
-			if (shortcut.action === "jump-row") {
-				onJumpToRow(shortcut.index);
-			}
-		});
-		return () => {
-			window.removeEventListener("keydown", handleKeyDown, true);
-			window.removeEventListener("blur", handleWindowBlur);
-			unsubscribeShortcut?.();
-		};
-	}, [onToggleFullscreen, onNewShell, onArchiveShell, onOpenSettings, onJumpToRow, onJumpToWaiting]);
+	return useShortcutListener({ ignoreInputs: true, onShortcut: dispatch });
 }

@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Project } from "@shared/projects";
 import type { BankaiSessionPageApi } from "@shared/session-page";
 import { SettingsScreen } from "@renderer/routes/-features/settings/settings-screen";
+import { WINDOW_NO_DRAG_CLASS } from "@renderer/routes/-features/app/chrome/window-drag";
 import { TailscaleAccess } from "@main/infra/tailscale/tailscale-access";
 import { pairingUrl } from "@shared/server";
 import { DEFAULT_THEME, THEME_LIGHT_CLASS } from "@shared/theme";
@@ -164,11 +165,13 @@ test("turning autostart off persists the switch and keeps the chosen harness", a
 
 test("closes on Escape and on the back control", async () => {
 	const screen = await loadedScreen();
+	const backControl = slot(screen, "close-settings");
 
 	fireEvent.keyDown(screen, { key: "Escape" });
 	expect(onClose).toHaveBeenCalledTimes(1);
 
-	fireEvent.click(slot(screen, "close-settings"));
+	expect(backControl.classList.contains(WINDOW_NO_DRAG_CLASS)).toBe(true);
+	fireEvent.click(backControl);
 	expect(onClose).toHaveBeenCalledTimes(2);
 });
 

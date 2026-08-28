@@ -8,6 +8,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useCallback, useState } from "react";
 import type { Project } from "@shared/projects";
+import { WINDOW_NO_DRAG_CLASS } from "@renderer/routes/-features/app/chrome/window-drag";
 import { PickerHint } from "@renderer/routes/-features/shared/pickers/picker-hint";
 import { BrowserDataSetting } from "@renderer/routes/-features/settings/settings-browser-data";
 import { HarnessSetting } from "@renderer/routes/-features/settings/settings-harness";
@@ -59,7 +60,7 @@ export function SettingsScreen(props: SettingsScreenProps) {
 						type="button"
 						data-slot="close-settings"
 						aria-label="Close settings"
-						className="flex h-full w-header shrink-0 items-center justify-center text-secondary hover:bg-surface-hover hover:text-primary"
+						className={`flex h-full w-header shrink-0 items-center justify-center text-secondary hover:bg-surface-hover hover:text-primary ${WINDOW_NO_DRAG_CLASS}`}
 						onClick={props.onClose}
 					>
 						<ArrowLeftIcon className="size-4" aria-hidden="true" />

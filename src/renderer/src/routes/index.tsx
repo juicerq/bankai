@@ -556,7 +556,6 @@ function Bankai() {
 				<ShellPicker
 					projects={availableProjects}
 					activeProjectId={activeProjectId}
-					shellCounts={shellCounts}
 					onCreate={createRequestedShell}
 					onClose={closeShellPicker}
 				/>

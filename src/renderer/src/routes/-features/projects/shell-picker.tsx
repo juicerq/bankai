@@ -10,13 +10,11 @@ const RECENT_PROJECTS_STORAGE_KEY = "bankai:shell-picker:recent-projects";
 export function ShellPicker({
 	projects,
 	activeProjectId,
-	shellCounts,
 	onCreate,
 	onClose,
 }: {
 	projects: Project[];
 	activeProjectId: string | undefined;
-	shellCounts: ReadonlyMap<string, number>;
 	onCreate: (projectId: string) => void;
 	onClose: () => void;
 }) {
@@ -62,6 +60,19 @@ export function ShellPicker({
 		},
 		onClose,
 	});
+	const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+		const shortcut = Number(event.key);
+		if (Number.isInteger(shortcut) && shortcut > 0 && shortcut <= 9) {
+			const project = items[shortcut - 1];
+			if (project) {
+				event.preventDefault();
+				create(project.id);
+			}
+			return;
+		}
+
+		picker.onKeyDown(event);
+	};
 
 	return (
 		<PickerFrame
@@ -86,7 +97,7 @@ export function ShellPicker({
 						setFilter(event.currentTarget.value);
 						picker.clear();
 					}}
-					onKeyDown={picker.onKeyDown}
+					onKeyDown={handleKeyDown}
 				/>
 			</PickerHeader>
 			<span className="px-3 pt-2.5 pb-1 text-label text-secondary">NEW SHELL IN</span>
@@ -96,7 +107,6 @@ export function ShellPicker({
 						key={project.id}
 						project={project}
 						index={index}
-						shells={shellCounts.get(project.id) ?? 0}
 						{...picker.itemProps(project)}
 						onSelect={() => create(project.id)}
 					/>
@@ -138,7 +148,6 @@ function writeRecentProjectId(projectId: string, recentProjectIds: string[]) {
 function ShellPickerItem({
 	project,
 	index,
-	shells,
 	highlighted,
 	ref,
 	onMouseMove,
@@ -146,7 +155,6 @@ function ShellPickerItem({
 }: {
 	project: Project;
 	index: number;
-	shells: number;
 	highlighted: boolean;
 	ref?: (element: HTMLElement | null) => void;
 	onMouseMove: () => void;
@@ -160,6 +168,7 @@ function ShellPickerItem({
 			data-component="shell-picker-item"
 			data-name={project.name}
 			data-index={index}
+			aria-keyshortcuts={index < 9 ? String(index + 1) : undefined}
 			ref={ref}
 			className={`group relative flex w-full items-center gap-2.5 px-3 py-1.5 text-left ${
 				highlighted ? "bg-surface-active" : ""
@@ -171,9 +180,9 @@ function ShellPickerItem({
 			{highlighted && <span className="absolute inset-y-0 left-0 w-0.5 bg-tertiary" aria-hidden="true" />}
 			<FolderIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
 			<span className="min-w-0 flex-1 truncate text-body text-primary">{project.name}</span>
-			{shells > 0 && (
-				<span data-slot="shell-count" className="shrink-0 text-data text-outline-strong">
-					{shells} {shells === 1 ? "SHELL" : "SHELLS"}
+			{index < 9 && (
+				<span data-slot="shortcut" className="shrink-0 text-data text-outline-strong" aria-hidden="true">
+					{index + 1}
 				</span>
 			)}
 			<span className="min-w-0 max-w-[45%] shrink truncate text-data text-outline-strong">{project.path}</span>

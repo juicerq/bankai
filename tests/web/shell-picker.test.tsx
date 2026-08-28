@@ -18,7 +18,6 @@ const PROJECTS: Project[] = [
 function renderPicker(
 	options: {
 		activeProjectId?: string;
-		shellCounts?: ReadonlyMap<string, number>;
 		onCreate?: (projectId: string) => void;
 		onClose?: () => void;
 	} = {},
@@ -27,7 +26,6 @@ function renderPicker(
 		<ShellPicker
 			projects={PROJECTS}
 			activeProjectId={options.activeProjectId}
-			shellCounts={options.shellCounts ?? new Map()}
 			onCreate={options.onCreate ?? (() => {})}
 			onClose={options.onClose ?? (() => {})}
 		/>,
@@ -136,12 +134,16 @@ test("enter creates nothing when the filter matches no project", () => {
 	expect(get("shell-picker").dataset.highlighted).toBeUndefined();
 });
 
-test("a project already carrying shells says how many", () => {
-	renderPicker({ shellCounts: new Map([["p3", 1], ["p1", 4]]) });
+test("each project shows the number that creates a shell in it", () => {
+	const created: string[] = [];
+	renderPicker({ onCreate: (projectId) => created.push(projectId) });
 
-	expect(slot(get("shell-picker-item", { name: "jubby" }), "shell-count").textContent).toBe("1 SHELL");
-	expect(slot(get("shell-picker-item", { name: "workbench" }), "shell-count").textContent).toBe("4 SHELLS");
-	expect(query("shell-picker-item", { name: "bankai" })?.querySelector("[data-slot=shell-count]")).toBeNull();
+	expect(slot(get("shell-picker-item", { name: "bankai" }), "shortcut").textContent).toBe("1");
+	expect(slot(get("shell-picker-item", { name: "workbench" }), "shortcut").textContent).toBe("3");
+
+	press("3");
+
+	expect(created).toEqual(["p1"]);
 });
 
 test("escape closes without creating", () => {

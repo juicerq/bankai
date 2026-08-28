@@ -4,7 +4,10 @@ import { ShellPicker } from "@renderer/routes/-features/projects/shell-picker";
 import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	localStorage.clear();
+});
 
 const PROJECTS: Project[] = [
 	{ id: "p1", name: "workbench", path: "/home/jui/projects/workbench", createdAt: 1 },
@@ -43,6 +46,23 @@ test("projects are listed by name and the current one opens highlighted", () => 
 	renderPicker({ activeProjectId: "p3" });
 
 	expect(get("shell-picker-item", { name: "bankai" }).dataset.index).toBe("0");
+	expect(get("shell-picker").dataset.highlighted).toBe("p3");
+});
+
+test("chosen projects return in recent order with the last choice highlighted", () => {
+	renderPicker();
+	fireEvent.click(get("shell-picker-item", { name: "workbench" }));
+	cleanup();
+
+	renderPicker();
+	fireEvent.click(get("shell-picker-item", { name: "jubby" }));
+	cleanup();
+
+	renderPicker({ activeProjectId: "p2" });
+
+	expect(get("shell-picker-item", { name: "jubby" }).dataset.index).toBe("0");
+	expect(get("shell-picker-item", { name: "workbench" }).dataset.index).toBe("1");
+	expect(get("shell-picker-item", { name: "bankai" }).dataset.index).toBe("2");
 	expect(get("shell-picker").dataset.highlighted).toBe("p3");
 });
 

@@ -5,6 +5,8 @@ import { PickerFooter, PickerFrame, PickerHeader } from "@renderer/routes/-featu
 import { PickerHint } from "@renderer/routes/-features/shared/pickers/picker-hint";
 import { usePickerNavigation } from "@renderer/routes/-features/shared/pickers/use-picker-navigation";
 
+const RECENT_PROJECTS_STORAGE_KEY = "bankai:shell-picker:recent-projects";
+
 export function ShellPicker({
 	projects,
 	activeProjectId,
@@ -19,14 +21,26 @@ export function ShellPicker({
 	onClose: () => void;
 }) {
 	const [filter, setFilter] = useState("");
+	const [recentProjectIds] = useState(() => readRecentProjectIds(projects));
 	const term = filter.trim().toLowerCase();
+	const recentOrder = new Map(recentProjectIds.map((projectId, index) => [projectId, index]));
 	// Name only, never the path: a project's name is its directory's basename,
 	// so the rest of the path is the one part every project here shares.
 	const items = projects
 		.filter((project) => project.name.toLowerCase().includes(term))
-		.sort((left, right) => left.name.localeCompare(right.name));
+		.sort((left, right) => {
+			const leftIndex = recentOrder.get(left.id);
+			const rightIndex = recentOrder.get(right.id);
+
+			if (leftIndex !== undefined || rightIndex !== undefined) {
+				return (leftIndex ?? Number.MAX_SAFE_INTEGER) - (rightIndex ?? Number.MAX_SAFE_INTEGER);
+			}
+
+			return left.name.localeCompare(right.name);
+		});
 
 	const create = (projectId: string) => {
+		writeRecentProjectId(projectId, recentProjectIds);
 		onClose();
 		onCreate(projectId);
 	};
@@ -34,7 +48,13 @@ export function ShellPicker({
 	const picker = usePickerNavigation({
 		items,
 		key: (project) => project.id,
-		fallback: (matches) => matches.find((project) => project.id === activeProjectId) ?? matches[0],
+		fallback: (matches) => {
+			if (recentProjectIds.length > 0 || term) {
+				return matches[0];
+			}
+
+			return matches.find((project) => project.id === activeProjectId) ?? matches[0];
+		},
 		onChoose: (highlighted) => {
 			if (highlighted) {
 				create(highlighted.id);
@@ -90,6 +110,29 @@ export function ShellPicker({
 			</PickerFooter>
 		</PickerFrame>
 	);
+}
+
+function readRecentProjectIds(projects: Project[]): string[] {
+	try {
+		const stored: unknown = JSON.parse(localStorage.getItem(RECENT_PROJECTS_STORAGE_KEY) ?? "[]");
+		if (!Array.isArray(stored)) {
+			return [];
+		}
+
+		const projectIds = new Set(projects.map((project) => project.id));
+
+		return [...new Set(stored.filter((value): value is string => typeof value === "string" && projectIds.has(value)))];
+	} catch {
+		return [];
+	}
+}
+
+function writeRecentProjectId(projectId: string, recentProjectIds: string[]) {
+	const next = [projectId, ...recentProjectIds.filter((recentProjectId) => recentProjectId !== projectId)];
+
+	try {
+		localStorage.setItem(RECENT_PROJECTS_STORAGE_KEY, JSON.stringify(next));
+	} catch {}
 }
 
 function ShellPickerItem({

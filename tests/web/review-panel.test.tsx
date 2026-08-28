@@ -1,5 +1,6 @@
 import "./register-dom";
 import { afterEach, expect, test } from "bun:test";
+import { type } from "arktype";
 import type { FileChange, ReviewSnapshot, Worktree } from "@shared/review";
 import type { Project } from "@shared/projects";
 import { ReviewPanel } from "@renderer/routes/-features/review/panel/review-panel";
@@ -16,7 +17,7 @@ import { act, cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 afterEach(cleanup);
 
-const project: Project = { id: "p1", name: "p1", path: "/p1", createdAt: 0 };
+const project: Project = { id: "p1", name: "p1", path: "/p1", createdAt: 0, reviewClosedTargets: [] };
 
 const WORKTREES: Worktree[] = [
 	{ path: "/p1", branch: "main" },
@@ -70,7 +71,13 @@ function snapshotOf(paths: string[]): ReviewSnapshot {
 	};
 }
 
-function renderPanel({ quickOpen = false }: { quickOpen?: boolean } = {}) {
+function renderPanel({
+	quickOpen = false,
+	activeProject = project,
+}: {
+	quickOpen?: boolean;
+	activeProject?: Project;
+} = {}) {
 	const environment = installReviewEnvironment();
 	const panel = createReviewPanelStore();
 	const view = render(
@@ -95,7 +102,7 @@ function renderPanel({ quickOpen = false }: { quickOpen?: boolean } = {}) {
 		>
 			<ReviewPanel
 				panel={panel}
-				project={project}
+				project={activeProject}
 				shells={[]}
 				treeOpen
 				treeDivider={divider}
@@ -122,6 +129,15 @@ function treeRow(path: string) {
 	}
 
 	return match;
+}
+
+function treeDirectoryToggle(path: string) {
+	const toggle = treeRow(path).querySelector<HTMLElement>("[aria-expanded]");
+	if (!toggle) {
+		throw new Error(`No directory toggle for ${path}`);
+	}
+
+	return toggle;
 }
 
 function hasTreeRow(path: string) {
@@ -165,7 +181,7 @@ async function openTree(panel: Panel, browsePaths?: string[]) {
 	await answer(panel, "snapshot", snapshotOf(CHANGED_PATHS));
 	await waitFor(() => expect(hasTreeRow("src/app/one.ts")).toBe(true));
 
-	fireEvent.click(treeRow("src/app"));
+	fireEvent.click(treeDirectoryToggle("src/app"));
 	expect(hasTreeRow("src/app/one.ts")).toBe(false);
 }
 
@@ -178,6 +194,26 @@ test("switching the scope keeps the directories the tree was left on", async () 
 	expect(hasTreeRow("src/app/one.ts")).toBe(false);
 });
 
+test("project defaults skip closed diff content until the file is opened manually", async () => {
+	const panel = renderPanel({
+		activeProject: {
+			...project,
+			reviewClosedTargets: [{ kind: "directory", path: "src/app" }],
+		},
+	});
+	panel.ipc.resolveWatch();
+	await answer(panel, "worktrees", WORKTREES);
+	await answer(panel, "snapshot", snapshotOf(CHANGED_PATHS));
+
+	await waitFor(() => expect(panel.transport.callsFor("files")).toHaveLength(1));
+	const filesRequest = type({ files: "string[]" }).assert(panel.transport.callsFor("files")[0]);
+	expect(filesRequest.files).toEqual(["README.md"]);
+	expect(slot(treeRow("src/app"), "default-closure-actions").dataset.active).toBe("true");
+
+	fireEvent.click(slot(treeRow("src/app/one.ts"), "open"));
+	await waitFor(() => expect(panel.transport.callsFor("file")).toHaveLength(1));
+});
+
 test("switching the scope keeps the browsed directories expanded", async () => {
 	const panel = renderPanel();
 	await openTree(panel);
@@ -185,7 +221,7 @@ test("switching the scope keeps the browsed directories expanded", async () => {
 	fireEvent.click(slot(get("review-tree"), "tree-view-browse"));
 	await answer(panel, "browseFiles", CHANGED_PATHS);
 	await waitFor(() => expect(hasTreeRow("src/app")).toBe(true));
-	fireEvent.click(treeRow("src/app"));
+	fireEvent.click(treeDirectoryToggle("src/app"));
 	expect(hasTreeRow("src/app/one.ts")).toBe(true);
 
 	pickMenuItem("review-scope", REVIEW_SCOPES.branch.label);

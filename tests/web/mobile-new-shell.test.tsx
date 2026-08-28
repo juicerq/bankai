@@ -7,9 +7,9 @@ import { cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 afterEach(cleanup);
 
-const AXIOM: Project = { id: "p3", name: "axiom", path: "/projects/axiom", createdAt: 3 };
-const BANKAI: Project = { id: "p1", name: "bankai", path: "/projects/bankai", createdAt: 1 };
-const GHOSTAPI: Project = { id: "p2", name: "ghostapi", path: "/projects/ghostapi", createdAt: 2 };
+const AXIOM: Project = { id: "p3", name: "axiom", path: "/projects/axiom", createdAt: 3, reviewClosedTargets: [] };
+const BANKAI: Project = { id: "p1", name: "bankai", path: "/projects/bankai", createdAt: 1, reviewClosedTargets: [] };
+const GHOSTAPI: Project = { id: "p2", name: "ghostapi", path: "/projects/ghostapi", createdAt: 2, reviewClosedTargets: [] };
 
 function renderNewShell(
 	options: {

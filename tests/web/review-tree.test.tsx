@@ -2,6 +2,7 @@ import { afterAll, afterEach, expect, test } from "bun:test";
 import { useSelector } from "@tanstack/react-store";
 import { useRef, useState } from "react";
 import type { FileChange } from "@shared/review";
+import { ReviewDefaultClosure, type ReviewClosedTarget } from "@shared/review-default-closure";
 import { ReviewTree } from "@renderer/routes/-features/review/tree/review-tree";
 import { TREE_ROW_HEIGHT } from "@renderer/routes/-features/review/tree/review-tree-virtual-rows";
 import { DEFAULT_TREE_WIDTH, redistributeReviewTree } from "@renderer/routes/-features/review/panel/review-layout";
@@ -132,6 +133,8 @@ function ReviewTreeHarness() {
 				onOpenFile={() => {}}
 				onToggleFocusFile={() => {}}
 				onCloseFiles={() => {}}
+				defaultClosedTargets={[]}
+				onSetDefaultClosed={async () => {}}
 			/>
 		</main>
 	);
@@ -177,7 +180,11 @@ function ReviewTreeFilesHarness({
 	const [visibleBrowsePaths, setVisibleBrowsePaths] = useState(browsePaths);
 	const [browsePathUpdate, setBrowsePathUpdate] = useState(0);
 	const [panel] = useState(createReviewPanelStore);
-	const closedFiles = useSelector(panel, (state) => state.closedFiles);
+	const fileClosedOverrides = useSelector(panel, (state) => state.fileClosedOverrides);
+	const [defaultClosedTargets, setDefaultClosedTargets] = useState<readonly ReviewClosedTarget[]>([]);
+	const closedFiles = new Set(
+		[...fileClosedOverrides].flatMap(([path, closed]) => closed ? [path] : []),
+	);
 	const treeView = useSelector(panel, (state) => state.treeView);
 	const focusedPath = useSelector(panel, (state) => state.focusedPath);
 	const divider = useDivider({
@@ -228,7 +235,11 @@ function ReviewTreeFilesHarness({
 
 					panel.actions.focusFile(path);
 				}}
-				onCloseFiles={panel.actions.closeScope}
+				onCloseFiles={panel.actions.setFilesClosed}
+				defaultClosedTargets={defaultClosedTargets}
+				onSetDefaultClosed={async (target, closed) => {
+					setDefaultClosedTargets((current) => ReviewDefaultClosure.update(current, target, closed));
+				}}
 			/>
 		</main>
 	);
@@ -271,6 +282,15 @@ function treeRow(path: string) {
 	return match;
 }
 
+function defaultClosureMenuItem() {
+	const item = get("review-tree-default-closure-menu").querySelector<HTMLButtonElement>('[role="menuitemcheckbox"]');
+	if (!item) {
+		throw new Error("No default closure menu item");
+	}
+
+	return item;
+}
+
 test("the tree divider redistributes a fixed Review width", () => {
 	render(<ReviewTreeHarness />);
 
@@ -296,6 +316,36 @@ test("the Tree filter reveals changed descendants of a matching folder", () => {
 	expect(rowPaths()).toEqual(["src/app", "src/app/one.ts", "src/app/two.ts"]);
 	expect(slot(get("review-tree"), "tree-filter-count").dataset.filtered).toBe("2");
 	expect(slot(get("review-tree"), "tree-filter-count").dataset.total).toBe("3");
+});
+
+test("row actions mark files and folders to close by default without collapsing the Tree", async () => {
+	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
+
+	const directory = treeRow("src/app");
+	const directoryToggle = directory.querySelector<HTMLElement>("[aria-expanded]");
+	expect(directoryToggle?.getAttribute("aria-expanded")).toBe("true");
+	fireEvent.click(slot(directory, "default-closure-actions"));
+
+	let item = defaultClosureMenuItem();
+	expect(item.textContent).toContain("Close files by default");
+	expect(item.getAttribute("aria-checked")).toBe("false");
+	fireEvent.click(item);
+
+	await waitFor(() => {
+		expect(slot(treeRow("src/app"), "default-closure-actions").dataset.active).toBe("true");
+	});
+	expect(directoryToggle?.getAttribute("aria-expanded")).toBe("true");
+
+	fireEvent.click(slot(treeRow("README.md"), "default-closure-actions"));
+	item = defaultClosureMenuItem();
+	expect(item.textContent).toContain("Close by default");
+	fireEvent.click(item);
+
+	await waitFor(() => {
+		expect(slot(treeRow("README.md"), "default-closure-actions").dataset.active).toBe("true");
+	});
+	selectView("browse");
+	expect(slot(treeRow("README.md"), "default-closure-actions").dataset.active).toBe("true");
 });
 
 test("the always-visible Tree filter uses a full row and compacts safely at the minimum width", () => {
@@ -642,7 +692,7 @@ test("the Tree filter restores Files expansion and scroll after temporary naviga
 	render(<ReviewTreeFilesHarness browsePaths={MANY_BROWSE_PATHS} />);
 
 	selectView("browse");
-	fireEvent.click(treeRow("src/app"));
+	fireEvent.click(directoryRow("src/app"));
 	const list = slot(get("review-tree"), "list");
 	const normalScroll = 400 * TREE_ROW_HEIGHT;
 	fireEvent.scroll(list, { target: { scrollTop: normalScroll } });
@@ -766,7 +816,7 @@ test("a browsed file carries the mark of its change and nothing when it has none
 	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
 
 	selectView("browse");
-	fireEvent.click(treeRow("src/app"));
+	fireEvent.click(directoryRow("src/app"));
 
 	expect(rowPaths()).toEqual([
 		"docs",
@@ -784,7 +834,7 @@ test("a browsed directory stays open when the view leaves and comes back", () =>
 	render(<ReviewTreeFilesHarness browsePaths={BROWSE_PATHS} />);
 
 	selectView("browse");
-	fireEvent.click(treeRow("src/app"));
+	fireEvent.click(directoryRow("src/app"));
 	selectView("changes");
 	selectView("browse");
 
@@ -875,7 +925,7 @@ test("an expanded browse tree only reaches the DOM as the window under the reade
 	render(<ReviewTreeFilesHarness browsePaths={MANY_BROWSE_PATHS} />);
 
 	selectView("browse");
-	fireEvent.click(treeRow("src/app"));
+	fireEvent.click(directoryRow("src/app"));
 
 	expect(rowPaths().length).toBeLessThan(MANY_BROWSE_PATHS.length / 4);
 	expect(rowPaths()).toContain("src/app/file-000.ts");
@@ -885,7 +935,7 @@ test("scrolling the browse tree moves the window to the rows under the reader", 
 	render(<ReviewTreeFilesHarness browsePaths={MANY_BROWSE_PATHS} />);
 
 	selectView("browse");
-	fireEvent.click(treeRow("src/app"));
+	fireEvent.click(directoryRow("src/app"));
 	fireEvent.scroll(slot(get("review-tree"), "list"), { target: { scrollTop: 400 * TREE_ROW_HEIGHT } });
 
 	expect(rowPaths()).toContain("src/app/file-399.ts");

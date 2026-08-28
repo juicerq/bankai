@@ -10,9 +10,9 @@ afterEach(() => {
 });
 
 const PROJECTS: Project[] = [
-	{ id: "p1", name: "workbench", path: "/home/jui/projects/workbench", createdAt: 1 },
-	{ id: "p2", name: "bankai", path: "/home/jui/projects/bankai", createdAt: 2 },
-	{ id: "p3", name: "jubby", path: "/home/jui/projects/jubby", createdAt: 3 },
+	{ id: "p1", name: "workbench", path: "/home/jui/projects/workbench", createdAt: 1, reviewClosedTargets: [] },
+	{ id: "p2", name: "bankai", path: "/home/jui/projects/bankai", createdAt: 2, reviewClosedTargets: [] },
+	{ id: "p3", name: "jubby", path: "/home/jui/projects/jubby", createdAt: 3, reviewClosedTargets: [] },
 ];
 
 function renderPicker(

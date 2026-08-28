@@ -391,9 +391,10 @@ with `secondary` ink.
 margin. A 16px leading slot holds either the folder's chevron or the file's status
 mark, so both align down the column no matter how deep the row sits. Folder names
 are `secondary`, file names `primary` — the hierarchy is scaffolding, the files
-are the content. The full-file control appears on hover and stays in `primary`
-while that file is focused; nothing else in the row reacts. The tree's right
-hairline is a resize
+are the content. The full-file control and row actions appear on hover. The
+full-file control stays in `primary` while that file is focused. Row actions stay
+visible on `surface-active` while that exact file or folder is set to close by
+default. The tree's right hairline is a resize
 handle. During resize it brightens to `primary`.
 
 **Diff line.** Number gutter in `outline-strong`; code uses dedicated,

@@ -1,14 +1,13 @@
 import { createStore } from "@tanstack/react-store";
 import type { ReviewMode } from "@shared/review";
 import { DEFAULT_REVIEW_MODE } from "@renderer/routes/-features/review/header/review-scope";
-import { toggledSet } from "@renderer/routes/-features/shared/interaction/toggled-set";
 
 export type ReviewTreeView = "changes" | "browse";
 
 export interface ReviewPanelState {
 	mode: ReviewMode;
 	treeView: ReviewTreeView;
-	closedFiles: ReadonlySet<string>;
+	fileClosedOverrides: ReadonlyMap<string, boolean>;
 	focusedPath?: string;
 	focusedLine?: number;
 	hiddenFocusedPath?: string;
@@ -20,7 +19,7 @@ export function createReviewPanelStore() {
 	const initial: ReviewPanelState = {
 		mode: DEFAULT_REVIEW_MODE,
 		treeView: "changes",
-		closedFiles: new Set<string>(),
+		fileClosedOverrides: new Map<string, boolean>(),
 	};
 
 	return createStore(initial, ({ setState, get }) => {
@@ -57,33 +56,45 @@ export function createReviewPanelStore() {
 			},
 
 			openFile: (path: string) => {
-				const closedFiles = new Set(get().closedFiles);
-				if (!closedFiles.delete(path)) {
+				if (get().fileClosedOverrides.get(path) === false) {
 					return;
 				}
 
-				patch({ closedFiles });
+				patch({ fileClosedOverrides: new Map(get().fileClosedOverrides).set(path, false) });
 			},
 
-			toggleFile: (path: string) => {
-				patch({ closedFiles: toggledSet(get().closedFiles, path) });
-			},
-
-			closeScope: (paths: string[], closed: boolean) => {
-				if (paths.every((path) => get().closedFiles.has(path) === closed)) {
+			setFileClosed: (path: string, closed: boolean) => {
+				if (get().fileClosedOverrides.get(path) === closed) {
 					return;
 				}
 
-				const closedFiles = new Set(get().closedFiles);
+				patch({ fileClosedOverrides: new Map(get().fileClosedOverrides).set(path, closed) });
+			},
+
+			setFilesClosed: (paths: string[], closed: boolean) => {
+				if (paths.every((path) => get().fileClosedOverrides.get(path) === closed)) {
+					return;
+				}
+
+				const fileClosedOverrides = new Map(get().fileClosedOverrides);
 				for (const path of paths) {
-					if (closed) {
-						closedFiles.add(path);
-					} else {
-						closedFiles.delete(path);
-					}
+					fileClosedOverrides.set(path, closed);
 				}
 
-				patch({ closedFiles });
+				patch({ fileClosedOverrides });
+			},
+
+			clearFileOverrides: (paths: string[]) => {
+				const fileClosedOverrides = new Map(get().fileClosedOverrides);
+				let changed = false;
+				for (const path of paths) {
+					changed = fileClosedOverrides.delete(path) || changed;
+				}
+				if (!changed) {
+					return;
+				}
+
+				patch({ fileClosedOverrides });
 			},
 
 			focusFile: (focusedPath: string, focusedLine?: number) => {

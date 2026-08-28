@@ -28,7 +28,7 @@ let mobile: MobileTransport;
 let theme: ThemeTransport;
 let browserDataClears = 0;
 const projects: Project[] = [
-	{ id: "bankai", name: "bankai", path: "/projects/bankai", createdAt: 1 },
+	{ id: "bankai", name: "bankai", path: "/projects/bankai", createdAt: 1, reviewClosedTargets: [] },
 ];
 
 function renderScreen() {

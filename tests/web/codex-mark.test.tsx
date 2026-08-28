@@ -9,7 +9,7 @@ afterEach(cleanup);
 
 const NOW = 1_800_000_000_000;
 
-const BANKAI: Project = { id: "p1", name: "bankai", path: "/projects/bankai", createdAt: 2 };
+const BANKAI: Project = { id: "p1", name: "bankai", path: "/projects/bankai", createdAt: 2, reviewClosedTargets: [] };
 
 function row(shellId: string, harness: string): SessionRow {
 	return {

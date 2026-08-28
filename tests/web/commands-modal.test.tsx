@@ -12,8 +12,8 @@ import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render, waitFor } from "./testing-library";
 
 const PROJECTS: Project[] = [
-	{ id: "p1", name: "bankai", path: "/home/jui/projects/bankai", createdAt: 0 },
-	{ id: "p2", name: "atlas", path: "/home/jui/projects/atlas", createdAt: 1 },
+	{ id: "p1", name: "bankai", path: "/home/jui/projects/bankai", createdAt: 0, reviewClosedTargets: [] },
+	{ id: "p2", name: "atlas", path: "/home/jui/projects/atlas", createdAt: 1, reviewClosedTargets: [] },
 ];
 
 const onRun = jest.fn();

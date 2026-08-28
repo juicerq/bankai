@@ -6,6 +6,7 @@ import { ProjectCommands } from "@main/store/project-commands";
 import { Continuity } from "@main/store/continuity";
 import { Projects } from "@main/store/projects";
 import { Todos } from "@main/store/todos";
+import { reviewClosedTargetSchema } from "@shared/review-default-closure";
 
 export const projectsRouter = {
 	list: base.handler(() => Projects.list()),
@@ -15,6 +16,11 @@ export const projectsRouter = {
 		const path = await Directories.ensureProject(input.path);
 		return await Projects.add(path);
 	}),
+	setReviewClosedTarget: base.input(type({
+		projectId: "string",
+		target: reviewClosedTargetSchema,
+		closed: "boolean",
+	})).handler(({ input }) => Projects.setReviewClosedTarget(input.projectId, input.target, input.closed)),
 	remove: base.input(type({ projectId: "string" })).handler(async ({ input }) => {
 		await Projects.find(input.projectId);
 		Services.stopProject(input.projectId);

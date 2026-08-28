@@ -3,6 +3,7 @@ import { useSelector } from "@tanstack/react-store";
 import { useCallback, useRef } from "react";
 import type { ContinuityShell } from "@shared/continuity";
 import type { Project } from "@shared/projects";
+import { ReviewDefaultClosure, type ReviewClosedTarget } from "@shared/review-default-closure";
 import { orpc } from "@renderer/lib/api";
 import { ReviewBrowseEmpty } from "@renderer/routes/-features/review/reading/review-browse-empty";
 import { ReviewDiff, type ReviewDiffHandle } from "@renderer/routes/-features/review/reading/review-diff";
@@ -94,12 +95,15 @@ export function ReviewPanel({
 	const shellWorktree = shellId === undefined ? undefined : agents.worktrees.get(shellId);
 	const mode = useSelector(panel, (state) => state.mode);
 	const treeView = useSelector(panel, (state) => state.treeView);
-	const closedFiles = useSelector(panel, (state) => state.closedFiles);
+	const fileClosedOverrides = useSelector(panel, (state) => state.fileClosedOverrides);
 	const focusedPath = useSelector(panel, (state) => state.focusedPath);
 	const focusedLine = useSelector(panel, (state) => state.focusedLine);
 	const pinnedWorktree = useSelector(panel, (state) => state.pinnedWorktree);
 	const diff = useRef<ReviewDiffHandle>(null);
-	const isFileOpen = useCallback((path: string) => !closedFiles.has(path), [closedFiles]);
+	const isFileOpen = useCallback(
+		(path: string) => !(fileClosedOverrides.get(path) ?? ReviewDefaultClosure.matches(project.reviewClosedTargets, path)),
+		[fileClosedOverrides, project.reviewClosedTargets],
+	);
 
 	const { worktree, worktreeSelection } = useWorktreeSelection({
 		project,
@@ -142,8 +146,28 @@ export function ReviewPanel({
 	const browsing = treeView === "browse";
 	const currentSnapshot = generation?.snapshot;
 	const files = currentSnapshot?.files ?? [];
+	const closedFiles = ReviewDefaultClosure.closedFiles(
+		files.map((file) => file.path),
+		project.reviewClosedTargets,
+		fileClosedOverrides,
+	);
 	const focusedFile = focusedPath ? files.find((file) => file.path === focusedPath) : undefined;
 	const filesClosed = files.length > 0 && files.every((file) => closedFiles.has(file.path));
+	const queryClient = useQueryClient();
+	const { mutateAsync: setReviewClosedTarget } = useMutation(
+		orpc.projects.setReviewClosedTarget.mutationOptions({
+			onSuccess: async (_updated, input) => {
+				const affectedOverrides = [...panel.state.fileClosedOverrides.keys()].filter((path) =>
+					ReviewDefaultClosure.matches([input.target], path),
+				);
+				panel.actions.clearFileOverrides(affectedOverrides);
+				await queryClient.invalidateQueries({ queryKey: orpc.projects.list.key() });
+			},
+		}),
+	);
+	const saveDefaultClosed = async (target: ReviewClosedTarget, closed: boolean) => {
+		await setReviewClosedTarget({ projectId: project.id, target, closed });
+	};
 
 	const toggleFocus = (path: string) => {
 		if (focusedPath === path) {
@@ -192,7 +216,9 @@ export function ReviewPanel({
 					onSelectTreeView={panel.actions.selectTreeView}
 					onOpenFile={openFromTree}
 					onToggleFocusFile={toggleFocus}
-					onCloseFiles={panel.actions.closeScope}
+					onCloseFiles={panel.actions.setFilesClosed}
+					defaultClosedTargets={project.reviewClosedTargets}
+					onSetDefaultClosed={saveDefaultClosed}
 				/>
 			)}
 
@@ -209,7 +235,7 @@ export function ReviewPanel({
 					onTreeOpenChange={onTreeOpenChange}
 					onToggleExpanded={onToggleExpanded}
 					filesClosed={filesClosed}
-					onToggleAllFiles={() => panel.actions.closeScope(files.map((file) => file.path), !filesClosed)}
+					onToggleAllFiles={() => panel.actions.setFilesClosed(files.map((file) => file.path), !filesClosed)}
 				/>
 
 				<div className="relative flex min-h-0 flex-1 flex-col">
@@ -221,7 +247,7 @@ export function ReviewPanel({
 						error={error}
 						covered={browsing || !!focusedPath}
 						closedFiles={closedFiles}
-						onToggleOpen={panel.actions.toggleFile}
+						onToggleOpen={(path) => panel.actions.setFileClosed(path, !closedFiles.has(path))}
 						onFocusFile={panel.actions.focusFile}
 					/>
 					{browsing && !focusedPath && <ReviewBrowseEmpty />}

@@ -14,8 +14,8 @@ afterEach(cleanup);
 
 const NOW = 1_800_000_000_000;
 
-const DOGAMA: Project = { id: "p2", name: "dogama", path: "/projects/dogama", createdAt: 1 };
-const BANKAI: Project = { id: "p1", name: "bankai", path: "/projects/bankai", createdAt: 2 };
+const DOGAMA: Project = { id: "p2", name: "dogama", path: "/projects/dogama", createdAt: 1, reviewClosedTargets: [] };
+const BANKAI: Project = { id: "p1", name: "bankai", path: "/projects/bankai", createdAt: 2, reviewClosedTargets: [] };
 const PROJECTS = [DOGAMA, BANKAI];
 
 function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {

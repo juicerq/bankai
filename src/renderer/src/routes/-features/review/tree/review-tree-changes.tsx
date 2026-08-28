@@ -10,6 +10,8 @@ import {
 } from "@renderer/routes/-features/review/tree/file-tree";
 import { toggledSet } from "@renderer/routes/-features/shared/interaction/toggled-set";
 import { ReviewTreeVirtualRows } from "@renderer/routes/-features/review/tree/review-tree-virtual-rows";
+import type { MouseEvent } from "react";
+import type { ReviewClosedTarget } from "@shared/review-default-closure";
 
 export function ReviewTreeChanges({
 	rows,
@@ -23,6 +25,8 @@ export function ReviewTreeChanges({
 	onOpenFile,
 	onToggleFocusFile,
 	onCloseFiles,
+	isDefaultClosed,
+	onOpenActions,
 	scrollElement,
 	initialOffset,
 }: {
@@ -37,6 +41,8 @@ export function ReviewTreeChanges({
 	onOpenFile: (path: string) => void;
 	onToggleFocusFile: (path: string) => void;
 	onCloseFiles: (paths: string[], closed: boolean) => void;
+	isDefaultClosed: (target: ReviewClosedTarget) => boolean;
+	onOpenActions: (event: MouseEvent<HTMLButtonElement>, target: ReviewClosedTarget) => void;
 	scrollElement: HTMLDivElement | null;
 	initialOffset: number;
 }) {
@@ -65,7 +71,9 @@ export function ReviewTreeChanges({
 						node={row.node}
 						depth={row.depth}
 						collapsed={visibleCollapsed.has(row.node.path)}
+						defaultClosed={isDefaultClosed({ kind: "directory", path: row.node.path })}
 						onToggle={toggleDirectory}
+						onOpenActions={onOpenActions}
 					/>
 				) : (
 					<ReviewTreeFileRow
@@ -73,8 +81,10 @@ export function ReviewTreeChanges({
 						depth={row.depth}
 						focused={row.node.path === focusedPath}
 						highlighted={row.node.path === highlightedPath}
+						defaultClosed={isDefaultClosed({ kind: "file", path: row.node.path })}
 						onOpen={onOpenFile}
 						onToggleFocus={onToggleFocusFile}
+						onOpenActions={onOpenActions}
 					/>
 				)
 			}

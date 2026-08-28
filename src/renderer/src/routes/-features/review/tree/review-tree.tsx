@@ -1,6 +1,7 @@
 import { DocumentDuplicateIcon, MagnifyingGlassIcon, PencilSquareIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { type UIEvent, useCallback, useId, useMemo, useRef, useState } from "react";
+import { type MouseEvent, type UIEvent, useCallback, useId, useMemo, useRef, useState } from "react";
 import type { FileChange } from "@shared/review";
+import { ReviewDefaultClosure, type ReviewClosedTarget } from "@shared/review-default-closure";
 import { Divider } from "@renderer/routes/-features/shared/interaction/divider";
 import { REVIEW_TREE_WIDTH_VALUE } from "@renderer/routes/-features/review/panel/review-layout";
 import type { ReviewTreeView } from "@renderer/routes/-features/review/panel/review-panel-store";
@@ -17,6 +18,10 @@ import {
 	type ReviewTreeItem,
 } from "@renderer/routes/-features/review/tree/review-tree-rows";
 import type { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
+import {
+	ReviewTreeDefaultClosureMenu,
+	type ReviewTreeDefaultClosureMenuState,
+} from "@renderer/routes/-features/review/tree/review-tree-default-closure-menu";
 
 const COMPACT_FILTER_WIDTH = 160;
 const LARGE_TREE_FILTER_DELAY_MS = 80;
@@ -281,6 +286,8 @@ export function ReviewTree({
 	onOpenFile,
 	onToggleFocusFile,
 	onCloseFiles,
+	defaultClosedTargets,
+	onSetDefaultClosed,
 }: {
 	files: FileChange[];
 	browsePaths?: string[];
@@ -291,7 +298,10 @@ export function ReviewTree({
 	onOpenFile: (path: string) => void;
 	onToggleFocusFile: (path: string) => void;
 	onCloseFiles: (paths: string[], closed: boolean) => void;
+	defaultClosedTargets: readonly ReviewClosedTarget[];
+	onSetDefaultClosed: (target: ReviewClosedTarget, closed: boolean) => Promise<void>;
 }) {
+	const [actionsMenu, setActionsMenu] = useState<ReviewTreeDefaultClosureMenuState>();
 	const compactFilter = divider.valueNow <= COMPACT_FILTER_WIDTH;
 	const {
 		browsing,
@@ -328,6 +338,14 @@ export function ReviewTree({
 		setCollapsedChanges,
 		setExpandedBrowse,
 	} = useReviewTreeState({ files, browsePaths, treeView, focusedPath, onOpenFile, onToggleFocusFile });
+	const isDefaultClosed = useCallback(
+		(target: ReviewClosedTarget) => ReviewDefaultClosure.has(defaultClosedTargets, target),
+		[defaultClosedTargets],
+	);
+	const openActions = (event: MouseEvent<HTMLButtonElement>, target: ReviewClosedTarget) => {
+		const rect = event.currentTarget.getBoundingClientRect();
+		setActionsMenu({ target, x: rect.right - 192, y: rect.bottom });
+	};
 
 	return (
 		<div
@@ -482,6 +500,8 @@ export function ReviewTree({
 							onExpandedChange={setExpandedBrowse}
 							onFilterCollapsedChange={updateFilterCollapsed}
 							onToggleFocus={onToggleFocusFile}
+							isDefaultClosed={isDefaultClosed}
+							onOpenActions={openActions}
 						/>
 					)}
 					{!filterEmpty && !browsing && (
@@ -498,12 +518,23 @@ export function ReviewTree({
 							onOpenFile={openChangedFile}
 							onToggleFocusFile={onToggleFocusFile}
 							onCloseFiles={onCloseFiles}
+							isDefaultClosed={isDefaultClosed}
+							onOpenActions={openActions}
 							scrollElement={listNode}
 							initialOffset={initialOffset}
 						/>
 					)}
 				</ReviewTreeRowFilter>
 			</div>
+			{actionsMenu && (
+				<ReviewTreeDefaultClosureMenu
+					key={`${actionsMenu.target.kind}:${actionsMenu.target.path}`}
+					menu={actionsMenu}
+					active={isDefaultClosed(actionsMenu.target)}
+					onClose={() => setActionsMenu(undefined)}
+					onSet={onSetDefaultClosed}
+				/>
+			)}
 			<Divider control={divider} side="right" label="Resize tree" />
 		</div>
 	);

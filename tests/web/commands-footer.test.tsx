@@ -6,7 +6,7 @@ import { CommandsFooter } from "@renderer/routes/-features/commands/commands-foo
 import { get, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
-const projects: Project[] = [{ id: "alpha", name: "bankai", path: "/projects/bankai", createdAt: 1 }];
+const projects: Project[] = [{ id: "alpha", name: "bankai", path: "/projects/bankai", createdAt: 1, reviewClosedTargets: [] }];
 const commands: ProjectCommand[] = [
 	{ id: "test", projectId: "alpha", label: "test", command: "bun test", kind: "task", createdAt: 1 },
 ];

@@ -1,6 +1,7 @@
-import { ChevronDownIcon, ChevronRightIcon, ViewfinderCircleIcon } from "@heroicons/react/24/outline";
-import { createContext, type ReactNode, type Ref, useContext } from "react";
+import { ChevronDownIcon, ChevronRightIcon, EllipsisHorizontalIcon, ViewfinderCircleIcon } from "@heroicons/react/24/outline";
+import { createContext, type MouseEvent, type ReactNode, type Ref, useContext } from "react";
 import type { FileChange } from "@shared/review";
+import type { ReviewClosedTarget } from "@shared/review-default-closure";
 import {
 	type FileTreeDirectory,
 	type FileTreeLeaf,
@@ -73,28 +74,65 @@ export function ReviewTreeDirectoryRow({
 	node,
 	depth,
 	collapsed,
+	defaultClosed,
 	onToggle,
+	onOpenActions,
 }: {
 	node: FileTreeDirectory<ReviewTreeItem>;
 	depth: number;
 	collapsed: boolean;
+	defaultClosed: boolean;
 	onToggle: (node: FileTreeDirectory<ReviewTreeItem>) => void;
+	onOpenActions: (event: MouseEvent<HTMLButtonElement>, target: ReviewClosedTarget) => void;
 }) {
 	const ChevronIcon = collapsed ? ChevronRightIcon : ChevronDownIcon;
 
 	return (
-		<button
-			type="button"
+		<div
 			data-component="review-tree-row"
 			data-path={node.path}
 			data-kind="directory"
-			className="flex w-full items-center pr-3 text-left text-body text-secondary hover:bg-surface-hover hover:text-primary"
-			aria-expanded={!collapsed}
-			onClick={() => onToggle(node)}
+			className="group flex w-full items-center pr-1 text-body text-secondary hover:bg-surface-hover hover:text-primary"
 		>
-			<ReviewTreeRowIndent depth={depth} />
-			<ChevronIcon className="mr-1 size-4 shrink-0" />
-			<ReviewTreeRowName name={node.name} className="min-w-0 truncate py-1" />
+			<button
+				type="button"
+				className="flex min-w-0 flex-1 items-center text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+				aria-expanded={!collapsed}
+				onClick={() => onToggle(node)}
+			>
+				<ReviewTreeRowIndent depth={depth} />
+				<ChevronIcon className="mr-1 size-4 shrink-0" />
+				<ReviewTreeRowName name={node.name} className="min-w-0 truncate py-1" />
+			</button>
+			<ReviewTreeRowActions path={node.path} kind="directory" active={defaultClosed} onOpen={onOpenActions} />
+		</div>
+	);
+}
+
+function ReviewTreeRowActions({
+	path,
+	kind,
+	active,
+	onOpen,
+}: {
+	path: string;
+	kind: ReviewClosedTarget["kind"];
+	active: boolean;
+	onOpen: (event: MouseEvent<HTMLButtonElement>, target: ReviewClosedTarget) => void;
+}) {
+	return (
+		<button
+			type="button"
+			data-slot="default-closure-actions"
+			data-active={active || undefined}
+			className={`flex size-6 shrink-0 items-center justify-center hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+				active ? "bg-surface-active text-primary" : "text-secondary opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+			}`}
+			aria-label={`Actions for ${path}`}
+			aria-haspopup="menu"
+			onClick={(event) => onOpen(event, { kind, path })}
+		>
+			<EllipsisHorizontalIcon className="size-4" aria-hidden="true" />
 		</button>
 	);
 }
@@ -105,16 +143,20 @@ export function ReviewTreeFileRow({
 	depth,
 	focused,
 	highlighted,
+	defaultClosed,
 	onOpen,
 	onToggleFocus,
+	onOpenActions,
 }: {
 	ref?: Ref<HTMLDivElement>;
 	node: FileTreeLeaf<ReviewTreeItem>;
 	depth: number;
 	focused: boolean;
 	highlighted: boolean;
+	defaultClosed: boolean;
 	onOpen: (path: string) => void;
 	onToggleFocus: (path: string) => void;
+	onOpenActions: (event: MouseEvent<HTMLButtonElement>, target: ReviewClosedTarget) => void;
 }) {
 	return (
 		<div
@@ -154,6 +196,7 @@ export function ReviewTreeFileRow({
 			>
 				<ViewfinderCircleIcon className="size-4" />
 			</button>
+			<ReviewTreeRowActions path={node.path} kind="file" active={defaultClosed} onOpen={onOpenActions} />
 		</div>
 	);
 }

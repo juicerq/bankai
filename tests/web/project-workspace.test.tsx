@@ -146,7 +146,7 @@ const { ProjectWorkspace } = await import(
 	"@renderer/routes/-features/workspace/surface/project-workspace"
 );
 
-const project = { id: "p1", name: "p1", path: "/p1", createdAt: 0 };
+const project = { id: "p1", name: "p1", path: "/p1", createdAt: 0, reviewClosedTargets: [] };
 const shells = [
 	{ id: "s1", label: "Shell 1", createdAt: 1 },
 	{ id: "s2", label: "Shell 2", createdAt: 2 },

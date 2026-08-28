@@ -5,8 +5,8 @@ import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
 const projects: Project[] = [
-	{ id: "alpha", name: "alpha", path: "/projects/alpha", createdAt: 1 },
-	{ id: "zulu", name: "zulu", path: "/projects/zulu", createdAt: 2 },
+	{ id: "alpha", name: "alpha", path: "/projects/alpha", createdAt: 1, reviewClosedTargets: [] },
+	{ id: "zulu", name: "zulu", path: "/projects/zulu", createdAt: 2, reviewClosedTargets: [] },
 ];
 const originalClipboard = navigator.clipboard;
 

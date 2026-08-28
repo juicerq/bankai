@@ -143,9 +143,9 @@ test("a badge keeps reporting activity of the projects the list is hiding", () =
 
 test("the projects come out named in reading order, so every surface shows the same list", () => {
 	const projects: Project[] = [
-		{ id: "p2", name: "ghostapi", path: "/projects/ghostapi", createdAt: 2 },
-		{ id: "p1", name: "bankai", path: "/projects/bankai", createdAt: 1 },
-		{ id: "p3", name: "axiom", path: "/projects/axiom", createdAt: 3 },
+		{ id: "p2", name: "ghostapi", path: "/projects/ghostapi", createdAt: 2, reviewClosedTargets: [] },
+		{ id: "p1", name: "bankai", path: "/projects/bankai", createdAt: 1, reviewClosedTargets: [] },
+		{ id: "p3", name: "axiom", path: "/projects/axiom", createdAt: 3, reviewClosedTargets: [] },
 	];
 
 	const listed = mobileSessionList({ rows: [], projects, includesProject: EVERY_PROJECT, now: NOW });

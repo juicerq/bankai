@@ -7,7 +7,7 @@ import type { ServiceState } from "@shared/services";
 import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
-const projects: Project[] = [{ id: "alpha", name: "alpha", path: "/projects/alpha", createdAt: 1 }];
+const projects: Project[] = [{ id: "alpha", name: "alpha", path: "/projects/alpha", createdAt: 1, reviewClosedTargets: [] }];
 
 const services: ProjectCommand[] = [
 	{ id: "api", projectId: "alpha", label: "api", command: "bun dev", kind: "service", createdAt: 1 },

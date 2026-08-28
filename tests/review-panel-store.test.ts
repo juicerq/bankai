@@ -103,42 +103,55 @@ test("follows the shell again once the pin is dropped", () => {
 
 test("opens a closed file and leaves an open one untouched", () => {
 	const panel = createReviewPanelStore();
-	panel.actions.toggleFile("src/a.ts");
-	expect(panel.state.closedFiles.has("src/a.ts")).toBe(true);
+	panel.actions.setFileClosed("src/a.ts", true);
+	expect(panel.state.fileClosedOverrides.get("src/a.ts")).toBe(true);
 
 	panel.actions.openFile("src/a.ts");
-	const opened = panel.state.closedFiles;
+	const opened = panel.state.fileClosedOverrides;
 	panel.actions.openFile("src/a.ts");
 
-	expect(opened.has("src/a.ts")).toBe(false);
-	expect(panel.state.closedFiles).toBe(opened);
+	expect(opened.get("src/a.ts")).toBe(false);
+	expect(panel.state.fileClosedOverrides).toBe(opened);
 });
 
 test("closes every file in the scope and reopens them all", () => {
 	const panel = createReviewPanelStore();
 	const paths = ["src/a.ts", "src/b.ts"];
 
-	panel.actions.closeScope(paths, true);
-	expect([...panel.state.closedFiles]).toEqual(paths);
+	panel.actions.setFilesClosed(paths, true);
+	expect([...panel.state.fileClosedOverrides]).toEqual(paths.map((path) => [path, true]));
 
-	panel.actions.closeScope(paths, false);
-	expect(panel.state.closedFiles.size).toBe(0);
+	panel.actions.setFilesClosed(paths, false);
+	expect([...panel.state.fileClosedOverrides]).toEqual(paths.map((path) => [path, false]));
 });
 
-test("leaves the scope alone when it already reads as asked", () => {
+test("leaves the scope alone when it already has the requested overrides", () => {
 	const panel = createReviewPanelStore();
-	const closedFiles = panel.state.closedFiles;
+	panel.actions.setFilesClosed(["src/a.ts"], false);
+	const overrides = panel.state.fileClosedOverrides;
 
-	panel.actions.closeScope(["src/a.ts"], false);
+	panel.actions.setFilesClosed(["src/a.ts"], false);
 
-	expect(panel.state.closedFiles).toBe(closedFiles);
+	expect(panel.state.fileClosedOverrides).toBe(overrides);
 });
 
 test("keeps files closed outside the scope it was told to reopen", () => {
 	const panel = createReviewPanelStore();
-	panel.actions.closeScope(["src/a.ts", "src/b.ts"], true);
+	panel.actions.setFilesClosed(["src/a.ts", "src/b.ts"], true);
 
-	panel.actions.closeScope(["src/a.ts"], false);
+	panel.actions.setFilesClosed(["src/a.ts"], false);
 
-	expect([...panel.state.closedFiles]).toEqual(["src/b.ts"]);
+	expect([...panel.state.fileClosedOverrides]).toEqual([
+		["src/a.ts", false],
+		["src/b.ts", true],
+	]);
+});
+
+test("clears only the manual choices affected by a stored preference change", () => {
+	const panel = createReviewPanelStore();
+	panel.actions.setFilesClosed(["generated/a.ts", "src/b.ts"], true);
+
+	panel.actions.clearFileOverrides(["generated/a.ts"]);
+
+	expect([...panel.state.fileClosedOverrides]).toEqual([["src/b.ts", true]]);
 });

@@ -144,6 +144,10 @@ _Avoid_: Snapshot, checkpoint, stash
 One file the current scope reports as differing, including a file git does not track yet. The unit the review is organized by.
 _Avoid_: Diff, entry, item
 
+**Default-closed path**:
+A file or folder path saved on a Project whose matching Changed files start closed in every Review. A file matches only itself; a folder matches its descendants. It applies across Scope and Worktree. Opening a Changed file affects only the mounted Workspace and does not remove the saved choice. A folder remains expanded or collapsed in the Tree independently.
+_Avoid_: Flag, ignored file, hidden file, collapsed folder
+
 **Status mark**:
 The single letter that names how a changed file differs: modified, added, deleted, renamed, or untracked.
 _Avoid_: State, type, kind

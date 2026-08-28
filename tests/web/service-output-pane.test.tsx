@@ -10,8 +10,8 @@ import { get, query, slot } from "./dom";
 import { cleanup, fireEvent, render } from "./testing-library";
 
 const projects: Project[] = [
-	{ id: "alpha", name: "alpha", path: "/projects/alpha", createdAt: 1 },
-	{ id: "beta", name: "beta", path: "/projects/beta", createdAt: 2 },
+	{ id: "alpha", name: "alpha", path: "/projects/alpha", createdAt: 1, reviewClosedTargets: [] },
+	{ id: "beta", name: "beta", path: "/projects/beta", createdAt: 2, reviewClosedTargets: [] },
 ];
 
 const services: ProjectCommand[] = [

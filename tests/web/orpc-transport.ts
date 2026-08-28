@@ -12,6 +12,7 @@ import { DEFAULT_THEME, type ThemePreference } from "@shared/theme";
 import type { ServiceState, ServiceStatus } from "@shared/services";
 import { type Todo, todoDraftSchema } from "@shared/todos";
 import { type Favorite, favoriteDraftSchema } from "@shared/favorites";
+import { reviewClosedTargetSchema } from "@shared/review-default-closure";
 
 export type ReviewProcedure =
 	| "worktrees"
@@ -527,6 +528,17 @@ const router = {
 	projects: {
 		browse: os.input(type({ path: "string" })).handler(({ input }) => requireBrowse()(input.path)),
 		inspect: os.input(type({ path: "string" })).handler(({ input }) => requireProjectInspection()(input.path)),
+		setReviewClosedTarget: os.input(type({
+			projectId: "string",
+			target: reviewClosedTargetSchema,
+			closed: "boolean",
+		})).handler(({ input }) => ({
+			id: input.projectId,
+			name: input.projectId,
+			path: `/${input.projectId}`,
+			createdAt: 0,
+			reviewClosedTargets: input.closed ? [input.target] : [],
+		})),
 	},
 	push: {
 		getPublicKey: os.handler(() => requirePush().publicKey),

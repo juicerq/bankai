@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 function project(id: string): Project {
-	return { id, name: id, path: `/tmp/${id}`, createdAt: 0 };
+	return { id, name: id, path: `/tmp/${id}`, createdAt: 0, reviewClosedTargets: [] };
 }
 
 function setListData(queryClient: QueryClient, projects: Project[]) {

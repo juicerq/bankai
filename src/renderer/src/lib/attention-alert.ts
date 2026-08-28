@@ -4,7 +4,7 @@ import type { ActivityAttentionEvent } from "@shared/activity";
 
 const DONE_TONES_HZ = [660, 880];
 const TONE_SECONDS = 0.14;
-const TONE_PEAK = 0.09;
+const TONE_PEAK = 0.1215;
 
 let tones: AudioContext | undefined;
 

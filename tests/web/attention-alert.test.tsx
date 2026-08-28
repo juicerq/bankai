@@ -8,6 +8,7 @@ import type { BankaiDesktopApi } from "@shared/desktop";
 const releaseTransport = streamTransport.borrow();
 const raised: { reason: string; count: number }[] = [];
 const played: number[] = [];
+const peaks: number[] = [];
 let stop: (() => void) | undefined;
 
 afterAll(releaseTransport);
@@ -37,7 +38,7 @@ function stubAudio() {
 		createGain = () => ({
 			gain: {
 				setValueAtTime: () => {},
-				linearRampToValueAtTime: () => {},
+				linearRampToValueAtTime: (value: number) => peaks.push(value),
 				exponentialRampToValueAtTime: () => {},
 			},
 			connect: (target: unknown) => target,
@@ -57,6 +58,7 @@ beforeEach(() => {
 	streamTransport.reset();
 	raised.length = 0;
 	played.length = 0;
+	peaks.length = 0;
 	stubAudio();
 	bridge({ attention: (reason, count) => raised.push({ reason, count }) });
 });
@@ -84,6 +86,7 @@ test("a done event plays the chime", async () => {
 	await settle();
 
 	expect(played).toEqual([660, 880]);
+	expect(peaks).toEqual([0.1215, 0.1215]);
 });
 
 test("an attention event that is not done stays silent", async () => {

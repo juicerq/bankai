@@ -371,6 +371,43 @@ test("the expand shortcut opens Review expanded over the Shell from a closed bay
 	expect(get("review-panel-frame").dataset.expanded).toBe("false");
 });
 
+test("Page keeps its expanded mode when the page shortcut hides and reopens it", async () => {
+	window.bankaiSessionPage = {
+		present: async () => {},
+		release: async () => {},
+		goBack: async () => {},
+		goForward: async () => {},
+		reload: async () => {},
+		openExternal: async () => {},
+		clearData: async () => {},
+		snapshot: async () => null,
+		preview: async () => null,
+		onState: () => () => {},
+		onShortcut: () => () => {},
+	};
+	const registry = SessionPageRegistry.create();
+	registry.open("s1", "https://example.com/kept-expanded");
+	const environment = installReviewEnvironment();
+	render(
+		<WorkspaceHarness shellWorktree="/p1-feature" initialBayMode="page" registry={registry} />,
+		{ wrapper: environment.wrapper },
+	);
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	fireEvent.keyDown(window, { key: "e", code: "KeyE" });
+	expect(get("review-panel-frame").dataset.expanded).toBe("true");
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	fireEvent.keyDown(window, { key: "g", code: "KeyG" });
+	await waitFor(() => expect(get("review-panel-frame").dataset.open).toBe("false"));
+
+	fireEvent.keyDown(window, { key: "x", code: "KeyX", ctrlKey: true });
+	fireEvent.keyDown(window, { key: "g", code: "KeyG" });
+	await waitFor(() => expect(get("review-panel-frame").dataset.open).toBe("true"));
+	expect(get("review-panel-frame").dataset.expanded).toBe("true");
+	expect(get<HTMLInputElement>("session-page-address").value).toBe("https://example.com/kept-expanded");
+});
+
 test("a URL from the active Shell opens Page and Review takes over the shared bay", async () => {
 	window.bankaiSessionPage = {
 		present: async () => {},

@@ -121,16 +121,12 @@ export const ProjectWorkspace = memo(function ProjectWorkspace({
 		}
 
 		startMotion("open");
-		if (pageOpen && reviewExpanded) {
-			control.onReviewExpandedChange(false);
-		}
-
 		if (!pageOpen) {
 			sessionPages.blank(activeShellId);
 		}
 
 		control.onBayModeChange(pageOpen ? "closed" : "page");
-	}, [activeShellId, control.onBayModeChange, control.onReviewExpandedChange, pageOpen, reviewExpanded, sessionPages, startMotion]);
+	}, [activeShellId, control.onBayModeChange, pageOpen, sessionPages, startMotion]);
 	const handleToggleTodos = useCallback(() => {
 		startMotion("open");
 		if (todosOpen && reviewExpanded) {

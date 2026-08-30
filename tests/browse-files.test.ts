@@ -59,12 +59,15 @@ describe("BrowseFiles.list", () => {
 		expect(await BrowseFiles.list(path)).toEqual(["committed.txt", "src/fresh.ts"]);
 	});
 
-	it("reports no file for a directory outside Git", async () => {
+	it("lists files for a project outside Git", async () => {
 		assertDefined(process.env.DATA_DIR);
 		const plain = join(process.env.DATA_DIR, "plain");
 		mkdirSync(plain);
+		mkdirSync(join(plain, "src"));
+		writeFileSync(join(plain, "README.md"), "Plain project\n");
+		writeFileSync(join(plain, "src", "index.ts"), "export {};\n");
 
-		expect(await BrowseFiles.list(plain)).toEqual([]);
+		expect(await BrowseFiles.list(plain)).toEqual(["README.md", "src/index.ts"]);
 	});
 });
 

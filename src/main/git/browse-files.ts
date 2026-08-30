@@ -1,5 +1,5 @@
-import { readFile, stat } from "node:fs/promises";
-import { resolve } from "node:path";
+import { readdir, readFile, stat } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import type { DiffLine, ReviewContent } from "@shared/review";
 import { GitRun } from "@main/git/git-run";
 import { ImageFile } from "@main/git/image-file";
@@ -8,7 +8,7 @@ import { RepoPath } from "@main/git/repo-path";
 async function list(path: string): Promise<string[]> {
 	const inside = await GitRun.isRepo(path);
 	if (!inside) {
-		return [];
+		return await listDirectory(path);
 	}
 
 	const [visible, ignored] = await Promise.all([
@@ -20,6 +20,29 @@ async function list(path: string): Promise<string[]> {
 	const paths = new Set([...visible, ...ignored.filter((entry) => !entry.endsWith("/"))]);
 
 	return [...paths].sort((left, right) => left.localeCompare(right));
+}
+
+async function listDirectory(root: string): Promise<string[]> {
+	const paths: string[] = [];
+	await appendDirectory(root, "", paths);
+
+	return paths.sort((left, right) => left.localeCompare(right));
+}
+
+async function appendDirectory(root: string, directory: string, paths: string[]): Promise<void> {
+	const entries = await readdir(join(root, directory), { withFileTypes: true });
+
+	for (const entry of entries) {
+		const path = join(directory, entry.name);
+		if (entry.isDirectory()) {
+			await appendDirectory(root, path, paths);
+			continue;
+		}
+
+		if (entry.isFile() || entry.isSymbolicLink()) {
+			paths.push(path);
+		}
+	}
 }
 
 async function read({ path, file }: { path: string; file: string }): Promise<ReviewContent> {

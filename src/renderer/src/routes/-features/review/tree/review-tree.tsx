@@ -34,7 +34,7 @@ const TREE_VIEW_SEGMENTS: {
 	icon: typeof PencilSquareIcon;
 }[] = [
 	{ view: "changes", label: "Diff", title: "Show changed files", icon: PencilSquareIcon },
-	{ view: "browse", label: "Files", title: "Browse repository files", icon: DocumentDuplicateIcon },
+	{ view: "browse", label: "Files", title: "Browse project files", icon: DocumentDuplicateIcon },
 ];
 
 function activePathMessage(filtering: boolean, highlightedPath?: string) {

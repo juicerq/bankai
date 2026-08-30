@@ -161,7 +161,7 @@ The Tree reading that holds only the current Scope's changed files, and the one 
 _Avoid_: Diff view, changes tab, diff tree
 
 **Files view**:
-The Tree reading that holds every file of the current Worktree, changed or not, so reading one costs no trip to an outside editor. Its set comes from git rather than from the disk: tracked files, untracked files git does not ignore, and ignored files sitting loose among them, while a directory that is ignored whole stays out — a directory git does not track at all lists nothing. Its Tree filter can therefore reveal unchanged paths that the Changes view cannot. It only ever reads. The code calls this reading `browse`, so there is no `files` to grep for.
+The Tree reading that holds every file of the current Project or Worktree, changed or not, so reading one costs no trip to an outside editor. Inside a repository, its set follows git: tracked files, untracked files git does not ignore, and ignored files sitting loose among them, while a directory that is ignored whole stays out. Outside a repository, its set comes from the Project directory. Its Tree filter can therefore reveal unchanged paths that the Changes view cannot. It only ever reads. The code calls this reading `browse`, so there is no `files` to grep for.
 _Avoid_: Browse view, browser, explorer, project tree, disk listing
 
 **Quick Open**:

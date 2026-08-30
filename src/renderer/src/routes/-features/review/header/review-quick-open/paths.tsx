@@ -1,19 +1,16 @@
-import { DocumentIcon, FolderIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { DocumentIcon, ExclamationTriangleIcon, FolderIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { PickerHint } from "@renderer/routes/-features/shared/pickers/picker-hint";
 import type {
-	QuickOpenContentAction,
+	QuickOpenMatch,
 	QuickOpenPath,
 } from "@renderer/routes/-features/review/header/review-quick-open/model";
 import { useReviewQuickOpen } from "@renderer/routes/-features/review/header/review-quick-open/review-quick-open-context";
 
 export function ReviewQuickOpenPaths() {
-	const { filter, searching, matchCount, choices, picker, onFilterChange, onChoose } = useReviewQuickOpen().paths;
-	const contentAction = choices.find((choice): choice is QuickOpenContentAction => choice.kind === "content");
+	const { filter, searching, matchCount, choices, picker, onFilterChange, onChoose, status, groups } = useReviewQuickOpen().paths;
 	const paths = choices.filter((choice): choice is QuickOpenPath => choice.kind === "path");
 	let chooseLabel = "Open";
-	if (picker.highlighted?.kind === "content") {
-		chooseLabel = "Search contents";
-	} else if (picker.highlighted?.entry.kind === "directory") {
+	if (picker.highlighted?.kind === "path" && picker.highlighted.entry.kind === "directory") {
 		chooseLabel = "Narrow";
 	}
 
@@ -54,13 +51,6 @@ export function ReviewQuickOpenPaths() {
 				)}
 			</div>
 			<div className="h-72 overflow-y-auto pb-1" role="listbox" aria-label="Quick open results">
-				{contentAction && (
-					<ReviewQuickOpenContentAction
-						choice={contentAction}
-						{...picker.itemProps(contentAction)}
-						onSelect={() => onChoose(contentAction)}
-					/>
-				)}
 				{paths.map((choice, index) => (
 						<ReviewQuickOpenPathItem
 							key={choice.key}
@@ -70,7 +60,26 @@ export function ReviewQuickOpenPaths() {
 							onSelect={() => onChoose(choice)}
 						/>
 					))}
-				{paths.length === 0 && <p className="px-3 py-2 text-data text-secondary">No matching paths.</p>}
+				{filter && <div className="border-outline border-t px-3 pt-2.5 pb-1 text-label text-secondary">CONTENTS</div>}
+				{status === "searching" && <ReviewQuickOpenNotice icon={MagnifyingGlassIcon}>Searching…</ReviewQuickOpenNotice>}
+				{status === "error" && <ReviewQuickOpenNotice icon={ExclamationTriangleIcon}>Search failed</ReviewQuickOpenNotice>}
+				{status === "empty" && <ReviewQuickOpenNotice icon={MagnifyingGlassIcon}>No content matches.</ReviewQuickOpenNotice>}
+				{status === "truncated" && (
+					<div data-slot="truncated" className="border-outline border-b px-3 py-2 text-data text-secondary">
+						Search stopped early. Refine the term to inspect more files.
+					</div>
+				)}
+				{groups.map((group) => (
+					<section key={group.path} data-component="review-quick-open-file" data-path={group.path} data-matches={group.matches.length}>
+						<header className="truncate bg-surface px-3 py-1.5 text-data text-secondary" title={group.path}>{group.path}</header>
+						<div className="divide-y divide-outline/70">
+							{group.matches.map((choice) => (
+								<ReviewQuickOpenMatchItem key={choice.key} choice={choice} {...picker.itemProps(choice)} onSelect={() => onChoose(choice)} />
+							))}
+						</div>
+					</section>
+				))}
+				{!filter && paths.length === 0 && <p className="px-3 py-2 text-data text-secondary">No paths.</p>}
 			</div>
 			<div className="flex items-center gap-3 border-outline border-t px-3 py-2">
 				<PickerHint keys={["↑", "↓"]} label="Navigate" />
@@ -81,14 +90,14 @@ export function ReviewQuickOpenPaths() {
 	);
 }
 
-function ReviewQuickOpenContentAction({
+function ReviewQuickOpenMatchItem({
 	choice,
 	highlighted,
 	ref,
 	onMouseMove,
 	onSelect,
 }: {
-	choice: QuickOpenContentAction;
+	choice: QuickOpenMatch;
 	highlighted: boolean;
 	ref?: (element: HTMLElement | null) => void;
 	onMouseMove: () => void;
@@ -99,22 +108,30 @@ function ReviewQuickOpenContentAction({
 			type="button"
 			role="option"
 			aria-selected={highlighted}
-			data-component="review-quick-open-content-action"
+			data-component="review-quick-open-match"
+			data-path={choice.match.file}
+			data-line={choice.match.line}
 			ref={ref}
-			className={`relative flex w-full items-center gap-2.5 border-outline border-b px-3 py-2 text-left ${
-				highlighted ? "bg-surface-active" : "bg-surface"
+			className={`relative flex w-full gap-2 px-3 py-1.5 text-left ${
+				highlighted ? "bg-surface-active" : "hover:bg-surface-hover"
 			}`}
 			onMouseMove={onMouseMove}
 			onMouseDown={(event) => event.preventDefault()}
 			onClick={onSelect}
 		>
 			{highlighted && <span className="absolute inset-y-0 left-0 w-0.5 bg-tertiary" aria-hidden="true" />}
-			<MagnifyingGlassIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
-			<span className="min-w-0 flex-1 truncate text-body text-primary">
-				Search contents for “{choice.query}”
-			</span>
-			<span className="shrink-0 text-data text-secondary">WORKTREE</span>
+			<span className="w-8 shrink-0 text-right text-data text-outline-strong tabular-nums">{choice.match.line}</span>
+			<span className="min-w-0 flex-1 truncate text-support text-primary" title={choice.match.text}>{choice.match.text}</span>
 		</button>
+	);
+}
+
+function ReviewQuickOpenNotice({ icon: Icon, children }: { icon: typeof MagnifyingGlassIcon; children: string }) {
+	return (
+		<div className="flex items-center gap-2 px-3 py-2 text-data text-secondary">
+			<Icon className="size-4" aria-hidden="true" />
+			{children}
+		</div>
 	);
 }
 

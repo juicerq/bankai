@@ -7,7 +7,6 @@ import {
 	groupMatches,
 	searchStatus,
 	type QuickOpenChoice,
-	type QuickOpenContentAction,
 	type QuickOpenMatch,
 	type QuickOpenPath,
 	type QuickOpenSearchStatus,
@@ -23,8 +22,7 @@ export interface ReviewQuickOpenOptions {
 
 interface ReviewQuickOpenContextValue {
 	dialog: {
-		mode: "paths" | "content";
-		status: "paths" | QuickOpenSearchStatus;
+		status: "idle" | QuickOpenSearchStatus;
 		onClose: () => void;
 	};
 	paths: {
@@ -35,14 +33,8 @@ interface ReviewQuickOpenContextValue {
 		picker: ReturnType<typeof usePickerNavigation<QuickOpenChoice>>;
 		onFilterChange: (value: string) => void;
 		onChoose: (choice: QuickOpenChoice) => void;
-	};
-	content: {
-		query: string;
 		status: QuickOpenSearchStatus;
 		groups: { path: string; matches: QuickOpenMatch[] }[];
-		picker: ReturnType<typeof usePickerNavigation<QuickOpenMatch>>;
-		onBack: () => void;
-		onOpen: (match: QuickOpenMatch) => void;
 	};
 }
 
@@ -55,7 +47,6 @@ export function ReviewQuickOpenProvider({
 	options: ReviewQuickOpenOptions;
 	children: ReactNode;
 }) {
-	const [mode, setMode] = useState<"paths" | "content">("paths");
 	const [filter, setFilter] = useState("");
 	const deferredFilter = useDeferredValue(filter);
 	const searching = filter !== deferredFilter;
@@ -66,21 +57,17 @@ export function ReviewQuickOpenProvider({
 		key: `path:${entry.path}`,
 		entry,
 	}));
-	const trimmedFilter = filter.trim();
-	const contentAction: QuickOpenContentAction | undefined = trimmedFilter
-		? { kind: "content", key: `content:${trimmedFilter}`, query: trimmedFilter }
-		: undefined;
-	const choices: QuickOpenChoice[] = contentAction ? [contentAction, ...visiblePaths] : visiblePaths;
-	const searchQuery = mode === "content" ? trimmedFilter : "";
+	const searchQuery = filter.trim();
 	const { data, isFetching, isError } = useQuery(
 		orpc.review.searchContent.queryOptions({
 			input: { projectId: options.projectId, worktree: options.worktree, query: searchQuery },
-			enabled: mode === "content",
+			enabled: !!searchQuery,
 			staleTime: 0,
 		}),
 	);
 	const resultGroups = useMemo(() => groupMatches(data?.matches ?? []), [data?.matches]);
 	const resultItems = useMemo(() => resultGroups.flatMap((group) => group.matches), [resultGroups]);
+	const choices: QuickOpenChoice[] = [...visiblePaths, ...resultItems];
 	const contentStatus = searchStatus({
 		isFetching,
 		isError,
@@ -88,30 +75,10 @@ export function ReviewQuickOpenProvider({
 		truncated: data?.truncated,
 	});
 
-	const returnToPaths = () => {
-		setMode("paths");
-	};
-
-	const openMatch = ({ match }: QuickOpenMatch) => {
-		options.onClose();
-		options.onOpenFile(match.file, match.line);
-	};
-
-	const resultPicker = usePickerNavigation({
-		items: resultItems,
-		key: (item) => item.key,
-		fallback: (found) => found[0],
-		onChoose: (highlighted) => {
-			if (highlighted) {
-				openMatch(highlighted);
-			}
-		},
-		onClose: returnToPaths,
-	});
-
 	const choose = (choice: QuickOpenChoice) => {
-		if (choice.kind === "content") {
-			setMode("content");
+		if (choice.kind === "match") {
+			options.onClose();
+			options.onOpenFile(choice.match.file, choice.match.line);
 			return;
 		}
 
@@ -128,7 +95,7 @@ export function ReviewQuickOpenProvider({
 	const choicePicker = usePickerNavigation({
 		items: choices,
 		key: (choice) => choice.key,
-		fallback: (found) => found[1] ?? found[0],
+		fallback: (found) => found[0],
 		onChoose: (highlighted) => {
 			if (searching || !highlighted) {
 				return;
@@ -143,8 +110,7 @@ export function ReviewQuickOpenProvider({
 		<ReviewQuickOpenContext
 			value={{
 				dialog: {
-					mode,
-					status: mode === "paths" ? "paths" : contentStatus,
+					status: searchQuery ? contentStatus : "idle",
 					onClose: options.onClose,
 				},
 				paths: {
@@ -155,14 +121,8 @@ export function ReviewQuickOpenProvider({
 					picker: choicePicker,
 					onFilterChange: setFilter,
 					onChoose: choose,
-				},
-				content: {
-					query: searchQuery,
 					status: contentStatus,
 					groups: resultGroups,
-					picker: resultPicker,
-					onBack: returnToPaths,
-					onOpen: openMatch,
 				},
 			}}
 		>

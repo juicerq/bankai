@@ -1,4 +1,3 @@
-import { ReviewQuickOpenContent } from "@renderer/routes/-features/review/header/review-quick-open/content";
 import {
 	ReviewQuickOpenProvider,
 	type ReviewQuickOpenOptions,
@@ -15,7 +14,7 @@ export function ReviewQuickOpen(options: ReviewQuickOpenOptions) {
 }
 
 function ReviewQuickOpenDialog() {
-	const { dialog, paths, content } = useReviewQuickOpen();
+	const { dialog, paths } = useReviewQuickOpen();
 
 	return (
 		<div
@@ -24,19 +23,13 @@ function ReviewQuickOpenDialog() {
 		>
 			<div
 				data-component="review-quick-open"
-				data-mode={dialog.mode}
+				data-mode="combined"
 				data-status={dialog.status}
-				data-highlighted={dialog.mode === "paths" ? paths.picker.highlightedKey : content.picker.highlightedKey}
+				data-highlighted={paths.picker.highlightedKey}
 				className="picker-enter flex h-fit w-[640px] max-w-[90vw] flex-col border border-outline-strong bg-surface-raised shadow-2xl"
 				onPointerDown={(event) => event.stopPropagation()}
-				onKeyDown={(event) => {
-					if (dialog.mode === "content" && event.key === "Escape") {
-						event.preventDefault();
-						content.onBack();
-					}
-				}}
 			>
-				{dialog.mode === "paths" ? <ReviewQuickOpenPaths /> : <ReviewQuickOpenContent />}
+				<ReviewQuickOpenPaths />
 			</div>
 		</div>
 	);

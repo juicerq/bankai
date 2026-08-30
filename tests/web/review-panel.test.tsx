@@ -289,8 +289,6 @@ test("quick open searches the current worktree and opens a result at its exact l
 	const input = slot<HTMLInputElement>(quickOpen, "filter-input");
 	fireEvent.input(input, { target: { value: "needle" } });
 	expect(input.value).toBe("needle");
-	fireEvent.keyDown(input, { key: "Enter" });
-	expect(quickOpen.dataset.mode).toBe("content");
 	await waitFor(() => expect(panel.transport.callsFor("searchContent")).toHaveLength(1));
 
 	await answer(panel, "searchContent", {
@@ -307,7 +305,7 @@ test("quick open searches the current worktree and opens a result at its exact l
 	await waitFor(() => expect(get("review-quick-open-file", { path: "src/result.txt" }).dataset.matches).toBe("2"));
 	expect(get("review-tree").dataset.treeView).toBe("changes");
 
-	await act(async () => fireEvent.keyDown(slot(quickOpen, "content-results"), { key: "Enter" }));
+	await act(async () => fireEvent.keyDown(input, { key: "Enter" }));
 	await waitFor(() => expect(panel.transport.callsFor("browseFile")).toHaveLength(1));
 	await answer(panel, "browseFile", {
 		status: "ready",
@@ -329,23 +327,20 @@ test("quick open searches the current worktree and opens a result at its exact l
 	expect(get("review-tree").dataset.treeView).toBe("changes");
 });
 
-test("quick open repeats empty, error, and truncated searches through the original action", async () => {
+test("quick open reports empty, error, and truncated automatic searches", async () => {
 	const panel = renderPanel({ quickOpen: true });
 	await openTree(panel, CHANGED_PATHS);
 
 	const quickOpen = get("review-quick-open");
 	const input = slot<HTMLInputElement>(quickOpen, "filter-input");
 	fireEvent.input(input, { target: { value: "needle" } });
-	fireEvent.click(get("review-quick-open-content-action"));
-	expect(quickOpen.dataset.mode).toBe("content");
 
 	await waitFor(() => expect(quickOpen.dataset.status).toBe("searching"));
 	await answer(panel, "searchContent", { matches: [], truncated: false });
 	await waitFor(() => expect(quickOpen.dataset.status).toBe("empty"));
 	expect(querySlot(quickOpen, "retry")).toBeNull();
 
-	fireEvent.keyDown(quickOpen, { key: "Escape" });
-	fireEvent.click(get("review-quick-open-content-action"));
+	fireEvent.input(input, { target: { value: "broken" } });
 	await waitFor(() => expect(quickOpen.dataset.status).toBe("searching"));
 	await act(async () => {
 		panel.transport.reject("searchContent", new Error("search unavailable"));
@@ -353,8 +348,7 @@ test("quick open repeats empty, error, and truncated searches through the origin
 	await waitFor(() => expect(quickOpen.dataset.status).toBe("error"));
 	expect(querySlot(quickOpen, "retry")).toBeNull();
 
-	fireEvent.keyDown(quickOpen, { key: "Escape" });
-	fireEvent.click(get("review-quick-open-content-action"));
+	fireEvent.input(input, { target: { value: "broad" } });
 	await waitFor(() => expect(quickOpen.dataset.status).toBe("searching"));
 	await answer(panel, "searchContent", {
 		matches: [],
@@ -364,42 +358,4 @@ test("quick open repeats empty, error, and truncated searches through the origin
 	await waitFor(() => expect(quickOpen.dataset.status).toBe("truncated"));
 	expect(slot(quickOpen, "truncated")).toBeTruthy();
 	expect(panel.transport.callsFor("searchContent")).toHaveLength(3);
-});
-
-test("quick open keeps existing content results visible while refreshing them", async () => {
-	const panel = renderPanel({ quickOpen: true });
-	await openTree(panel, CHANGED_PATHS);
-
-	const quickOpen = get("review-quick-open");
-	const input = slot<HTMLInputElement>(quickOpen, "filter-input");
-	fireEvent.input(input, { target: { value: "needle" } });
-	fireEvent.click(get("review-quick-open-content-action"));
-	await answer(panel, "searchContent", {
-		matches: [{ file: "src/result.ts", line: 20, text: "first needle" }],
-		truncated: false,
-	});
-	await waitFor(() => expect(get("review-quick-open-file", { path: "src/result.ts" }).dataset.matches).toBe("1"));
-
-	fireEvent.keyDown(quickOpen, { key: "Escape" });
-	fireEvent.click(get("review-quick-open-content-action"));
-	await waitFor(() => expect(panel.transport.callsFor("searchContent")).toHaveLength(2));
-
-	expect(get("review-quick-open-file", { path: "src/result.ts" }).dataset.matches).toBe("1");
-});
-
-test("escape returns from content results to path search before closing quick open", async () => {
-	const panel = renderPanel({ quickOpen: true });
-	await openTree(panel, CHANGED_PATHS);
-
-	const quickOpen = get("review-quick-open");
-	const input = slot<HTMLInputElement>(quickOpen, "filter-input");
-	fireEvent.input(input, { target: { value: "needle" } });
-	fireEvent.click(get("review-quick-open-content-action"));
-	expect(quickOpen.dataset.mode).toBe("content");
-	await answer(panel, "searchContent", { matches: [], truncated: false });
-	await waitFor(() => expect(quickOpen.dataset.status).toBe("empty"));
-
-	fireEvent.keyDown(quickOpen, { key: "Escape" });
-	expect(quickOpen.dataset.mode).toBe("paths");
-	expect(slot<HTMLInputElement>(quickOpen, "filter-input").value).toBe("needle");
 });

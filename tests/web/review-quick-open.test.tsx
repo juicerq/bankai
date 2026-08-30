@@ -105,18 +105,6 @@ test("the arrows walk the list and enter opens the highlighted file in the reade
 	expect(closed).toBe(1);
 });
 
-test("arrow up reaches content search without replacing the default file choice", () => {
-	renderQuickOpen();
-
-	type("README");
-
-	expect(get("review-quick-open").dataset.highlighted).toBe("path:README.md");
-
-	press("ArrowUp");
-
-	expect(get("review-quick-open").dataset.highlighted).toBe("content:README");
-});
-
 test("escape closes without opening anything", () => {
 	const opened: string[] = [];
 	let closed = 0;

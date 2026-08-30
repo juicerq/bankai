@@ -12,18 +12,13 @@ export interface QuickOpenPath {
 	entry: PathEntry;
 }
 
-export interface QuickOpenContentAction {
-	kind: "content";
-	key: string;
-	query: string;
-}
-
-export type QuickOpenChoice = QuickOpenPath | QuickOpenContentAction;
-
 export interface QuickOpenMatch {
+	kind: "match";
 	key: string;
 	match: SearchMatch;
 }
+
+export type QuickOpenChoice = QuickOpenPath | QuickOpenMatch;
 
 export type QuickOpenSearchStatus = "searching" | "error" | "empty" | "truncated" | "results";
 
@@ -57,7 +52,7 @@ export function searchStatus({
 export function groupMatches(matches: SearchMatch[]) {
 	const groups = new Map<string, QuickOpenMatch[]>();
 	for (const [index, match] of matches.entries()) {
-		const item = { key: `${match.file}:${match.line}:${index}`, match };
+		const item: QuickOpenMatch = { kind: "match", key: `match:${match.file}:${match.line}:${index}`, match };
 		const group = groups.get(match.file);
 		if (group) {
 			group.push(item);

@@ -165,7 +165,7 @@ The Tree reading that holds every file of the current Project or Worktree, chang
 _Avoid_: Browse view, browser, explorer, project tree, disk listing
 
 **Quick Open**:
-The temporary picker opened with Ctrl+X, P. It first matches files and folders in the current Worktree. For any typed term it also offers one explicit action to search inside files; that action changes the same picker into occurrences grouped by file. Choosing a file or occurrence closes the picker and focuses the file, at the matching line when there is one. It never changes the Tree reading or its expansion. Searching file contents belongs exclusively here, never in the Tree filter.
+The temporary picker opened with Ctrl+X, P. Every typed term matches files and folders and searches inside files in the current Worktree at the same time. Occurrences appear grouped by file beside the matching paths. Choosing a file or occurrence closes the picker and focuses the file, at the matching line when there is one. It never changes the Tree reading or its expansion. Searching file contents belongs exclusively here, never in the Tree filter.
 _Avoid_: Search view, path picker, search mode, grep panel
 
 **Prewarm**:

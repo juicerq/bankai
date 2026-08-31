@@ -1,43 +1,48 @@
-import { useCallback, useRef, useState } from "react";
-import type { LayoutSettings } from "@shared/settings";
+import { useCallback, useState } from "react";
 
 export type WorkspaceBayMode = "closed" | "review" | "page" | "todos";
 
+interface ReviewPanelSessionState {
+	mode: WorkspaceBayMode;
+	expanded: boolean;
+	restoreMode: WorkspaceBayMode | null;
+}
+
 export function useReviewPanelState({
+	shellId,
 	initialOpen,
 	initialExpanded,
-	persist,
 	onClose,
 }: {
+	shellId?: string;
 	initialOpen: boolean;
 	initialExpanded: boolean;
-	persist: (patch: LayoutSettings) => void;
 	onClose: () => void;
 }) {
-	const [mode, setMode] = useState<WorkspaceBayMode>(initialOpen ? "review" : "closed");
-	const [expanded, setExpanded] = useState(initialExpanded);
-	const restoreMode = useRef<WorkspaceBayMode | null>(null);
+	const initialState = (): ReviewPanelSessionState => ({
+		mode: initialOpen ? "review" : "closed",
+		expanded: initialExpanded,
+		restoreMode: null,
+	});
+	const [states, setStates] = useState(() => new Map<string | undefined, ReviewPanelSessionState>());
+	const state = states.get(shellId) ?? initialState();
+	const update = useCallback((nextState: ReviewPanelSessionState) => {
+		setStates((current) => new Map(current).set(shellId, nextState));
+	}, [shellId]);
 	const changeMode = useCallback((nextMode: WorkspaceBayMode) => {
-		restoreMode.current = null;
-		setMode(nextMode);
-		persist({ reviewOpen: nextMode === "review" });
+		update({ ...state, mode: nextMode, restoreMode: null });
 
 		if (nextMode === "closed") {
 			onClose();
 		}
-	}, [onClose, persist]);
+	}, [onClose, state, update]);
 	const changeExpanded = useCallback((nextExpanded: boolean) => {
-		restoreMode.current = null;
-		setExpanded(nextExpanded);
-		persist({ reviewExpanded: nextExpanded });
-	}, [persist]);
+		update({ ...state, expanded: nextExpanded, restoreMode: null });
+	}, [state, update]);
 	const toggleFocus = useCallback(() => {
-		if (expanded) {
-			const nextMode = restoreMode.current ?? mode;
-			restoreMode.current = null;
-			setMode(nextMode);
-			setExpanded(false);
-			persist({ reviewOpen: nextMode === "review", reviewExpanded: false });
+		if (state.expanded) {
+			const nextMode = state.restoreMode ?? state.mode;
+			update({ mode: nextMode, expanded: false, restoreMode: null });
 
 			if (nextMode === "closed") {
 				onClose();
@@ -46,16 +51,13 @@ export function useReviewPanelState({
 			return;
 		}
 
-		const nextMode = mode === "closed" ? "review" : mode;
-		restoreMode.current = mode;
-		setMode(nextMode);
-		setExpanded(true);
-		persist({ reviewOpen: nextMode === "review", reviewExpanded: true });
-	}, [expanded, mode, onClose, persist]);
+		const nextMode = state.mode === "closed" ? "review" : state.mode;
+		update({ mode: nextMode, expanded: true, restoreMode: state.mode });
+	}, [onClose, state, update]);
 
 	return {
-		mode,
-		expanded,
+		mode: state.mode,
+		expanded: state.expanded,
 		changeMode,
 		changeExpanded,
 		toggleFocus,

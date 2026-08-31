@@ -179,7 +179,6 @@ function WorkspaceHarness({
 	const reviewPanel = useReviewPanelState({
 		initialOpen: initialBayMode === "review",
 		initialExpanded: false,
-		persist: () => {},
 		onClose: () => {},
 	});
 	const [seeded, setSeeded] = useState(initialBayMode === "closed" || initialBayMode === "review");

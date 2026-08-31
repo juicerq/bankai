@@ -4,11 +4,9 @@ import { useReviewPanelState } from "@renderer/routes/-features/review/panel/use
 import { act, renderHook } from "./testing-library";
 
 test("focus restores a closed review panel to closed", () => {
-	const patches: object[] = [];
 	const { result } = renderHook(() => useReviewPanelState({
 		initialOpen: false,
 		initialExpanded: false,
-		persist: (patch) => patches.push(patch),
 		onClose: () => {},
 	}));
 
@@ -19,17 +17,33 @@ test("focus restores a closed review panel to closed", () => {
 	act(() => result.current.toggleFocus());
 	expect(result.current.mode).toBe("closed");
 	expect(result.current.expanded).toBe(false);
-	expect(patches).toEqual([
-		{ reviewOpen: true, reviewExpanded: true },
-		{ reviewOpen: false, reviewExpanded: false },
-	]);
+});
+
+test("each Shell restores its own review panel state", () => {
+	const { result, rerender } = renderHook(
+		({ shellId }: { shellId: string }) => useReviewPanelState({
+			shellId,
+			initialOpen: false,
+			initialExpanded: false,
+			onClose: () => {},
+		}),
+		{ initialProps: { shellId: "shell-x" } },
+	);
+
+	act(() => result.current.changeMode("review"));
+	expect(result.current.mode).toBe("review");
+
+	rerender({ shellId: "shell-y" });
+	expect(result.current.mode).toBe("closed");
+
+	rerender({ shellId: "shell-x" });
+	expect(result.current.mode).toBe("review");
 });
 
 test("focus restores an open review panel to its docked state", () => {
 	const { result } = renderHook(() => useReviewPanelState({
 		initialOpen: true,
 		initialExpanded: false,
-		persist: () => {},
 		onClose: () => {},
 	}));
 
@@ -45,7 +59,6 @@ test("closing the review panel reports the close once", () => {
 	const { result } = renderHook(() => useReviewPanelState({
 		initialOpen: true,
 		initialExpanded: false,
-		persist: () => {},
 		onClose: () => {
 			closes += 1;
 		},
@@ -63,7 +76,6 @@ test("focus that leaves the review panel closed reports the close", () => {
 	const { result } = renderHook(() => useReviewPanelState({
 		initialOpen: false,
 		initialExpanded: false,
-		persist: () => {},
 		onClose: () => {
 			closes += 1;
 		},
@@ -81,7 +93,6 @@ test("docking an expanded review panel that stays open reports no close", () => 
 	const { result } = renderHook(() => useReviewPanelState({
 		initialOpen: true,
 		initialExpanded: true,
-		persist: () => {},
 		onClose: () => {
 			closes += 1;
 		},
@@ -94,11 +105,9 @@ test("docking an expanded review panel that stays open reports no close", () => 
 });
 
 test("the bay has one mode and Page transitions never create a parallel Review state", () => {
-	const patches: object[] = [];
 	const { result } = renderHook(() => useReviewPanelState({
 		initialOpen: true,
 		initialExpanded: false,
-		persist: (patch) => patches.push(patch),
 		onClose: () => {},
 	}));
 
@@ -110,17 +119,14 @@ test("the bay has one mode and Page transitions never create a parallel Review s
 
 	act(() => result.current.changeMode("review"));
 	expect(result.current.mode).toBe("review");
-	expect(patches).toEqual([{ reviewOpen: false }, { reviewOpen: false }, { reviewOpen: true }]);
 	expect("open" in result.current).toBe(false);
 	expect("changeOpen" in result.current).toBe(false);
 });
 
-test("focus on the todo list keeps that mode and never persists the bay as open", () => {
-	const patches: object[] = [];
+test("focus on the todo list keeps that mode", () => {
 	const { result } = renderHook(() => useReviewPanelState({
 		initialOpen: false,
 		initialExpanded: false,
-		persist: (patch) => patches.push(patch),
 		onClose: () => {},
 	}));
 
@@ -129,5 +135,4 @@ test("focus on the todo list keeps that mode and never persists the bay as open"
 
 	expect(result.current.mode).toBe("todos");
 	expect(result.current.expanded).toBe(true);
-	expect(patches).toEqual([{ reviewOpen: false }, { reviewOpen: false, reviewExpanded: true }]);
 });

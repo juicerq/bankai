@@ -79,12 +79,6 @@ function Bankai() {
 		},
 		[topBand.handleFullscreenChange, layout.persist],
 	);
-	const reviewPanel = useReviewPanelState({
-		initialOpen: layout.initial.reviewOpen,
-		initialExpanded: layout.initial.reviewExpanded,
-		persist: layout.persist,
-		onClose: requestShellFocus,
-	});
 	const [sessionPages] = useState(SessionPageRegistry.create);
 	const [treeOpen, setTreeOpen] = useState(layout.initial.treeOpen);
 	const handleTreeOpenChange = useCallback(
@@ -139,6 +133,12 @@ function Bankai() {
 	const sessions = useSessions();
 	const workspaces = sessions.continuity.workspaces;
 	const selectedShellId = sessions.continuity.selectedShellId;
+	const reviewPanel = useReviewPanelState({
+		shellId: selectedShellId,
+		initialOpen: layout.initial.reviewOpen,
+		initialExpanded: layout.initial.reviewExpanded,
+		onClose: requestShellFocus,
+	});
 	const selectedProjectId = useMemo(
 		() => workspaces.find((workspace) => workspace.shells.some((shell) => shell.id === selectedShellId))?.projectId,
 		[workspaces, selectedShellId],

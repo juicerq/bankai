@@ -45,7 +45,7 @@ The draggable hairline between two adjacent regions that trades width between th
 _Avoid_: Resize handle, separator, splitter, gutter
 
 **Layout preferences**:
-The user's chosen region widths, Focus mode state, and panel visibility (Review panel and Tree open or closed), remembered across app launches. Global to the app, not per project.
+The user's chosen region widths, Focus mode state, and Tree visibility, remembered across app launches. Global to the app, not per project. Review panel visibility belongs to each Shell while it is mounted.
 _Avoid_: Panel sizes, UI state
 
 **Shell**:

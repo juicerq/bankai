@@ -20,6 +20,10 @@ import type { WindowBounds } from "@shared/settings";
 import { DEFAULT_THEME, resolveTheme, THEME_ARGUMENTS, THEME_BACKGROUND } from "@shared/theme";
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, screen } from "electron";
 
+if (app.isPackaged) {
+	delete process.env.ELECTRON_RENDERER_URL;
+}
+
 const here = import.meta.dirname;
 
 let mainWindow: BrowserWindow | undefined;

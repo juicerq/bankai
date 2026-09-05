@@ -1,4 +1,8 @@
-const INHERITED_AGENT_SESSION_VARS = [
+const INHERITED_PROCESS_VARS = [
+	"ELECTRON_RENDERER_URL",
+	"ELECTRON_RUN_AS_NODE",
+	"NODE_ENV",
+	"NO_COLOR",
 	"CLAUDECODE",
 	"CLAUDE_CODE_CHILD_SESSION",
 	"CLAUDE_CODE_ENTRYPOINT",
@@ -10,7 +14,7 @@ const INHERITED_AGENT_SESSION_VARS = [
 function terminalEnv(source: Record<string, string | undefined>): Record<string, string> {
 	const env: Record<string, string> = {};
 	for (const [key, value] of Object.entries(source)) {
-		if (value !== undefined && !INHERITED_AGENT_SESSION_VARS.includes(key)) {
+		if (value !== undefined && !INHERITED_PROCESS_VARS.includes(key)) {
 			env[key] = value;
 		}
 	}

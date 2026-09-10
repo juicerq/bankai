@@ -23,6 +23,30 @@ const SERVICE_ACTION: Record<ServiceStatus, string> = {
 	failed: "Start",
 };
 
+function projectScopeState({
+	project,
+	pendingProjectIds,
+	failedProjectIds,
+}: {
+	project: Project | undefined;
+	pendingProjectIds: readonly string[];
+	failedProjectIds: readonly string[];
+}) {
+	if (!project) {
+		return { loading: pendingProjectIds.length > 0, error: failedProjectIds.length > 0 };
+	}
+
+	return { loading: pendingProjectIds.includes(project.id), error: failedProjectIds.includes(project.id) };
+}
+
+function noVisibleCommands(loading: boolean, error: boolean, items: readonly ProjectCommand[]) {
+	return !loading && !error && items.length === 0;
+}
+
+function highlightedCommand(items: readonly ProjectCommand[], highlightedId: string | undefined) {
+	return items.find((command) => command.id === highlightedId) ?? items[0];
+}
+
 export function CommandsModal({
 	projects,
 	onRun,
@@ -42,14 +66,14 @@ export function CommandsModal({
 	const tasks = matching.filter((command) => command.kind === "task");
 	const serviceItems = matching.filter((command) => command.kind === "service");
 	const items = [...tasks, ...serviceItems];
-	const highlighted = items.find((command) => command.id === highlightedId) ?? items[0];
+	const highlighted = highlightedCommand(items, highlightedId);
 	const scopes = [ALL_PROJECTS, ...projects.map((project) => project.id)];
-	const scopeLoading = selectedProject
-		? commands.pendingProjectIds.includes(selectedProject.id)
-		: commands.pendingProjectIds.length > 0;
-	const scopeLoadError = selectedProject
-		? commands.failedProjectIds.includes(selectedProject.id)
-		: commands.failedProjectIds.length > 0;
+	const { loading: scopeLoading, error: scopeLoadError } = projectScopeState({
+		project: selectedProject,
+		pendingProjectIds: commands.pendingProjectIds,
+		failedProjectIds: commands.failedProjectIds,
+	});
+	const emptyScope = noVisibleCommands(scopeLoading, scopeLoadError, items);
 
 	const modal = useRef<HTMLDivElement>(null);
 	const focusModal = useCallback((node: HTMLDivElement | null) => {
@@ -223,7 +247,7 @@ export function CommandsModal({
 											))}
 										</div>
 									))}
-									{!scopeLoading && !scopeLoadError && items.length === 0 && (
+									{emptyScope && (
 										<p data-slot="empty" className="px-3 py-2 text-data text-secondary">
 											No commands in this scope yet.
 										</p>

@@ -36,31 +36,60 @@ function row(shellId: string, patch: Partial<SessionRow> = {}): SessionRow {
 	};
 }
 
+interface SidebarHandlers {
+	onSelect?: (projectId: string, shellId: string) => void;
+	onCreate?: (projectId: string) => void;
+	onClose?: (projectId: string, shellId: string) => void;
+	onArchive?: (projectId: string, shellId: string) => void;
+	onUnarchive?: (projectId: string, shellId: string) => void;
+	onPin?: (projectId: string, shellId: string) => void;
+	onUnpin?: (projectId: string, shellId: string) => void;
+	onRename?: (projectId: string, shellId: string, title: string) => void;
+	onRequestShell?: (plain: boolean) => void;
+	onAddProject?: () => void;
+	onToggleProject?: (projectId: string) => void;
+	onExcludeProject?: (projectId: string) => void;
+	canCreateShell?: boolean;
+	projects?: Project[];
+	projectMarks?: ProjectMarks;
+}
+
+function resolveProjectProps(handlers: SidebarHandlers) {
+	return {
+		projects: handlers.projects ?? PROJECTS,
+		projectMarks: handlers.projectMarks ?? new Map(),
+		canCreateShell: handlers.canCreateShell ?? true,
+	};
+}
+
+function resolveHandlers(handlers: SidebarHandlers) {
+	return {
+		onSelect: handlers.onSelect ?? (() => {}),
+		onCreate: handlers.onCreate ?? (() => {}),
+		onRequestShell: handlers.onRequestShell ?? (() => {}),
+		onAddProject: handlers.onAddProject ?? (() => {}),
+		onToggleProject: handlers.onToggleProject ?? (() => {}),
+		onExcludeProject: handlers.onExcludeProject ?? (() => {}),
+		onClose: handlers.onClose ?? (() => {}),
+		onArchive: handlers.onArchive ?? (() => {}),
+		onUnarchive: handlers.onUnarchive ?? (() => {}),
+		onPin: handlers.onPin ?? (() => {}),
+		onUnpin: handlers.onUnpin ?? (() => {}),
+		onRename: handlers.onRename ?? (() => {}),
+	};
+}
+
 function renderSidebar(
 	sections: { open?: SessionRow[]; archived?: SessionRow[] },
-	handlers: {
-		onSelect?: (projectId: string, shellId: string) => void;
-		onCreate?: (projectId: string) => void;
-		onClose?: (projectId: string, shellId: string) => void;
-		onArchive?: (projectId: string, shellId: string) => void;
-		onUnarchive?: (projectId: string, shellId: string) => void;
-		onPin?: (projectId: string, shellId: string) => void;
-		onUnpin?: (projectId: string, shellId: string) => void;
-		onRename?: (projectId: string, shellId: string, title: string) => void;
-		onRequestShell?: (plain: boolean) => void;
-		onAddProject?: () => void;
-		onToggleProject?: (projectId: string) => void;
-		onExcludeProject?: (projectId: string) => void;
-		canCreateShell?: boolean;
-		projects?: Project[];
-		projectMarks?: ProjectMarks;
-	} = {},
+	handlers: SidebarHandlers = {},
 ) {
 	function Harness() {
 		const [archivedOpen, setArchivedOpen] = useState(true);
 		const [term, setTerm] = useState("");
 		const open = searchSessions(sections.open ?? [], term);
 		const archived = searchSessions(sections.archived ?? [], term);
+		const projectProps = resolveProjectProps(handlers);
+		const callbacks = resolveHandlers(handlers);
 
 		return (
 			<SessionSidebar
@@ -76,22 +105,22 @@ function renderSidebar(
 					searching: term.trim().length > 0,
 					onSearch: setTerm,
 				}}
-				projects={handlers.projects ?? PROJECTS}
-				projectMarks={handlers.projectMarks ?? new Map()}
+				projects={projectProps.projects}
+				projectMarks={projectProps.projectMarks}
 				selectedShellId={undefined}
-				canCreateShell={handlers.canCreateShell ?? true}
-				onSelect={handlers.onSelect ?? (() => {})}
-				onCreate={handlers.onCreate ?? (() => {})}
-				onRequestShell={handlers.onRequestShell ?? (() => {})}
-				onAddProject={handlers.onAddProject ?? (() => {})}
-				onToggleProject={handlers.onToggleProject ?? (() => {})}
-				onExcludeProject={handlers.onExcludeProject ?? (() => {})}
-				onClose={handlers.onClose ?? (() => {})}
-				onArchive={handlers.onArchive ?? (() => {})}
-				onUnarchive={handlers.onUnarchive ?? (() => {})}
-				onPin={handlers.onPin ?? (() => {})}
-				onUnpin={handlers.onUnpin ?? (() => {})}
-				onRename={handlers.onRename ?? (() => {})}
+				canCreateShell={projectProps.canCreateShell}
+				onSelect={callbacks.onSelect}
+				onCreate={callbacks.onCreate}
+				onRequestShell={callbacks.onRequestShell}
+				onAddProject={callbacks.onAddProject}
+				onToggleProject={callbacks.onToggleProject}
+				onExcludeProject={callbacks.onExcludeProject}
+				onClose={callbacks.onClose}
+				onArchive={callbacks.onArchive}
+				onUnarchive={callbacks.onUnarchive}
+				onPin={callbacks.onPin}
+				onUnpin={callbacks.onUnpin}
+				onRename={callbacks.onRename}
 				footer={null}
 			/>
 		);

@@ -87,15 +87,55 @@ export function useReviewReading({
 		snapshotPending: !watchError && snapshotQuery.isPending,
 	});
 
-	const reading: ReviewReadingGeneration | undefined = currentSnapshot
-		? {
-			layoutGeneration: layout.generation,
-			snapshot: currentSnapshot,
-			...(!snapshotQuery.isPlaceholderData && content.ready ? { contentByPath: content.byPath } : {}),
-		}
-		: undefined;
+	const reading = buildReviewGeneration({
+		layoutGeneration: layout.generation,
+		snapshot: currentSnapshot,
+		placeholder: snapshotQuery.isPlaceholderData,
+		contentReady: content.ready,
+		contentByPath: content.byPath,
+	});
 	const published = useRetainedReading(scope, reading);
 
+	return buildReviewReading({ focused, reading, published, queryError, watchError });
+}
+
+function buildReviewGeneration({
+	layoutGeneration,
+	snapshot,
+	placeholder,
+	contentReady,
+	contentByPath,
+}: {
+	layoutGeneration: number;
+	snapshot: ReviewSnapshot | undefined;
+	placeholder: boolean;
+	contentReady: boolean;
+	contentByPath: ReadonlyMap<string, ReviewContent>;
+}): ReviewReadingGeneration | undefined {
+	if (!snapshot) {
+		return;
+	}
+
+	return {
+		layoutGeneration,
+		snapshot,
+		...(!placeholder && contentReady ? { contentByPath } : {}),
+	};
+}
+
+function buildReviewReading({
+	focused,
+	reading,
+	published,
+	queryError,
+	watchError,
+}: {
+	focused: Pick<ReviewReading, "fullFile" | "fullFileError">;
+	reading: ReviewReadingGeneration | undefined;
+	published: ReviewReadingGeneration | undefined;
+	queryError: string | undefined;
+	watchError: string | undefined;
+}): ReviewReading {
 	if (watchError) {
 		return { ...focused, error: watchError, refreshing: false };
 	}

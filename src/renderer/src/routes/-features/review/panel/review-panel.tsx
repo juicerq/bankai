@@ -3,6 +3,7 @@ import { useSelector } from "@tanstack/react-store";
 import { useCallback, useRef } from "react";
 import type { ContinuityShell } from "@shared/continuity";
 import type { Project } from "@shared/projects";
+import type { FileChange, ReviewSnapshot } from "@shared/review";
 import { ReviewDefaultClosure, type ReviewClosedTarget } from "@shared/review-default-closure";
 import { orpc } from "@renderer/lib/api";
 import { ReviewBrowseEmpty } from "@renderer/routes/-features/review/reading/review-browse-empty";
@@ -13,7 +14,7 @@ import { ReviewQuickOpen } from "@renderer/routes/-features/review/header/review
 import { ReviewTree } from "@renderer/routes/-features/review/tree/review-tree";
 import type { ReviewWorktreeSelection } from "@renderer/routes/-features/review/header/review-worktree-menu";
 import { MIN_DIFF_WIDTH, REVIEW_DIFF_WIDTH_VALUE } from "@renderer/routes/-features/review/panel/review-layout";
-import type { ReviewPanelStore } from "@renderer/routes/-features/review/panel/review-panel-store";
+import type { ReviewPanelStore, ReviewTreeView } from "@renderer/routes/-features/review/panel/review-panel-store";
 import { resolveReviewWorktree } from "@renderer/routes/-features/review/header/review-worktree";
 import { sharedWorktreeShells } from "@renderer/routes/-features/review/header/shared-worktree";
 import type { useDivider } from "@renderer/routes/-features/shared/interaction/use-divider";
@@ -69,6 +70,37 @@ function useWorktreeSelection({
 	return { worktree, worktreeSelection };
 }
 
+function reviewClosedFiles(
+	files: FileChange[],
+	targets: readonly ReviewClosedTarget[],
+	overrides: ReadonlyMap<string, boolean>,
+) {
+	const closedFiles = ReviewDefaultClosure.closedFiles(
+		files.map((file) => file.path),
+		targets,
+		overrides,
+	);
+	const filesClosed = files.length > 0 && files.every((file) => closedFiles.has(file.path));
+
+	return { closedFiles, filesClosed };
+}
+
+function reviewTotals(files: FileChange[], snapshot: ReviewSnapshot | undefined) {
+	if (files.length === 0) {
+		return;
+	}
+
+	return snapshot?.totals;
+}
+
+function reviewBrowseEnabled(quickOpen: boolean, treeOpen: boolean, treeView: ReviewTreeView) {
+	return quickOpen || (treeOpen && treeView === "browse");
+}
+
+function reviewDiffCovered(browsing: boolean, focusedPath: string | undefined) {
+	return browsing || !!focusedPath;
+}
+
 export function ReviewPanel({
 	panel,
 	project,
@@ -116,7 +148,7 @@ export function ReviewPanel({
 	const { data: browsePaths } = useQuery(
 		orpc.review.browseFiles.queryOptions({
 			input: { projectId: project.id, worktree },
-			enabled: quickOpen.open || (treeOpen && treeView === "browse"),
+			enabled: reviewBrowseEnabled(quickOpen.open, treeOpen, treeView),
 		}),
 	);
 
@@ -146,13 +178,8 @@ export function ReviewPanel({
 	const browsing = treeView === "browse";
 	const currentSnapshot = generation?.snapshot;
 	const files = currentSnapshot?.files ?? [];
-	const closedFiles = ReviewDefaultClosure.closedFiles(
-		files.map((file) => file.path),
-		project.reviewClosedTargets,
-		fileClosedOverrides,
-	);
-	const focusedFile = focusedPath ? files.find((file) => file.path === focusedPath) : undefined;
-	const filesClosed = files.length > 0 && files.every((file) => closedFiles.has(file.path));
+	const { closedFiles, filesClosed } = reviewClosedFiles(files, project.reviewClosedTargets, fileClosedOverrides);
+	const focusedFile = files.find((file) => file.path === focusedPath);
 	const queryClient = useQueryClient();
 	const { mutateAsync: setReviewClosedTarget } = useMutation(
 		orpc.projects.setReviewClosedTarget.mutationOptions({
@@ -227,7 +254,7 @@ export function ReviewPanel({
 					mode={mode}
 					sharedWith={sharedWith}
 					worktrees={worktreeSelection}
-					totals={files.length > 0 ? currentSnapshot?.totals : undefined}
+					totals={reviewTotals(files, currentSnapshot)}
 					refreshing={refreshing}
 					treeOpen={treeOpen}
 					expanded={expanded}
@@ -245,7 +272,7 @@ export function ReviewPanel({
 						mode={mode}
 						generation={generation}
 						error={error}
-						covered={browsing || !!focusedPath}
+						covered={reviewDiffCovered(browsing, focusedPath)}
 						closedFiles={closedFiles}
 						onToggleOpen={(path) => panel.actions.setFileClosed(path, !closedFiles.has(path))}
 						onFocusFile={panel.actions.focusFile}

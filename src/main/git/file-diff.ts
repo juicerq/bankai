@@ -194,88 +194,134 @@ function compactContent(file: ParsedFile): ReviewContent {
 	return file.content;
 }
 
+interface DiffCursor {
+	current?: ParsedFile;
+	nextOldLine: number;
+	nextNewLine: number;
+	hunk: number;
+}
+
+function startDiffFile(files: ParsedFile[], cursor: DiffCursor): void {
+	const file: ParsedFile = {
+		path: "",
+		status: "modified",
+		additions: 0,
+		deletions: 0,
+		content: { status: "ready", lines: [] },
+	};
+	files.push(file);
+	cursor.current = file;
+	cursor.nextOldLine = 0;
+	cursor.nextNewLine = 0;
+	cursor.hunk = 0;
+}
+
+function applyDiffHeader(current: ParsedFile, cursor: DiffCursor, line: string): boolean {
+	if (line.startsWith("new file")) {
+		current.status = "added";
+
+		return true;
+	}
+	if (line.startsWith("deleted file")) {
+		current.status = "deleted";
+
+		return true;
+	}
+	if (line.startsWith("rename to ")) {
+		current.status = "renamed";
+		current.path = line.slice("rename to ".length);
+
+		return true;
+	}
+	if (line.startsWith("Binary files ")) {
+		current.content = { status: "binary" };
+
+		return true;
+	}
+	if (line.startsWith("+++ ")) {
+		const target = line.slice(4);
+		if (target !== "/dev/null") {
+			current.path = target.replace(/^b\//, "");
+		}
+
+		return true;
+	}
+	if (line.startsWith("--- ")) {
+		return true;
+	}
+
+	const hunkStart = HUNK_START.exec(line);
+	if (hunkStart?.[1] && hunkStart[2]) {
+		cursor.nextOldLine = Number(hunkStart[1]);
+		cursor.nextNewLine = Number(hunkStart[2]);
+		cursor.hunk += 1;
+
+		return true;
+	}
+
+	return false;
+}
+
+function applyDiffLine(current: ParsedFile, cursor: DiffCursor, line: string): void {
+	if (current.content.status !== "ready") {
+		return;
+	}
+
+	if (line.startsWith("+")) {
+		current.content.lines.push({ kind: "add", number: cursor.nextNewLine, hunk: cursor.hunk, content: line.slice(1) });
+		current.additions += 1;
+		cursor.nextNewLine += 1;
+
+		return;
+	}
+
+	if (line.startsWith("-")) {
+		current.content.lines.push({
+			kind: "remove",
+			oldNumber: cursor.nextOldLine,
+			hunk: cursor.hunk,
+			content: line.slice(1),
+		});
+		current.deletions += 1;
+		cursor.nextOldLine += 1;
+
+		return;
+	}
+
+	if (line.startsWith(" ")) {
+		current.content.lines.push({
+			kind: "context",
+			number: cursor.nextNewLine,
+			oldNumber: cursor.nextOldLine,
+			hunk: cursor.hunk,
+			content: line.slice(1),
+		});
+		cursor.nextOldLine += 1;
+		cursor.nextNewLine += 1;
+	}
+}
+
 function parseDiff(raw: string): ParsedFile[] {
 	const files: ParsedFile[] = [];
-	let current: ParsedFile | undefined;
-	let nextOldLine = 0;
-	let nextNewLine = 0;
-	let hunk = 0;
+	const cursor: DiffCursor = { nextOldLine: 0, nextNewLine: 0, hunk: 0 };
 
 	for (const line of raw.split("\n")) {
 		if (line.startsWith("diff --git ")) {
-			current = {
-				path: "",
-				status: "modified",
-				additions: 0,
-				deletions: 0,
-				content: { status: "ready", lines: [] },
-			};
-			files.push(current);
-			nextOldLine = 0;
-			nextNewLine = 0;
-			hunk = 0;
+			startDiffFile(files, cursor);
+
 			continue;
 		}
+
+		const current = cursor.current;
 		if (!current) {
 			continue;
 		}
-		if (line.startsWith("new file")) {
-			current.status = "added";
+
+		if (applyDiffHeader(current, cursor, line)) {
 			continue;
 		}
-		if (line.startsWith("deleted file")) {
-			current.status = "deleted";
-			continue;
-		}
-		if (line.startsWith("rename to ")) {
-			current.status = "renamed";
-			current.path = line.slice("rename to ".length);
-			continue;
-		}
-		if (line.startsWith("Binary files ")) {
-			current.content = { status: "binary" };
-			continue;
-		}
-		if (line.startsWith("+++ ")) {
-			const target = line.slice(4);
-			if (target !== "/dev/null") {
-				current.path = target.replace(/^b\//, "");
-			}
-			continue;
-		}
-		if (line.startsWith("--- ")) {
-			continue;
-		}
-		const hunkStart = HUNK_START.exec(line);
-		if (hunkStart?.[1] && hunkStart[2]) {
-			nextOldLine = Number(hunkStart[1]);
-			nextNewLine = Number(hunkStart[2]);
-			hunk += 1;
-			continue;
-		}
-		if (line.startsWith("+") && current.content.status === "ready") {
-			current.content.lines.push({ kind: "add", number: nextNewLine, hunk, content: line.slice(1) });
-			current.additions += 1;
-			nextNewLine += 1;
-			continue;
-		}
-		if (line.startsWith("-") && current.content.status === "ready") {
-			current.content.lines.push({ kind: "remove", oldNumber: nextOldLine, hunk, content: line.slice(1) });
-			current.deletions += 1;
-			nextOldLine += 1;
-			continue;
-		}
-		if (line.startsWith(" ") && current.content.status === "ready") {
-			current.content.lines.push({
-				kind: "context",
-				number: nextNewLine,
-				oldNumber: nextOldLine,
-				hunk,
-				content: line.slice(1),
-			});
-			nextOldLine += 1;
-			nextNewLine += 1;
-		}
+
+		applyDiffLine(current, cursor, line);
 	}
 
 	return files;

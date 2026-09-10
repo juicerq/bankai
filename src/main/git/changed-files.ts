@@ -253,8 +253,7 @@ function trackedStatus(statusCode: string | undefined, renamed: boolean): FileCh
 	return "modified";
 }
 
-function parseTrackedMetadata(raw: string): FileChange[] {
-	const tokens = raw.split("\0");
+function trackedHeaderFiles(tokens: string[]): { files: FileChange[]; index: number } {
 	const files: FileChange[] = [];
 	let index = 0;
 
@@ -274,7 +273,13 @@ function parseTrackedMetadata(raw: string): FileChange[] {
 		index += renamed ? 3 : 2;
 	}
 
+	return { files, index };
+}
+
+function applyTrackedStats(files: FileChange[], tokens: string[], start: number): void {
 	const byPath = new Map(files.map((file) => [file.path, file]));
+	let index = start;
+
 	while (index < tokens.length) {
 		const record = tokens[index] ?? "";
 		const [additions, deletions, path] = record.split("\t");
@@ -287,6 +292,12 @@ function parseTrackedMetadata(raw: string): FileChange[] {
 		}
 		index += renamed ? 3 : 1;
 	}
+}
+
+function parseTrackedMetadata(raw: string): FileChange[] {
+	const tokens = raw.split("\0");
+	const { files, index } = trackedHeaderFiles(tokens);
+	applyTrackedStats(files, tokens, index);
 
 	return files;
 }

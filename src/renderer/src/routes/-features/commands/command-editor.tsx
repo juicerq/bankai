@@ -145,6 +145,36 @@ export function CommandEditor({
 	);
 }
 
+function commandSeed({
+	command,
+	projectId,
+}: {
+	command: ProjectCommand | undefined;
+	projectId: string | undefined;
+}) {
+	return {
+		ownerId: command?.projectId ?? projectId ?? "",
+		label: command?.label ?? "",
+		line: command?.command ?? "",
+		kind: command?.kind ?? "task",
+		autostart: command?.autostart === true,
+	};
+}
+
+function isCommandComplete(owner: Project | undefined, label: string, line: string) {
+	return !!owner && !!label.trim() && !!line.trim();
+}
+
+function commandDraft(label: string, line: string, kind: ProjectCommand["kind"], autostart: boolean): ProjectCommandDraft {
+	const draft: ProjectCommandDraft = { label: label.trim(), command: line.trim(), kind };
+
+	if (kind !== "service") {
+		return draft;
+	}
+
+	return { ...draft, autostart };
+}
+
 function useCommandDraft({
 	command,
 	projects,
@@ -156,12 +186,13 @@ function useCommandDraft({
 	projectId: string | undefined;
 	onSave: (projectId: string, draft: ProjectCommandDraft) => void;
 }) {
-	const [ownerId, setOwnerId] = useState(command?.projectId ?? projectId ?? "");
+	const seed = commandSeed({ command, projectId });
+	const [ownerId, setOwnerId] = useState(seed.ownerId);
 	const [scopedId, setScopedId] = useState(projectId);
-	const [label, setLabel] = useState(command?.label ?? "");
-	const [line, setLine] = useState(command?.command ?? "");
-	const [kind, setKind] = useState<ProjectCommand["kind"]>(command?.kind ?? "task");
-	const [autostart, setAutostart] = useState(command?.autostart === true);
+	const [label, setLabel] = useState(seed.label);
+	const [line, setLine] = useState(seed.line);
+	const [kind, setKind] = useState<ProjectCommand["kind"]>(seed.kind);
+	const [autostart, setAutostart] = useState(seed.autostart);
 
 	if (!command && projectId !== scopedId) {
 		setScopedId(projectId);
@@ -169,20 +200,14 @@ function useCommandDraft({
 	}
 
 	const owner = projects.find((project) => project.id === ownerId);
-	const complete = !!owner && !!label.trim() && !!line.trim();
+	const complete = isCommandComplete(owner, label, line);
 
 	const save = () => {
-		if (!complete) {
+		if (!complete || !owner) {
 			return;
 		}
 
-		if (kind === "service") {
-			onSave(owner.id, { label: label.trim(), command: line.trim(), kind, autostart });
-
-			return;
-		}
-
-		onSave(owner.id, { label: label.trim(), command: line.trim(), kind });
+		onSave(owner.id, commandDraft(label, line, kind, autostart));
 	};
 
 	return { ownerId, setOwnerId, label, setLabel, line, setLine, kind, setKind, autostart, setAutostart, owner, complete, save };

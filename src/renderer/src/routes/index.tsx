@@ -3,6 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { ProjectCommand } from "@shared/project-commands";
 import type { ContinuityShell } from "@shared/continuity";
+import type { ServiceStatus } from "@shared/services";
 import { orpc } from "@renderer/lib/api";
 import { isBrowserClient } from "@renderer/lib/platform";
 import { queryClient } from "@renderer/lib/query-client";
@@ -64,6 +65,51 @@ export const Route = createFileRoute("/")({
 			queryClient.ensureQueryData(orpc.continuity.get.queryOptions()).catch(() => null),
 		]),
 });
+
+function ServiceLogFrame({
+	opened,
+	fullscreen,
+	animating,
+	resizing,
+	status,
+	output,
+	outputPending,
+	onClose,
+}: {
+	opened: ProjectCommand | undefined;
+	fullscreen: boolean;
+	animating: boolean;
+	resizing: boolean;
+	status: ServiceStatus;
+	output: string | undefined;
+	outputPending: boolean;
+	onClose: () => void;
+}) {
+	if (!opened) {
+		return null;
+	}
+
+	return (
+		<div
+			data-component="service-log-frame"
+			style={{ transitionDuration: `${LAYOUT_MOTION_DURATION_MS}ms` }}
+			className={`col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col bg-surface-sunken ease-out motion-reduce:transition-none ${
+				fullscreen ? "pt-0" : "pt-header"
+			} ${animating ? "transition-[padding]" : "transition-none"}`}
+		>
+			<ServiceLogPane
+				projectId={opened.projectId}
+				commandId={opened.id}
+				label={opened.label}
+				status={status}
+				output={output}
+				outputPending={outputPending}
+				resizeDeferred={animating || resizing}
+				onClose={onClose}
+			/>
+		</div>
+	);
+}
 
 function Bankai() {
 	const reactQueryClient = useQueryClient();
@@ -521,26 +567,16 @@ function Bankai() {
 						);
 					})}
 				</WorkspaceProvider>
-				{serviceLog.opened && (
-					<div
-						data-component="service-log-frame"
-						style={{ transitionDuration: `${LAYOUT_MOTION_DURATION_MS}ms` }}
-						className={`col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col bg-surface-sunken ease-out motion-reduce:transition-none ${
-							projectRail.fullscreen ? "pt-0" : "pt-header"
-						} ${projectRail.animating ? "transition-[padding]" : "transition-none"}`}
-					>
-						<ServiceLogPane
-							projectId={serviceLog.opened.projectId}
-							commandId={serviceLog.opened.id}
-							label={serviceLog.opened.label}
-							status={serviceLogStatus}
-							output={serviceLogOutput.output}
-							outputPending={serviceLogOutput.pending}
-							resizeDeferred={projectRail.animating || railDivider.resizing}
-							onClose={serviceLog.close}
-						/>
-					</div>
-				)}
+				<ServiceLogFrame
+					opened={serviceLog.opened}
+					fullscreen={projectRail.fullscreen}
+					animating={projectRail.animating}
+					resizing={railDivider.resizing}
+					status={serviceLogStatus}
+					output={serviceLogOutput.output}
+					outputPending={serviceLogOutput.pending}
+					onClose={serviceLog.close}
+				/>
 			</section>
 			{settingsOpen && (
 				<SettingsScreen

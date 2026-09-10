@@ -136,31 +136,39 @@ class CodexRolloutTail {
 		}
 
 		try {
-			const { size } = await handle.stat();
-			const cursor = held && held.offset <= size ? held : undefined;
-			const from = cursor?.offset ?? Math.max(0, size - SEED_MAX_BYTES);
-			if (cursor && from === size) {
-				return cursor.state;
-			}
-
-			const { buffer, bytesRead } = await handle.read({
-				buffer: Buffer.alloc(size - from),
-				position: from,
-			});
-			const lines = ((cursor?.carry ?? "") + buffer.toString("utf8", 0, bytesRead)).split("\n");
-			const carry = lines.pop() ?? "";
-			const records = cursor || from === 0 ? lines : lines.slice(1);
-			const next = {
-				offset: from + bytesRead,
-				carry,
-				state: turnAfter(cursor?.state ?? IDLE_ROLLOUT, records),
-			};
-			this.cursors.set(path, next);
-
-			return next.state;
+			return await this.readState(path, handle, held);
 		} finally {
 			await handle.close();
 		}
+	}
+
+	private async readState(
+		path: string,
+		handle: Awaited<ReturnType<typeof open>>,
+		held: TailCursor | undefined,
+	): Promise<CodexRolloutState> {
+		const { size } = await handle.stat();
+		const cursor = held && held.offset <= size ? held : undefined;
+		const from = cursor?.offset ?? Math.max(0, size - SEED_MAX_BYTES);
+		if (cursor && from === size) {
+			return cursor.state;
+		}
+
+		const { buffer, bytesRead } = await handle.read({
+			buffer: Buffer.alloc(size - from),
+			position: from,
+		});
+		const lines = ((cursor?.carry ?? "") + buffer.toString("utf8", 0, bytesRead)).split("\n");
+		const carry = lines.pop() ?? "";
+		const records = cursor || from === 0 ? lines : lines.slice(1);
+		const next = {
+			offset: from + bytesRead,
+			carry,
+			state: turnAfter(cursor?.state ?? IDLE_ROLLOUT, records),
+		};
+		this.cursors.set(path, next);
+
+		return next.state;
 	}
 
 	forget(live: ReadonlySet<string>): void {

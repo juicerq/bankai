@@ -291,15 +291,7 @@ class AgentActivityTracker {
 		}
 
 		const presences = await Harnesses.discoverAgents();
-		const liveByPid = new Map<number, AgentPresence>();
-		await Promise.all(
-			presences.map(async (presence) => {
-				const start = await ProcFs.procStart(presence.pid);
-				if (start !== null && start === presence.procStart) {
-					liveByPid.set(presence.pid, presence);
-				}
-			}),
-		);
+		const liveByPid = await this.livePresences(presences);
 		const bindings = await SessionBinder.bind({
 			shells,
 			agents: liveByPid.keys(),
@@ -316,29 +308,7 @@ class AgentActivityTracker {
 		const statusSince = new Map<string, number>();
 		const harnesses = new Map<string, string>();
 		for (const shell of shells) {
-			const boundPid = bindings.get(shell.sessionId);
-			const presence =
-				boundPid === undefined ? undefined : liveByPid.get(boundPid);
-			const status = presence?.status;
-
-			const previous = this.shellStates.get(shell.sessionId);
-			const next = ShellActivity.next(previous, status);
-			if (next !== undefined) {
-				nextStates.set(shell.sessionId, next);
-			}
-			if (presence) {
-				harnesses.set(shell.shellId, presence.harness);
-			}
-
-			const since = ShellActivity.clockSince({
-				previous,
-				next,
-				held: this.statusSince.get(shell.shellId),
-				reported: presence?.statusSince,
-			});
-			if (since) {
-				statusSince.set(shell.shellId, since);
-			}
+			this.observeShell({ shell, bindings, liveByPid, nextStates, statusSince, harnesses });
 		}
 
 		if (pass === "full") {
@@ -357,6 +327,50 @@ class AgentActivityTracker {
 			harnesses,
 			changes,
 		});
+	}
+
+	private observeShell(input: {
+		shell: { sessionId: string; shellId: string };
+		bindings: Map<string, number>;
+		liveByPid: Map<number, AgentPresence>;
+		nextStates: Map<string, AgentActivityState>;
+		statusSince: Map<string, number>;
+		harnesses: Map<string, string>;
+	}): void {
+		const boundPid = input.bindings.get(input.shell.sessionId);
+		const presence = boundPid === undefined ? undefined : input.liveByPid.get(boundPid);
+		const previous = this.shellStates.get(input.shell.sessionId);
+		const next = ShellActivity.next(previous, presence?.status);
+		if (next !== undefined) {
+			input.nextStates.set(input.shell.sessionId, next);
+		}
+		if (presence) {
+			input.harnesses.set(input.shell.shellId, presence.harness);
+		}
+
+		const since = ShellActivity.clockSince({
+			previous,
+			next,
+			held: this.statusSince.get(input.shell.shellId),
+			reported: presence?.statusSince,
+		});
+		if (since) {
+			input.statusSince.set(input.shell.shellId, since);
+		}
+	}
+
+	private async livePresences(presences: AgentPresence[]): Promise<Map<number, AgentPresence>> {
+		const live = new Map<number, AgentPresence>();
+		await Promise.all(
+			presences.map(async (presence) => {
+				const start = await ProcFs.procStart(presence.pid);
+				if (start !== null && start === presence.procStart) {
+					live.set(presence.pid, presence);
+				}
+			}),
+		);
+
+		return live;
 	}
 
 	private async refreshSessionNames(

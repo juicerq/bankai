@@ -18,6 +18,7 @@ import { SessionPageAddressText } from "@renderer/routes/-features/session-page/
 import { SessionPageFavorites } from "@renderer/routes/-features/session-page/session-page-favorites";
 import type { SessionPageRegistryValue } from "@renderer/routes/-features/session-page/session-page-registry";
 import { useFavorites } from "@renderer/routes/-features/session-page/use-favorites";
+import type { SessionPageState } from "@shared/session-page";
 import { SessionPageUrl } from "@shared/session-page-url";
 
 const THAW_DELAY = 150;
@@ -31,6 +32,18 @@ function favoriteTitle(url: string, title: string | undefined) {
 	}
 
 	return (SessionPageAddressText.describe(url)?.host ?? url).slice(0, TITLE_LIMIT);
+}
+
+function sessionPageView({ url, state }: { url: string | undefined; state: SessionPageState | undefined }) {
+	return {
+		blank: !url,
+		loading: !!state?.loading,
+		canGoBack: !!state?.canGoBack,
+		canGoForward: !!state?.canGoForward,
+		favoriteUrl: state?.url ?? url,
+		title: state?.title,
+		failure: state?.failure,
+	};
 }
 
 function useNativePresentation({
@@ -202,9 +215,11 @@ export function SessionPagePanel({
 		return null;
 	}
 
-	const blank = !entry.url;
 	const address = registry.displayUrl(shellId);
-	const loading = !!state?.loading;
+	const { blank, loading, canGoBack, canGoForward, favoriteUrl, title, failure } = sessionPageView({
+		url: entry.url,
+		state,
+	});
 
 	return (
 		<section
@@ -238,10 +253,10 @@ export function SessionPagePanel({
 					autoFocus={blank}
 					onNavigate={(url) => registry.open(shellId, url)}
 				/>
-				<SessionPageAction label="Go back" disabled={!state?.canGoBack} onClick={() => window.bankaiSessionPage?.goBack()}>
+				<SessionPageAction label="Go back" disabled={!canGoBack} onClick={() => window.bankaiSessionPage?.goBack()}>
 					<ArrowLeftIcon className="size-4" />
 				</SessionPageAction>
-				<SessionPageAction label="Go forward" disabled={!state?.canGoForward} onClick={() => window.bankaiSessionPage?.goForward()}>
+				<SessionPageAction label="Go forward" disabled={!canGoForward} onClick={() => window.bankaiSessionPage?.goForward()}>
 					<ArrowRightIcon className="size-4" />
 				</SessionPageAction>
 				<SessionPageAction
@@ -253,8 +268,8 @@ export function SessionPagePanel({
 				</SessionPageAction>
 				<FavoriteAction
 					store={favorites}
-					url={state?.url ?? entry.url}
-					title={state?.title}
+					url={favoriteUrl}
+					title={title}
 					disabled={blank}
 				/>
 				<SessionPageAction label="Open page externally" disabled={blank} onClick={() => window.bankaiSessionPage?.openExternal()}>
@@ -277,13 +292,13 @@ export function SessionPagePanel({
 						)
 						: <div data-slot="native" ref={registerNativeSlot} className="absolute inset-0" />}
 					{frozen && <img data-slot="frozen" src={frozen} alt="" className="absolute inset-0 size-full" />}
-					{state?.failure && (
+					{failure && (
 						<div
 							data-component="session-page-failure"
 							className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-surface-sunken px-6 text-center"
 						>
 							<span className="text-title text-primary">Page unavailable</span>
-							<span className="max-w-lg text-support text-secondary">{state.failure}</span>
+							<span className="max-w-lg text-support text-secondary">{failure}</span>
 							<div className="flex gap-2">
 								<button
 									type="button"

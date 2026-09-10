@@ -57,19 +57,6 @@ export function MobileConversation({
 }) {
 	const scroll = useStickToBottom();
 	const row = session?.row;
-	const waiting = row?.activity === "working" && conversation.blocks.at(-1)?.kind === "user";
-
-	const handleScroll = () => {
-		scroll.handleScroll();
-
-		const element = scroll.ref.current;
-		if (!element || conversation.atStart || conversation.loadingOlder || element.scrollTop > element.clientHeight) {
-			return;
-		}
-
-		scroll.keepPosition();
-		void conversation.loadOlder();
-	};
 
 	if (desktopOnly) {
 		return (
@@ -89,32 +76,78 @@ export function MobileConversation({
 			className="flex h-full flex-col bg-surface"
 		>
 			<MobileConversationHeader row={row} title={conversation.title ?? agent ?? row?.title} onBack={onBack} />
-			<div
-				ref={scroll.ref}
-				data-slot="scroll"
-				onScroll={handleScroll}
-				className="min-h-0 flex-1 overflow-y-auto"
-			>
-				<div ref={scroll.contentRef} data-slot="reading" className="flex flex-col gap-3 py-3">
-					{conversation.loadingOlder && (
-						<p data-slot="loading-older" className="px-4 text-center text-label text-tertiary">
-							<span className="pending-pulse">LOADING OLDER HISTORY</span>
-						</p>
-					)}
-					{conversation.atStart && conversation.blocks.length > 0 && (
-						<p data-slot="start" className="px-4 text-center text-label text-outline-strong">
-							BEGINNING OF THIS CONVERSATION
-						</p>
-					)}
-					<MobileConversationBlocks blocks={conversation.blocks} onOpenAgent={onOpenAgent} />
-					{waiting && <MobileWaiting since={row.since} />}
-					{conversation.blocks.length === 0 && !conversation.loading && (
-						<p data-slot="empty" className="px-4 py-8 text-center text-secondary text-support">
-							{emptyNotice(agent, row)}
-						</p>
-					)}
-				</div>
+			<MobileConversationReading
+				scroll={scroll}
+				conversation={conversation}
+				agent={agent}
+				row={row}
+				onOpenAgent={onOpenAgent}
+			/>
+			<MobileConversationControls session={session} />
+		</div>
+	);
+}
+
+function MobileConversationReading({
+	scroll,
+	conversation,
+	agent,
+	row,
+	onOpenAgent,
+}: {
+	scroll: ReturnType<typeof useStickToBottom>;
+	conversation: ConversationView;
+	agent?: string;
+	row: SessionRow | undefined;
+	onOpenAgent?: (toolUseId: string) => void;
+}) {
+	const waiting = row?.activity === "working" && conversation.blocks.at(-1)?.kind === "user";
+
+	const handleScroll = () => {
+		scroll.handleScroll();
+
+		const element = scroll.ref.current;
+		if (!element || conversation.atStart || conversation.loadingOlder || element.scrollTop > element.clientHeight) {
+			return;
+		}
+
+		scroll.keepPosition();
+		void conversation.loadOlder();
+	};
+
+	return (
+		<div
+			ref={scroll.ref}
+			data-slot="scroll"
+			onScroll={handleScroll}
+			className="min-h-0 flex-1 overflow-y-auto"
+		>
+			<div ref={scroll.contentRef} data-slot="reading" className="flex flex-col gap-3 py-3">
+				{conversation.loadingOlder && (
+					<p data-slot="loading-older" className="px-4 text-center text-label text-tertiary">
+						<span className="pending-pulse">LOADING OLDER HISTORY</span>
+					</p>
+				)}
+				{conversation.atStart && conversation.blocks.length > 0 && (
+					<p data-slot="start" className="px-4 text-center text-label text-outline-strong">
+						BEGINNING OF THIS CONVERSATION
+					</p>
+				)}
+				<MobileConversationBlocks blocks={conversation.blocks} onOpenAgent={onOpenAgent} />
+				{waiting && <MobileWaiting since={row.since} />}
+				{conversation.blocks.length === 0 && !conversation.loading && (
+					<p data-slot="empty" className="px-4 py-8 text-center text-secondary text-support">
+						{emptyNotice(agent, row)}
+					</p>
+				)}
 			</div>
+		</div>
+	);
+}
+
+function MobileConversationControls({ session }: { session: MobileConversationSession | undefined }) {
+	return (
+		<>
 			{session?.row.activity === "needs-attention" && (
 				<MobileAttention
 					signature={`${session.row.activity} ${session.row.since}`}
@@ -130,7 +163,7 @@ export function MobileConversation({
 					/>
 				)
 				: <MobileAgentNotice since={session.row.createdAt} />)}
-		</div>
+		</>
 	);
 }
 

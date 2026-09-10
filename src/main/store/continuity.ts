@@ -115,7 +115,29 @@ const codexPreviewNamedShellsSchema = continuitySchema.pipe((value): ContinuityV
 	})),
 }));
 
-export const CONTINUITY_STORE_VERSION = 11;
+const OPENCODE_DEFAULT_TITLE_PREFIXES = ["New session - ", "Child session - "];
+
+function isOpencodeDefaultTitle(title: string): boolean {
+	return OPENCODE_DEFAULT_TITLE_PREFIXES.some((prefix) => title.startsWith(prefix));
+}
+
+const opencodePlaceholderNamedShellsSchema = continuitySchema.pipe((value): ContinuityValue => ({
+	...value,
+	workspaces: value.workspaces.map((workspace) => ({
+		...workspace,
+		shells: workspace.shells.map((shell) => {
+			if (shell.titleSource !== "harness" || !shell.title || !isOpencodeDefaultTitle(shell.title)) {
+				return shell;
+			}
+
+			const { title: _title, titleSource: _titleSource, titleSessionId: _titleSessionId, ...pending } = shell;
+
+			return pending;
+		}),
+	})),
+}));
+
+export const CONTINUITY_STORE_VERSION = 12;
 
 const store = new Store({
 	name: "continuity",
@@ -132,6 +154,7 @@ const store = new Store({
 		8: (raw) => raw,
 		9: (raw) => modelNamedShellsSchema.assert(raw),
 		10: (raw) => codexPreviewNamedShellsSchema.assert(raw),
+		11: (raw) => opencodePlaceholderNamedShellsSchema.assert(raw),
 	},
 	seed: (): ContinuityValue => ({ workspaces: [] }),
 });

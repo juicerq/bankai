@@ -58,6 +58,8 @@ const messageDataSchema = type({
 	},
 });
 
+const DEFAULT_TITLE = /^(New session|Child session) - \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
 let handle: DatabaseSync | undefined;
 let handlePath: string | undefined;
 
@@ -216,7 +218,7 @@ function updatedParts(sessionId: string, sinceAt: number): PartUpdate[] {
 
 function title(sessionId: string): string | null {
 	const found = scalar("SELECT title FROM session WHERE id = ?", [sessionId]);
-	if (typeof found !== "string" || !found) {
+	if (typeof found !== "string" || !found || DEFAULT_TITLE.test(found)) {
 		return null;
 	}
 

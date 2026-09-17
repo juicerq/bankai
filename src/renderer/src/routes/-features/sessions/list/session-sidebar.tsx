@@ -124,7 +124,7 @@ export function SessionSidebar({
 					</>
 				}
 			/>
-			<div className="min-h-0 flex-1 divide-y divide-outline overflow-auto" aria-label="Sessions">
+			<div className="min-h-0 flex-1 divide-y divide-outline overflow-y-auto overflow-x-hidden [scrollbar-width:none]" aria-label="Sessions">
 				{empty && list.searching && (
 					<p data-slot="no-match" className="px-3 py-6 text-center text-secondary text-support">
 						No session matches “{list.term}”.

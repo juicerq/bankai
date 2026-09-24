@@ -12,6 +12,7 @@ export interface AgentPresence {
 	pid: number;
 	procStart: string;
 	cwd: string;
+	worktree?: string;
 	status: "working" | "waiting" | "idle";
 	statusSince?: number;
 }

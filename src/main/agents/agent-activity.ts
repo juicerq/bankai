@@ -403,8 +403,8 @@ class AgentActivityTracker {
 		const observed = await Promise.all(
 			shells.map(async (shell) => {
 				const boundPid = bindings.get(shell.sessionId);
-				const cwd =
-					boundPid === undefined ? undefined : liveByPid.get(boundPid)?.cwd;
+				const presence = boundPid === undefined ? undefined : liveByPid.get(boundPid);
+				const cwd = presence?.worktree ?? presence?.cwd;
 				if (cwd === undefined) {
 					return { shellId: shell.shellId };
 				}

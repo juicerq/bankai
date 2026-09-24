@@ -5,6 +5,7 @@ import type { AgentPresence, Harness, HarnessCommand } from "@main/agents/harnes
 import { ConversationParser } from "@main/agents/harness/claude/claude-conversation";
 import { ClaudeConfig } from "@main/agents/harness/claude/claude-config";
 import { ClaudeSubagentTranscript } from "@main/agents/harness/claude/claude-subagent-transcript";
+import { ClaudeWorktree } from "@main/agents/harness/claude/claude-worktree";
 import { ClaudeTranscript } from "@main/agents/harness/claude/claude-transcript";
 import { CLAUDE_HARNESS_ID } from "@main/agents/harness/harness";
 import { SessionRefs } from "@main/agents/session/session-refs";
@@ -107,12 +108,19 @@ export const ClaudeHarness: Harness = {
 
 			return [record];
 		});
-		transcriptFiles = await Promise.all(
-			presences.flatMap((presence) => presence.sessionId
-				? [ClaudeTranscript.locate({ sessionId: presence.sessionId, cwd: presence.cwd })]
-				: []),
-		);
+		const discovered = await Promise.all(presences.map(async (presence) => {
+			if (!presence.sessionId) {
+				return { presence };
+			}
 
-		return presences;
+			const path = await ClaudeTranscript.locate({ sessionId: presence.sessionId, cwd: presence.cwd });
+			const worktree = await ClaudeWorktree.read(path, presence.cwd);
+
+			return { path, presence: { ...presence, ...(worktree ? { worktree } : {}) } };
+		}));
+		transcriptFiles = discovered.flatMap(({ path }) => path ? [path] : []);
+		ClaudeWorktree.forget(new Set(transcriptFiles));
+
+		return discovered.map(({ presence }) => presence);
 	},
 };
